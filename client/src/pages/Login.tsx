@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_il
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const handleLogin = (e: React.FormEvent) => {
@@ -20,6 +22,10 @@ export default function Login() {
       title: "Login Successful",
       description: "Welcome back to CourseHub!",
     });
+    // Navigate to dashboard after successful login
+    setTimeout(() => {
+      setLocation("/dashboard");
+    }, 500);
   };
 
   const handleSignUp = (e: React.FormEvent) => {
@@ -29,6 +35,10 @@ export default function Login() {
       title: "Account Created",
       description: "Your account has been successfully created!",
     });
+    // Navigate to dashboard after successful signup
+    setTimeout(() => {
+      setLocation("/dashboard");
+    }, 500);
   };
 
   const handleFileUpload = (file: File) => {
