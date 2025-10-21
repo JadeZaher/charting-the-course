@@ -1,279 +1,281 @@
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ZoomIn, ZoomOut, Maximize2, Users, BookOpen } from "lucide-react";
-import mapBgImage from "@assets/generated_images/Map_view_network_background_3a94a769.png";
-
-// TODO: remove mock functionality
-const mockNodes = [
-  {
-    id: "team-1",
-    type: "team" as const,
-    label: "Core Team",
-    x: 30,
-    y: 30,
-    members: 8,
-    connections: ["course-1", "course-2"],
-  },
-  {
-    id: "team-2",
-    type: "team" as const,
-    label: "Development",
-    x: 70,
-    y: 25,
-    members: 12,
-    connections: ["course-2", "course-3"],
-  },
-  {
-    id: "course-1",
-    type: "course" as const,
-    label: "Foundations",
-    x: 25,
-    y: 60,
-    students: 24,
-    connections: [],
-  },
-  {
-    id: "course-2",
-    type: "course" as const,
-    label: "Leadership",
-    x: 50,
-    y: 55,
-    students: 18,
-    connections: [],
-  },
-  {
-    id: "course-3",
-    type: "course" as const,
-    label: "Communication",
-    x: 75,
-    y: 65,
-    students: 15,
-    connections: [],
-  },
-];
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Link2, Upload, ExternalLink, Info } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MapView() {
-  const [selectedNode, setSelectedNode] = useState<typeof mockNodes[0] | null>(null);
-  const [zoom, setZoom] = useState(100);
+  const [miroUrl, setMiroUrl] = useState("");
+  const [embedUrl, setEmbedUrl] = useState("");
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 10, 150));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 10, 50));
-  const handleReset = () => setZoom(100);
+  const handleLoadMiroBoard = () => {
+    if (!miroUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a Miro board URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate and convert Miro board URL to embed URL
+    try {
+      const url = new URL(miroUrl.trim());
+      
+      // Security: Only allow Miro URLs
+      if (!url.hostname.endsWith("miro.com")) {
+        toast({
+          title: "Error",
+          description: "Only Miro board URLs are allowed",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Security: Only allow HTTPS
+      if (url.protocol !== "https:") {
+        toast({
+          title: "Error",
+          description: "Only HTTPS URLs are allowed",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert board URL to embed URL
+      // Example: https://miro.com/app/board/ABC123 -> https://miro.com/app/live-embed/ABC123
+      let embedUrl = url.href;
+      
+      if (url.pathname.includes("/app/board/")) {
+        const boardId = url.pathname.split("/app/board/")[1]?.split("/")[0];
+        if (boardId) {
+          embedUrl = `https://miro.com/app/live-embed/${boardId}`;
+        }
+      } else if (!url.pathname.includes("/app/live-embed/")) {
+        // If it's not a board or embed URL, reject it
+        toast({
+          title: "Error",
+          description: "Please provide a valid Miro board URL (e.g., https://miro.com/app/board/...)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setEmbedUrl(embedUrl);
+      setUploadedImage(null); // Clear image when loading Miro board
+      
+      toast({
+        title: "Success",
+        description: "Miro board loaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Invalid URL format",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Error",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUploadedImage(reader.result as string);
+      setEmbedUrl(""); // Clear Miro embed when uploading image
+      toast({
+        title: "Success",
+        description: "Mindmap image uploaded successfully",
+      });
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClearAll = () => {
+    setMiroUrl("");
+    setEmbedUrl("");
+    setUploadedImage(null);
+    toast({
+      title: "Cleared",
+      description: "All content has been cleared",
+    });
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Team & Course Map</h1>
-          <p className="text-muted-foreground mt-1">
-            Visual overview of team structure and course relationships
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleZoomOut}
-            disabled={zoom <= 50}
-            data-testid="button-zoom-out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleReset}
-            data-testid="button-reset-zoom"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleZoomIn}
-            disabled={zoom >= 150}
-            data-testid="button-zoom-in"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold">Collaborative Mindmap</h1>
+        <p className="text-muted-foreground mt-1">
+          View global collaborative mindmaps created during webinars
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Map Canvas */}
-        <div className="lg:col-span-3">
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <div
-                className="relative w-full aspect-[16/10] bg-muted overflow-hidden"
-                style={{
-                  backgroundImage: `url(${mapBgImage})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-                data-testid="map-canvas"
+      {/* Instructions */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Embed a Miro board by pasting its URL below, or upload a static mindmap image.
+          Miro boards allow interactive exploration of collaboration concepts from webinars.
+        </AlertDescription>
+      </Alert>
+
+      {/* Controls */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Miro Embed Controls */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Miro Board Embed
+            </CardTitle>
+            <CardDescription>
+              Paste a Miro board URL to embed it below
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="miro-url">Miro Board URL</Label>
+              <Input
+                id="miro-url"
+                type="url"
+                placeholder="https://miro.com/app/board/..."
+                value={miroUrl}
+                onChange={(e) => setMiroUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLoadMiroBoard()}
+                data-testid="input-miro-url"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleLoadMiroBoard} 
+                className="flex-1"
+                data-testid="button-load-miro"
               >
-                {/* Overlay for better contrast */}
-                <div className="absolute inset-0 bg-background/40" />
+                <Link2 className="h-4 w-4 mr-2" />
+                Load Board
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.open("https://miro.com", "_blank")}
+                data-testid="button-open-miro"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-                {/* Map content with zoom */}
-                <div
-                  className="relative w-full h-full transition-transform duration-200"
-                  style={{ transform: `scale(${zoom / 100})` }}
-                >
-                  {/* Draw connections */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                    {mockNodes.map((node) =>
-                      node.connections.map((targetId) => {
-                        const target = mockNodes.find((n) => n.id === targetId);
-                        if (!target) return null;
-                        return (
-                          <line
-                            key={`${node.id}-${targetId}`}
-                            x1={`${node.x}%`}
-                            y1={`${node.y}%`}
-                            x2={`${target.x}%`}
-                            y2={`${target.y}%`}
-                            stroke="hsl(var(--primary))"
-                            strokeWidth="2"
-                            strokeDasharray="4 4"
-                            opacity="0.4"
-                          />
-                        );
-                      })
-                    )}
-                  </svg>
-
-                  {/* Nodes */}
-                  {mockNodes.map((node) => (
-                    <button
-                      key={node.id}
-                      className={`
-                        absolute -translate-x-1/2 -translate-y-1/2 transition-all
-                        ${node.type === "team" ? "w-24 h-24" : "w-28 h-20"}
-                        ${selectedNode?.id === node.id ? "scale-110 z-10" : "hover:scale-105"}
-                      `}
-                      style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                      onClick={() => setSelectedNode(node)}
-                      data-testid={`node-${node.id}`}
-                    >
-                      <div
-                        className={`
-                          w-full h-full flex flex-col items-center justify-center gap-2
-                          bg-card border-2 shadow-lg hover-elevate active-elevate-2
-                          ${node.type === "team" ? "rounded-full" : "rounded-xl"}
-                          ${selectedNode?.id === node.id ? "border-primary" : "border-card-border"}
-                        `}
-                      >
-                        {node.type === "team" ? (
-                          <Users className="h-6 w-6 text-primary" />
-                        ) : (
-                          <BookOpen className="h-5 w-5 text-primary" />
-                        )}
-                        <span className="text-xs font-medium px-2 text-center line-clamp-2">
-                          {node.label}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Zoom indicator */}
-                <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border text-sm font-medium">
-                  {zoom}%
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Info Panel */}
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-semibold mb-4">Legend</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-card border-2 flex items-center justify-center">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <span className="text-sm">Team</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-card border-2 flex items-center justify-center">
-                    <BookOpen className="h-5 w-5 text-primary" />
-                  </div>
-                  <span className="text-sm">Course</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <svg width="40" height="2">
-                    <line
-                      x1="0"
-                      y1="1"
-                      x2="40"
-                      y2="1"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth="2"
-                      strokeDasharray="4 4"
-                      opacity="0.6"
-                    />
-                  </svg>
-                  <span className="text-sm">Connection</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {selectedNode && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    {selectedNode.type === "team" ? (
-                      <Users className="h-6 w-6 text-primary flex-shrink-0" />
-                    ) : (
-                      <BookOpen className="h-6 w-6 text-primary flex-shrink-0" />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-semibold" data-testid="text-selected-node">
-                        {selectedNode.label}
-                      </h3>
-                      <Badge variant="outline" className="mt-2">
-                        {selectedNode.type === "team" ? "Team" : "Course"}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-4 border-t">
-                    {selectedNode.type === "team" ? (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Members</span>
-                        <span className="font-medium">{selectedNode.members}</span>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Students</span>
-                        <span className="font-medium">{selectedNode.students}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Connections</span>
-                      <span className="font-medium">{selectedNode.connections.length}</span>
-                    </div>
-                  </div>
-
-                  <Button className="w-full" size="sm" data-testid="button-view-details">
-                    View Details
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {/* Image Upload Controls */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Static Mindmap Image
+            </CardTitle>
+            <CardDescription>
+              Upload a screenshot or exported mindmap image
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="image-upload">Upload Image</Label>
+              <input
+                ref={fileInputRef}
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                data-testid="input-upload-image"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+                data-testid="button-upload-image"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Choose Image File
+              </Button>
+            </div>
+            {(embedUrl || uploadedImage) && (
+              <Button
+                variant="destructive"
+                onClick={handleClearAll}
+                className="w-full"
+                data-testid="button-clear-all"
+              >
+                Clear All
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Display Area */}
+      <Card>
+        <CardContent className="p-0">
+          {embedUrl ? (
+            <div className="relative w-full" style={{ height: "70vh" }}>
+              <iframe
+                src={embedUrl}
+                className="w-full h-full border-0"
+                allow="fullscreen; clipboard-read; clipboard-write"
+                allowFullScreen
+                loading="lazy"
+                title="Miro Board"
+                data-testid="iframe-miro-board"
+              />
+            </div>
+          ) : uploadedImage ? (
+            <div className="relative w-full bg-muted" style={{ minHeight: "70vh" }}>
+              <img
+                src={uploadedImage}
+                alt="Uploaded mindmap"
+                className="w-full h-full object-contain"
+                data-testid="img-uploaded-mindmap"
+              />
+            </div>
+          ) : (
+            <div 
+              className="flex items-center justify-center bg-muted text-muted-foreground"
+              style={{ height: "70vh" }}
+              data-testid="placeholder-empty"
+            >
+              <div className="text-center space-y-2">
+                <Link2 className="h-12 w-12 mx-auto opacity-20" />
+                <p className="text-lg font-medium">No mindmap loaded</p>
+                <p className="text-sm">
+                  Embed a Miro board or upload an image to get started
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
