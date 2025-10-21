@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { 
   users, teams, teamMembers, courses, quizzes, quizResults, quizProgress,
-  type User, type InsertUser,
+  type User, type InsertUser, type UpsertUser,
   type Team, type InsertTeam,
   type Course, type InsertCourse,
   type Quiz, type InsertQuiz,
@@ -12,10 +12,12 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations
+  // User operations (Replit Auth required)
   getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Additional user operations
   getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByReplitId(replitUserId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   updateUserLastLogin(id: string): Promise<void>;
@@ -68,9 +70,24 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
-  // User operations
+  // User operations (Replit Auth required)
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return user;
   }
 
@@ -79,13 +96,13 @@ export class DbStorage implements IStorage {
     return user;
   }
 
-  async getUserByReplitId(replitUserId: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.replitUserId, replitUserId)).limit(1);
-    return user;
-  }
-
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    // Generate a UUID for the user ID since it's not auto-generated
+    const { randomUUID } = await import('crypto');
+    const [user] = await db.insert(users).values({
+      ...insertUser,
+      id: randomUUID(),
+    }).returning();
     return user;
   }
 
