@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,19 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Save, X, CheckCircle, Clock } from "lucide-react";
+import { Edit, Save, X, CheckCircle, Clock, Download, Upload, BookOpen, Users, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { StatCard } from "@/components/StatCard";
 
-// TODO: remove mock functionality
-const mockUser = {
-  name: "Jane Doe",
-  email: "jane.doe@example.com",
-  role: "Admin" as const,
-  avatar: "",
-  joinedDate: "2023-06-15",
-  bio: "Passionate about collaborative learning and team development.",
-};
-
+// TODO: replace with actual data from API
 const mockCompletedQuizzes = [
   { id: "1", title: "Communication Skills", score: 88, completedAt: "2024-01-15" },
   { id: "2", title: "Conflict Resolution", score: 92, completedAt: "2024-01-10" },
@@ -32,10 +25,20 @@ const mockInProgressQuizzes = [
 ];
 
 export default function Profile() {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(mockUser.name);
-  const [bio, setBio] = useState(mockUser.bio);
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // TODO: Replace with actual data from API
+  const stats = {
+    activeCourses: 5,
+    completedQuizzes: 12,
+    teamMembers: 24,
+    avgScore: 85,
+  };
 
   const handleSave = () => {
     console.log("Saving profile:", { name, bio });
@@ -47,19 +50,155 @@ export default function Profile() {
   };
 
   const handleCancel = () => {
-    setName(mockUser.name);
-    setBio(mockUser.bio);
+    setName(displayName);
+    setBio(displayBio === "No bio added yet." ? "" : displayBio);
     setIsEditing(false);
+  };
+
+  const handleExportJSON = () => {
+    const exportData = {
+      profile: {
+        id: user?.id,
+        email: user?.email,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        username: user?.username,
+        bio: user?.bio,
+        role: user?.role,
+        createdAt: user?.createdAt,
+      },
+      stats,
+      completedQuizzes: mockCompletedQuizzes,
+      inProgressQuizzes: mockInProgressQuizzes,
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `coursehub-profile-${new Date().toISOString().split("T")[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Profile Exported",
+      description: "Your profile data has been exported as JSON.",
+    });
+  };
+
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        console.log("Imported data:", data);
+        
+        // TODO: Validate and process imported data
+        toast({
+          title: "Profile Imported",
+          description: "Your profile data has been imported successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Import Failed",
+          description: "Invalid JSON file. Please check the file and try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const displayName = user 
+    ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ""
+    : "";
+  const displayBio = user?.bio || "No bio added yet.";
+
+  // Convert lowercase UserRole to capitalized Role for RoleBadge
+  const getRoleBadgeRole = (role?: string): "Admin" | "Facilitator" | "Contributor" | "Viewer" => {
+    if (!role) return "Viewer";
+    return (role.charAt(0).toUpperCase() + role.slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Profile</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your account and track your learning progress
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportJSON}
+            className="hidden"
+            data-testid="input-import-json"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            data-testid="button-import-json"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import JSON
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportJSON}
+            data-testid="button-export-json"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export JSON
+          </Button>
+        </div>
+      </div>
+
+      {/* Personal Stats */}
       <div>
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account and track your learning progress
-        </p>
+        <h2 className="text-xl font-semibold mb-4">Your Progress</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Active Courses"
+            value={stats.activeCourses}
+            icon={BookOpen}
+            trend={{ value: 2, isPositive: true }}
+          />
+          <StatCard
+            title="Completed Quizzes"
+            value={stats.completedQuizzes}
+            icon={CheckCircle}
+            trend={{ value: 3, isPositive: true }}
+          />
+          <StatCard
+            title="Team Members"
+            value={stats.teamMembers}
+            icon={Users}
+          />
+          <StatCard
+            title="Avg. Score"
+            value={`${stats.avgScore}%`}
+            icon={TrendingUp}
+            trend={{ value: 5, isPositive: true }}
+          />
+        </div>
       </div>
 
       {/* Profile Card */}
@@ -67,9 +206,9 @@ export default function Profile() {
         <CardContent className="p-8">
           <div className="flex items-start gap-6 flex-wrap">
             <Avatar className="h-24 w-24">
-              <AvatarImage src={mockUser.avatar} />
+              <AvatarImage src={user?.profileImageUrl || ""} />
               <AvatarFallback className="text-2xl">
-                {mockUser.name.split(' ').map(n => n[0]).join('')}
+                {displayName.split(' ').map(n => n[0]).join('') || "?"}
               </AvatarFallback>
             </Avatar>
 
@@ -82,6 +221,7 @@ export default function Profile() {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your name"
                       data-testid="input-profile-name"
                     />
                   </div>
@@ -91,6 +231,7 @@ export default function Profile() {
                       id="bio"
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
+                      placeholder="Tell us about yourself"
                       data-testid="input-profile-bio"
                     />
                   </div>
@@ -108,17 +249,28 @@ export default function Profile() {
               ) : (
                 <>
                   <div>
-                    <h2 className="text-2xl font-bold" data-testid="text-profile-name">{name}</h2>
-                    <p className="text-muted-foreground">{mockUser.email}</p>
+                    <h2 className="text-2xl font-bold" data-testid="text-profile-name">{displayName}</h2>
+                    <p className="text-muted-foreground">{user?.email}</p>
                   </div>
-                  <p className="text-sm">{bio}</p>
+                  <p className="text-sm">{displayBio}</p>
                   <div className="flex gap-4 flex-wrap items-center">
-                    <RoleBadge role={mockUser.role} />
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>Joined {new Date(mockUser.joinedDate).toLocaleDateString()}</span>
-                    </div>
-                    <Button onClick={() => setIsEditing(true)} size="sm" variant="outline" data-testid="button-edit-profile">
+                    <RoleBadge role={getRoleBadgeRole(user?.role)} />
+                    {user?.createdAt && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    <Button 
+                      onClick={() => {
+                        setName(displayName || "");
+                        setBio(displayBio || "");
+                        setIsEditing(true);
+                      }} 
+                      size="sm" 
+                      variant="outline" 
+                      data-testid="button-edit-profile"
+                    >
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Profile
                     </Button>
