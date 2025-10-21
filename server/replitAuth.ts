@@ -1,6 +1,7 @@
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
 import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
@@ -103,6 +104,64 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  // Local authentication strategy for testing (development only)
+  passport.use(new LocalStrategy(
+    { usernameField: 'username', passwordField: 'password' },
+    async (username, password, done) => {
+      try {
+        console.log('[Auth] Local login attempt for username:', username);
+        
+        // Simple test users for development
+        const testUsers: Record<string, { id: string; password: string; email: string; firstName: string; lastName: string; role: "admin" | "facilitator" | "contributor" | "viewer" }> = {
+          'admin': { id: 'test-admin-id', password: 'admin123', email: 'admin@test.com', firstName: 'Admin', lastName: 'User', role: 'admin' },
+          'facilitator': { id: 'test-facilitator-id', password: 'facilitator123', email: 'facilitator@test.com', firstName: 'Facilitator', lastName: 'User', role: 'facilitator' },
+          'contributor': { id: 'test-contributor-id', password: 'contributor123', email: 'contributor@test.com', firstName: 'Contributor', lastName: 'User', role: 'contributor' },
+          'viewer': { id: 'test-viewer-id', password: 'viewer123', email: 'viewer@test.com', firstName: 'Viewer', lastName: 'User', role: 'viewer' },
+        };
+
+        const testUser = testUsers[username];
+        if (!testUser || testUser.password !== password) {
+          console.log('[Auth] Invalid credentials for username:', username);
+          return done(null, false, { message: 'Invalid credentials' });
+        }
+
+        console.log('[Auth] Credentials valid, upserting user:', testUser.id);
+        
+        // Upsert test user into database
+        await storage.upsertUser({
+          id: testUser.id,
+          email: testUser.email,
+          firstName: testUser.firstName,
+          lastName: testUser.lastName,
+          profileImageUrl: null,
+          username: username, // Add username for local auth
+          role: testUser.role,
+        });
+
+        console.log('[Auth] User upserted successfully');
+
+        // Create a session object similar to OIDC
+        const user = {
+          claims: {
+            sub: testUser.id,
+            email: testUser.email,
+            first_name: testUser.firstName,
+            last_name: testUser.lastName,
+            exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days
+          },
+          access_token: 'test-token',
+          expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+        };
+
+        console.log('[Auth] Local login successful for:', testUser.email);
+        return done(null, user);
+      } catch (error) {
+        console.error('[Auth] Local login error:', error);
+        return done(error);
+      }
+    }
+  ));
+
   app.get("/api/login", (req, res, next) => {
     // Get first configured domain if hostname not in list
     const domains = process.env.REPLIT_DOMAINS!.split(",");
@@ -131,20 +190,47 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
+  // Local login route (for testing)
+  app.post("/api/login/local", (req, res, next) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: 'Authentication error' });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || 'Invalid credentials' });
+      }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          return res.status(500).json({ message: 'Login failed' });
+        }
+        return res.json({ success: true, user: { email: user.claims.email, name: `${user.claims.first_name} ${user.claims.last_name}` } });
+      });
+    })(req, res, next);
+  });
+
   app.get("/api/logout", (req, res) => {
+    const isLocalAuth = !req.user || !(req.user as any).refresh_token;
+    
     req.logout((err) => {
       if (err) {
         console.error("[Auth] Logout error:", err);
         return res.status(500).send("Logout failed");
       }
       
-      // Destroy session and clear cookie before redirecting
+      // Destroy session and clear cookie
       req.session.destroy((destroyErr) => {
         if (destroyErr) {
           console.error("[Auth] Session destroy error:", destroyErr);
         }
         
         res.clearCookie("connect.sid");
+        
+        // For local auth, just redirect to home
+        if (isLocalAuth) {
+          return res.redirect('/');
+        }
+        
+        // For OIDC, redirect to end session
         res.redirect(
           client.buildEndSessionUrl(config, {
             client_id: process.env.REPL_ID!,

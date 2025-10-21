@@ -1,11 +1,59 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { BookOpen, Users, BarChart3, MapPin } from "lucide-react";
 import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_illustration_547be2cb.png";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
-  const handleLogin = () => {
+  const { toast } = useToast();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleReplitLogin = () => {
     window.location.href = "/api/login";
+  };
+
+  const handleLocalLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/api/login/local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid credentials",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Login Successful",
+        description: "Welcome to CourseHub!",
+      });
+      
+      window.location.href = '/';
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred during login",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -28,13 +76,56 @@ export default function Login() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Test Login Form */}
+              <form onSubmit={handleLocalLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Test Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="admin, facilitator, contributor, or viewer"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    data-testid="input-username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="admin123, facilitator123, etc."
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    data-testid="input-password"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoading}
+                  data-testid="button-login-local"
+                >
+                  {isLoading ? "Logging in..." : "Test Login"}
+                </Button>
+              </form>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+
               <Button 
-                onClick={handleLogin} 
+                onClick={handleReplitLogin} 
                 className="w-full" 
-                size="lg"
-                data-testid="button-login"
+                variant="outline"
+                data-testid="button-login-replit"
               >
-                Sign In
+                Sign In with Replit
               </Button>
 
               <div className="space-y-4 pt-4">
