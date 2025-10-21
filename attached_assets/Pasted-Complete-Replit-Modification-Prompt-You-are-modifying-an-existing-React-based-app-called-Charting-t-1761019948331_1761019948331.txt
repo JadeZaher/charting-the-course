@@ -1,0 +1,163 @@
+Complete Replit Modification Prompt
+You are modifying an existing React-based app called "Charting the Course App" that is already built on Replit. Make the following changes to the current codebase:
+1. Homepage/Dashboard Restructure
+Current State: The Dashboard (home page) contains personal profile information and progress tracking.
+Required Changes:
+
+Move ALL personal profile content (user progress, completed quizzes, profile summary, progress tracking tiles) from the Dashboard to the Profile page
+Transform the Dashboard into a clean landing/welcome page with:
+
+Welcome message and app description
+Brief explanation of what the app does
+Navigation links/buttons to main sections: Quizzes, Profile, Map View, Control Panel (admin only)
+Placeholder section for future video embed (with comment noting "Video embed goes here")
+Clean, minimal design focusing on orientation and navigation rather than personal data
+
+
+
+2. Profile Page Enhancement
+Required Changes:
+
+Move all personal profile content FROM Dashboard TO Profile page including:
+
+User progress summary
+Completed quizzes list with checkmarks
+Active/in-progress quizzes
+Progress tracking visualizations
+All user-specific data displays
+
+
+Keep existing Profile page features:
+
+JSON import/export functionality
+User role display
+"Export My Data" button
+
+
+Organize content with clear sections and cards for better UX
+
+3. Map View Page Simplification
+Current State: Map View is designed for interactive node-based visualization (React Flow)
+Required Changes:
+
+Remove all interactive node/React Flow building functionality
+Simplify Map View to be an embedding page only
+Add placeholder iframe or embed container with instructions:
+
+"Mindmap will be embedded here from Miro or similar tool"
+Include comment explaining: "After webinar, global collaborative mindmap will be embedded here"
+
+
+Add optional: Image upload capability for static mindmap display if embedding isn't available
+Remove sidebar tools (Add Note, Link Quiz, Filter, etc.)
+Keep page simple and ready for external embed code to be pasted in
+
+4. Quiz System Context
+Important Context for Backend Logic:
+
+This app supports a live webinar/seminar where participants:
+
+Attend webinar and create collaborative mindmaps together
+Sign up and access this app after the webinar
+Take quizzes that assess collaboration styles, values, and governance preferences
+View the global collaborative mindmap created during webinar
+Eventually compare individual mindmaps with global consensus map
+
+
+
+Quiz Functionality to Maintain:
+
+Keep existing quiz display cards showing: title, description, status
+Keep quiz modes: "Take Quiz", "Upload Results" (JSON), or "Both"
+Keep JSON upload functionality for quiz results
+Keep "View Results" button for completed quizzes
+Add placeholder/example quizzes with sample questions (use simple multiple choice format)
+Ensure quiz data structure uses JSON format for easy future quiz imports
+
+Example Quiz Structure to Use:
+json{
+  "quiz_id": "example_01",
+  "title": "Collaboration Styles Assessment",
+  "description": "Discover your approach to teamwork",
+  "mode": "take",
+  "questions": [
+    {
+      "id": 1,
+      "question": "How do you prefer making team decisions?",
+      "type": "multiple_choice",
+      "options": ["Consensus", "Voting", "Leader decides", "Data-driven"],
+      "correct_answer": null
+    }
+  ]
+}
+5. Backend Requirements
+Build out ALL planned backend functionality including:
+
+API endpoints for quiz management (create, read, update, delete)
+User authentication and session management
+Quiz result storage and retrieval
+JSON import/export handlers
+Admin control panel backend logic
+User role and permissions system (Admin, Facilitator, Contributor, Viewer)
+Database schema for: users, quizzes, quiz_results, team_assignments
+API endpoints needed:
+
+POST /api/auth/login
+POST /api/auth/signup
+GET /api/quizzes
+POST /api/quizzes/create
+POST /api/quizzes/submit
+POST /api/quiz/import (JSON upload)
+GET /api/user/profile
+POST /api/user/update
+GET /api/admin/users
+POST /api/admin/permissions
+
+
+
+Use Replit's native database or suggest best database option for this use case
+6. Admin Control Panel
+Maintain existing admin functionality:
+
+Quiz Manager: Create/edit quizzes with JSON structure
+Page Builder: Arrange modules and navigation
+Permissions: Manage user roles
+Ensure "Publish Changes" button updates app structure
+Only accessible to Admin role users
+
+7. Navigation & General UI
+Maintain:
+
+Consistent navigation sidebar or top bar
+Mobile responsiveness
+Clean, modern styling (TailwindCSS or Material UI)
+Card-based layouts
+Role-based visibility (admin features only show for admins)
+
+8. Data & State Management
+Ensure:
+
+Local state for front-end with backend API integration
+JSON as primary data exchange format
+User session persistence
+Quiz completion tracking across sessions
+Export functionality for user data
+
+
+Implementation Priority:
+
+Dashboard → Profile content migration (highest priority)
+Dashboard redesign as landing page
+Map View simplification to embed-only
+Backend API buildout
+Example quiz creation
+Admin panel backend integration
+
+Notes:
+
+Keep all existing code structure and components intact unless specifically modified above
+Maintain the governance philosophy and system architecture already in place
+Ensure changes are backward compatible with existing data structures
+Add comments explaining the webinar context where relevant for future development
+
+Build these changes into the existing Replit app, ensuring all functionality remains working and properly connected.
