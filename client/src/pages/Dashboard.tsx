@@ -1,150 +1,159 @@
-import { StatCard } from "@/components/StatCard";
-import { QuizCard } from "@/components/QuizCard";
-import { RoleBadge } from "@/components/RoleBadge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CheckCircle, Users, TrendingUp, Clock } from "lucide-react";
-
-// TODO: remove mock functionality
-const mockUser = {
-  name: "Jane Doe",
-  role: "Admin" as const,
-  email: "jane.doe@example.com",
-  avatar: "",
-};
-
-const mockQuizzes = [
-  {
-    id: "quiz-1",
-    title: "Foundations of Cooperation",
-    description: "Core principles of team collaboration",
-    status: "in_progress" as const,
-    progress: 65,
-    estimatedTime: 15,
-  },
-  {
-    id: "quiz-2",
-    title: "Leadership Essentials",
-    status: "not_started" as const,
-    estimatedTime: 20,
-  },
-];
-
-const mockActivity = [
-  { time: "2 hours ago", action: "Completed 'Communication Skills' quiz", score: 88 },
-  { time: "Yesterday", action: "Joined 'Advanced Leadership' team" },
-  { time: "2 days ago", action: "Started 'Foundations of Cooperation' course" },
-];
+import { Link } from "wouter";
+import { BookOpen, Map, User, Shield, Video, ArrowRight } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isAdmin = user && user.role === "admin";
+
+  const navigationCards = [
+    {
+      title: "Quizzes",
+      description: "Take quizzes about collaboration styles and view your results",
+      icon: BookOpen,
+      href: "/quizzes",
+      testId: "card-nav-quizzes",
+    },
+    {
+      title: "Map View",
+      description: "Explore global collaborative mindmaps from webinars",
+      icon: Map,
+      href: "/map",
+      testId: "card-nav-map",
+    },
+    {
+      title: "Profile",
+      description: "View your progress, completed quizzes, and personal stats",
+      icon: User,
+      href: "/profile",
+      testId: "card-nav-profile",
+    },
+  ];
+
+  if (isAdmin) {
+    navigationCards.push({
+      title: "Admin Panel",
+      description: "Manage users, quizzes, and platform settings",
+      icon: Shield,
+      href: "/admin",
+      testId: "card-nav-admin",
+    });
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="max-w-7xl mx-auto space-y-12">
       {/* Welcome Section */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={mockUser.avatar} />
-            <AvatarFallback className="text-lg">
-              {mockUser.name.split(' ').map(n => n[0]).join('')}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold" data-testid="text-welcome-name">
-              Welcome back, {mockUser.name}!
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <RoleBadge role={mockUser.role} />
-              <span className="text-sm text-muted-foreground">{mockUser.email}</span>
+      <div className="space-y-4">
+        <h1 className="text-4xl font-bold" data-testid="text-welcome-title">
+          Welcome to CourseHub
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-3xl" data-testid="text-welcome-description">
+          A post-webinar learning platform where you can explore collaboration styles, 
+          take interactive quizzes, and view global collaborative mindmaps created during our webinars.
+        </p>
+      </div>
+
+      {/* Video Section */}
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Video className="h-5 w-5" />
+            Featured Webinar
+          </CardTitle>
+          <CardDescription>
+            Watch our latest collaborative webinar session
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div 
+            className="aspect-video bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border"
+            data-testid="placeholder-video"
+          >
+            <div className="text-center space-y-2">
+              <Video className="h-12 w-12 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Video content will be embedded here
+              </p>
+              <p className="text-xs text-muted-foreground">
+                iframe or video player placeholder
+              </p>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Active Courses"
-          value={5}
-          icon={BookOpen}
-          trend={{ value: 2, isPositive: true }}
-        />
-        <StatCard
-          title="Completed Quizzes"
-          value={12}
-          icon={CheckCircle}
-          trend={{ value: 8, isPositive: true }}
-        />
-        <StatCard
-          title="Team Members"
-          value={24}
-          icon={Users}
-        />
-        <StatCard
-          title="Avg. Score"
-          value="85%"
-          icon={TrendingUp}
-          trend={{ value: 3, isPositive: true }}
-        />
-      </div>
-
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Continue Learning */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Continue Learning</h2>
-            <Button variant="outline" data-testid="button-view-all-quizzes">
-              View All
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {mockQuizzes.map((quiz) => (
-              <QuizCard
-                key={quiz.id}
-                {...quiz}
-                onStart={() => console.log("Start quiz:", quiz.id)}
-                onUpload={() => console.log("Upload results:", quiz.id)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Recent Activity</h2>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Activity Feed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {mockActivity.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex gap-3 pb-4 last:pb-0 border-b last:border-0"
-                  data-testid={`activity-item-${index}`}
-                >
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
+      {/* Navigation Cards */}
+      <div>
+        <h2 className="text-2xl font-semibold mb-6">Quick Navigation</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {navigationCards.map((card) => (
+            <Link 
+              key={card.href} 
+              href={card.href}
+              data-testid={`link-nav-${card.title.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <Card 
+                className="hover-elevate active-elevate-2 cursor-pointer h-full transition-all"
+                data-testid={card.testId}
+              >
+                <CardHeader className="space-y-4">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <card.icon className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm">{item.action}</p>
-                    {item.score && (
-                      <p className="text-sm text-chart-3 font-medium">
-                        Score: {item.score}%
-                      </p>
-                    )}
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>{item.time}</span>
-                    </div>
+                  <div className="space-y-2">
+                    <CardTitle className="text-lg">{card.title}</CardTitle>
+                    <CardDescription className="text-sm">
+                      {card.description}
+                    </CardDescription>
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center text-sm text-muted-foreground group">
+                    <span>Go to {card.title}</span>
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
       </div>
+
+      {/* Platform Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>About CourseHub</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            CourseHub is designed for participants who have attended our collaborative webinars. 
+            Here you can deepen your understanding of collaboration styles through interactive quizzes, 
+            explore global mindmaps created during sessions, and track your learning journey.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+            <div className="space-y-1">
+              <h4 className="font-medium text-sm">Interactive Quizzes</h4>
+              <p className="text-xs text-muted-foreground">
+                Take quizzes or upload your results to track your collaboration style
+              </p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-medium text-sm">Global Mindmaps</h4>
+              <p className="text-xs text-muted-foreground">
+                View Miro mindmaps created collaboratively during webinars
+              </p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-medium text-sm">Role-Based Access</h4>
+              <p className="text-xs text-muted-foreground">
+                Different features available for Admins, Facilitators, Contributors, and Viewers
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
