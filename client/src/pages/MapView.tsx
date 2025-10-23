@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link2, Upload, ExternalLink, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// Default Miro board to load on page startup
+const DEFAULT_MIRO_BOARD = "https://miro.com/app/board/uXjVJ1mAUYI=/";
 
 export default function MapView() {
   const [miroUrl, setMiroUrl] = useState("");
@@ -122,6 +125,27 @@ export default function MapView() {
       description: "All content has been cleared",
     });
   };
+
+  // Auto-load default Miro board on component mount
+  useEffect(() => {
+    const loadDefaultBoard = () => {
+      try {
+        const url = new URL(DEFAULT_MIRO_BOARD);
+        
+        // Extract board ID and create embed URL
+        const boardId = url.pathname.split("/app/board/")[1]?.split("/")[0];
+        if (boardId) {
+          const embedUrl = `https://miro.com/app/live-embed/${boardId}`;
+          setMiroUrl(DEFAULT_MIRO_BOARD);
+          setEmbedUrl(embedUrl);
+        }
+      } catch (error) {
+        console.error("Failed to load default Miro board:", error);
+      }
+    };
+
+    loadDefaultBoard();
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">

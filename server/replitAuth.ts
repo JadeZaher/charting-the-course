@@ -61,12 +61,18 @@ async function upsertUserFromClaims(claims: any) {
   const lastName = claims["last_name"] || claims["family_name"] || null;
   const profileImageUrl = claims["profile_image_url"] || claims["picture"] || null;
   
+  // Derive username from email (part before @) or use sub as fallback
+  const username = claims["email"] 
+    ? claims["email"].split("@")[0] 
+    : claims["sub"];
+  
   await storage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
     firstName,
     lastName,
     profileImageUrl,
+    username,
   });
 }
 
