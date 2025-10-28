@@ -7,22 +7,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Save, X, CheckCircle, Clock, Download, Upload, BookOpen, Users, TrendingUp } from "lucide-react";
+import { Edit, Save, X, CheckCircle, Clock, Download, Upload, BookOpen, TrendingUp, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { StatCard } from "@/components/StatCard";
-
-// TODO: replace with actual data from API
-const mockCompletedQuizzes = [
-  { id: "1", title: "Communication Skills", score: 88, completedAt: "2024-01-15" },
-  { id: "2", title: "Conflict Resolution", score: 92, completedAt: "2024-01-10" },
-  { id: "3", title: "Time Management", score: 85, completedAt: "2024-01-05" },
-];
-
-const mockInProgressQuizzes = [
-  { id: "4", title: "Leadership Essentials", progress: 65 },
-  { id: "5", title: "Foundations of Cooperation", progress: 40 },
-];
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import type { QuizResult } from "@shared/schema";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -32,12 +23,18 @@ export default function Profile() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // TODO: Replace with actual data from API
+  const { data: quizResults = [], isLoading } = useQuery<QuizResult[]>({
+    queryKey: ["/api/quiz-results/user"],
+  });
+
+  const completedQuizzes = quizResults.filter(r => r.score !== null);
+  const avgScore = completedQuizzes.length > 0
+    ? Math.round(completedQuizzes.reduce((sum, r) => sum + (r.score || 0), 0) / completedQuizzes.length)
+    : 0;
+
   const stats = {
-    activeCourses: 5,
-    completedQuizzes: 12,
-    teamMembers: 24,
-    avgScore: 85,
+    completedQuizzes: completedQuizzes.length,
+    avgScore,
   };
 
   const handleSave = () => {
@@ -68,8 +65,7 @@ export default function Profile() {
         createdAt: user?.createdAt,
       },
       stats,
-      completedQuizzes: mockCompletedQuizzes,
-      inProgressQuizzes: mockInProgressQuizzes,
+      quizResults: completedQuizzes,
       exportedAt: new Date().toISOString(),
     };
 
@@ -99,7 +95,6 @@ export default function Profile() {
         const data = JSON.parse(e.target?.result as string);
         console.log("Imported data:", data);
         
-        // TODO: Validate and process imported data
         toast({
           title: "Profile Imported",
           description: "Your profile data has been imported successfully.",
@@ -114,7 +109,6 @@ export default function Profile() {
     };
     reader.readAsText(file);
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -125,7 +119,6 @@ export default function Profile() {
     : "";
   const displayBio = user?.bio || "No bio added yet.";
 
-  // Convert lowercase UserRole to capitalized Role for RoleBadge
   const getRoleBadgeRole = (role?: string): "Admin" | "Facilitator" | "Contributor" | "Viewer" => {
     if (!role) return "Viewer";
     return (role.charAt(0).toUpperCase() + role.slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
@@ -133,7 +126,6 @@ export default function Profile() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Profile</h1>
@@ -171,37 +163,22 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Personal Stats */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Your Progress</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="Active Courses"
-            value={stats.activeCourses}
-            icon={BookOpen}
-            trend={{ value: 2, isPositive: true }}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <StatCard
             title="Completed Quizzes"
             value={stats.completedQuizzes}
             icon={CheckCircle}
-            trend={{ value: 3, isPositive: true }}
-          />
-          <StatCard
-            title="Team Members"
-            value={stats.teamMembers}
-            icon={Users}
           />
           <StatCard
             title="Avg. Score"
             value={`${stats.avgScore}%`}
             icon={TrendingUp}
-            trend={{ value: 5, isPositive: true }}
           />
         </div>
       </div>
 
-      {/* Profile Card */}
       <Card>
         <CardContent className="p-8">
           <div className="flex items-start gap-6 flex-wrap">
@@ -282,82 +259,47 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Quiz History */}
-      <Tabs defaultValue="completed">
-        <TabsList>
-          <TabsTrigger value="completed" data-testid="tab-completed-quizzes">
-            Completed Quizzes
-          </TabsTrigger>
-          <TabsTrigger value="in-progress" data-testid="tab-progress-quizzes">
-            In Progress
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="completed" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Completed Quizzes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockCompletedQuizzes.map((quiz) => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Completed Quizzes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-muted-foreground text-center py-8">Loading quiz results...</p>
+          ) : completedQuizzes.length > 0 ? (
+            <div className="space-y-3">
+              {completedQuizzes.map((result) => (
+                <Link key={result.id} href={`/quiz/results/${result.quizId}`}>
                   <div
-                    key={quiz.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
-                    data-testid={`completed-quiz-${quiz.id}`}
+                    className="flex items-center justify-between p-4 rounded-lg border hover-elevate active-elevate-2 cursor-pointer"
+                    data-testid={`completed-quiz-${result.id}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="h-5 w-5 text-chart-3" />
-                      <div>
-                        <p className="font-medium">{quiz.title}</p>
+                    <div className="flex items-center gap-3 flex-1">
+                      <CheckCircle className="h-5 w-5 text-chart-3 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">Quiz Result</p>
                         <p className="text-sm text-muted-foreground">
-                          Completed on {new Date(quiz.completedAt).toLocaleDateString()}
+                          Completed on {new Date(result.completedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
-                    <Badge variant="default">Score: {quiz.score}%</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="in-progress" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>In Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockInProgressQuizzes.map((quiz) => (
-                  <div
-                    key={quiz.id}
-                    className="p-4 rounded-lg border space-y-2"
-                    data-testid={`progress-quiz-${quiz.id}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{quiz.title}</p>
-                      <span className="text-sm font-medium">{quiz.progress}%</span>
-                    </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${quiz.progress}%` }}
-                        />
-                      </div>
-                      <Button size="sm" variant="outline" data-testid={`button-continue-${quiz.id}`}>
-                        Continue
-                      </Button>
+                      <Badge variant={result.isPassed ? "default" : "destructive"}>
+                        Score: {result.score}%
+                      </Badge>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">
+              No completed quizzes yet. Start taking quizzes to see your results here!
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
