@@ -66,6 +66,9 @@ export const courses = pgTable("courses", {
   createdBy: varchar("created_by").references(() => users.id),
 });
 
+// Visibility types for quizzes
+export type QuizVisibility = "public" | "private" | "team" | "assigned";
+
 // Quizzes table with JSON structure
 export const quizzes = pgTable("quizzes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -74,25 +77,45 @@ export const quizzes = pgTable("quizzes", {
   courseId: varchar("course_id").references(() => courses.id, { onDelete: "set null" }),
   // Quiz mode: "take" (only take quiz), "upload" (only upload results), "both"
   mode: text("mode").notNull().default("take"),
-  // Questions stored as JSON array
-  questions: jsonb("questions").notNull().$type<QuizQuestion[]>(),
+  // SurveyJS complete survey definition stored as JSON
+  surveyJson: jsonb("survey_json").notNull(),
+  // Deprecated: Legacy questions field (keeping for migration compatibility)
+  questions: jsonb("questions").$type<QuizQuestion[]>(),
   // Quiz settings
   timeLimit: integer("time_limit"), // in minutes, null = no limit
   passingScore: integer("passing_score"), // percentage, null = no passing requirement
   allowRetakes: boolean("allow_retakes").notNull().default(true),
+  // Visibility and permissions
+  visibility: text("visibility").notNull().default("public").$type<QuizVisibility>(),
+  teamId: varchar("team_id").references(() => teams.id, { onDelete: "set null" }),
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: varchar("created_by").references(() => users.id),
   isPublished: boolean("is_published").notNull().default(false),
 });
 
+// Quiz assignments table (who can take which quizzes)
+export const quizAssignments = pgTable("quiz_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quizId: varchar("quiz_id").notNull().references(() => quizzes.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  teamId: varchar("team_id").references(() => teams.id, { onDelete: "cascade" }),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  dueDate: timestamp("due_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  quizUserUniq: uniqueIndex("quiz_assignments_quiz_user_uniq").on(table.quizId, table.userId),
+}));
+
 // Quiz results table
 export const quizResults = pgTable("quiz_results", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   quizId: varchar("quiz_id").notNull().references(() => quizzes.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  // Result data
-  answers: jsonb("answers").notNull().$type<QuizAnswer[]>(),
+  // Result data - stores full SurveyJS results
+  surveyResults: jsonb("survey_results").notNull(),
+  // Deprecated: Legacy answers field (keeping for migration compatibility)
+  answers: jsonb("answers").$type<QuizAnswer[]>(),
   score: integer("score").notNull(), // percentage
   isPassed: boolean("is_passed"),
   timeSpent: integer("time_spent"), // in seconds
@@ -154,27 +177,24 @@ export const insertCourseSchema = createInsertSchema(courses).omit({
 export const insertQuizSchema = createInsertSchema(quizzes).omit({
   id: true,
   createdAt: true,
+  questions: true, // deprecated field
 }).extend({
   mode: z.enum(["take", "upload", "both"]),
-  questions: z.array(z.object({
-    id: z.number(),
-    question: z.string(),
-    type: z.enum(["multiple_choice", "true_false", "short_answer"]),
-    options: z.array(z.string()).optional(),
-    correctAnswer: z.union([z.string(), z.number(), z.null()]).optional(),
-    points: z.number().optional(),
-  })),
+  visibility: z.enum(["public", "private", "team", "assigned"]),
+  surveyJson: z.record(z.any()), // SurveyJS JSON schema
+});
+
+export const insertQuizAssignmentSchema = createInsertSchema(quizAssignments).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertQuizResultSchema = createInsertSchema(quizResults).omit({
   id: true,
   completedAt: true,
+  answers: true, // deprecated field
 }).extend({
-  answers: z.array(z.object({
-    questionId: z.number(),
-    answer: z.union([z.string(), z.number()]),
-    isCorrect: z.boolean().optional(),
-  })),
+  surveyResults: z.record(z.any()), // SurveyJS results object
 });
 
 export const insertQuizProgressSchema = createInsertSchema(quizProgress).omit({
@@ -196,6 +216,9 @@ export type Course = typeof courses.$inferSelect;
 
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;
 export type Quiz = typeof quizzes.$inferSelect;
+
+export type InsertQuizAssignment = z.infer<typeof insertQuizAssignmentSchema>;
+export type QuizAssignment = typeof quizAssignments.$inferSelect;
 
 export type InsertQuizResult = z.infer<typeof insertQuizResultSchema>;
 export type QuizResult = typeof quizResults.$inferSelect;

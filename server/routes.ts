@@ -59,13 +59,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper: Redact correct answers from quiz for non-privileged users
   const redactQuizAnswers = (quiz: Quiz): Quiz => {
-    return {
-      ...quiz,
-      questions: quiz.questions.map(q => ({
-        ...q,
-        correctAnswer: undefined,
-      })),
-    };
+    // For SurveyJS quizzes, redact correctAnswer from surveyJson
+    if (quiz.surveyJson && typeof quiz.surveyJson === 'object') {
+      const redactedSurveyJson = JSON.parse(JSON.stringify(quiz.surveyJson));
+      if (redactedSurveyJson.pages) {
+        redactedSurveyJson.pages.forEach((page: any) => {
+          if (page.elements) {
+            page.elements.forEach((element: any) => {
+              delete element.correctAnswer;
+            });
+          }
+        });
+      }
+      return { ...quiz, surveyJson: redactedSurveyJson };
+    }
+    
+    // Legacy support for old question format
+    if (quiz.questions && Array.isArray(quiz.questions)) {
+      return {
+        ...quiz,
+        questions: quiz.questions.map(q => ({
+          ...q,
+          correctAnswer: undefined,
+        })),
+      };
+    }
+    
+    return quiz;
   };
 
   // Helper: Calculate quiz score
@@ -279,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quizId = req.params.id;
 
       // Validate request body
-      const bodySchema = insertQuizResultSchema.pick({ answers: true, timeSpent: true });
+      const bodySchema = insertQuizResultSchema.pick({ surveyResults: true, timeSpent: true });
       const validation = bodySchema.safeParse(req.body);
       if (!validation.success) {
         return res.status(400).json({ 
@@ -288,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { answers, timeSpent } = validation.data;
+      const { surveyResults, timeSpent } = validation.data;
 
       // Get the quiz
       const quiz = await storage.getQuiz(quizId);
@@ -319,14 +339,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Calculate score
-      const { score, isPassed, gradedAnswers } = calculateScore(quiz, answers);
+      // Calculate score for SurveyJS quizzes
+      let score = 0;
+      let isPassed = true;
+      let correctCount = 0;
+      let totalQuestions = 0;
+      
+      // Extract questions from surveyJson and compare with user answers
+      if (quiz.surveyJson && typeof quiz.surveyJson === 'object') {
+        const surveyDef = quiz.surveyJson as any;
+        
+        // Iterate through all pages and elements to find questions with correct answers
+        if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
+          for (const page of surveyDef.pages) {
+            if (page.elements && Array.isArray(page.elements)) {
+              for (const element of page.elements) {
+                // Only grade questions that have a correctAnswer defined
+                if (element.correctAnswer !== undefined && element.correctAnswer !== null) {
+                  totalQuestions++;
+                  const userAnswer = surveyResults[element.name];
+                  
+                  // Compare user answer with correct answer
+                  if (userAnswer !== undefined) {
+                    const userAnswerStr = String(userAnswer).trim().toLowerCase();
+                    const correctAnswerStr = String(element.correctAnswer).trim().toLowerCase();
+                    
+                    if (userAnswerStr === correctAnswerStr) {
+                      correctCount++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // Calculate score percentage
+        score = totalQuestions > 0 
+          ? Math.round((correctCount / totalQuestions) * 100)
+          : 0;
+      }
+      
+      // Check passing score
+      if (quiz.passingScore) {
+        isPassed = score >= quiz.passingScore;
+      }
 
       // Save result
       const result = await storage.createQuizResult({
         quizId,
         userId,
-        answers: gradedAnswers,
+        surveyResults,
         score,
         isPassed,
         timeSpent,
@@ -448,6 +511,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting quiz progress:", error);
       res.status(500).json({ message: "Failed to delete quiz progress" });
+    }
+  });
+
+  // POST /api/quiz-assignments - Create a quiz assignment (admin/facilitator only)
+  app.post("/api/quiz-assignments", isAuthenticated, isAdminOrFacilitator, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { quizId, userId: assignedUserId, teamId, dueDate } = req.body;
+
+      if (!quizId || (!assignedUserId && !teamId)) {
+        return res.status(400).json({ 
+          message: "quizId and either userId or teamId are required" 
+        });
+      }
+
+      const assignment = await storage.createQuizAssignment({
+        quizId,
+        userId: assignedUserId,
+        teamId,
+        assignedBy: userId,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+      });
+
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating quiz assignment:", error);
+      res.status(500).json({ message: "Failed to create quiz assignment" });
+    }
+  });
+
+  // GET /api/quiz-assignments/user - Get current user's quiz assignments
+  app.get("/api/quiz-assignments/user", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const assignments = await storage.getUserQuizAssignments(userId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching user quiz assignments:", error);
+      res.status(500).json({ message: "Failed to fetch quiz assignments" });
+    }
+  });
+
+  // GET /api/quiz-assignments/:quizId - Get assignments for a specific quiz (admin/facilitator only)
+  app.get("/api/quiz-assignments/:quizId", isAuthenticated, isAdminOrFacilitator, async (req, res) => {
+    try {
+      const assignments = await storage.getQuizAssignments(req.params.quizId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching quiz assignments:", error);
+      res.status(500).json({ message: "Failed to fetch quiz assignments" });
+    }
+  });
+
+  // DELETE /api/quiz-assignments/:id - Delete a quiz assignment (admin/facilitator only)
+  app.delete("/api/quiz-assignments/:id", isAuthenticated, isAdminOrFacilitator, async (req, res) => {
+    try {
+      await storage.deleteQuizAssignment(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting quiz assignment:", error);
+      res.status(500).json({ message: "Failed to delete quiz assignment" });
     }
   });
 

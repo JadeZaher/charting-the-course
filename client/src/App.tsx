@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import QuizList from "@/pages/QuizList";
+import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
 import QuizResults from "@/pages/QuizResults";
 import Profile from "@/pages/Profile";
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/quizzes" component={QuizList} />
+      <Route path="/quiz/manage" component={QuizManagement} />
       <Route path="/quiz/take/:id" component={TakeQuiz} />
       <Route path="/quiz/results/:id" component={QuizResults} />
       <Route path="/profile" component={Profile} />

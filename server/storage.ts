@@ -1,15 +1,16 @@
 import { db } from "./db";
 import { 
-  users, teams, teamMembers, courses, quizzes, quizResults, quizProgress,
+  users, teams, teamMembers, courses, quizzes, quizAssignments, quizResults, quizProgress,
   type User, type InsertUser, type UpsertUser,
   type Team, type InsertTeam,
   type Course, type InsertCourse,
   type Quiz, type InsertQuiz,
+  type QuizAssignment, type InsertQuizAssignment,
   type QuizResult, type InsertQuizResult,
   type QuizProgressType, type InsertQuizProgress,
   type UserRole
 } from "@shared/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (Replit Auth required)
@@ -51,10 +52,17 @@ export interface IStorage {
   getPublishedQuizzes(): Promise<Quiz[]>;
   getQuiz(id: string): Promise<Quiz | undefined>;
   getQuizzesByCourse(courseId: string): Promise<Quiz[]>;
+  getQuizzesForUser(userId: string): Promise<Quiz[]>;
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
   updateQuiz(id: string, updates: Partial<InsertQuiz>): Promise<Quiz | undefined>;
   deleteQuiz(id: string): Promise<void>;
   publishQuiz(id: string): Promise<Quiz | undefined>;
+  
+  // Quiz assignment operations
+  createQuizAssignment(assignment: InsertQuizAssignment): Promise<QuizAssignment>;
+  getQuizAssignments(quizId: string): Promise<QuizAssignment[]>;
+  getUserQuizAssignments(userId: string): Promise<QuizAssignment[]>;
+  deleteQuizAssignment(id: string): Promise<void>;
   
   // Quiz result operations
   getQuizResults(quizId: string): Promise<QuizResult[]>;
@@ -249,6 +257,74 @@ export class DbStorage implements IStorage {
       .where(eq(quizzes.id, id))
       .returning();
     return quiz;
+  }
+
+  async getQuizzesForUser(userId: string): Promise<Quiz[]> {
+    // Get user's team memberships
+    const userTeams = await this.getUserTeams(userId);
+    const teamIds = userTeams.map(t => t.id);
+
+    // Get quizzes that are:
+    // 1. Public and published
+    // 2. Team-based where user is a team member
+    // 3. Assigned directly to the user
+    const publicQuizzes = await db.select().from(quizzes)
+      .where(and(
+        eq(quizzes.visibility, 'public'),
+        eq(quizzes.isPublished, true)
+      ));
+
+    const teamQuizzes = teamIds.length > 0 
+      ? await db.select().from(quizzes)
+          .where(and(
+            eq(quizzes.visibility, 'team'),
+            eq(quizzes.isPublished, true)
+          ))
+      : [];
+
+    const assignedQuizResults = await db.select({ quiz: quizzes })
+      .from(quizAssignments)
+      .innerJoin(quizzes, eq(quizAssignments.quizId, quizzes.id))
+      .where(and(
+        eq(quizAssignments.userId, userId),
+        eq(quizzes.isPublished, true)
+      ));
+
+    const assignedQuizzes = assignedQuizResults.map(r => r.quiz);
+
+    // Combine and deduplicate
+    const allQuizzes = [...publicQuizzes, ...teamQuizzes, ...assignedQuizzes];
+    const uniqueQuizzes = Array.from(
+      new Map(allQuizzes.map(q => [q.id, q])).values()
+    );
+
+    return uniqueQuizzes.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  // Quiz assignment operations
+  async createQuizAssignment(insertAssignment: InsertQuizAssignment): Promise<QuizAssignment> {
+    const [assignment] = await db.insert(quizAssignments)
+      .values(insertAssignment)
+      .returning();
+    return assignment;
+  }
+
+  async getQuizAssignments(quizId: string): Promise<QuizAssignment[]> {
+    return await db.select().from(quizAssignments)
+      .where(eq(quizAssignments.quizId, quizId))
+      .orderBy(desc(quizAssignments.createdAt));
+  }
+
+  async getUserQuizAssignments(userId: string): Promise<QuizAssignment[]> {
+    return await db.select().from(quizAssignments)
+      .where(eq(quizAssignments.userId, userId))
+      .orderBy(desc(quizAssignments.createdAt));
+  }
+
+  async deleteQuizAssignment(id: string): Promise<void> {
+    await db.delete(quizAssignments).where(eq(quizAssignments.id, id));
   }
 
   // Quiz result operations

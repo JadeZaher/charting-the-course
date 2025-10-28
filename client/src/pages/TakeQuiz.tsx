@@ -1,110 +1,113 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { useRoute, useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Model } from "survey-core";
+import { Survey } from "survey-react-ui";
+import "survey-core/survey-core.css";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
-
-// TODO: remove mock functionality
-const mockQuiz = {
-  id: "quiz-1",
-  title: "Foundations of Cooperation",
-  questions: [
-    {
-      id: "q1",
-      text: "What is the primary benefit of team collaboration?",
-      options: [
-        "Individual recognition",
-        "Shared knowledge and diverse perspectives",
-        "Faster completion times",
-        "Reduced workload",
-      ],
-    },
-    {
-      id: "q2",
-      text: "Which communication style is most effective in teams?",
-      options: [
-        "Passive",
-        "Aggressive",
-        "Assertive",
-        "Passive-aggressive",
-      ],
-    },
-    {
-      id: "q3",
-      text: "What role does trust play in team dynamics?",
-      options: [
-        "It's optional",
-        "Foundation for effective collaboration",
-        "Only matters in leadership",
-        "Slows down decision-making",
-      ],
-    },
-    {
-      id: "q4",
-      text: "How should conflicts be addressed in a team?",
-      options: [
-        "Avoid them entirely",
-        "Address them promptly and constructively",
-        "Let them resolve naturally",
-        "Escalate to management immediately",
-      ],
-    },
-  ],
-};
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Quiz } from "@shared/schema";
 
 export default function TakeQuiz() {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [isComplete, setIsComplete] = useState(false);
+  const [, params] = useRoute("/quiz/take/:id");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [survey, setSurvey] = useState<Model | null>(null);
+  const [startTime] = useState(Date.now());
 
-  const progress = ((currentQuestion + 1) / mockQuiz.questions.length) * 100;
-  const question = mockQuiz.questions[currentQuestion];
-  const isLastQuestion = currentQuestion === mockQuiz.questions.length - 1;
+  const quizId = params?.id;
 
-  const handleAnswer = (value: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [question.id]: value,
-    }));
-  };
+  const { data: quiz, isLoading, error } = useQuery<Quiz>({
+    queryKey: ["/api/quizzes", quizId],
+    queryFn: async () => {
+      const response = await fetch(`/api/quizzes/${quizId}`);
+      if (!response.ok) {
+        throw new Error("Failed to load quiz");
+      }
+      return response.json();
+    },
+    enabled: !!quizId,
+  });
 
-  const handleNext = () => {
-    if (isLastQuestion) {
-      setIsComplete(true);
-      console.log("Quiz completed with answers:", answers);
-    } else {
-      setCurrentQuestion((prev) => prev + 1);
+  const submitQuizMutation = useMutation({
+    mutationFn: async (data: { surveyResults: any; timeSpent: number }) => {
+      return apiRequest("POST", `/api/quizzes/${quizId}/submit`, data);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quiz-results"] });
+      toast({
+        title: "Quiz Submitted",
+        description: "Your answers have been saved successfully",
+      });
+      setLocation(`/quiz/results/${quizId}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit quiz",
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (quiz && quiz.surveyJson) {
+      try {
+        const surveyModel = new Model(quiz.surveyJson);
+
+        surveyModel.onComplete.add((sender) => {
+          const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+
+          submitQuizMutation.mutate({
+            surveyResults: sender.data,
+            timeSpent,
+          });
+        });
+
+        if (quiz.timeLimit) {
+          surveyModel.maxTimeToFinish = quiz.timeLimit * 60;
+          surveyModel.showTimerPanel = "top";
+        }
+
+        setSurvey(surveyModel);
+      } catch (error) {
+        console.error("Error creating survey model:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load quiz content",
+          variant: "destructive",
+        });
+      }
     }
-  };
+  }, [quiz, startTime]);
 
-  const handlePrevious = () => {
-    setCurrentQuestion((prev) => Math.max(0, prev - 1));
-  };
-
-  if (isComplete) {
+  if (isLoading) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <Card>
-          <CardContent className="p-12 text-center space-y-6">
-            <div className="h-20 w-20 rounded-full bg-chart-3/20 flex items-center justify-center mx-auto">
-              <Check className="h-10 w-10 text-chart-3" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Quiz Completed!</h2>
-              <p className="text-muted-foreground">
-                Your answers have been submitted successfully.
-              </p>
-            </div>
-            <div className="flex gap-4 justify-center">
-              <Button variant="outline" data-testid="button-back-to-quizzes">
-                Back to Quizzes
-              </Button>
-              <Button data-testid="button-view-results">
-                View Results
-              </Button>
-            </div>
+          <CardContent className="p-12 text-center">
+            <p className="text-muted-foreground">Loading quiz...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !quiz) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <Card>
+          <CardContent className="p-12 text-center space-y-4">
+            <p className="text-destructive">
+              {error ? (error as Error).message : "Quiz not found"}
+            </p>
+            <Button onClick={() => setLocation("/quizzes")} data-testid="button-back">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Quizzes
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -112,76 +115,37 @@ export default function TakeQuiz() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-quiz-title">
-          {mockQuiz.title}
-        </h1>
-        <div className="flex items-center gap-4 mt-4">
-          <span className="text-sm text-muted-foreground">
-            Question {currentQuestion + 1} of {mockQuiz.questions.length}
-          </span>
-          <Progress value={progress} className="flex-1" />
-          <span className="text-sm font-medium">{Math.round(progress)}%</span>
+    <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setLocation("/quizzes")}
+          data-testid="button-back-to-list"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-quiz-title">
+            {quiz.title}
+          </h1>
+          {quiz.description && (
+            <p className="text-muted-foreground mt-1">{quiz.description}</p>
+          )}
         </div>
       </div>
 
-      {/* Question Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl" data-testid="text-question">
-            {question.text}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <RadioGroup
-            value={answers[question.id]}
-            onValueChange={handleAnswer}
-            className="space-y-3"
-          >
-            {question.options.map((option, index) => (
-              <div
-                key={index}
-                className="flex items-center space-x-3 p-4 rounded-lg border hover-elevate cursor-pointer"
-              >
-                <RadioGroupItem
-                  value={option}
-                  id={`option-${index}`}
-                  data-testid={`radio-option-${index}`}
-                />
-                <Label
-                  htmlFor={`option-${index}`}
-                  className="flex-1 cursor-pointer"
-                >
-                  {option}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+        <CardContent className="p-6">
+          {survey ? (
+            <Survey model={survey} />
+          ) : (
+            <div className="text-center p-12">
+              <p className="text-muted-foreground">Initializing quiz...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Navigation */}
-      <div className="flex justify-between gap-4">
-        <Button
-          variant="outline"
-          onClick={handlePrevious}
-          disabled={currentQuestion === 0}
-          data-testid="button-previous"
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Previous
-        </Button>
-        <Button
-          onClick={handleNext}
-          disabled={!answers[question.id]}
-          data-testid="button-next"
-        >
-          {isLastQuestion ? "Submit" : "Next"}
-          {!isLastQuestion && <ChevronRight className="h-4 w-4 ml-2" />}
-        </Button>
-      </div>
     </div>
   );
 }

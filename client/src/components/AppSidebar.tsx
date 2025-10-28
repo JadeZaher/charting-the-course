@@ -20,6 +20,7 @@ import {
   Map,
   Settings,
   LogOut,
+  FileEdit,
 } from "lucide-react";
 
 // TODO: remove mock functionality
@@ -52,6 +53,11 @@ const menuItems = [
 ];
 
 const adminItems = [
+  {
+    title: "Manage Quizzes",
+    url: "/quiz/manage",
+    icon: FileEdit,
+  },
   {
     title: "Admin Panel",
     url: "/admin",
