@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { 
   users, teams, teamMembers, courses, quizzes, quizAssignments, quizResults, quizProgress,
+  userTags, userBadges, userPrivacySettings, userProfileData,
   type User, type InsertUser, type UpsertUser,
   type Team, type InsertTeam,
   type Course, type InsertCourse,
@@ -8,6 +9,10 @@ import {
   type QuizAssignment, type InsertQuizAssignment,
   type QuizResult, type InsertQuizResult,
   type QuizProgressType, type InsertQuizProgress,
+  type UserTag, type InsertUserTag,
+  type UserBadge, type InsertUserBadge,
+  type UserPrivacySettings, type InsertUserPrivacySettings,
+  type UserProfileData, type InsertUserProfileData,
   type UserRole
 } from "@shared/schema";
 import { eq, and, or, desc, sql } from "drizzle-orm";
@@ -75,6 +80,26 @@ export interface IStorage {
   saveQuizProgress(progress: InsertQuizProgress): Promise<QuizProgressType>;
   updateQuizProgress(userId: string, quizId: string, updates: Partial<InsertQuizProgress>): Promise<QuizProgressType | undefined>;
   deleteQuizProgress(userId: string, quizId: string): Promise<void>;
+  
+  // User tag operations
+  createUserTags(tags: InsertUserTag[]): Promise<UserTag[]>;
+  getUserTags(userId: string): Promise<UserTag[]>;
+  getUserTagsByQuizResult(quizResultId: string): Promise<UserTag[]>;
+  deleteUserTagsByQuizResult(quizResultId: string): Promise<void>;
+  
+  // User badge operations
+  createUserBadge(badge: InsertUserBadge): Promise<UserBadge>;
+  upsertUserBadge(badge: InsertUserBadge): Promise<UserBadge>;
+  getUserBadges(userId: string): Promise<UserBadge[]>;
+  deleteUserBadge(userId: string, badgeKey: string): Promise<void>;
+  
+  // User privacy settings operations
+  getUserPrivacySettings(userId: string): Promise<UserPrivacySettings | undefined>;
+  createOrUpdatePrivacySettings(settings: InsertUserPrivacySettings): Promise<UserPrivacySettings>;
+  
+  // User profile data operations
+  getUserProfileData(userId: string): Promise<UserProfileData | undefined>;
+  createOrUpdateProfileData(data: InsertUserProfileData): Promise<UserProfileData>;
 }
 
 export class DbStorage implements IStorage {
@@ -390,6 +415,112 @@ export class DbStorage implements IStorage {
   async deleteQuizProgress(userId: string, quizId: string): Promise<void> {
     await db.delete(quizProgress)
       .where(and(eq(quizProgress.userId, userId), eq(quizProgress.quizId, quizId)));
+  }
+
+  // User tag operations
+  async createUserTags(tags: InsertUserTag[]): Promise<UserTag[]> {
+    if (tags.length === 0) return [];
+    const results = await db.insert(userTags).values(tags as any).returning();
+    return results;
+  }
+
+  async getUserTags(userId: string): Promise<UserTag[]> {
+    return await db.select().from(userTags)
+      .where(eq(userTags.userId, userId))
+      .orderBy(desc(userTags.createdAt));
+  }
+
+  async getUserTagsByQuizResult(quizResultId: string): Promise<UserTag[]> {
+    return await db.select().from(userTags)
+      .where(eq(userTags.quizResultId, quizResultId));
+  }
+
+  async deleteUserTagsByQuizResult(quizResultId: string): Promise<void> {
+    await db.delete(userTags).where(eq(userTags.quizResultId, quizResultId));
+  }
+
+  // User badge operations
+  async createUserBadge(insertBadge: InsertUserBadge): Promise<UserBadge> {
+    const [badge] = await db.insert(userBadges).values(insertBadge as any).returning();
+    return badge;
+  }
+
+  async upsertUserBadge(insertBadge: InsertUserBadge): Promise<UserBadge> {
+    const [badge] = await db.insert(userBadges)
+      .values(insertBadge as any)
+      .onConflictDoUpdate({
+        target: [userBadges.userId, userBadges.badgeKey],
+        set: {
+          badgeName: sql`EXCLUDED.badge_name`,
+          badgeDescription: sql`EXCLUDED.badge_description`,
+          badgeCategory: sql`EXCLUDED.badge_category`,
+          badgeIcon: sql`EXCLUDED.badge_icon`,
+          strength: sql`user_badges.strength + 1`, // Increment strength when badge is re-earned
+          sourceTagKeys: sql`EXCLUDED.source_tag_keys`,
+          updatedAt: sql`EXCLUDED.updated_at`,
+        }
+      })
+      .returning();
+    return badge;
+  }
+
+  async getUserBadges(userId: string): Promise<UserBadge[]> {
+    return await db.select().from(userBadges)
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.earnedAt));
+  }
+
+  async deleteUserBadge(userId: string, badgeKey: string): Promise<void> {
+    await db.delete(userBadges)
+      .where(and(eq(userBadges.userId, userId), eq(userBadges.badgeKey, badgeKey)));
+  }
+
+  // User privacy settings operations
+  async getUserPrivacySettings(userId: string): Promise<UserPrivacySettings | undefined> {
+    const [settings] = await db.select().from(userPrivacySettings)
+      .where(eq(userPrivacySettings.userId, userId))
+      .limit(1);
+    return settings;
+  }
+
+  async createOrUpdatePrivacySettings(insertSettings: InsertUserPrivacySettings): Promise<UserPrivacySettings> {
+    const [settings] = await db.insert(userPrivacySettings)
+      .values(insertSettings as any)
+      .onConflictDoUpdate({
+        target: userPrivacySettings.userId,
+        set: {
+          ...insertSettings,
+          updatedAt: new Date(),
+        }
+      })
+      .returning();
+    return settings;
+  }
+
+  // User profile data operations
+  async getUserProfileData(userId: string): Promise<UserProfileData | undefined> {
+    const [data] = await db.select().from(userProfileData)
+      .where(eq(userProfileData.userId, userId))
+      .limit(1);
+    return data;
+  }
+
+  async createOrUpdateProfileData(insertData: InsertUserProfileData): Promise<UserProfileData> {
+    const [data] = await db.insert(userProfileData)
+      .values(insertData as any)
+      .onConflictDoUpdate({
+        target: userProfileData.userId,
+        set: {
+          profileDimensions: sql`EXCLUDED.profile_dimensions`,
+          totalQuizzesCompleted: sql`EXCLUDED.total_quizzes_completed`,
+          totalTagsEarned: sql`EXCLUDED.total_tags_earned`,
+          totalBadgesEarned: sql`EXCLUDED.total_badges_earned`,
+          lastCalculatedAt: sql`EXCLUDED.last_calculated_at`,
+          updatedAt: sql`now()`,
+        }
+      })
+      .returning();
+    return data;
   }
 }
 

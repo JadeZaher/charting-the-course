@@ -396,6 +396,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isImported: false,
       });
 
+      // Extract tags from quiz submission
+      const { extractTagsFromQuizSubmission, determineBadgesFromTags } = await import('./tagExtraction');
+      const extractedTags = extractTagsFromQuizSubmission(
+        userId,
+        result.id,
+        quiz.surveyJson,
+        surveyResults
+      );
+
+      // Save tags to database
+      if (extractedTags.length > 0) {
+        await storage.createUserTags(extractedTags);
+
+        // Get all user tags to determine badges
+        const allUserTags = await storage.getUserTags(userId);
+        const badgesToEarn = determineBadgesFromTags(allUserTags);
+
+        // Upsert badges (increment strength if already earned)
+        for (const badge of badgesToEarn) {
+          await storage.upsertUserBadge({
+            userId,
+            badgeKey: badge.badgeKey,
+            badgeName: badge.badgeName,
+            badgeDescription: badge.badgeDescription,
+            badgeCategory: badge.badgeCategory,
+            badgeIcon: badge.badgeIcon,
+            strength: 1,
+            sourceTagKeys: badge.sourceTagKeys,
+          });
+        }
+      }
+
       // Delete quiz progress since it's completed
       await storage.deleteQuizProgress(userId, quizId);
 
