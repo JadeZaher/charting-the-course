@@ -139,6 +139,79 @@ export const quizProgress = pgTable("quiz_progress", {
   uniqueUserQuiz: uniqueIndex("quiz_progress_user_quiz_uniq").on(table.userId, table.quizId),
 }));
 
+// User tags table - stores individual tags extracted from quiz results
+export const userTags = pgTable("user_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  quizResultId: varchar("quiz_result_id").notNull().references(() => quizResults.id, { onDelete: "cascade" }),
+  // Tag information
+  tagKey: text("tag_key").notNull(),        // e.g., "leadership-style", "communication-preference"
+  tagValue: text("tag_value").notNull(),    // e.g., "collaborative", "visual"
+  tagCategory: text("tag_category"),        // e.g., "personality", "skills", "interests"
+  // Data type and numeric representation for similarity matching
+  dataType: text("data_type").notNull().$type<"string" | "number" | "boolean">(),
+  numericValue: integer("numeric_value"),   // For ratings and numeric answers
+  // Source metadata
+  questionName: text("question_name"),      // Original SurveyJS question name
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userTagsUserIndex: index("idx_user_tags_user").on(table.userId),
+  userTagsKeyIndex: index("idx_user_tags_key").on(table.tagKey),
+  userTagsKeyValueIndex: index("idx_user_tags_key_value").on(table.tagKey, table.tagValue),
+}));
+
+// User badges table - consolidated/aggregated badges from tags
+export const userBadges = pgTable("user_badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Badge definition
+  badgeKey: text("badge_key").notNull(),           // e.g., "collaborative-leader"
+  badgeName: text("badge_name").notNull(),         // e.g., "Collaborative Leader"
+  badgeDescription: text("badge_description"),
+  badgeCategory: text("badge_category"),           // e.g., "personality", "skills", "values"
+  badgeIcon: text("badge_icon"),                   // Icon name or emoji
+  // Badge strength/level (how many supporting tags)
+  strength: integer("strength").notNull().default(1),
+  // Source tracking
+  sourceTagKeys: text("source_tag_keys").array(),  // Which tags triggered this badge
+  earnedAt: timestamp("earned_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userBadgesUserIndex: index("idx_user_badges_user").on(table.userId),
+  userBadgesKeyIndex: index("idx_user_badges_key").on(table.badgeKey),
+  uniqueUserBadge: uniqueIndex("user_badges_user_key_uniq").on(table.userId, table.badgeKey),
+}));
+
+// User privacy settings - controls what's visible publicly
+export const userPrivacySettings = pgTable("user_privacy_settings", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  // Public profile controls
+  isProfilePublic: boolean("is_profile_public").notNull().default(false),
+  showBadges: boolean("show_badges").notNull().default(false),
+  showQuizResults: boolean("show_quiz_results").notNull().default(false),
+  showTags: boolean("show_tags").notNull().default(false),
+  // Specific profile dimensions to share
+  sharedDimensions: text("shared_dimensions").array(), // e.g., ["personality", "interests"]
+  // Discovery settings
+  allowDiscovery: boolean("allow_discovery").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// User profile data - flexible storage for profile dimensions and metadata
+export const userProfileData = pgTable("user_profile_data", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  // Profile dimensions (calculated from tags and badges)
+  profileDimensions: jsonb("profile_dimensions").$type<ProfileDimensions>(),
+  // Summary statistics
+  totalQuizzesCompleted: integer("total_quizzes_completed").notNull().default(0),
+  totalTagsEarned: integer("total_tags_earned").notNull().default(0),
+  totalBadgesEarned: integer("total_badges_earned").notNull().default(0),
+  // Metadata
+  lastCalculatedAt: timestamp("last_calculated_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // TypeScript types for JSON fields
 export interface QuizQuestion {
   id: number;
@@ -153,6 +226,42 @@ export interface QuizAnswer {
   questionId: number;
   answer: string | number;
   isCorrect?: boolean;
+}
+
+// Profile dimensions interface - flexible structure for profile cards
+export interface ProfileDimensions {
+  personality?: {
+    communicationStyle?: string;
+    leadershipStyle?: string;
+    decisionMaking?: string;
+    workPace?: string;
+    [key: string]: any;
+  };
+  strengths?: {
+    topStrengths?: string[];
+    skillRatings?: Record<string, number>;
+    competencies?: string[];
+    [key: string]: any;
+  };
+  values?: {
+    coreValues?: string[];
+    motivations?: string[];
+    priorities?: string[];
+    [key: string]: any;
+  };
+  interests?: {
+    primaryInterest?: string;
+    topics?: string[];
+    learningPreferences?: string[];
+    [key: string]: any;
+  };
+  growth?: {
+    areasForGrowth?: string[];
+    learningGoals?: string[];
+    developmentPaths?: string[];
+    [key: string]: any;
+  };
+  [key: string]: any; // Allow additional dimensions
 }
 
 // Zod schemas for validation
@@ -203,6 +312,29 @@ export const insertQuizProgressSchema = createInsertSchema(quizProgress).omit({
   lastUpdatedAt: true,
 });
 
+export const insertUserTagSchema = createInsertSchema(userTags).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  dataType: z.enum(["string", "number", "boolean"]),
+});
+
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
+  id: true,
+  earnedAt: true,
+  updatedAt: true,
+});
+
+export const insertUserPrivacySettingsSchema = createInsertSchema(userPrivacySettings).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserProfileDataSchema = createInsertSchema(userProfileData).omit({
+  lastCalculatedAt: true,
+  updatedAt: true,
+});
+
 // Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -225,3 +357,15 @@ export type QuizResult = typeof quizResults.$inferSelect;
 
 export type InsertQuizProgress = z.infer<typeof insertQuizProgressSchema>;
 export type QuizProgressType = typeof quizProgress.$inferSelect;
+
+export type InsertUserTag = z.infer<typeof insertUserTagSchema>;
+export type UserTag = typeof userTags.$inferSelect;
+
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+export type UserBadge = typeof userBadges.$inferSelect;
+
+export type InsertUserPrivacySettings = z.infer<typeof insertUserPrivacySettingsSchema>;
+export type UserPrivacySettings = typeof userPrivacySettings.$inferSelect;
+
+export type InsertUserProfileData = z.infer<typeof insertUserProfileDataSchema>;
+export type UserProfileData = typeof userProfileData.$inferSelect;
