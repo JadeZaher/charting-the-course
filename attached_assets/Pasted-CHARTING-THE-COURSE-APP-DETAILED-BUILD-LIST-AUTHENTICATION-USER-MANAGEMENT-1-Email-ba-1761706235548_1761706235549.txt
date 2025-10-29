@@ -1,0 +1,269 @@
+CHARTING THE COURSE APP - DETAILED BUILD LIST
+
+=== AUTHENTICATION & USER MANAGEMENT ===
+
+1. Email-based authentication system
+   - User sign-up with email
+   - User sign-in with email
+   - Session management to keep users logged in
+   - Password reset/recovery flow
+   - Suggestion: Use existing auth library (e.g., Auth0, Supabase Auth, or Firebase Auth)
+
+2. User database schema
+   - Store: user_id, email, name, role (admin/user), created_date
+   - Store: earned badges/tags array
+   - Store: chosen area/interest
+   - Store: profile completion status
+   - Suggestion: PostgreSQL or similar relational database
+
+3. Role-based access control
+   - Check if user is admin vs regular user
+   - Restrict admin-only pages/features to admins only
+   - Middleware to protect routes based on role
+
+=== QUIZ SYSTEM ===
+
+4. Quiz data structure/schema
+   - Store: quiz_id, title, description, questions array
+   - Each question: question_text, answer_options, badge_mapping
+   - Badge_mapping: defines which answer gives which badge/tag
+   - Status tracking: not_started, in_progress, completed
+
+5. Quiz taking interface (user-facing)
+   - Display quiz questions one at a time or all at once (your choice)
+   - Multiple choice answer selection
+   - Submit button to complete quiz
+   - Progress indicator showing which quizzes completed
+
+6. Quiz results processing engine
+   - When user submits quiz, process their answers
+   - Auto-assign badges based on answer → badge mapping rules
+   - Store completed quiz data in user profile
+   - Update user's badge collection
+   - Mark quiz as completed for that user
+
+7. Quiz creation/editing interface (admin-only)
+   - Form to create new quiz with title and description
+   - Add/remove/edit questions
+   - For each question: set answer options
+   - For each answer option: assign which badge(s) it grants
+   - Save/publish quiz
+   - Edit existing quizzes
+   - Delete quizzes
+
+8. "Choose your area" question handling
+   - Special question type that captures user's preferred area/interest
+   - Store this choice in user profile
+   - Trigger access unlocking based on this choice + badges earned
+
+=== BADGE/TAG SYSTEM ===
+
+9. Badge database schema
+   - Store: badge_id, badge_name, badge_code, description
+   - Optional: color, icon, visual representation data
+   - Create predefined badges that quizzes can assign
+
+10. Badge assignment logic
+    - Function that takes quiz answers and returns badge list
+    - Automatically add badges to user profile upon quiz completion
+    - Prevent duplicate badges (each badge earned once)
+
+11. Badge-based access control system
+    - Function to check: "Does user have required badge(s) for this content?"
+    - Link content/areas to required badge codes
+    - Show/hide content based on badge check
+    - Unlock Prezi areas, links, or resources when badges match
+
+12. Badge management interface (admin)
+    - Create new badges with name, code, description
+    - Edit existing badges
+    - View which badges are assigned to which quiz answers
+    - View which users have which badges
+
+=== USER PROFILE ===
+
+13. User profile page
+    - Display user's name, email, role
+    - Display all earned badges (with visual icons if available)
+    - Show completed quizzes list
+    - Show chosen area/interest
+    - Profile completion percentage/status
+
+14. Profile export functionality
+    - "Export My Data" button
+    - Generate JSON file with user's profile data, badges, quiz results
+    - Download file to user's computer
+
+15. Badge display component
+    - Visual representation of badges (could be simple list now, expandable later)
+    - Clickable badges to see details (optional for phase 1)
+    - Color-coding or icons for different badge types (future-ready)
+
+=== DASHBOARD ===
+
+16. User dashboard/homepage
+    - Welcome message with user's name
+    - List of available quizzes with status (completed/not completed)
+    - Progress summary (X of Y quizzes completed)
+    - Navigation links to: quizzes, profile, map
+    - Display earned badges summary
+
+17. Quiz status indicators
+    - Visual indicator (checkmark, color) for completed quizzes
+    - "Start Quiz" button for uncompleted quizzes
+    - "View Results" for completed quizzes
+
+=== MAP/PREZI INTEGRATION ===
+
+18. Map page with Prezi embed
+    - Embed Prezi map iframe or integration
+    - Initial state: static view (limited interaction)
+    - Full access state: interactive clickable bubbles
+
+19. Map access control logic
+    - Check if user has completed profile (all required quizzes done)
+    - Check if user has necessary badges for map access
+    - Show appropriate version of map based on access level
+    - Display message if access not yet unlocked
+
+20. Map bubble/area access control
+    - Each bubble/area linked to required badge code(s)
+    - Show only accessible bubbles to user based on their badges
+    - Dim or hide inaccessible areas
+    - Note: Actual Prezi content management is external, app just controls visibility
+
+=== MATCHING/DISCOVERY SYSTEM ===
+
+21. User discoverability toggle
+    - Checkbox/toggle for users to opt-in to being discoverable
+    - "Add myself to the list" functionality
+    - Store opt-in status in user profile
+
+22. User directory/search
+    - List of users who opted in to be discoverable
+    - Filter/search by badges
+    - Display user's name, chosen area, badges
+    - Link to view their profile or contact info
+
+23. Group/company directory
+    - List of groups/companies (admin-populated)
+    - Each group tagged with relevant badges
+    - Link groups to external resources (Notion, etc.)
+
+24. Matching suggestions (simple version)
+    - "Users like you" section showing users with similar badges
+    - "Groups for you" section showing groups matching user's badges
+    - Based on badge overlap/similarity
+    - Display on dashboard or dedicated matching page
+
+=== ADMIN CONTROL PANEL ===
+
+25. Admin dashboard
+    - Overview of total users, quizzes, badges
+    - Quick links to all admin functions
+    - Only accessible to users with admin role
+
+26. User management interface
+    - View all users in a table/list
+    - Edit user roles (promote to admin, demote to user)
+    - View user's badges and quiz completion
+    - Search/filter users
+
+27. Quiz management page
+    - List all existing quizzes
+    - Edit, delete, or create new quiz buttons
+    - Reorder quizzes (optional)
+    - Publish/unpublish quizzes
+
+28. Badge configuration page
+    - View all badges in system
+    - Create/edit/delete badges
+    - Set badge properties (name, code, color, icon)
+    - View usage statistics (how many users have each badge)
+
+=== DATA & API STRUCTURE ===
+
+29. API endpoints for data flow
+    - POST /api/auth/signup - create new user
+    - POST /api/auth/signin - authenticate user
+    - GET /api/user/profile - get current user's profile data
+    - PUT /api/user/profile - update user profile
+    - GET /api/quizzes - get all available quizzes
+    - GET /api/quiz/:id - get specific quiz
+    - POST /api/quiz/submit - submit quiz answers, get badges back
+    - GET /api/badges - get all badges
+    - POST /api/admin/quiz - create new quiz (admin only)
+    - PUT /api/admin/quiz/:id - edit quiz (admin only)
+    - DELETE /api/admin/quiz/:id - delete quiz (admin only)
+    - POST /api/admin/badge - create badge (admin only)
+    - GET /api/admin/users - get all users (admin only)
+    - PUT /api/admin/user/:id - update user role/permissions (admin only)
+
+30. Database setup
+    - Tables: users, quizzes, questions, badges, user_badges, quiz_results
+    - Relationships: users have many badges, users have many quiz results, quizzes have many questions
+    - Suggestion: Use PostgreSQL, Supabase, or Replit Database
+
+31. Data validation
+    - Validate quiz submissions (all questions answered)
+    - Validate badge codes are unique
+    - Validate user inputs (email format, required fields)
+    - Error handling for all API calls
+
+=== UI/UX COMPONENTS ===
+
+32. Navigation system
+    - Header with app name and user role indicator
+    - Navigation menu with links to: Dashboard, Quizzes, Profile, Map, Admin Panel (if admin)
+    - Logout button
+    - Mobile responsive navigation
+
+33. Responsive design
+    - Works on desktop, tablet, mobile
+    - Use CSS framework (Tailwind, Bootstrap, Material UI)
+    - Card-based layouts for quizzes and badges
+
+34. Loading states and feedback
+    - Loading spinners during data fetch
+    - Success messages after actions (quiz completed, profile updated)
+    - Error messages for failed operations
+    - Confirmation dialogs for destructive actions (delete quiz)
+
+=== OPTIONAL/FUTURE-READY FEATURES ===
+
+35. Quiz import/export (if still needed)
+    - Allow uploading quiz results as JSON file
+    - Parse and integrate into user profile
+    - Export quiz data as JSON
+
+36. Notification system (placeholder)
+    - Structure for future notifications (new quiz available, matched with group)
+    - Could be simple banner for now
+
+37. Analytics tracking (admin)
+    - Track quiz completion rates
+    - Track badge distribution
+    - Track user engagement metrics
+
+=== TESTING & DEPLOYMENT ===
+
+38. Test each feature
+    - User can sign up, sign in, take quiz, earn badges
+    - Admin can create quiz, assign badges, manage users
+    - Badge access control works correctly
+    - Map unlocks after profile completion
+    - Profile export works
+
+39. Deployment setup
+    - Deploy to Replit or hosting platform
+    - Set up environment variables for secrets
+    - Configure database connection
+    - Set up domain/URL if needed
+
+=== NOTES ===
+
+- Keep everything as simple as possible
+- Combine similar functions where possible
+- External integrations (Prezi content, Notion links) are handled outside app
+- Badge system is the core - everything revolves around earning and checking badges
+- Focus on MVP first, can enhance UI/visual badges later
