@@ -12,7 +12,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { RoleBadge } from "./RoleBadge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   LayoutDashboard,
   BookOpen,
@@ -22,12 +22,7 @@ import {
   LogOut,
   FileEdit,
 } from "lucide-react";
-
-// TODO: remove mock functionality
-const mockUser = {
-  name: "Jane Doe",
-  role: "Admin" as const,
-};
+import { useAuth } from "@/hooks/useAuth";
 
 const menuItems = [
   {
@@ -67,6 +62,27 @@ const adminItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", {
+        method: "GET",
+        credentials: "include",
+      });
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const displayName = user 
+    ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ""
+    : "";
+
+  const userRole = user?.role 
+    ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer"
+    : "Viewer";
 
   return (
     <Sidebar>
@@ -101,7 +117,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {mockUser.role === "Admin" && (
+        {(user?.role === "admin" || user?.role === "facilitator") && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -125,17 +141,18 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-10 w-10">
+            <AvatarImage src={user?.profileImageUrl || ""} />
             <AvatarFallback>
-              {mockUser.name.split(' ').map(n => n[0]).join('')}
+              {displayName.split(' ').map(n => n[0]).join('') || "?"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{mockUser.name}</p>
-            <RoleBadge role={mockUser.role} className="text-xs" />
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            <RoleBadge role={userRole} className="text-xs" />
           </div>
         </div>
         <SidebarMenuButton asChild className="w-full">
-          <button data-testid="button-logout">
+          <button onClick={handleLogout} data-testid="button-logout">
             <LogOut className="h-4 w-4" />
             <span>Logout</span>
           </button>

@@ -613,16 +613,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId } = req.params;
       
       // Get profile data
-      const profileData = await storage.getProfileDataByUserId(userId);
+      const profileData = await storage.getUserProfileData(userId);
       
       // Get user badges
-      const badges = await storage.getUserBadgesByUserId(userId);
+      const badges = await storage.getUserBadges(userId);
       
       // Get user tags (limited to most recent/relevant)
-      const tags = await storage.getUserTagsByUserId(userId);
+      const tags = await storage.getUserTags(userId);
       
       // Get privacy settings
-      const privacy = await storage.getUserPrivacyByUserId(userId);
+      const privacy = await storage.getUserPrivacySettings(userId);
       
       // Filter data based on privacy settings and whether the requester is the owner
       const isOwner = (req as any).user?.claims?.sub === userId;
@@ -646,18 +646,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Get or create profile data
-      let profileData = await storage.getProfileDataByUserId(userId);
+      let profileData = await storage.getUserProfileData(userId);
       
       // Get user badges
-      const badges = await storage.getUserBadgesByUserId(userId);
+      const badges = await storage.getUserBadges(userId);
       
       // Get user tags
-      const tags = await storage.getUserTagsByUserId(userId);
+      const tags = await storage.getUserTags(userId);
       
       // Get privacy settings or create default
-      let privacy = await storage.getUserPrivacyByUserId(userId);
+      let privacy = await storage.getUserPrivacySettings(userId);
       if (!privacy) {
-        privacy = await storage.createUserPrivacy({
+        privacy = await storage.createOrUpdatePrivacySettings({
           userId,
           isProfilePublic: false,
           showBadges: false,
@@ -685,21 +685,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const privacyUpdate = req.body;
       
-      // Get existing privacy settings
-      let privacy = await storage.getUserPrivacyByUserId(userId);
+      // Create or update privacy settings using the upsert method
+      const updated = await storage.createOrUpdatePrivacySettings({
+        userId,
+        ...privacyUpdate,
+      });
       
-      if (privacy) {
-        // Update existing
-        const updated = await storage.updateUserPrivacy(privacy.id, privacyUpdate);
-        res.json(updated);
-      } else {
-        // Create new
-        const created = await storage.createUserPrivacy({
-          userId,
-          ...privacyUpdate,
-        });
-        res.json(created);
-      }
+      res.json(updated);
     } catch (error) {
       console.error("Error updating privacy settings:", error);
       res.status(500).json({ error: "Failed to update privacy settings" });
