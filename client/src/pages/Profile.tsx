@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,30 @@ export default function Profile() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Location form state
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [locationForm, setLocationForm] = useState({
+    continentsVisited: [] as string[],
+    travelFrequency: "",
+    travelMotivation: [] as string[],
+    locationPrivacy: "",
+    identitySensitivity: "",
+    meetupPreferences: [] as string[],
+    communityActivities: [] as string[],
+  });
+
+  // Contact form state
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    preferredMethods: [] as string[],
+    communicationStyle: "",
+    responseTime: "",
+    energizingMethods: [] as string[],
+    drainingMethods: [] as string[],
+    boundaries: [] as string[],
+    privacyLevel: "",
+  });
+
   const { data: quizResults = [], isLoading: isLoadingQuizzes } = useQuery<QuizResult[]>({
     queryKey: ["/api/quiz-results/user"],
   });
@@ -65,6 +90,48 @@ export default function Profile() {
     },
   });
 
+  const updateLocationMutation = useMutation({
+    mutationFn: async (data: typeof locationForm) => {
+      return await apiRequest("PUT", "/api/profile/location", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setIsEditingLocation(false);
+      toast({
+        title: "Location Updated",
+        description: "Your location preferences have been saved.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update location preferences.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateContactMutation = useMutation({
+    mutationFn: async (data: typeof contactForm) => {
+      return await apiRequest("PUT", "/api/profile/contact", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setIsEditingContact(false);
+      toast({
+        title: "Contact Updated",
+        description: "Your contact preferences have been saved.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update contact preferences.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handlePrivacyToggle = (field: keyof UserPrivacySettings, value: boolean) => {
     updatePrivacyMutation.mutate({ [field]: value });
   };
@@ -75,6 +142,84 @@ export default function Profile() {
       ? [...currentDimensions, dimension]
       : currentDimensions.filter(d => d !== dimension);
     updatePrivacyMutation.mutate({ sharedDimensions: updatedDimensions });
+  };
+
+  // Populate location form when user data loads
+  useEffect(() => {
+    if (user?.locationData) {
+      setLocationForm({
+        continentsVisited: user.locationData.continentsVisited || [],
+        travelFrequency: user.locationData.travelFrequency || "",
+        travelMotivation: user.locationData.travelMotivation || [],
+        locationPrivacy: user.locationData.locationPrivacy || "",
+        identitySensitivity: user.locationData.identitySensitivity || "",
+        meetupPreferences: user.locationData.meetupPreferences || [],
+        communityActivities: user.locationData.communityActivities || [],
+      });
+    }
+  }, [user?.locationData]);
+
+  // Populate contact form when user data loads
+  useEffect(() => {
+    if (user?.contactData) {
+      setContactForm({
+        preferredMethods: user.contactData.preferredMethods || [],
+        communicationStyle: user.contactData.communicationStyle || "",
+        responseTime: user.contactData.responseTime || "",
+        energizingMethods: user.contactData.energizingMethods || [],
+        drainingMethods: user.contactData.drainingMethods || [],
+        boundaries: user.contactData.boundaries || [],
+        privacyLevel: user.contactData.privacyLevel || "",
+      });
+    }
+  }, [user?.contactData]);
+
+  // Helper to convert comma-separated string to array
+  const stringToArray = (str: string): string[] => {
+    return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  };
+
+  // Helper to convert array to comma-separated string
+  const arrayToString = (arr: string[]): string => {
+    return arr.join(', ');
+  };
+
+  const handleSaveLocation = () => {
+    updateLocationMutation.mutate(locationForm);
+  };
+
+  const handleCancelLocation = () => {
+    if (user?.locationData) {
+      setLocationForm({
+        continentsVisited: user.locationData.continentsVisited || [],
+        travelFrequency: user.locationData.travelFrequency || "",
+        travelMotivation: user.locationData.travelMotivation || [],
+        locationPrivacy: user.locationData.locationPrivacy || "",
+        identitySensitivity: user.locationData.identitySensitivity || "",
+        meetupPreferences: user.locationData.meetupPreferences || [],
+        communityActivities: user.locationData.communityActivities || [],
+      });
+    }
+    setIsEditingLocation(false);
+  };
+
+  const handleSaveContact = () => {
+    updateContactMutation.mutate(contactForm);
+  };
+
+  const handleCancelContact = () => {
+    if (user?.contactData) {
+      setContactForm({
+        preferredMethods: user.contactData.preferredMethods || [],
+        communicationStyle: user.contactData.communicationStyle || "",
+        responseTime: user.contactData.responseTime || "",
+        energizingMethods: user.contactData.energizingMethods || [],
+        drainingMethods: user.contactData.drainingMethods || [],
+        boundaries: user.contactData.boundaries || [],
+        privacyLevel: user.contactData.privacyLevel || "",
+      });
+    }
+    setIsEditingContact(false);
   };
 
   const completedQuizzes = quizResults.filter(r => r.score !== null);
@@ -420,28 +565,28 @@ export default function Profile() {
       </Card>
 
       <Tabs defaultValue="overview" className="space-y-6" data-testid="tabs-profile">
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 w-full">
-          <TabsTrigger value="overview" data-testid="tab-overview">
+        <TabsList className="flex flex-wrap gap-2 h-auto p-2">
+          <TabsTrigger value="overview" data-testid="tab-overview" className="flex-shrink-0">
             <User className="h-4 w-4 mr-2" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="location" data-testid="tab-location">
+          <TabsTrigger value="location" data-testid="tab-location" className="flex-shrink-0">
             <MapPin className="h-4 w-4 mr-2" />
             Location
           </TabsTrigger>
-          <TabsTrigger value="contact" data-testid="tab-contact">
+          <TabsTrigger value="contact" data-testid="tab-contact" className="flex-shrink-0">
             <Phone className="h-4 w-4 mr-2" />
             Contact
           </TabsTrigger>
-          <TabsTrigger value="dimensions" data-testid="tab-dimensions">
+          <TabsTrigger value="dimensions" data-testid="tab-dimensions" className="flex-shrink-0">
             <Brain className="h-4 w-4 mr-2" />
             Dimensions
           </TabsTrigger>
-          <TabsTrigger value="badges" data-testid="tab-badges">
+          <TabsTrigger value="badges" data-testid="tab-badges" className="flex-shrink-0">
             <Shield className="h-4 w-4 mr-2" />
             Badges
           </TabsTrigger>
-          <TabsTrigger value="privacy" data-testid="tab-privacy">
+          <TabsTrigger value="privacy" data-testid="tab-privacy" className="flex-shrink-0">
             <Lock className="h-4 w-4 mr-2" />
             Privacy
           </TabsTrigger>
@@ -564,22 +709,142 @@ export default function Profile() {
         <TabsContent value="location" className="space-y-6">
           <Card data-testid="card-location">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Location Preferences
-              </CardTitle>
-              <CardDescription>
-                Your location and travel preferences (auto-populated from Location Quiz)
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Location Preferences
+                  </CardTitle>
+                  <CardDescription>
+                    Your location and travel preferences
+                  </CardDescription>
+                </div>
+                {!isEditingLocation && (
+                  <Button
+                    onClick={() => setIsEditingLocation(true)}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-edit-location"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {user?.locationData ? (
+              {isEditingLocation ? (
                 <div className="space-y-4">
-                  {user.locationData.continentsVisited && user.locationData.continentsVisited.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="continents-visited">Continents Visited</Label>
+                    <Input
+                      id="continents-visited"
+                      value={arrayToString(locationForm.continentsVisited)}
+                      onChange={(e) => setLocationForm({...locationForm, continentsVisited: stringToArray(e.target.value)})}
+                      placeholder="e.g., North America, Europe, Asia (comma-separated)"
+                      data-testid="input-continents-visited"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter continents separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="travel-frequency">Travel Frequency</Label>
+                    <Input
+                      id="travel-frequency"
+                      value={locationForm.travelFrequency}
+                      onChange={(e) => setLocationForm({...locationForm, travelFrequency: e.target.value})}
+                      placeholder="e.g., Monthly, Quarterly, Annually"
+                      data-testid="input-travel-frequency"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="travel-motivation">Travel Motivations</Label>
+                    <Input
+                      id="travel-motivation"
+                      value={arrayToString(locationForm.travelMotivation)}
+                      onChange={(e) => setLocationForm({...locationForm, travelMotivation: stringToArray(e.target.value)})}
+                      placeholder="e.g., Adventure, Culture, Work (comma-separated)"
+                      data-testid="input-travel-motivation"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter motivations separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="location-privacy">Location Privacy Preference</Label>
+                    <Input
+                      id="location-privacy"
+                      value={locationForm.locationPrivacy}
+                      onChange={(e) => setLocationForm({...locationForm, locationPrivacy: e.target.value})}
+                      placeholder="e.g., Public, Private, Selective"
+                      data-testid="input-location-privacy"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="identity-sensitivity">Identity Sensitivity</Label>
+                    <Input
+                      id="identity-sensitivity"
+                      value={locationForm.identitySensitivity}
+                      onChange={(e) => setLocationForm({...locationForm, identitySensitivity: e.target.value})}
+                      placeholder="e.g., Low, Medium, High"
+                      data-testid="input-identity-sensitivity"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="meetup-preferences">Meetup Preferences</Label>
+                    <Input
+                      id="meetup-preferences"
+                      value={arrayToString(locationForm.meetupPreferences)}
+                      onChange={(e) => setLocationForm({...locationForm, meetupPreferences: stringToArray(e.target.value)})}
+                      placeholder="e.g., Coffee shops, Parks, Virtual (comma-separated)"
+                      data-testid="input-meetup-preferences"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter preferences separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="community-activities">Community Activities</Label>
+                    <Textarea
+                      id="community-activities"
+                      value={arrayToString(locationForm.communityActivities)}
+                      onChange={(e) => setLocationForm({...locationForm, communityActivities: stringToArray(e.target.value)})}
+                      placeholder="e.g., Meetups, Workshops, Conferences (comma-separated)"
+                      data-testid="input-community-activities"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter activities separated by commas</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleSaveLocation} 
+                      size="sm" 
+                      disabled={updateLocationMutation.isPending}
+                      data-testid="button-save-location"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {updateLocationMutation.isPending ? "Saving..." : "Save"}
+                    </Button>
+                    <Button 
+                      onClick={handleCancelLocation} 
+                      size="sm" 
+                      variant="outline"
+                      disabled={updateLocationMutation.isPending}
+                      data-testid="button-cancel-location"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {locationForm.continentsVisited.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Continents Visited</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.locationData.continentsVisited.map((continent: string, idx: number) => (
+                        {locationForm.continentsVisited.map((continent: string, idx: number) => (
                           <Badge key={idx} variant="secondary" data-testid={`badge-continent-${idx}`}>
                             {continent}
                           </Badge>
@@ -588,20 +853,20 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.locationData.travelFrequency && (
+                  {locationForm.travelFrequency && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Travel Frequency</Label>
                       <p className="text-muted-foreground" data-testid="text-travel-frequency">
-                        {user.locationData.travelFrequency}
+                        {locationForm.travelFrequency}
                       </p>
                     </div>
                   )}
 
-                  {user.locationData.travelMotivation && user.locationData.travelMotivation.length > 0 && (
+                  {locationForm.travelMotivation.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Travel Motivations</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.locationData.travelMotivation.map((motivation: string, idx: number) => (
+                        {locationForm.travelMotivation.map((motivation: string, idx: number) => (
                           <Badge key={idx} variant="outline" data-testid={`badge-motivation-${idx}`}>
                             {motivation}
                           </Badge>
@@ -610,29 +875,29 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.locationData.locationPrivacy && (
+                  {locationForm.locationPrivacy && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Location Privacy Preference</Label>
                       <p className="text-muted-foreground" data-testid="text-location-privacy">
-                        {user.locationData.locationPrivacy}
+                        {locationForm.locationPrivacy}
                       </p>
                     </div>
                   )}
 
-                  {user.locationData.identitySensitivity && (
+                  {locationForm.identitySensitivity && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Identity Sensitivity</Label>
                       <p className="text-muted-foreground" data-testid="text-identity-sensitivity">
-                        {user.locationData.identitySensitivity}
+                        {locationForm.identitySensitivity}
                       </p>
                     </div>
                   )}
 
-                  {user.locationData.meetupPreferences && user.locationData.meetupPreferences.length > 0 && (
+                  {locationForm.meetupPreferences.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Meetup Preferences</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.locationData.meetupPreferences.map((pref: string, idx: number) => (
+                        {locationForm.meetupPreferences.map((pref: string, idx: number) => (
                           <Badge key={idx} variant="secondary" data-testid={`badge-meetup-${idx}`}>
                             {pref}
                           </Badge>
@@ -641,11 +906,11 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.locationData.communityActivities && user.locationData.communityActivities.length > 0 && (
+                  {locationForm.communityActivities.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Community Activities</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.locationData.communityActivities.map((activity: string, idx: number) => (
+                        {locationForm.communityActivities.map((activity: string, idx: number) => (
                           <Badge key={idx} variant="outline" data-testid={`badge-activity-${idx}`}>
                             {activity}
                           </Badge>
@@ -653,16 +918,18 @@ export default function Profile() {
                       </div>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="text-center py-8 space-y-2">
-                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    No location data yet
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Complete the Location Quiz to populate this information
-                  </p>
+
+                  {!user?.locationData && locationForm.continentsVisited.length === 0 && !locationForm.travelFrequency && (
+                    <div className="text-center py-8 space-y-2">
+                      <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        No location data yet
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Click Edit to manually add your location preferences
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -672,22 +939,142 @@ export default function Profile() {
         <TabsContent value="contact" className="space-y-6">
           <Card data-testid="card-contact">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                Contact Preferences
-              </CardTitle>
-              <CardDescription>
-                Your communication and contact preferences (auto-populated from Contact Quiz)
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Contact Preferences
+                  </CardTitle>
+                  <CardDescription>
+                    Your communication and contact preferences
+                  </CardDescription>
+                </div>
+                {!isEditingContact && (
+                  <Button
+                    onClick={() => setIsEditingContact(true)}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-edit-contact"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {user?.contactData ? (
+              {isEditingContact ? (
                 <div className="space-y-4">
-                  {user.contactData.preferredMethods && user.contactData.preferredMethods.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="preferred-methods">Preferred Contact Methods</Label>
+                    <Input
+                      id="preferred-methods"
+                      value={arrayToString(contactForm.preferredMethods)}
+                      onChange={(e) => setContactForm({...contactForm, preferredMethods: stringToArray(e.target.value)})}
+                      placeholder="e.g., Email, Phone, Video call (comma-separated)"
+                      data-testid="input-preferred-methods"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter methods separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="communication-style">Communication Style</Label>
+                    <Input
+                      id="communication-style"
+                      value={contactForm.communicationStyle}
+                      onChange={(e) => setContactForm({...contactForm, communicationStyle: e.target.value})}
+                      placeholder="e.g., Direct, Collaborative, Formal"
+                      data-testid="input-communication-style"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="response-time">Response Time Expectation</Label>
+                    <Input
+                      id="response-time"
+                      value={contactForm.responseTime}
+                      onChange={(e) => setContactForm({...contactForm, responseTime: e.target.value})}
+                      placeholder="e.g., Within 24 hours, Same day, Flexible"
+                      data-testid="input-response-time"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="energizing-methods">What Energizes Me</Label>
+                    <Input
+                      id="energizing-methods"
+                      value={arrayToString(contactForm.energizingMethods)}
+                      onChange={(e) => setContactForm({...contactForm, energizingMethods: stringToArray(e.target.value)})}
+                      placeholder="e.g., Brainstorming, Deep conversations (comma-separated)"
+                      data-testid="input-energizing-methods"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter activities separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="draining-methods">What Drains Me</Label>
+                    <Input
+                      id="draining-methods"
+                      value={arrayToString(contactForm.drainingMethods)}
+                      onChange={(e) => setContactForm({...contactForm, drainingMethods: stringToArray(e.target.value)})}
+                      placeholder="e.g., Long meetings, Phone calls (comma-separated)"
+                      data-testid="input-draining-methods"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter activities separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="boundaries">Communication Boundaries</Label>
+                    <Textarea
+                      id="boundaries"
+                      value={arrayToString(contactForm.boundaries)}
+                      onChange={(e) => setContactForm({...contactForm, boundaries: stringToArray(e.target.value)})}
+                      placeholder="e.g., No calls after 6pm, Email only on weekdays (comma-separated)"
+                      data-testid="input-boundaries"
+                    />
+                    <p className="text-xs text-muted-foreground">Enter boundaries separated by commas</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="privacy-level">Privacy Level</Label>
+                    <Input
+                      id="privacy-level"
+                      value={contactForm.privacyLevel}
+                      onChange={(e) => setContactForm({...contactForm, privacyLevel: e.target.value})}
+                      placeholder="e.g., Public, Private, Selective"
+                      data-testid="input-privacy-level"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleSaveContact} 
+                      size="sm" 
+                      disabled={updateContactMutation.isPending}
+                      data-testid="button-save-contact"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {updateContactMutation.isPending ? "Saving..." : "Save"}
+                    </Button>
+                    <Button 
+                      onClick={handleCancelContact} 
+                      size="sm" 
+                      variant="outline"
+                      disabled={updateContactMutation.isPending}
+                      data-testid="button-cancel-contact"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {contactForm.preferredMethods.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Preferred Contact Methods</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.contactData.preferredMethods.map((method: string, idx: number) => (
+                        {contactForm.preferredMethods.map((method: string, idx: number) => (
                           <Badge key={idx} variant="secondary" data-testid={`badge-contact-method-${idx}`}>
                             {method}
                           </Badge>
@@ -696,29 +1083,29 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.contactData.communicationStyle && (
+                  {contactForm.communicationStyle && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Communication Style</Label>
                       <p className="text-muted-foreground" data-testid="text-communication-style">
-                        {user.contactData.communicationStyle}
+                        {contactForm.communicationStyle}
                       </p>
                     </div>
                   )}
 
-                  {user.contactData.responseTime && (
+                  {contactForm.responseTime && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Response Time Expectation</Label>
                       <p className="text-muted-foreground" data-testid="text-response-time">
-                        {user.contactData.responseTime}
+                        {contactForm.responseTime}
                       </p>
                     </div>
                   )}
 
-                  {user.contactData.energizingMethods && user.contactData.energizingMethods.length > 0 && (
+                  {contactForm.energizingMethods.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">What Energizes Me</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.contactData.energizingMethods.map((method: string, idx: number) => (
+                        {contactForm.energizingMethods.map((method: string, idx: number) => (
                           <Badge key={idx} variant="outline" className="text-chart-3 border-chart-3" data-testid={`badge-energizing-${idx}`}>
                             {method}
                           </Badge>
@@ -727,11 +1114,11 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.contactData.drainingMethods && user.contactData.drainingMethods.length > 0 && (
+                  {contactForm.drainingMethods.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">What Drains Me</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.contactData.drainingMethods.map((method: string, idx: number) => (
+                        {contactForm.drainingMethods.map((method: string, idx: number) => (
                           <Badge key={idx} variant="outline" className="text-destructive border-destructive" data-testid={`badge-draining-${idx}`}>
                             {method}
                           </Badge>
@@ -740,11 +1127,11 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.contactData.boundaries && user.contactData.boundaries.length > 0 && (
+                  {contactForm.boundaries.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Communication Boundaries</Label>
                       <div className="flex flex-wrap gap-2">
-                        {user.contactData.boundaries.map((boundary: string, idx: number) => (
+                        {contactForm.boundaries.map((boundary: string, idx: number) => (
                           <Badge key={idx} variant="secondary" data-testid={`badge-boundary-${idx}`}>
                             {boundary}
                           </Badge>
@@ -753,24 +1140,26 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {user.contactData.privacyLevel && (
+                  {contactForm.privacyLevel && (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Privacy Level</Label>
                       <p className="text-muted-foreground" data-testid="text-privacy-level">
-                        {user.contactData.privacyLevel}
+                        {contactForm.privacyLevel}
                       </p>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="text-center py-8 space-y-2">
-                  <Phone className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    No contact data yet
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Complete the Contact Quiz to populate this information
-                  </p>
+
+                  {!user?.contactData && contactForm.preferredMethods.length === 0 && !contactForm.communicationStyle && (
+                    <div className="text-center py-8 space-y-2">
+                      <Phone className="h-12 w-12 mx-auto text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        No contact data yet
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Click Edit to manually add your contact preferences
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
