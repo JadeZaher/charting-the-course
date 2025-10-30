@@ -6,6 +6,30 @@ import { z } from "zod";
 // User roles enum
 export type UserRole = "admin" | "facilitator" | "contributor" | "viewer";
 
+// Location data structure
+export interface LocationData {
+  continentsVisited?: string[];
+  travelFrequency?: string;
+  travelMotivation?: string[];
+  locationPrivacy?: string;
+  identitySensitivity?: string;
+  meetupPreferences?: string[];
+  communityActivities?: string[];
+  [key: string]: any;
+}
+
+// Contact data structure
+export interface ContactData {
+  preferredMethods?: string[];
+  communicationStyle?: string;
+  responseTime?: string;
+  energizingMethods?: string[];
+  drainingMethods?: string[];
+  boundaries?: string[];
+  privacyLevel?: string;
+  [key: string]: any;
+}
+
 // Session storage table (required for Replit Auth)
 export const sessions = pgTable(
   "sessions",
@@ -29,6 +53,9 @@ export const users = pgTable("users", {
   // Additional profile fields
   username: text("username"),
   bio: text("bio"),
+  // Location and contact data (from quizzes or manual entry)
+  locationData: jsonb("location_data").$type<LocationData>(),
+  contactData: jsonb("contact_data").$type<ContactData>(),
   // Role and permissions
   role: text("role").notNull().default("viewer").$type<UserRole>(),
   // Metadata
