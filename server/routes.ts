@@ -6,6 +6,8 @@ import {
   insertQuizSchema, 
   insertQuizResultSchema, 
   insertQuizProgressSchema,
+  locationDataSchema,
+  contactDataSchema,
   type Quiz
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
@@ -677,6 +679,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching profile data:", error);
       res.status(500).json({ error: "Failed to fetch profile data" });
+    }
+  });
+
+  app.put("/api/profile/location", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate the request body
+      const validationResult = locationDataSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid location data", 
+          details: fromZodError(validationResult.error).toString()
+        });
+      }
+      
+      const updated = await storage.updateUser(userId, { locationData: validationResult.data as any });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating location data:", error);
+      res.status(500).json({ error: "Failed to update location data" });
+    }
+  });
+
+  app.put("/api/profile/contact", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate the request body
+      const validationResult = contactDataSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid contact data", 
+          details: fromZodError(validationResult.error).toString()
+        });
+      }
+      
+      const updated = await storage.updateUser(userId, { contactData: validationResult.data as any });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating contact data:", error);
+      res.status(500).json({ error: "Failed to update contact data" });
     }
   });
 

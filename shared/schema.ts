@@ -7,7 +7,7 @@ import { z } from "zod";
 export type UserRole = "admin" | "facilitator" | "contributor" | "viewer";
 
 // Location data structure
-export interface LocationData {
+export type LocationData = {
   continentsVisited?: string[];
   travelFrequency?: string;
   travelMotivation?: string[];
@@ -15,11 +15,10 @@ export interface LocationData {
   identitySensitivity?: string;
   meetupPreferences?: string[];
   communityActivities?: string[];
-  [key: string]: any;
-}
+} & Record<string, any>;
 
 // Contact data structure
-export interface ContactData {
+export type ContactData = {
   preferredMethods?: string[];
   communicationStyle?: string;
   responseTime?: string;
@@ -27,8 +26,28 @@ export interface ContactData {
   drainingMethods?: string[];
   boundaries?: string[];
   privacyLevel?: string;
-  [key: string]: any;
-}
+} & Record<string, any>;
+
+// Zod validation schemas for location and contact data
+export const locationDataSchema = z.object({
+  continentsVisited: z.array(z.string()).optional(),
+  travelFrequency: z.string().optional(),
+  travelMotivation: z.array(z.string()).optional(),
+  locationPrivacy: z.string().optional(),
+  identitySensitivity: z.string().optional(),
+  meetupPreferences: z.array(z.string()).optional(),
+  communityActivities: z.array(z.string()).optional(),
+}).passthrough();
+
+export const contactDataSchema = z.object({
+  preferredMethods: z.array(z.string()).optional(),
+  communicationStyle: z.string().optional(),
+  responseTime: z.string().optional(),
+  energizingMethods: z.array(z.string()).optional(),
+  drainingMethods: z.array(z.string()).optional(),
+  boundaries: z.array(z.string()).optional(),
+  privacyLevel: z.string().optional(),
+}).passthrough();
 
 // Session storage table (required for Replit Auth)
 export const sessions = pgTable(
