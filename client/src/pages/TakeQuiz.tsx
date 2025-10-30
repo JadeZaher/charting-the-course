@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
 import "survey-core/survey-core.css";
+import { ThreeDimensionalDarkPanelless } from "survey-core/themes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,9 @@ export default function TakeQuiz() {
     if (quiz && quiz.surveyJson) {
       try {
         const surveyModel = new Model(quiz.surveyJson);
+        
+        // Apply theme to match the app's design
+        surveyModel.applyTheme(ThreeDimensionalDarkPanelless);
 
         surveyModel.onComplete.add((sender) => {
           const timeSpent = Math.floor((Date.now() - startTime) / 1000);
