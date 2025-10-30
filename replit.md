@@ -6,6 +6,37 @@ CourseHub has been transformed into a quiz hosting and analysis platform with pr
 
 ## Recent Changes (October 30, 2025)
 
+**Production-Ready Profile Quizzes:**
+- Created Locations Quiz (locations-quiz-v1) with comprehensive questions about:
+  - World experience (continents visited, travel frequency, motivations)
+  - Location privacy preferences (comfort levels, identity sensitivity)
+  - Community connection interests (meetup preferences, activities)
+  - Custom tags with version 1.0 metadata for behavior determination
+- Created Contact Quiz (contact-quiz-v1) with questions about:
+  - Preferred contact methods (email, phone, video, messaging, in-person)
+  - Communication style and response time expectations
+  - What energizes vs drains them in communication
+  - Communication boundaries and privacy preferences
+- Both quizzes include:
+  - `version` metadata (1.0) for tracking tag behavior across quiz versions
+  - `tagFormat` properties for special handling (privacy-level, sensitivity-level, ranked-list)
+  - Profile dimension mapping to personality, strengths, values, interests, growth
+  - Choice-specific customTag properties for granular profiling
+
+**Enhanced Privacy Controls:**
+- Updated Privacy Settings tab with granular dimension-specific checkboxes
+- Users can now individually select which profile dimensions to share:
+  - Personality (communication style, traits)
+  - Strengths (what energizes them)
+  - Values (core beliefs, privacy preferences)
+  - Interests (travel, activities, hobbies)
+  - Growth Areas (areas for improvement)
+- Reorganized privacy settings into three cards:
+  - Profile Visibility (public/badges/tags/quiz results)
+  - Profile Dimensions (individual dimension checkboxes)
+  - Discovery Settings (allow discovery toggle)
+- Backend stores sharedDimensions as an array in userPrivacySettings table
+
 **Tag-Based Profile System Implementation:**
 - Implemented comprehensive tag extraction engine (`server/tagExtraction.ts`) that processes all SurveyJS question types including:
   - Checkbox/multi-select arrays
@@ -17,12 +48,12 @@ CourseHub has been transformed into a quiz hosting and analysis platform with pr
 - Built API endpoints for profile data retrieval and privacy management:
   - `GET /api/profile/:userId` - Public profile view with privacy filtering
   - `GET /api/profile/my/data` - Own profile data with full access
-  - `PUT /api/profile/privacy` - Update privacy settings
+  - `PUT /api/profile/privacy` - Update privacy settings with dimension-specific controls
 - Refactored Profile page with tab-based layout:
   - Overview: Stats and recent quiz results
   - Dimensions: Five profile dimension cards (Personality, Strengths, Values, Interests, Growth) with empty states
   - Badge Collection: Visual display of earned badges
-  - Privacy Settings: Granular control over profile visibility
+  - Privacy Settings: Granular control over profile visibility with dimension checkboxes
 - Tags extracted on quiz submission automatically populate user profiles
 - Privacy-first design: Default minimal public sharing, users opt-in to expose dimensions
 
