@@ -19,6 +19,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import type { QuizResult, UserProfileData, UserBadge, UserTag, UserPrivacySettings, ProfileDimensions } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface ProfileData {
@@ -66,6 +67,14 @@ export default function Profile() {
 
   const handlePrivacyToggle = (field: keyof UserPrivacySettings, value: boolean) => {
     updatePrivacyMutation.mutate({ [field]: value });
+  };
+
+  const handleDimensionToggle = (dimension: string, checked: boolean) => {
+    const currentDimensions = profileData?.privacy?.sharedDimensions || [];
+    const updatedDimensions = checked
+      ? [...currentDimensions, dimension]
+      : currentDimensions.filter(d => d !== dimension);
+    updatePrivacyMutation.mutate({ sharedDimensions: updatedDimensions });
   };
 
   const completedQuizzes = quizResults.filter(r => r.score !== null);
@@ -590,6 +599,20 @@ export default function Profile() {
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5 flex-1">
+                  <Label className="text-base">Make Profile Public</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Allow others to view your profile page
+                  </p>
+                </div>
+                <Switch
+                  checked={profileData?.privacy?.isProfilePublic || false}
+                  onCheckedChange={(checked) => handlePrivacyToggle('isProfilePublic', checked)}
+                  data-testid="switch-profile-public"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5 flex-1">
                   <Label className="text-base">Show Badges</Label>
                   <p className="text-sm text-muted-foreground">
                     Allow others to see your earned badges
@@ -618,20 +641,6 @@ export default function Profile() {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5 flex-1">
-                  <Label className="text-base">Make Profile Public</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow others to view your profile page
-                  </p>
-                </div>
-                <Switch
-                  checked={profileData?.privacy?.isProfilePublic || false}
-                  onCheckedChange={(checked) => handlePrivacyToggle('isProfilePublic', checked)}
-                  data-testid="switch-profile-public"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1">
                   <Label className="text-base">Show Quiz Results</Label>
                   <p className="text-sm text-muted-foreground">
                     Let others see which quizzes you've completed and your scores
@@ -643,7 +652,112 @@ export default function Profile() {
                   data-testid="switch-show-quiz-results"
                 />
               </div>
+            </CardContent>
+          </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Dimensions</CardTitle>
+              <CardDescription>
+                Select which profile dimensions to share publicly
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="dimension-personality"
+                  checked={profileData?.privacy?.sharedDimensions?.includes('personality') || false}
+                  onCheckedChange={(checked) => handleDimensionToggle('personality', checked as boolean)}
+                  data-testid="checkbox-dimension-personality"
+                />
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="dimension-personality" className="text-base cursor-pointer">
+                    Personality
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Share your personality traits and communication style
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="dimension-strengths"
+                  checked={profileData?.privacy?.sharedDimensions?.includes('strengths') || false}
+                  onCheckedChange={(checked) => handleDimensionToggle('strengths', checked as boolean)}
+                  data-testid="checkbox-dimension-strengths"
+                />
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="dimension-strengths" className="text-base cursor-pointer">
+                    Strengths
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Share your key strengths and what energizes you
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="dimension-values"
+                  checked={profileData?.privacy?.sharedDimensions?.includes('values') || false}
+                  onCheckedChange={(checked) => handleDimensionToggle('values', checked as boolean)}
+                  data-testid="checkbox-dimension-values"
+                />
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="dimension-values" className="text-base cursor-pointer">
+                    Values
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Share your core values and what matters to you
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="dimension-interests"
+                  checked={profileData?.privacy?.sharedDimensions?.includes('interests') || false}
+                  onCheckedChange={(checked) => handleDimensionToggle('interests', checked as boolean)}
+                  data-testid="checkbox-dimension-interests"
+                />
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="dimension-interests" className="text-base cursor-pointer">
+                    Interests
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Share your interests, hobbies, and travel experiences
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="dimension-growth"
+                  checked={profileData?.privacy?.sharedDimensions?.includes('growth') || false}
+                  onCheckedChange={(checked) => handleDimensionToggle('growth', checked as boolean)}
+                  data-testid="checkbox-dimension-growth"
+                />
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="dimension-growth" className="text-base cursor-pointer">
+                    Growth Areas
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Share areas where you're working to grow and improve
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Discovery Settings</CardTitle>
+              <CardDescription>
+                Control how others can find and connect with you
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5 flex-1">
                   <Label className="text-base">Allow Discovery</Label>
