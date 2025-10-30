@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Edit, Save, X, CheckCircle, Clock, Download, Upload, 
   TrendingUp, Heart, Target, Sparkles, Brain, Shield,
-  User, Lock, Eye, EyeOff
+  User, Lock, Eye, EyeOff, Copy, Link2, Share2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -102,6 +102,47 @@ export default function Profile() {
     setName(displayName);
     setBio(displayBio === "No bio added yet." ? "" : displayBio);
     setIsEditing(false);
+  };
+
+  const handleCopyProfileLink = () => {
+    if (!user?.id) return;
+    const profileUrl = `${window.location.origin}/profile/${user.id}`;
+    navigator.clipboard.writeText(profileUrl);
+    toast({
+      title: "Link Copied",
+      description: "Your profile link has been copied to clipboard.",
+    });
+  };
+
+  const handleShareProfile = async () => {
+    if (!user?.id) return;
+    const profileUrl = `${window.location.origin}/profile/${user.id}`;
+    const displayName = user 
+      ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ""
+      : "";
+    
+    // Try native share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${displayName}'s Profile`,
+          text: `Check out ${displayName}'s profile on CourseHub`,
+          url: profileUrl,
+        });
+        toast({
+          title: "Shared Successfully",
+          description: "Your profile has been shared.",
+        });
+      } catch (error) {
+        // User cancelled or error occurred, do nothing
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
+    } else {
+      // Fallback to copy
+      handleCopyProfileLink();
+    }
   };
 
   const handleExportJSON = () => {
@@ -421,6 +462,50 @@ export default function Profile() {
               icon={Shield}
             />
           </div>
+
+          <Card data-testid="card-profile-link">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Profile Link
+              </CardTitle>
+              <CardDescription>Share your profile with others</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      value={user?.id ? `${window.location.origin}/profile/${user.id}` : ''}
+                      readOnly
+                      className="text-sm"
+                      data-testid="input-profile-url"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyProfileLink}
+                    data-testid="button-copy-link"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleShareProfile}
+                    data-testid="button-share-profile"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Others can visit this link to view your public profile based on your privacy settings.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

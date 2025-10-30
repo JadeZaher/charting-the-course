@@ -614,25 +614,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       
+      // Get user info
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Get privacy settings first to determine what to show
+      const privacy = await storage.getUserPrivacySettings(userId);
+      
+      // Check if requester is the owner (authenticated users only)
+      const isOwner = (req as any).user?.claims?.sub === userId;
+      
+      // If not the owner and profile is not public, return minimal data
+      if (!isOwner && privacy && !privacy.isProfilePublic) {
+        return res.json({
+          user: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            profileImageUrl: user.profileImageUrl,
+          },
+          profileData: null,
+          badges: [],
+          tags: [],
+          privacy: null,
+        });
+      }
+      
       // Get profile data
       const profileData = await storage.getUserProfileData(userId);
       
-      // Get user badges
-      const badges = await storage.getUserBadges(userId);
+      // Get user badges (only if privacy allows)
+      const badges = (isOwner || privacy?.showBadges) 
+        ? await storage.getUserBadges(userId) 
+        : [];
       
-      // Get user tags (limited to most recent/relevant)
-      const tags = await storage.getUserTags(userId);
+      // Get user tags (only if privacy allows)
+      const tags = (isOwner || privacy?.showTags) 
+        ? await storage.getUserTags(userId) 
+        : [];
       
-      // Get privacy settings
-      const privacy = await storage.getUserPrivacySettings(userId);
-      
-      // Filter data based on privacy settings and whether the requester is the owner
-      const isOwner = (req as any).user?.claims?.sub === userId;
-      
-      const response: any = {
-        profileData,
-        badges: isOwner || privacy?.showBadges ? badges : [],
-        tags: isOwner || privacy?.showTags ? tags : [],
+      const response = {
+        user: {
+          id: user.id,
+          email: (isOwner || privacy?.isProfilePublic) ? user.email : undefined,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profileImageUrl: user.profileImageUrl,
+          bio: user.bio,
+          role: user.role,
+          createdAt: user.createdAt,
+        },
+        profileData: isOwner || privacy?.isProfilePublic ? profileData : null,
+        badges,
+        tags,
         privacy: isOwner ? privacy : null,
       };
       

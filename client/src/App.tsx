@@ -15,6 +15,7 @@ import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
 import QuizResults from "@/pages/QuizResults";
 import Profile from "@/pages/Profile";
+import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import MapView from "@/pages/MapView";
 import NotFound from "@/pages/not-found";
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/quiz/take/:id" component={TakeQuiz} />
       <Route path="/quiz/results/:id" component={QuizResults} />
       <Route path="/profile" component={Profile} />
+      <Route path="/profile/:userId" component={PublicProfile} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/map" component={MapView} />
       <Route component={NotFound} />
