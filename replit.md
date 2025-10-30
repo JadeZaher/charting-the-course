@@ -2,7 +2,54 @@
 
 ## Overview
 
-CourseHub is a comprehensive web-based platform for course management, team collaboration, and interactive learning experiences. The application supports role-based access control (Admin, Facilitator, Contributor, Viewer) and provides features including quiz management, progress tracking, team organization, and collaborative mindmap visualization. Built as a full-stack TypeScript application with React on the frontend and Express on the backend.
+CourseHub has been transformed into a quiz hosting and analysis platform with profile-driven user discovery. Users create quizzes via the SurveyJS online demo, export JSON, then import to the platform. Quiz results generate tags from custom question properties, which populate user profiles with "deeply human aspects" (personality, strengths, values, interests, growth areas). The application supports role-based access control (Admin, Facilitator, Contributor, Viewer) where admins/facilitators can upload quizzes while all users can take quizzes and build their profiles. Built as a full-stack TypeScript application with React on the frontend and Express on the backend.
+
+## Recent Changes (October 30, 2025)
+
+**Tag-Based Profile System Implementation:**
+- Implemented comprehensive tag extraction engine (`server/tagExtraction.ts`) that processes all SurveyJS question types including:
+  - Checkbox/multi-select arrays
+  - Matrix questions (matrixdropdown, matrixdynamic)  
+  - Multipletext and nested objects
+  - Choice-specific customTag properties
+  - Profile dimension mapping (personality, strengths, values, interests, growth)
+- Created badge consolidation system that groups related tags into displayable badges
+- Built API endpoints for profile data retrieval and privacy management:
+  - `GET /api/profile/:userId` - Public profile view with privacy filtering
+  - `GET /api/profile/my/data` - Own profile data with full access
+  - `PUT /api/profile/privacy` - Update privacy settings
+- Refactored Profile page with tab-based layout:
+  - Overview: Stats and recent quiz results
+  - Dimensions: Five profile dimension cards (Personality, Strengths, Values, Interests, Growth) with empty states
+  - Badge Collection: Visual display of earned badges
+  - Privacy Settings: Granular control over profile visibility
+- Tags extracted on quiz submission automatically populate user profiles
+- Privacy-first design: Default minimal public sharing, users opt-in to expose dimensions
+
+**How Custom Tags Work:**
+Quiz creators add custom properties to SurveyJS questions:
+- `tagKey`: The tag identifier (e.g., "leadership-style")
+- `tagCategory`: Category for grouping (e.g., "personality", "skills")
+- `profileDimension`: Which dimension to update (e.g., "personality")
+- `tags`: Array of tag strings to apply
+- `customTag` on choices: Tag specific to that choice selection
+
+Example SurveyJS question with custom properties:
+```json
+{
+  "type": "radiogroup",
+  "name": "work_style",
+  "title": "How do you prefer to work?",
+  "tagKey": "work-preference",
+  "tagCategory": "personality",
+  "profileDimension": "personality",
+  "tags": ["work-style", "collaboration"],
+  "choices": [
+    { "value": "alone", "text": "Independently", "customTag": "independent-worker" },
+    { "value": "team", "text": "In a team", "customTag": "team-player" }
+  ]
+}
+```
 
 ## User Preferences
 
@@ -39,9 +86,9 @@ Preferred communication style: Simple, everyday language.
 - **QuizList:** Browse and filter available quizzes with status tracking
 - **TakeQuiz:** Interactive quiz-taking interface with progress tracking
 - **QuizResults:** Detailed results display with export functionality
-- **Profile:** User profile with progress tracking, quiz history, and data export
-- **AdminPanel:** Administrative interface for user and course management
-- **MapView:** Embedded collaborative mindmap visualization
+- **Profile:** Tab-based interface with Overview, Dimensions (personality/strengths/values/interests/growth), Badge Collection, and Privacy Settings
+- **QuizManagement:** Admin/facilitator interface for uploading SurveyJS quiz JSON
+- **AdminPanel:** Administrative interface for user management
 - **Login:** Authentication page supporting both Replit OAuth and local credentials
 
 ### Backend Architecture
@@ -70,9 +117,13 @@ Preferred communication style: Simple, everyday language.
 **Database Schema (shared/schema.ts):**
 - **sessions:** Session storage for authentication (required for Replit Auth)
 - **users:** User profiles with Replit Auth integration (id, email, firstName, lastName, profileImageUrl, role, etc.)
-- **teams:** Team/group organization
-- **teamMembers:** Junction table for team membership
-- **courses:** Course definitions with team associations
+- **quizzes:** Quiz definitions with SurveyJS JSON content, upload permissions
+- **quizResults:** Completed quiz submissions with scores and full answer data
+- **quizProgress:** In-progress quiz state tracking
+- **userTags:** Individual tags extracted from quiz answers (tagKey, tagValue, dataType, questionName)
+- **userBadges:** Consolidated badges awarded based on tag patterns
+- **userProfileData:** Aggregated profile dimensions (personality, strengths, values, interests, growth) with JSONB storage
+- **userPrivacySettings:** User control over public profile visibility (showBadges, showTags, sharedDimensions, allowDiscovery)
 - **quizzes:** Quiz content and metadata
 - **quizResults:** Completed quiz submissions with scores
 - **quizProgress:** In-progress quiz state tracking
