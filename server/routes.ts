@@ -607,6 +607,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile endpoints
+  app.get("/api/profile/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get profile data
+      const profileData = await storage.getProfileDataByUserId(userId);
+      
+      // Get user badges
+      const badges = await storage.getUserBadgesByUserId(userId);
+      
+      // Get user tags (limited to most recent/relevant)
+      const tags = await storage.getUserTagsByUserId(userId);
+      
+      // Get privacy settings
+      const privacy = await storage.getUserPrivacyByUserId(userId);
+      
+      // Filter data based on privacy settings and whether the requester is the owner
+      const isOwner = (req as any).user?.claims?.sub === userId;
+      
+      const response: any = {
+        profileData,
+        badges: isOwner || privacy?.showBadges ? badges : [],
+        tags: isOwner || privacy?.showTags ? tags : [],
+        privacy: isOwner ? privacy : null,
+      };
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  app.get("/api/profile/my/data", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get or create profile data
+      let profileData = await storage.getProfileDataByUserId(userId);
+      
+      // Get user badges
+      const badges = await storage.getUserBadgesByUserId(userId);
+      
+      // Get user tags
+      const tags = await storage.getUserTagsByUserId(userId);
+      
+      // Get privacy settings or create default
+      let privacy = await storage.getUserPrivacyByUserId(userId);
+      if (!privacy) {
+        privacy = await storage.createUserPrivacy({
+          userId,
+          isProfilePublic: false,
+          showBadges: false,
+          showQuizResults: false,
+          showTags: false,
+          sharedDimensions: null,
+          allowDiscovery: false,
+        });
+      }
+      
+      res.json({
+        profileData,
+        badges,
+        tags,
+        privacy,
+      });
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+      res.status(500).json({ error: "Failed to fetch profile data" });
+    }
+  });
+
+  app.put("/api/profile/privacy", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const privacyUpdate = req.body;
+      
+      // Get existing privacy settings
+      let privacy = await storage.getUserPrivacyByUserId(userId);
+      
+      if (privacy) {
+        // Update existing
+        const updated = await storage.updateUserPrivacy(privacy.id, privacyUpdate);
+        res.json(updated);
+      } else {
+        // Create new
+        const created = await storage.createUserPrivacy({
+          userId,
+          ...privacyUpdate,
+        });
+        res.json(created);
+      }
+    } catch (error) {
+      console.error("Error updating privacy settings:", error);
+      res.status(500).json({ error: "Failed to update privacy settings" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
