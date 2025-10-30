@@ -431,7 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Populate locationData or contactData based on quiz type
-      if (quizId.startsWith('location')) {
+      if (quizId.startsWith('location') || quizId.startsWith('locations')) {
         // Extract location data from survey results
         const locationData: any = {};
         if (surveyResults.continents_visited) locationData.continentsVisited = surveyResults.continents_visited;
