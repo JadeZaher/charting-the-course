@@ -13,7 +13,9 @@ import {
   type UserBadge, type InsertUserBadge,
   type UserPrivacySettings, type InsertUserPrivacySettings,
   type UserProfileData, type InsertUserProfileData,
-  type UserRole
+  type UserRole,
+  type LocationData,
+  type ContactData
 } from "@shared/schema";
 import { eq, and, or, desc, sql } from "drizzle-orm";
 
@@ -29,6 +31,8 @@ export interface IStorage {
   updateUserLastLogin(id: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
   updateUserRole(id: string, role: UserRole): Promise<User | undefined>;
+  updateUserLocationData(id: string, locationData: LocationData): Promise<User | undefined>;
+  updateUserContactData(id: string, contactData: ContactData): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
   
   // Team operations
@@ -154,6 +158,16 @@ export class DbStorage implements IStorage {
 
   async updateUserRole(id: string, role: UserRole): Promise<User | undefined> {
     const [user] = await db.update(users).set({ role }).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async updateUserLocationData(id: string, locationData: LocationData): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ locationData }).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async updateUserContactData(id: string, contactData: ContactData): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ contactData }).where(eq(users.id, id)).returning();
     return user;
   }
 

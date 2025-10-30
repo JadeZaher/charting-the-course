@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Edit, Save, X, CheckCircle, Clock, Download, Upload, 
   TrendingUp, Heart, Target, Sparkles, Brain, Shield,
-  User, Lock, Eye, EyeOff, Copy, Link2, Share2
+  User, Lock, Eye, EyeOff, Copy, Link2, Share2, MapPin, Phone
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -420,10 +420,18 @@ export default function Profile() {
       </Card>
 
       <Tabs defaultValue="overview" className="space-y-6" data-testid="tabs-profile">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 w-full">
           <TabsTrigger value="overview" data-testid="tab-overview">
             <User className="h-4 w-4 mr-2" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="location" data-testid="tab-location">
+            <MapPin className="h-4 w-4 mr-2" />
+            Location
+          </TabsTrigger>
+          <TabsTrigger value="contact" data-testid="tab-contact">
+            <Phone className="h-4 w-4 mr-2" />
+            Contact
           </TabsTrigger>
           <TabsTrigger value="dimensions" data-testid="tab-dimensions">
             <Brain className="h-4 w-4 mr-2" />
@@ -546,6 +554,222 @@ export default function Profile() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Start taking quizzes to build your profile!
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="location" className="space-y-6">
+          <Card data-testid="card-location">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Location Preferences
+              </CardTitle>
+              <CardDescription>
+                Your location and travel preferences (auto-populated from Location Quiz)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {user?.locationData ? (
+                <div className="space-y-4">
+                  {user.locationData.continentsVisited && user.locationData.continentsVisited.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Continents Visited</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.locationData.continentsVisited.map((continent: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" data-testid={`badge-continent-${idx}`}>
+                            {continent}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.locationData.travelFrequency && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Travel Frequency</Label>
+                      <p className="text-muted-foreground" data-testid="text-travel-frequency">
+                        {user.locationData.travelFrequency}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.locationData.travelMotivation && user.locationData.travelMotivation.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Travel Motivations</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.locationData.travelMotivation.map((motivation: string, idx: number) => (
+                          <Badge key={idx} variant="outline" data-testid={`badge-motivation-${idx}`}>
+                            {motivation}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.locationData.locationPrivacy && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Location Privacy Preference</Label>
+                      <p className="text-muted-foreground" data-testid="text-location-privacy">
+                        {user.locationData.locationPrivacy}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.locationData.identitySensitivity && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Identity Sensitivity</Label>
+                      <p className="text-muted-foreground" data-testid="text-identity-sensitivity">
+                        {user.locationData.identitySensitivity}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.locationData.meetupPreferences && user.locationData.meetupPreferences.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Meetup Preferences</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.locationData.meetupPreferences.map((pref: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" data-testid={`badge-meetup-${idx}`}>
+                            {pref}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.locationData.communityActivities && user.locationData.communityActivities.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Community Activities</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.locationData.communityActivities.map((activity: string, idx: number) => (
+                          <Badge key={idx} variant="outline" data-testid={`badge-activity-${idx}`}>
+                            {activity}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 space-y-2">
+                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    No location data yet
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Complete the Location Quiz to populate this information
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contact" className="space-y-6">
+          <Card data-testid="card-contact">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Contact Preferences
+              </CardTitle>
+              <CardDescription>
+                Your communication and contact preferences (auto-populated from Contact Quiz)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {user?.contactData ? (
+                <div className="space-y-4">
+                  {user.contactData.preferredMethods && user.contactData.preferredMethods.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Preferred Contact Methods</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.contactData.preferredMethods.map((method: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" data-testid={`badge-contact-method-${idx}`}>
+                            {method}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.contactData.communicationStyle && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Communication Style</Label>
+                      <p className="text-muted-foreground" data-testid="text-communication-style">
+                        {user.contactData.communicationStyle}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.contactData.responseTime && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Response Time Expectation</Label>
+                      <p className="text-muted-foreground" data-testid="text-response-time">
+                        {user.contactData.responseTime}
+                      </p>
+                    </div>
+                  )}
+
+                  {user.contactData.energizingMethods && user.contactData.energizingMethods.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">What Energizes Me</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.contactData.energizingMethods.map((method: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-chart-3 border-chart-3" data-testid={`badge-energizing-${idx}`}>
+                            {method}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.contactData.drainingMethods && user.contactData.drainingMethods.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">What Drains Me</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.contactData.drainingMethods.map((method: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-destructive border-destructive" data-testid={`badge-draining-${idx}`}>
+                            {method}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.contactData.boundaries && user.contactData.boundaries.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Communication Boundaries</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.contactData.boundaries.map((boundary: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" data-testid={`badge-boundary-${idx}`}>
+                            {boundary}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.contactData.privacyLevel && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Privacy Level</Label>
+                      <p className="text-muted-foreground" data-testid="text-privacy-level">
+                        {user.contactData.privacyLevel}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 space-y-2">
+                  <Phone className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    No contact data yet
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Complete the Contact Quiz to populate this information
                   </p>
                 </div>
               )}

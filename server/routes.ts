@@ -430,6 +430,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Populate locationData or contactData based on quiz type
+      if (quizId.startsWith('location')) {
+        // Extract location data from survey results
+        const locationData: any = {};
+        if (surveyResults.continents_visited) locationData.continentsVisited = surveyResults.continents_visited;
+        if (surveyResults.travel_frequency) locationData.travelFrequency = surveyResults.travel_frequency;
+        if (surveyResults.travel_motivation) locationData.travelMotivation = surveyResults.travel_motivation;
+        if (surveyResults.location_privacy) locationData.locationPrivacy = surveyResults.location_privacy;
+        if (surveyResults.identity_sensitivity) locationData.identitySensitivity = surveyResults.identity_sensitivity;
+        if (surveyResults.meetup_preferences) locationData.meetupPreferences = surveyResults.meetup_preferences;
+        if (surveyResults.community_activities) locationData.communityActivities = surveyResults.community_activities;
+        
+        // Update user's locationData
+        await storage.updateUserLocationData(userId, locationData);
+      } else if (quizId.startsWith('contact')) {
+        // Extract contact data from survey results
+        const contactData: any = {};
+        if (surveyResults.preferred_methods) contactData.preferredMethods = surveyResults.preferred_methods;
+        if (surveyResults.communication_style) contactData.communicationStyle = surveyResults.communication_style;
+        if (surveyResults.response_time) contactData.responseTime = surveyResults.response_time;
+        if (surveyResults.energizing_methods) contactData.energizingMethods = surveyResults.energizing_methods;
+        if (surveyResults.draining_methods) contactData.drainingMethods = surveyResults.draining_methods;
+        if (surveyResults.boundaries) contactData.boundaries = surveyResults.boundaries;
+        if (surveyResults.privacy_level) contactData.privacyLevel = surveyResults.privacy_level;
+        
+        // Update user's contactData
+        await storage.updateUserContactData(userId, contactData);
+      }
+
       // Delete quiz progress since it's completed
       await storage.deleteQuizProgress(userId, quizId);
 
