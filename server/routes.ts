@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { 
   insertQuizSchema, 
@@ -8,8 +9,12 @@ import {
   insertQuizProgressSchema,
   locationDataSchema,
   contactDataSchema,
-  type Quiz
+  type Quiz,
+  quizResults,
+  userTags,
+  userBadges
 } from "@shared/schema";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -387,55 +392,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPassed = score >= quiz.passingScore;
       }
 
-      // Save result
-      const result = await storage.createQuizResult({
-        quizId,
-        userId,
-        surveyResults,
-        score,
-        isPassed,
-        timeSpent,
-        isImported: false,
-      });
+      // Transaction: Save result, clean up old tags, create new tags, recalculate badges
+      const result = await db.transaction(async (tx) => {
+        // Save result
+        const [quizResult] = await tx.insert(quizResults).values({
+          quizId,
+          userId,
+          surveyResults,
+          score,
+          isPassed,
+          timeSpent,
+          isImported: false,
+        }).returning();
 
-      // Clean up tags from previous quiz attempts (retakes)
-      // Keep quiz result history but remove old tags so only latest attempt affects profile
-      const previousResults = await storage.getPreviousQuizResults(userId, quizId, result.id);
-      for (const prevResult of previousResults) {
-        await storage.deleteUserTagsByQuizResult(prevResult.id);
-      }
+        // Clean up tags from previous quiz attempts (retakes)
+        // Keep quiz result history but remove old tags so only latest attempt affects profile
+        const previousResults = await tx.select().from(quizResults)
+          .where(
+            and(
+              eq(quizResults.userId, userId),
+              eq(quizResults.quizId, quizId),
+              sql`${quizResults.id} != ${quizResult.id}`
+            )
+          )
+          .orderBy(desc(quizResults.completedAt));
 
-      // Extract tags from quiz submission
-      const { extractTagsFromQuizSubmission, determineBadgesFromTags } = await import('./tagExtraction');
-      const extractedTags = extractTagsFromQuizSubmission(
-        userId,
-        result.id,
-        quiz.surveyJson,
-        surveyResults
-      );
+        for (const prevResult of previousResults) {
+          await tx.delete(userTags)
+            .where(eq(userTags.quizResultId, prevResult.id));
+        }
 
-      // Save tags to database
-      if (extractedTags.length > 0) {
-        await storage.createUserTags(extractedTags);
+        // Extract tags from quiz submission
+        const { extractTagsFromQuizSubmission, determineBadgesFromTags } = await import('./tagExtraction');
+        const extractedTags = extractTagsFromQuizSubmission(
+          userId,
+          quizResult.id,
+          quiz.surveyJson,
+          surveyResults
+        );
 
-        // Get all user tags to determine badges
-        const allUserTags = await storage.getUserTags(userId);
+        // Save tags to database
+        if (extractedTags.length > 0) {
+          await tx.insert(userTags).values(extractedTags);
+        }
+
+        // Recalculate badges from ALL current tags (after cleanup)
+        // Delete all existing badges and rebuild from scratch to avoid stale badges
+        await tx.delete(userBadges)
+          .where(eq(userBadges.userId, userId));
+        
+        const allUserTags = await tx.select().from(userTags)
+          .where(eq(userTags.userId, userId));
+        
         const badgesToEarn = determineBadgesFromTags(allUserTags);
 
-        // Upsert badges (increment strength if already earned)
-        for (const badge of badgesToEarn) {
-          await storage.upsertUserBadge({
-            userId,
-            badgeKey: badge.badgeKey,
-            badgeName: badge.badgeName,
-            badgeDescription: badge.badgeDescription,
-            badgeCategory: badge.badgeCategory,
-            badgeIcon: badge.badgeIcon,
-            strength: 1,
-            sourceTagKeys: badge.sourceTagKeys,
-          });
+        // Create badges fresh
+        if (badgesToEarn.length > 0) {
+          await tx.insert(userBadges).values(
+            badgesToEarn.map(badge => ({
+              userId,
+              badgeKey: badge.badgeKey,
+              badgeName: badge.badgeName,
+              badgeDescription: badge.badgeDescription,
+              badgeCategory: badge.badgeCategory,
+              badgeIcon: badge.badgeIcon,
+              strength: 1,
+              sourceTagKeys: badge.sourceTagKeys,
+            }))
+          );
         }
-      }
+
+        return quizResult;
+      });
 
       // Populate locationData or contactData based on quiz type
       if (quizId.startsWith('location') || quizId.startsWith('locations')) {

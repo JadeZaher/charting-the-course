@@ -97,6 +97,7 @@ export interface IStorage {
   upsertUserBadge(badge: InsertUserBadge): Promise<UserBadge>;
   getUserBadges(userId: string): Promise<UserBadge[]>;
   deleteUserBadge(userId: string, badgeKey: string): Promise<void>;
+  deleteAllUserBadges(userId: string): Promise<void>;
   
   // User privacy settings operations
   getUserPrivacySettings(userId: string): Promise<UserPrivacySettings | undefined>;
@@ -500,6 +501,11 @@ export class DbStorage implements IStorage {
   async deleteUserBadge(userId: string, badgeKey: string): Promise<void> {
     await db.delete(userBadges)
       .where(and(eq(userBadges.userId, userId), eq(userBadges.badgeKey, badgeKey)));
+  }
+
+  async deleteAllUserBadges(userId: string): Promise<void> {
+    await db.delete(userBadges)
+      .where(eq(userBadges.userId, userId));
   }
 
   // User privacy settings operations
