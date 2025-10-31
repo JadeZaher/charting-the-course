@@ -398,6 +398,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isImported: false,
       });
 
+      // Clean up tags from previous quiz attempts (retakes)
+      // Keep quiz result history but remove old tags so only latest attempt affects profile
+      const previousResults = await storage.getPreviousQuizResults(userId, quizId, result.id);
+      for (const prevResult of previousResults) {
+        await storage.deleteUserTagsByQuizResult(prevResult.id);
+      }
+
       // Extract tags from quiz submission
       const { extractTagsFromQuizSubmission, determineBadgesFromTags } = await import('./tagExtraction');
       const extractedTags = extractTagsFromQuizSubmission(
