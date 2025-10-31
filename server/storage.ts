@@ -77,6 +77,7 @@ export interface IStorage {
   getQuizResults(quizId: string): Promise<QuizResult[]>;
   getUserQuizResults(userId: string): Promise<QuizResult[]>;
   getUserQuizResult(userId: string, quizId: string): Promise<QuizResult | undefined>;
+  getPreviousQuizResults(userId: string, quizId: string, excludeResultId: string): Promise<QuizResult[]>;
   createQuizResult(result: InsertQuizResult): Promise<QuizResult>;
   
   // Quiz progress operations
@@ -385,6 +386,18 @@ export class DbStorage implements IStorage {
       .orderBy(desc(quizResults.completedAt))
       .limit(1);
     return result;
+  }
+
+  async getPreviousQuizResults(userId: string, quizId: string, excludeResultId: string): Promise<QuizResult[]> {
+    return await db.select().from(quizResults)
+      .where(
+        and(
+          eq(quizResults.userId, userId),
+          eq(quizResults.quizId, quizId),
+          sql`${quizResults.id} != ${excludeResultId}`
+        )
+      )
+      .orderBy(desc(quizResults.completedAt));
   }
 
   async createQuizResult(insertResult: InsertQuizResult): Promise<QuizResult> {
