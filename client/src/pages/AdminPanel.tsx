@@ -12,7 +12,7 @@ import {
   UserPlus, UsersRound, ClipboardList, Mail, Send, CheckCircle
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, Redirect } from "wouter";
+import { Link, Redirect, useLocation } from "wouter";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { supabase } from "@/lib/supabase";
 import {
@@ -267,6 +267,7 @@ export default function AdminPanel() {
   const { permissions, isLoading: roleLoading } = useRoleAccess();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   
   // State hooks
   const [searchQuery, setSearchQuery] = useState("");
@@ -1195,10 +1196,26 @@ export default function AdminPanel() {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            console.log('Viewing quiz from admin panel:', quiz.id);
+                            setLocation(`/quiz/take/${quiz.id}`);
+                          }}
+                          title="View/Preview Quiz"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            console.log('Editing quiz from admin panel:', quiz.id);
+                            setLocation(`/quiz/manage?edit=${quiz.id}`);
+                          }}
+                          title="Edit Quiz"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
