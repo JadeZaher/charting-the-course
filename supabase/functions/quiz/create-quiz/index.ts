@@ -2,7 +2,7 @@
 // Matches behavior of existing Express API POST /api/quizzes
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, corsHeaders, handleCors } from "../../_shared/auth.ts";
+import { createSupabaseClient, createServiceRoleClient, getAuthUser, isAdminOrFacilitator, corsHeaders, handleCors } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from "../../_shared/response.ts";
 import type { CreateQuizRequest, Quiz } from "../../_shared/types.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -56,8 +56,12 @@ serve(async (req) => {
 
     const quizData = validationResult.data;
 
+    // Use service role client for insert (we've already verified permissions above)
+    // This bypasses RLS since we've already checked the user is admin/facilitator
+    const adminSupabase = createServiceRoleClient();
+
     // Create quiz (always starts as unpublished, matching Express API behavior)
-    const { data: quiz, error } = await supabase
+    const { data: quiz, error } = await adminSupabase
       .from("quizzes")
       .insert({
         ...quizData,

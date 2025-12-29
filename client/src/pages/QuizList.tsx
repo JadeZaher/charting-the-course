@@ -6,13 +6,47 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Clock, ArrowRight } from "lucide-react";
-import type { Quiz } from "@shared/schema";
+import { supabase } from "@/lib/supabase";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
+
+interface Quiz {
+  id: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+  is_published: boolean;
+  time_limit: number | null;
+  created_at: string;
+}
 
 export default function QuizList() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { isAdminOrFacilitator } = useRoleAccess();
 
-  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
-    queryKey: ["/api/quizzes"],
+  const { data: quizzes, isLoading, error } = useQuery<Quiz[]>({
+    queryKey: ['quizzes-list', isAdminOrFacilitator],
+    queryFn: async () => {
+      let query = supabase
+        .from('quizzes')
+        .select('id, title, description, visibility, is_published, time_limit, created_at');
+      
+      // Admins and facilitators can see ALL quizzes (RLS will handle it)
+      // Regular users only see published public/assigned quizzes
+      if (!isAdminOrFacilitator) {
+        query = query
+          .eq('is_published', true)
+          .in('visibility', ['public', 'assigned']);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching quizzes:', error);
+        throw error;
+      }
+      
+      return data || [];
+    },
   });
 
   const filteredQuizzes = quizzes?.filter((quiz) => {
@@ -61,13 +95,13 @@ export default function QuizList() {
                     <CardDescription>{quiz.description}</CardDescription>
                     <div className="flex gap-2 mt-2">
                       <Badge variant="secondary">{quiz.visibility}</Badge>
-                      {!quiz.isPublished && (
+                      {!quiz.is_published && (
                         <Badge variant="outline">Draft</Badge>
                       )}
-                      {quiz.timeLimit && (
+                      {quiz.time_limit && (
                         <Badge variant="outline">
                           <Clock className="h-3 w-3 mr-1" />
-                          {quiz.timeLimit} min
+                          {quiz.time_limit} min
                         </Badge>
                       )}
                     </div>
@@ -82,13 +116,20 @@ export default function QuizList() {
               </CardHeader>
             </Card>
           ))
+        ) : error ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <p className="text-destructive font-medium mb-2">Failed to load quizzes</p>
+              <p className="text-muted-foreground text-sm">{(error as Error).message}</p>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="p-12 text-center">
               <p className="text-muted-foreground">
                 {searchQuery
                   ? "No quizzes match your search"
-                  : "No quizzes available yet"}
+                  : "No published quizzes available yet. Check back later or contact an admin."}
               </p>
             </CardContent>
           </Card>

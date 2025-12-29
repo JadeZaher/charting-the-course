@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,24 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, Trash2, Edit, Check, X } from "lucide-react";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Quiz } from "@shared/schema";
+import { supabase } from "@/lib/supabase";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+
+interface Quiz {
+  id: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+  is_published: boolean;
+  survey_json: any;
+  created_at: string;
+  created_by: string;
+}
 
 export default function QuizManagement() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useSupabaseAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
 
@@ -29,16 +42,43 @@ export default function QuizManagement() {
     surveyJson: "",
   });
 
-  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
-    queryKey: ["/api/quizzes"],
+  const { data: quizzes, isLoading, error: quizzesError } = useQuery<Quiz[]>({
+    queryKey: ['quizzes-manage'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching quizzes for management:', error);
+        throw error;
+      }
+      return data || [];
+    },
   });
 
   const createQuizMutation = useMutation({
     mutationFn: async (quizData: any) => {
-      return apiRequest("POST", "/api/quizzes", quizData);
+      const { data, error } = await supabase
+        .from('quizzes')
+        .insert({
+          title: quizData.title,
+          description: quizData.description,
+          visibility: quizData.visibility,
+          survey_json: quizData.surveyJson,
+          mode: quizData.mode || 'take',
+          is_published: false,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quizzes"] });
+      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setIsCreating(false);
       setNewQuiz({
         title: "",
@@ -62,10 +102,15 @@ export default function QuizManagement() {
 
   const publishQuizMutation = useMutation({
     mutationFn: async (quizId: string) => {
-      return apiRequest("POST", `/api/quizzes/${quizId}/publish`, {});
+      const { error } = await supabase
+        .from('quizzes')
+        .update({ is_published: true })
+        .eq('id', quizId);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quizzes"] });
+      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       toast({
         title: "Success",
         description: "Quiz published successfully",
@@ -82,10 +127,15 @@ export default function QuizManagement() {
 
   const deleteQuizMutation = useMutation({
     mutationFn: async (quizId: string) => {
-      return apiRequest("DELETE", `/api/quizzes/${quizId}`, {});
+      const { error } = await supabase
+        .from('quizzes')
+        .delete()
+        .eq('id', quizId);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quizzes"] });
+      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       toast({
         title: "Success",
         description: "Quiz deleted successfully",
@@ -297,17 +347,17 @@ export default function QuizManagement() {
                       </span>
                       <span
                         className={`text-xs px-2 py-1 rounded ${
-                          quiz.isPublished
+                          quiz.is_published
                             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                             : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
                         }`}
                       >
-                        {quiz.isPublished ? "Published" : "Draft"}
+                        {quiz.is_published ? "Published" : "Draft"}
                       </span>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {!quiz.isPublished && (
+                    {!quiz.is_published && (
                       <Button
                         size="sm"
                         variant="outline"
