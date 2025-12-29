@@ -5,21 +5,68 @@ import { CheckCircle, XCircle, Download, ArrowLeft } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import type { QuizResult, Quiz } from "@shared/schema";
+import { supabase } from "@/lib/supabase";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+
+interface QuizResult {
+  id: string;
+  quiz_id: string;
+  user_id: string;
+  score: number | null;
+  is_passed: boolean | null;
+  time_spent: number | null;
+  survey_results: any;
+  completed_at: string;
+}
+
+interface Quiz {
+  id: string;
+  title: string;
+  description: string | null;
+  survey_json: any;
+}
 
 export default function QuizResults() {
   const [, params] = useRoute("/quiz/results/:quizId");
   const [, setLocation] = useLocation();
+  const { user } = useSupabaseAuth();
   const quizId = params?.quizId;
 
-  const { data: result, isLoading: resultLoading } = useQuery<QuizResult>({
-    queryKey: ["/api/quiz-results", quizId],
-    enabled: !!quizId,
+  const { data: result, isLoading: resultLoading } = useQuery<QuizResult | null>({
+    queryKey: ['quiz-result', quizId],
+    queryFn: async () => {
+      if (!user?.id || !quizId) return null;
+      
+      const { data, error } = await supabase
+        .from('quiz_results')
+        .select('*')
+        .eq('quiz_id', quizId)
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!quizId && !!user?.id,
   });
 
-  const { data: quiz, isLoading: quizLoading } = useQuery<Quiz>({
-    queryKey: ["/api/quizzes", result?.quizId],
-    enabled: !!result?.quizId,
+  const { data: quiz, isLoading: quizLoading } = useQuery<Quiz | null>({
+    queryKey: ['quiz', result?.quiz_id],
+    queryFn: async () => {
+      if (!result?.quiz_id) return null;
+      
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('id, title, description, survey_json')
+        .eq('id', result.quiz_id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!result?.quiz_id,
   });
 
   const isLoading = resultLoading || quizLoading;
@@ -56,16 +103,16 @@ export default function QuizResults() {
   }
 
   const scorePercentage = result.score || 0;
-  const isPassing = result.isPassed;
+  const isPassing = result.is_passed;
 
   const handleExport = () => {
     const data = JSON.stringify({
       quiz: quiz.title,
       score: result.score,
-      isPassed: result.isPassed,
-      completedAt: result.completedAt,
-      timeSpent: result.timeSpent,
-      answers: result.surveyResults,
+      isPassed: result.is_passed,
+      completedAt: result.completed_at,
+      timeSpent: result.time_spent,
+      answers: result.survey_results,
     }, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -76,7 +123,7 @@ export default function QuizResults() {
     URL.revokeObjectURL(url);
   };
 
-  const surveyDef = quiz.surveyJson as any;
+  const surveyDef = quiz.survey_json as any;
   const questions: any[] = [];
   
   if (surveyDef?.pages && Array.isArray(surveyDef.pages)) {
@@ -91,8 +138,8 @@ export default function QuizResults() {
     }
   }
 
-  const timeSpentMinutes = result.timeSpent 
-    ? Math.round(result.timeSpent / 60)
+  const timeSpentMinutes = result.time_spent 
+    ? Math.round(result.time_spent / 60)
     : 0;
 
   return (
@@ -158,7 +205,7 @@ export default function QuizResults() {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Completed</span>
                 <span className="font-semibold">
-                  {new Date(result.completedAt).toLocaleDateString()}
+                  {new Date(result.completed_at).toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -173,8 +220,8 @@ export default function QuizResults() {
         <CardContent className="space-y-6">
           {questions.length > 0 ? (
             questions.map((q, index) => {
-              const surveyResults = result.surveyResults as Record<string, any>;
-              const userAnswer = surveyResults[q.name];
+              const surveyResults = result.survey_results as Record<string, any>;
+              const userAnswer = surveyResults?.[q.name];
               const correctAnswer = q.correctAnswer;
               const isCorrect = String(userAnswer).trim().toLowerCase() === 
                               String(correctAnswer).trim().toLowerCase();
