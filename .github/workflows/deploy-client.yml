@@ -31,6 +31,10 @@ jobs:
       # This runs "vite build:client"
       # vite.config.ts sets output to ./dist/public
       run: npm run build:client
+      env:
+        # ⚠️ Vite needs these available during the build
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
     - name: 📂 Sync files via SFTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
