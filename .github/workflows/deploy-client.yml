@@ -1,0 +1,45 @@
+name: Deploy Client via SFTP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'client/**'     # Only trigger if client files change
+      - 'package.json'
+      - 'vite.config.ts'
+
+jobs:
+  web-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚚 Get latest code
+      uses: actions/checkout@v4
+
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: 📦 Install Dependencies
+      run: npm ci
+
+    - name: 🛠️ Build Project
+      # This runs "vite build:client"
+      # vite.config.ts sets output to ./dist/public
+      run: npm run build:client
+
+    - name: 📂 Sync files via SFTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.SFTP_SERVER }}
+        username: ${{ secrets.SFTP_USERNAME }}
+        password: ${{ secrets.SFTP_PASSWORD }}
+        protocol: ftps
+        port: 21
+        local-dir: ./dist/public/
+        dangerous-clean-slate: true
+        
