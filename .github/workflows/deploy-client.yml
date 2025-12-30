@@ -27,6 +27,24 @@ jobs:
     - name: 📦 Install Dependencies
       run: npm ci
 
+    - name: 🔍 Check Secrets
+      env:
+        # We map the secret to a shell variable just for this step
+        CHECK_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        CHECK_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      run: |
+        if [ -z "$CHECK_URL" ]; then
+          echo "🔴 ERROR: VITE_SUPABASE_URL is empty or missing from GitHub Secrets!"
+          exit 1
+        fi
+        
+        if [ -z "$CHECK_KEY" ]; then
+          echo "🔴 ERROR: VITE_SUPABASE_ANON_KEY is empty or missing from GitHub Secrets!"
+          exit 1
+        fi
+        
+        echo "🟢 Success: Supabase secrets are present."
+
     - name: 🛠️ Build Project
       # This runs "vite build:client"
       # vite.config.ts sets output to ./dist/public
