@@ -1,6 +1,9 @@
 name: Deploy Client via SFTP
 
 on:
+  # Allow manual triggering from the GitHub Actions tab
+  workflow_dispatch:
+
   push:
     branches:
       - main
@@ -8,6 +11,7 @@ on:
       - 'client/**'     # Only trigger if client files change
       - 'package.json'
       - 'vite.config.ts'
+      - '.github/workflows/deploy-client.yml'
 
 jobs:
   web-deploy:
