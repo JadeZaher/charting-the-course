@@ -854,7 +854,7 @@ export default function Profile() {
                   </div>
                   <p className="text-sm">{displayBio}</p>
                   <div className="flex gap-4 flex-wrap items-center">
-                    <RoleBadge role={getRoleBadgeRole(role?.key)} />
+                    <RoleBadge role={getRoleBadgeRole(role)} />
                     {userCreatedAt && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
