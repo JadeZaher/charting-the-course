@@ -2,7 +2,7 @@
 // Admin/Facilitator only - creates a new badge definition
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, corsHeaders, handleCors } from "../../_shared/auth.ts";
+import { createSupabaseClient, createServiceRoleClient, getAuthUser, isAdminOrFacilitator, corsHeaders, handleCors } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from "../../_shared/response.ts";
 import type { CreateBadgeDefinitionRequest, BadgeDefinition } from "../../_shared/types.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -74,19 +74,23 @@ serve(async (req) => {
 
     const badgeData = validationResult.data;
 
+    // Use service role client for database operations to bypass RLS
+    // Auth has already been validated above, so this is safe
+    const adminSupabase = createServiceRoleClient();
+
     // Check if badge_key already exists
-    const { data: existingBadge } = await supabase
+    const { data: existingBadge } = await adminSupabase
       .from("badge_definitions")
       .select("id")
       .eq("badge_key", badgeData.badge_key)
-      .single();
+      .maybeSingle();
 
     if (existingBadge) {
       return errorResponse("Badge key already exists", undefined, 409);
     }
 
     // Create badge definition
-    const { data: badge, error } = await supabase
+    const { data: badge, error } = await adminSupabase
       .from("badge_definitions")
       .insert({
         ...badgeData,

@@ -19,7 +19,8 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "functions:deploy": "supabase functions deploy",
-    "migrate:supabase": "tsx scripts/migrate-supabase.ts"
+    "migrate:supabase": "tsx scripts/migrate-supabase.ts",
+    "ensure-bucket": "node scripts/ensure-badges-bucket.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

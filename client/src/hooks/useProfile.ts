@@ -11,7 +11,7 @@ import type {
  * Hook to fetch and manage user profiles
  * NOTE: Edge Functions must be deployed. Set enabled: true when ready.
  */
-export function useProfile(identifier?: string, enabled = false) {
+export function useProfile(identifier?: string, enabled = true) {
   const queryClient = useQueryClient();
 
   // Fetch profile (public or private based on identifier)

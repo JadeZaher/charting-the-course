@@ -393,6 +393,23 @@ CREATE POLICY "quiz_results_insert_admin"
   ON quiz_results FOR INSERT
   WITH CHECK (is_admin(auth.uid()));
 
+CREATE POLICY "quiz_results_select_public"
+  ON quiz_results FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = quiz_results.user_id 
+      AND profile_visibility = 'public'
+    )
+    AND (
+      NOT EXISTS (
+        SELECT 1 FROM user_privacy_settings
+        WHERE user_id = quiz_results.user_id 
+        AND show_quiz_results = false
+      )
+    )
+  );
+
 -- ============================================================================
 -- QUIZ_PROGRESS TABLE
 -- ============================================================================
@@ -450,9 +467,11 @@ CREATE POLICY "user_tags_select_public"
       SELECT 1 FROM profiles
       WHERE id = user_tags.user_id AND profile_visibility = 'public'
     )
-    OR EXISTS (
-      SELECT 1 FROM user_privacy_settings
-      WHERE user_id = user_tags.user_id AND show_tags = true
+    AND (
+      NOT EXISTS (
+        SELECT 1 FROM user_privacy_settings
+        WHERE user_id = user_tags.user_id AND show_tags = false
+      )
     )
   );
 
@@ -496,9 +515,11 @@ CREATE POLICY "user_badges_select_public"
       SELECT 1 FROM profiles
       WHERE id = user_badges.user_id AND profile_visibility = 'public'
     )
-    OR EXISTS (
-      SELECT 1 FROM user_privacy_settings
-      WHERE user_id = user_badges.user_id AND show_badges = true
+    AND (
+      NOT EXISTS (
+        SELECT 1 FROM user_privacy_settings
+        WHERE user_id = user_badges.user_id AND show_badges = false
+      )
     )
   );
 
