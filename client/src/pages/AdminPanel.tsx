@@ -238,28 +238,103 @@ const isEmojiIcon = (icon: string | null): boolean => {
   return !icon.startsWith('http') && !icon.startsWith('/');
 };
 
+// Ensure badges bucket exists (check and create if needed)
+async function ensureBadgesBucket(): Promise<boolean> {
+  try {
+    // Check if bucket exists
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+    
+    if (listError) {
+      console.warn('Could not list buckets:', listError.message);
+      return false;
+    }
+
+    const badgesBucket = buckets?.find(b => b.id === 'badges');
+    
+    if (badgesBucket) {
+      return true; // Bucket exists
+    }
+
+    // Bucket doesn't exist - try to create it using the database function
+    console.log('Badges bucket not found, attempting to create...');
+    const { data: result, error: rpcError } = await supabase.rpc('ensure_badges_bucket');
+
+    if (rpcError) {
+      console.warn('Could not create bucket automatically:', rpcError.message);
+      console.warn('Please run: npm run ensure-bucket or create it in Supabase Dashboard');
+      return false;
+    }
+
+    if (result?.success) {
+      console.log('✅ Badges bucket created successfully');
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error ensuring badges bucket:', error);
+    return false;
+  }
+}
+
 // Upload badge icon to Supabase Storage
 async function uploadBadgeIcon(file: File, badgeKey: string): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${badgeKey}-${Date.now()}.${fileExt}`;
-  const filePath = `badge-icons/${fileName}`;
+  try {
+    // Ensure bucket exists first
+    const bucketExists = await ensureBadgesBucket();
+    if (!bucketExists) {
+      throw new Error('Badges storage bucket does not exist. Please run: npm run ensure-bucket (or create it in Supabase Dashboard)');
+    }
 
-  const { error: uploadError } = await supabase.storage
-    .from('badges')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: true
-    });
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`);
+    }
 
-  if (uploadError) {
-    throw new Error(`Upload failed: ${uploadError.message}`);
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new Error(`File size exceeds 5MB limit. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+    }
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${badgeKey}-${Date.now()}.${fileExt}`;
+    const filePath = `badge-icons/${fileName}`;
+
+    // Upload file
+    const { error: uploadError, data: uploadData } = await supabase.storage
+      .from('badges')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      
+      // Check if it's a bucket not found error
+      if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')) {
+        throw new Error('Badges storage bucket does not exist. Please create it in Supabase Dashboard > Storage, or run the migration: supabase db push');
+      }
+      
+      throw new Error(`Upload failed: ${uploadError.message}. Please ensure the badges storage bucket exists and you have upload permissions.`);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('badges')
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      throw new Error('Failed to get public URL for uploaded file');
+    }
+
+    return urlData.publicUrl;
+  } catch (error: any) {
+    console.error('Badge icon upload error:', error);
+    throw error instanceof Error ? error : new Error(`Upload failed: ${String(error)}`);
   }
-
-  const { data } = supabase.storage
-    .from('badges')
-    .getPublicUrl(filePath);
-
-  return data.publicUrl;
 }
 
 export default function AdminPanel() {
@@ -346,7 +421,7 @@ export default function AdminPanel() {
     enabled: permissions.canAccessAdminPanel,
   });
 
-  // Mutation hooks
+  // Badge mutations
   const createBadgeMutation = useMutation({
     mutationFn: async (data: BadgeFormData) => {
       const { error } = await supabase

@@ -336,49 +336,324 @@ export default function TakeQuiz() {
 
   const submitQuizMutation = useMutation({
     mutationFn: async (data: { surveyResults: any; timeSpent: number }) => {
-      if (!user?.id || !quizId) throw new Error('Not authenticated');
+      if (!user?.id || !quizId || !quiz) throw new Error('Not authenticated or quiz not found');
       
-      // Use edge function for quiz submission (handles tag extraction, badges, etc.)
-      const { data: response, error } = await supabase.functions.invoke(
-        `quiz/submit-with-tags/${quizId}`,
-        {
-          body: {
-            survey_results: data.surveyResults,
-            time_spent: data.timeSpent,
-          },
+      // 1. Check retake rules
+      if (!quiz.allow_retakes) {
+        const { data: existingResult } = await supabase
+          .from('quiz_results')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('quiz_id', quizId)
+          .maybeSingle();
+        
+        if (existingResult) {
+          throw new Error('You have already completed this quiz and retakes are not allowed.');
         }
-      );
+      }
       
-      if (error) throw error;
+      // 2. Calculate score
+      let score = 0;
+      let isPassed = true;
+      let correctCount = 0;
+      let totalQuestions = 0;
       
-      // The edge function returns: { data: { result, tags_created, badges_earned } }
-      const result = response.data?.result;
-      const tagsCreated = response.data?.tags_created || 0;
-      const badgesEarned = response.data?.badges_earned || 0;
+      if (quiz.survey_json && typeof quiz.survey_json === 'object') {
+        const surveyDef = quiz.survey_json as any;
+        
+        if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
+          for (const page of surveyDef.pages) {
+            if (page.elements && Array.isArray(page.elements)) {
+              for (const element of page.elements) {
+                if (element.correctAnswer !== undefined && element.correctAnswer !== null) {
+                  totalQuestions++;
+                  const userAnswer = data.surveyResults[element.name];
+                  
+                  if (userAnswer !== undefined) {
+                    const userAnswerStr = String(userAnswer).trim().toLowerCase();
+                    const correctAnswerStr = String(element.correctAnswer).trim().toLowerCase();
+                    
+                    if (userAnswerStr === correctAnswerStr) {
+                      correctCount++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        score = totalQuestions > 0
+          ? Math.round((correctCount / totalQuestions) * 100)
+          : 0;
+      }
       
-      // Calculate additional XP and handle profile sync from Survey Models calculatedValues
-      // Note: The edge function already handles tag extraction and badge calculation from tags
-      // This function handles XP, leveling, and profile sync from calculatedValues
+      // Check passing score
+      if (quiz.passing_score) {
+        isPassed = score >= quiz.passing_score;
+      }
+      
+      // 3. Save quiz result
+      const { data: quizResult, error: resultError } = await supabase
+        .from('quiz_results')
+        .insert({
+          quiz_id: quizId,
+          user_id: user.id,
+          survey_results: data.surveyResults,
+          score,
+          is_passed: isPassed,
+          time_spent: data.timeSpent || null,
+          is_imported: false,
+        })
+        .select()
+        .single();
+      
+      if (resultError) {
+        console.error('Error saving quiz result:', resultError);
+        throw new Error(`Failed to save quiz result: ${resultError.message}`);
+      }
+      
+      if (!quizResult) {
+        throw new Error('Failed to save quiz result: no data returned');
+      }
+      
+      // 4. Clean up tags from previous quiz attempts (retakes)
+      const { data: previousResults } = await supabase
+        .from('quiz_results')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('quiz_id', quizId)
+        .neq('id', quizResult.id)
+        .order('completed_at', { ascending: false });
+      
+      if (previousResults && previousResults.length > 0) {
+        for (const prevResult of previousResults) {
+          await supabase
+            .from('user_tags')
+            .delete()
+            .eq('quiz_result_id', prevResult.id);
+        }
+      }
+      
+      // 5. Extract tags from quiz submission (simplified version)
+      const extractedTags: any[] = [];
+      if (quiz.survey_json && typeof quiz.survey_json === 'object') {
+        const surveyDef = quiz.survey_json as any;
+        
+        function processElement(element: any) {
+          if (!element || !element.name) return;
+          
+          const userAnswer = data.surveyResults[element.name];
+          if (userAnswer === undefined || userAnswer === null) return;
+          
+          const tagKey = element.tagKey;
+          const tagCategory = element.tagCategory;
+          const customTags = element.tags;
+          const profileDimension = element.profileDimension;
+          
+          function addTag(value: any, key?: string) {
+            let dataType: "string" | "number" | "boolean";
+            let numericValue: number | null = null;
+            let tagValue: string;
+            
+            if (typeof value === "number") {
+              dataType = "number";
+              numericValue = value;
+              tagValue = value.toString();
+            } else if (typeof value === "boolean") {
+              dataType = "boolean";
+              numericValue = value ? 1 : 0;
+              tagValue = value ? "yes" : "no";
+            } else if (typeof value === "string") {
+              dataType = "string";
+              tagValue = value;
+            } else {
+              return;
+            }
+            
+            const effectiveTagKey = key || tagKey;
+            if (effectiveTagKey) {
+              extractedTags.push({
+                user_id: user.id,
+                quiz_result_id: quizResult.id,
+                tag_key: effectiveTagKey,
+                tag_value: tagValue,
+                tag_category: tagCategory || null,
+                data_type: dataType,
+                numeric_value: numericValue,
+                question_name: element.name,
+              });
+            }
+            
+            if (Array.isArray(customTags)) {
+              for (const tag of customTags) {
+                extractedTags.push({
+                  user_id: user.id,
+                  quiz_result_id: quizResult.id,
+                  tag_key: tag,
+                  tag_value: tagValue,
+                  tag_category: tagCategory || null,
+                  data_type: dataType,
+                  numeric_value: numericValue,
+                  question_name: element.name,
+                });
+              }
+            }
+            
+            if (profileDimension) {
+              extractedTags.push({
+                user_id: user.id,
+                quiz_result_id: quizResult.id,
+                tag_key: profileDimension,
+                tag_value: tagValue,
+                tag_category: "profile-dimension",
+                data_type: dataType,
+                numeric_value: numericValue,
+                question_name: element.name,
+              });
+            }
+          }
+          
+          if (Array.isArray(userAnswer)) {
+            for (const value of userAnswer) {
+              addTag(value);
+            }
+          } else if (typeof userAnswer !== 'object') {
+            addTag(userAnswer);
+          }
+          
+          // Handle choice-based questions with custom tags
+          if (element.choices && Array.isArray(element.choices)) {
+            for (const choice of element.choices) {
+              if (typeof choice === 'object' && choice.customTag) {
+                const choiceValue = choice.value || choice.text;
+                let selected = false;
+                
+                if (Array.isArray(userAnswer)) {
+                  selected = userAnswer.includes(choiceValue);
+                } else {
+                  selected = userAnswer === choiceValue;
+                }
+                
+                if (selected) {
+                  extractedTags.push({
+                    user_id: user.id,
+                    quiz_result_id: quizResult.id,
+                    tag_key: choice.customTag,
+                    tag_value: String(choiceValue),
+                    tag_category: tagCategory || "choice-tag",
+                    data_type: "string",
+                    numeric_value: null,
+                    question_name: element.name,
+                  });
+                }
+              }
+            }
+          }
+          
+          // Recursively process nested elements
+          if (element.elements && Array.isArray(element.elements)) {
+            for (const nestedElement of element.elements) {
+              processElement(nestedElement);
+            }
+          }
+        }
+        
+        if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
+          for (const page of surveyDef.pages) {
+            if (page.elements && Array.isArray(page.elements)) {
+              for (const element of page.elements) {
+                processElement(element);
+              }
+            }
+          }
+        }
+      }
+      
+      // 6. Save tags to database
+      let tagsCreated = 0;
+      if (extractedTags.length > 0) {
+        const { error: tagsError } = await supabase
+          .from('user_tags')
+          .insert(extractedTags);
+        
+        if (tagsError) {
+          console.error('Error saving tags:', tagsError);
+        } else {
+          tagsCreated = extractedTags.length;
+        }
+      }
+      
+      // 7. Recalculate badges from ALL current tags
+      // Delete all existing badges and rebuild from scratch
+      await supabase
+        .from('user_badges')
+        .delete()
+        .eq('user_id', user.id);
+      
+      // Get all user tags
+      const { data: allUserTags } = await supabase
+        .from('user_tags')
+        .select('tag_key, tag_value, tag_category')
+        .eq('user_id', user.id);
+      
+      // Simple badge determination based on tag patterns
+      let badgesCreated = 0;
+      if (allUserTags && allUserTags.length > 0) {
+        const badgeInserts: any[] = [];
+        
+        // Check for common badge patterns
+        const tagKeys = new Set(allUserTags.map(t => t.tag_key));
+        
+        // Collaborative Leader badge
+        if (tagKeys.has('leadership-style') || 
+            allUserTags.some(t => t.tag_key === 'leadership-style' && t.tag_value.toLowerCase() === 'collaborative')) {
+          badgeInserts.push({
+            user_id: user.id,
+            badge_key: 'collaborative-leader',
+            badge_name: 'Collaborative Leader',
+            badge_description: 'Demonstrates collaborative leadership style',
+            badge_category: 'personality',
+            badge_icon: '👥',
+            strength: 1,
+            source_tag_keys: ['leadership-style'],
+          });
+        }
+        
+        // Add more badge patterns as needed
+        
+        if (badgeInserts.length > 0) {
+          const { error: badgesError } = await supabase
+            .from('user_badges')
+            .insert(badgeInserts);
+          
+          if (!badgesError) {
+            badgesCreated = badgeInserts.length;
+          }
+        }
+      }
+      
+      // 8. Calculate additional XP and handle profile sync from Survey Models calculatedValues
       const { badgesAwarded, xpEarned, profileSynced } = await awardBadgesAndXP(
         user.id,
         quizId,
-        quiz?.title || '', 
+        quiz.title || '', 
         data.surveyResults,
-        result?.score || 0
+        score
       );
       
-      // Combine badges from both sources (edge function tags + badge_definitions conditions)
+      // Combine badges from both sources
       const allBadgesAwarded = badgesAwarded.length > 0 
         ? badgesAwarded 
-        : (badgesEarned > 0 ? [`${badgesEarned} badge${badgesEarned > 1 ? 's' : ''} earned`] : []);
+        : (badgesCreated > 0 ? [`${badgesCreated} badge${badgesCreated > 1 ? 's' : ''} earned`] : []);
       
       return { 
-        result, 
+        result: quizResult, 
         badgesAwarded: allBadgesAwarded,
         xpEarned, 
         profileSynced,
         tagsCreated,
-        badgesEarned,
+        badgesEarned: badgesCreated,
       };
     },
     onSuccess: (data) => {

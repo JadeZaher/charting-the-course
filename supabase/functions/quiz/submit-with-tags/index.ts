@@ -81,15 +81,18 @@ serve(async (req) => {
       );
     }
 
+    // Use service role client for transaction-like operations (needed for retake check and all DB operations)
+    const adminSupabase = createServiceRoleClient();
+
     // Business rule: Check for existing results if retakes not allowed
+    // Must use service role client to bypass RLS
     if (!quiz.allow_retakes) {
-      const { data: existingResult } = await supabase
+      const { data: existingResult } = await adminSupabase
         .from("quiz_results")
         .select("id")
         .eq("user_id", user.id)
         .eq("quiz_id", quizId)
-        .limit(1)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to handle case when no result exists
 
       if (existingResult) {
         return errorResponse(
@@ -147,9 +150,6 @@ serve(async (req) => {
       isPassed = score >= quiz.passing_score;
     }
 
-    // Use service role client for transaction-like operations
-    const adminSupabase = createServiceRoleClient();
-
     // Save quiz result
     const { data: quizResult, error: resultError } = await adminSupabase
       .from("quiz_results")
@@ -167,7 +167,15 @@ serve(async (req) => {
 
     if (resultError) {
       console.error("Error saving quiz result:", resultError);
+      console.error("Quiz ID:", quizId);
+      console.error("User ID:", user.id);
+      console.error("Score:", score);
       return errorResponse("Failed to save quiz result", resultError.message, 500);
+    }
+
+    if (!quizResult) {
+      console.error("Quiz result insert returned no data");
+      return errorResponse("Failed to save quiz result: no data returned", undefined, 500);
     }
 
     // Clean up tags from previous quiz attempts (retakes)
@@ -250,10 +258,19 @@ serve(async (req) => {
       }
     }
 
-    // Update user profile stats
-    await adminSupabase.rpc("recalculate_user_profile_stats", {
-      user_uuid: user.id,
-    });
+    // Update user profile stats (optional - function may not exist)
+    try {
+      const { error: rpcError } = await adminSupabase.rpc("recalculate_user_profile_stats", {
+        user_uuid: user.id,
+      });
+      if (rpcError) {
+        console.warn("recalculate_user_profile_stats RPC not available:", rpcError.message);
+        // Continue without failing - stats can be recalculated later
+      }
+    } catch (rpcError) {
+      console.warn("recalculate_user_profile_stats RPC failed:", rpcError);
+      // Continue without failing - stats can be recalculated later
+    }
 
     // Delete quiz progress since it's completed
     await supabase
@@ -272,7 +289,8 @@ serve(async (req) => {
       201
     );
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Unexpected error in submit-with-tags:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
     return errorResponse(
       "Internal server error",
       error instanceof Error ? error.message : String(error),
