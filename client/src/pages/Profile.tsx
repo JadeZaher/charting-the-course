@@ -421,7 +421,7 @@ export default function Profile() {
 
   const handleCopyProfileLink = () => {
     if (!user?.id) return;
-    const profileUrl = `${window.location.origin}/u/${username || user.id}`;
+    const profileUrl = `${window.location.origin}/users/${username || user.id}`;
     navigator.clipboard.writeText(profileUrl);
     toast({
       title: "Link Copied",
@@ -431,7 +431,7 @@ export default function Profile() {
 
   const handleShareProfile = async () => {
     if (!user?.id) return;
-    const profileUrl = `${window.location.origin}/u/${username || user.id}`;
+    const profileUrl = `${window.location.origin}/users/${username || user.id}`;
     
     // Try native share API first
     if (navigator.share) {
@@ -982,7 +982,7 @@ export default function Profile() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex-1 min-w-0">
                     <Input
-                      value={user?.id ? `${window.location.origin}/u/${username || user.id}` : ''}
+                      value={user?.id ? `${window.location.origin}/users/${username || user.id}` : ''}
                       readOnly
                       className="text-sm"
                       data-testid="input-profile-url"
@@ -1838,7 +1838,7 @@ export default function Profile() {
                 className="w-full" 
                 data-testid="button-preview-profile"
                 onClick={() => {
-                  const profileUrl = username ? `/u/${username}` : `/u/${user?.id}`;
+                  const profileUrl = username ? `/users/${username}` : `/users/${user?.id}`;
                   window.open(profileUrl, '_blank');
                 }}
               >

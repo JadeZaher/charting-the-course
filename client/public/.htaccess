@@ -1,0 +1,11 @@
+# Apache: SPA fallback for client-side routes (/users/username, /quiz/take/:id, etc.)
+# Serves index.html when the request is not for a real file or directory.
+# For nginx, use the sibling file: nginx-spa.conf.sample
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
