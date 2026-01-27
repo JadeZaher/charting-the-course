@@ -520,7 +520,7 @@ function QuizResultCard({ result }: { result: PublicProfileData['quizResults'][0
 }
 
 export default function PublicProfile() {
-  const [, params] = useRoute("/u/:username");
+  const [, params] = useRoute("/users/:username");
   const username = params?.username;
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);

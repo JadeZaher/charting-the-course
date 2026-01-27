@@ -106,7 +106,7 @@ function PublicRoutes() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/u/:username" component={PublicProfile} />
+      <Route path="/users/:username" component={PublicProfile} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -177,7 +177,7 @@ function AppLayout() {
   const [location] = useLocation();
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/u/'];
+  const publicPaths = ['/login', '/users/'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
 
   if (isLoading) {
@@ -189,7 +189,7 @@ function AppLayout() {
     return (
       <Switch>
         <Route path="/login" component={Login} />
-        <Route path="/u/:username" component={PublicProfile} />
+        <Route path="/users/:username" component={PublicProfile} />
         {!isAuthenticated && <Route><Redirect to="/login" /></Route>}
         {isAuthenticated && <Route><Redirect to="/" /></Route>}
       </Switch>

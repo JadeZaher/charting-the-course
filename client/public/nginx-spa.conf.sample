@@ -1,0 +1,22 @@
+# Nginx: SPA fallback for client-side routes (/users/username, /quiz/take/:id, etc.)
+# Apache users: use the sibling file .htaccess instead.
+#
+# Usage: include this logic in your server { } block for this site, or merge
+# the try_files line into your existing location / { } block.
+#
+#   server {
+#     listen 80;
+#     server_name surveys.btwo.me;
+#     root /var/www/surveys.btwo.me;   # or wherever dist/public is deployed
+#     index index.html;
+#
+#     location / {
+#       try_files $uri $uri/ /index.html;
+#     }
+#   }
+#
+# The important part is: try_files $uri $uri/ /index.html;
+
+location / {
+  try_files $uri $uri/ /index.html;
+}
