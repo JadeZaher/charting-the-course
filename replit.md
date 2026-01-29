@@ -10,14 +10,16 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Added `permissions` (jsonb) and `is_archived` (boolean) columns to `profiles` table
 - Added `hiddenFromUser` (boolean) to quizzes table for admin proxy feature
 - Added `submittedBy` (varchar) to quiz_results for proxy submissions
-- Created new `profile_tiles` table for generic tile architecture
+- Created new `profile_tiles` table for generic tile architecture (migration: `20260129_create_profile_tiles.sql`)
 - Backfilled existing admin users with full permissions array
 - Old badge/tag system preserved for backward compatibility
 
 **Phase 2 Cleanup (Jan 29):**
 - Disabled gamification backend (calculate-achievements returns graceful no-op)
 - Removed Teams and Map View from sidebar navigation
-- Simplified Profile.tsx: removed tabs, StatCards, XP/level progress
+- Removed MapView.tsx file and route from App.tsx
+- Removed Map View from Dashboard navigation cards
+- Simplified Profile.tsx: removed tabs, StatCards, XP/level progress, XPLevel interface
 - Simplified PublicProfile.tsx: removed Journey and Connections tabs
 - Both profiles now use single-page scrolling layout
 

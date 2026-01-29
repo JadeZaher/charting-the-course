@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { BookOpen, User, Shield, Video, ArrowRight, FileEdit, Award, TrendingUp } from "lucide-react";
+import { BookOpen, User, Shield, Video, ArrowRight, FileEdit } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 // TODO: Enable when Edge Functions are deployed
@@ -11,11 +11,6 @@ export default function Dashboard() {
   const { user } = useSupabaseAuth();
   const { canManageContent, canManageUsers, isAdmin, legacyRole } = usePermissions();
   const roleName = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1));
-  // TODO: Enable when Edge Functions are deployed
-  // const { xpLevel, currentLevel, recentAchievements } = useUserProgress(undefined, true);
-  const xpLevel: any = null;
-  const currentLevel: any = null;
-  const recentAchievements: unknown[] = [];
 
   // Get display name
   const firstName = user?.user_metadata?.first_name || '';
@@ -76,53 +71,6 @@ export default function Dashboard() {
             : " Explore quizzes and track your progress."
           }
         </p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl">
-                {currentLevel?.level_icon || '🌱'}
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{currentLevel?.level_name || 'Newcomer'}</p>
-                <p className="text-sm text-muted-foreground">Level {xpLevel?.current_level || 1}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{xpLevel?.total_xp || 0} XP</p>
-                <p className="text-sm text-muted-foreground">
-                  {xpLevel?.xp_to_next_level || 100} to next level
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Award className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{recentAchievements?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Recent Achievements</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Video Section */}
