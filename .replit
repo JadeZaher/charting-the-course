@@ -36,7 +36,7 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev:client"
-waitForPort = 5000
+waitForPort = 5173
 
 [agent]
 integrations = [
