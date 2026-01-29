@@ -27,6 +27,21 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Added MyQuizHistory.tsx page for viewing all quiz history (not just recent 5)
 - Profile page now has "View All History" link to access complete quiz history
 
+**Phase 6: Frontend Tile Display System (Jan 29):**
+- Created tile component library: `client/src/components/profile/tiles/`
+  - TileRenderer.tsx - Main component that renders tiles by type
+  - BadgeTile.tsx - Displays achievement badges with icons
+  - TextTile.tsx - Shows text-based insights
+  - ChartTile.tsx - Renders horizontal bar charts for scores
+  - ListTile.tsx - Displays lists of items with values
+  - ScoreTile.tsx - Shows score metrics with progress rings
+  - TileGrid.tsx - Grid layout with visibility toggle for profile owners
+- Updated Profile.tsx to fetch and display profile tiles with visibility controls
+- Updated PublicProfile.tsx to display visible tiles with alignment scoring
+- Created alignment function (`client/src/lib/alignment.ts`) for user similarity
+- Alignment shown to logged-in users viewing other profiles (Jaccard similarity + dimension bonus)
+- Created `profile_layouts` and `tile_layout_settings` tables for future multi-layout support
+
 **Phase 4: Strategy Engine - Survey to Tile (Jan 29):**
 - Created `supabase/functions/_shared/tileGeneration.ts` - Strategy engine for tile generation
 - Tile types: badge, text, chart, list, score, custom
