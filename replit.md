@@ -21,6 +21,14 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Simplified PublicProfile.tsx: removed Journey and Connections tabs
 - Both profiles now use single-page scrolling layout
 
+**Phase 3 Security & Permissions (Jan 29):**
+- Created `usePermissions` hook for granular permission checks from JSONB column
+- Updated UserManagement.tsx with permissions checkboxes (replaces role dropdown)
+- Added archive/restore functionality for users with filter toggle
+- Permissions: manage_users, manage_content, proxy_quiz, view_analytics
+- Backward-compatible: OR logic checks both old roles AND new permissions
+- Created RLS migration SQL in `supabase/migrations/20260129_permissions_rls.sql`
+
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
 - Replaced Replit Auth with Supabase Auth

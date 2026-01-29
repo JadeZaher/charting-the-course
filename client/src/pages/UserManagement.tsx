@@ -5,13 +5,16 @@ import { Input } from "@/components/ui/input";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { 
-  Search, Users, Loader2, Edit, Eye, History, 
-  Mail, Calendar, Shield, UserCheck, UserX
+  Search, Users, Loader2, Edit, History, 
+  Shield, UserCheck, Archive, ArchiveRestore
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import {
   Dialog,
@@ -20,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -56,13 +60,13 @@ interface UserProfile {
   created_at: string;
   role: string;
   roleName: string;
+  permissions: Permission[];
+  isArchived: boolean;
   email?: string;
   quiz_count?: number;
 }
 
-// Fetch users from profiles table with roles and quiz counts
 async function fetchUsers(): Promise<UserProfile[]> {
-  // Fetch profiles
   const { data: profiles, error: profileError } = await supabase
     .from('profiles')
     .select(`
@@ -78,7 +82,12 @@ async function fetchUsers(): Promise<UserProfile[]> {
 
   if (profileError) throw profileError;
 
-  // Fetch user roles
+  const { data: usersData, error: usersError } = await supabase
+    .from('users')
+    .select('id, permissions, is_archived, role');
+
+  if (usersError) console.error('Error fetching users data:', usersError);
+
   const { data: userRoles, error: rolesError } = await supabase
     .from('user_roles')
     .select(`
@@ -91,46 +100,116 @@ async function fetchUsers(): Promise<UserProfile[]> {
 
   if (rolesError) console.error('Error fetching roles:', rolesError);
 
-  // Fetch quiz result counts per user
   const { data: quizCounts, error: quizError } = await supabase
     .from('quiz_results')
     .select('user_id');
 
   if (quizError) console.error('Error fetching quiz counts:', quizError);
 
-  // Count quizzes per user
   const quizCountMap: Record<string, number> = {};
   quizCounts?.forEach(result => {
     quizCountMap[result.user_id] = (quizCountMap[result.user_id] || 0) + 1;
   });
 
-  // Merge all data
-  return profiles?.map(profile => ({
-    ...profile,
-    role: userRoles?.find(ur => ur.user_id === profile.id)?.roles?.key || 'viewer',
-    roleName: userRoles?.find(ur => ur.user_id === profile.id)?.roles?.name || 'Viewer',
-    quiz_count: quizCountMap[profile.id] || 0,
-  })) || [];
+  const usersMap: Record<string, { permissions: Permission[], isArchived: boolean, role?: string }> = {};
+  usersData?.forEach(u => {
+    usersMap[u.id] = {
+      permissions: (u.permissions as Permission[]) || [],
+      isArchived: u.is_archived || false,
+      role: u.role
+    };
+  });
+
+  return profiles?.map(profile => {
+    const userData = usersMap[profile.id] || { permissions: [], isArchived: false };
+    const roleData = userRoles?.find(ur => ur.user_id === profile.id);
+    const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
+    
+    return {
+      ...profile,
+      role: userData.role || roles?.key || 'viewer',
+      roleName: roles?.name || 'Viewer',
+      permissions: userData.permissions,
+      isArchived: userData.isArchived,
+      quiz_count: quizCountMap[profile.id] || 0,
+    };
+  }) || [];
 }
 
 export default function UserManagement() {
-  const { permissions, isLoading: roleLoading } = useRoleAccess();
+  const { permissions: rolePermissions, isLoading: roleLoading } = useRoleAccess();
+  const { canManageUsers, isLoading: permLoading } = usePermissions();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [newRole, setNewRole] = useState("");
+  const [editedPermissions, setEditedPermissions] = useState<Permission[]>([]);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [showArchived, setShowArchived] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  // All hooks must be called before any conditional returns
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-users-management'],
     queryFn: fetchUsers,
     retry: false,
-    enabled: permissions.isAdmin, // Only fetch if admin
+    enabled: rolePermissions.isAdmin || canManageUsers,
   });
 
-  // Check access - these returns come AFTER all hooks
-  if (roleLoading) {
+  const updatePermissionsMutation = useMutation({
+    mutationFn: async ({ userId, permissions }: { userId: string; permissions: Permission[] }) => {
+      const { error } = await supabase
+        .from('users')
+        .update({ permissions })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
+      toast({
+        title: "Permissions Updated",
+        description: `${selectedUser?.first_name || selectedUser?.username}'s permissions have been updated`,
+      });
+      setDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update permissions",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveUserMutation = useMutation({
+    mutationFn: async ({ userId, archive }: { userId: string; archive: boolean }) => {
+      const { error } = await supabase
+        .from('users')
+        .update({ is_archived: archive })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { archive }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
+      toast({
+        title: archive ? "User Archived" : "User Restored",
+        description: archive 
+          ? "User has been archived and hidden from active lists"
+          : "User has been restored to active status",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (roleLoading || permLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -138,11 +217,10 @@ export default function UserManagement() {
     );
   }
 
-  if (!permissions.isAdmin) {
+  if (!rolePermissions.isAdmin && !canManageUsers) {
     return <Redirect to="/" />;
   }
 
-  // Filter users
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
       (user.username && user.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -150,63 +228,17 @@ export default function UserManagement() {
       (user.last_name && user.last_name.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    const matchesArchiveFilter = showArchived ? user.isArchived : !user.isArchived;
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && matchesArchiveFilter;
   });
 
-  // Stats
+  const activeUsers = users.filter(u => !u.isArchived);
   const stats = {
-    total: users.length,
-    admins: users.filter(u => u.role === 'admin').length,
-    facilitators: users.filter(u => u.role === 'facilitator').length,
-    viewers: users.filter(u => u.role === 'viewer').length,
-  };
-
-  const handleRoleChange = async () => {
-    if (!selectedUser || !newRole) return;
-
-    try {
-      // Get role ID
-      const { data: roleData, error: roleError } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('key', newRole)
-        .single();
-
-      if (roleError || !roleData) throw new Error('Role not found');
-
-      // Delete existing role
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', selectedUser.id);
-
-      // Insert new role
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: selectedUser.id,
-          role_id: roleData.id,
-          assigned_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Role Updated",
-        description: `${selectedUser.first_name || selectedUser.username}'s role has been changed to ${newRole}`,
-      });
-
-      refetch();
-      setSelectedUser(null);
-      setNewRole("");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update role",
-        variant: "destructive",
-      });
-    }
+    total: activeUsers.length,
+    withManageUsers: activeUsers.filter(u => u.permissions.includes('manage_users')).length,
+    withManageContent: activeUsers.filter(u => u.permissions.includes('manage_content')).length,
+    archived: users.filter(u => u.isArchived).length,
   };
 
   const getDisplayName = (user: UserProfile) => {
@@ -221,20 +253,44 @@ export default function UserManagement() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
   };
 
+  const handleEditPermissions = (user: UserProfile) => {
+    setSelectedUser(user);
+    setEditedPermissions([...user.permissions]);
+    setDialogOpen(true);
+  };
+
+  const handlePermissionToggle = (permission: Permission) => {
+    setEditedPermissions(prev => 
+      prev.includes(permission)
+        ? prev.filter(p => p !== permission)
+        : [...prev, permission]
+    );
+  };
+
+  const handleSavePermissions = () => {
+    if (!selectedUser) return;
+    updatePermissionsMutation.mutate({ 
+      userId: selectedUser.id, 
+      permissions: editedPermissions 
+    });
+  };
+
+  const handleArchiveUser = (user: UserProfile) => {
+    archiveUserMutation.mutate({ userId: user.id, archive: !user.isArchived });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Users className="h-8 w-8" />
           User Management
         </h1>
         <p className="text-muted-foreground mt-1">
-          Manage user accounts, roles, and view their activity
+          Manage user accounts, permissions, and archive status
         </p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -244,7 +300,7 @@ export default function UserManagement() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Total Users</p>
+                <p className="text-xs text-muted-foreground">Active Users</p>
               </div>
             </div>
           </CardContent>
@@ -256,8 +312,8 @@ export default function UserManagement() {
                 <Shield className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.admins}</p>
-                <p className="text-xs text-muted-foreground">Admins</p>
+                <p className="text-2xl font-bold">{stats.withManageUsers}</p>
+                <p className="text-xs text-muted-foreground">User Managers</p>
               </div>
             </div>
           </CardContent>
@@ -269,8 +325,8 @@ export default function UserManagement() {
                 <UserCheck className="h-5 w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.facilitators}</p>
-                <p className="text-xs text-muted-foreground">Facilitators</p>
+                <p className="text-2xl font-bold">{stats.withManageContent}</p>
+                <p className="text-xs text-muted-foreground">Content Managers</p>
               </div>
             </div>
           </CardContent>
@@ -278,24 +334,23 @@ export default function UserManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <UserX className="h-5 w-5 text-green-500" />
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Archive className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.viewers}</p>
-                <p className="text-xs text-muted-foreground">Viewers</p>
+                <p className="text-2xl font-bold">{stats.archived}</p>
+                <p className="text-xs text-muted-foreground">Archived</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <CardTitle>All Users</CardTitle>
+              <CardTitle>{showArchived ? 'Archived Users' : 'Active Users'}</CardTitle>
               <CardDescription>
                 {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
               </CardDescription>
@@ -308,10 +363,11 @@ export default function UserManagement() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
+                  data-testid="input-search-users"
                 />
               </div>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full sm:w-40">
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-role-filter">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -322,6 +378,14 @@ export default function UserManagement() {
                   <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={showArchived}
+                  onCheckedChange={setShowArchived}
+                  data-testid="switch-show-archived"
+                />
+                <Label className="text-sm whitespace-nowrap">Show Archived</Label>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -336,15 +400,15 @@ export default function UserManagement() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="hidden md:table-cell">Quizzes Taken</TableHead>
-                    <TableHead className="hidden md:table-cell">Joined</TableHead>
+                    <TableHead>Legacy Role</TableHead>
+                    <TableHead>Permissions</TableHead>
+                    <TableHead className="hidden md:table-cell">Quizzes</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className={user.isArchived ? 'opacity-60' : ''}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
@@ -364,75 +428,53 @@ export default function UserManagement() {
                       <TableCell>
                         <RoleBadge role={getRoleBadgeRole(user.role)} />
                       </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.permissions.length > 0 ? (
+                            user.permissions.map(perm => (
+                              <Badge key={perm} variant="outline" className="text-xs">
+                                {PERMISSION_LABELS[perm]}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No permissions</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="secondary">
-                          {user.quiz_count} quiz{user.quiz_count !== 1 ? 'zes' : ''}
+                          {user.quiz_count}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
-                        {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
                           <Link href={`/admin/users/${user.id}/history`}>
-                            <Button variant="ghost" size="icon" title="View Quiz History">
+                            <Button variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}>
                               <History className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                title="Edit Role"
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setNewRole(user.role);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Change User Role</DialogTitle>
-                                <DialogDescription>
-                                  Update the role for {getDisplayName(user)}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 pt-4">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-                                  <Avatar>
-                                    <AvatarImage src={user.avatar_url || ''} />
-                                    <AvatarFallback>{getInitials(user)}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="font-medium">{getDisplayName(user)}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      Current: {user.roleName}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>New Role</Label>
-                                  <Select value={newRole} onValueChange={setNewRole}>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="admin">Admin</SelectItem>
-                                      <SelectItem value="facilitator">Facilitator</SelectItem>
-                                      <SelectItem value="contributor">Contributor</SelectItem>
-                                      <SelectItem value="viewer">Viewer</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <Button onClick={handleRoleChange} className="w-full">
-                                  Update Role
-                                </Button>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            title="Edit Permissions"
+                            onClick={() => handleEditPermissions(user)}
+                            data-testid={`button-edit-${user.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={user.isArchived ? "Restore User" : "Archive User"}
+                            onClick={() => handleArchiveUser(user)}
+                            data-testid={`button-archive-${user.id}`}
+                          >
+                            {user.isArchived ? (
+                              <ArchiveRestore className="h-4 w-4" />
+                            ) : (
+                              <Archive className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -446,13 +488,83 @@ export default function UserManagement() {
               <p className="text-muted-foreground">
                 {searchQuery || roleFilter !== "all" 
                   ? "No users match your filters" 
-                  : "No users found"}
+                  : showArchived 
+                    ? "No archived users"
+                    : "No active users found"}
               </p>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User Permissions</DialogTitle>
+            <DialogDescription>
+              Update permissions for {selectedUser ? getDisplayName(selectedUser) : 'user'}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
+                <Avatar>
+                  <AvatarImage src={selectedUser.avatar_url || ''} />
+                  <AvatarFallback>{getInitials(selectedUser)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{getDisplayName(selectedUser)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Legacy Role: {selectedUser.roleName}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Permissions</Label>
+                {ALL_PERMISSIONS.map(permission => (
+                  <div 
+                    key={permission}
+                    className="flex items-start gap-3 p-3 rounded-lg border hover-elevate cursor-pointer"
+                    onClick={() => handlePermissionToggle(permission)}
+                  >
+                    <Checkbox
+                      checked={editedPermissions.includes(permission)}
+                      onCheckedChange={() => handlePermissionToggle(permission)}
+                      data-testid={`checkbox-${permission}`}
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{PERMISSION_LABELS[permission]}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {PERMISSION_DESCRIPTIONS[permission]}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSavePermissions}
+              disabled={updatePermissionsMutation.isPending}
+              data-testid="button-save-permissions"
+            >
+              {updatePermissionsMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Permissions'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
