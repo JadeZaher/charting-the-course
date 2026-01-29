@@ -27,6 +27,16 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Added MyQuizHistory.tsx page for viewing all quiz history (not just recent 5)
 - Profile page now has "View All History" link to access complete quiz history
 
+**Phase 4: Strategy Engine - Survey to Tile (Jan 29):**
+- Created `supabase/functions/_shared/tileGeneration.ts` - Strategy engine for tile generation
+- Tile types: badge, text, chart, list, score, custom
+- Profile dimensions: personality, strengths, values, interests, growth
+- Updated `submit-with-tags` to use tile generation instead of tags/badges
+- Assessment quizzes (no correct answers) now skip Pass/Fail scoring
+- Tiles stored in `profile_tiles` table with submission_id linking to quiz_results
+- Old tags/badges system deprecated - no longer writes to user_tags/user_badges
+- Strategy can be embedded in quiz metadata or registered per quiz ID
+
 **Phase 3 Security & Permissions (Jan 29):**
 - Created `usePermissions` hook for granular permission checks from JSONB column
 - Updated UserManagement.tsx with permissions checkboxes (replaces role dropdown)
