@@ -21,7 +21,6 @@ import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
-import MapView from "@/pages/MapView";
 import NotFound from "@/pages/not-found";
 
 // Loading spinner component
@@ -166,11 +165,6 @@ function AuthenticatedRoutes() {
       </Route>
       <Route path="/admin/users/:userId/history">
         <ProtectedRoute component={UserQuizHistory} requiredPermission="isAdmin" />
-      </Route>
-      
-      {/* Map view - all authenticated users */}
-      <Route path="/map">
-        <ProtectedRoute component={MapView} />
       </Route>
       
       {/* Fallback to public routes for unmatched paths */}

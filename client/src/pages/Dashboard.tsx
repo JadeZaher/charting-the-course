@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { BookOpen, Map, User, Shield, Video, ArrowRight, FileEdit, Award, TrendingUp } from "lucide-react";
+import { BookOpen, User, Shield, Video, ArrowRight, FileEdit, Award, TrendingUp } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 // TODO: Enable when Edge Functions are deployed
@@ -30,13 +30,6 @@ export default function Dashboard() {
       icon: BookOpen,
       href: "/quizzes",
       testId: "card-nav-quizzes",
-    },
-    {
-      title: "Map View",
-      description: "Explore global collaborative mindmaps from webinars",
-      icon: Map,
-      href: "/map",
-      testId: "card-nav-map",
     },
     {
       title: "Profile",

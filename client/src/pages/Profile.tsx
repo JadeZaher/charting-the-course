@@ -62,19 +62,11 @@ interface UserTag {
   tag_value: string;
 }
 
-interface XPLevel {
-  total_xp: number;
-  current_level: number;
-  quiz_streak: number;
-  longest_streak: number;
-}
-
 interface ProfileData {
   profile: any | null;
   badges: UserBadge[];
   tags: UserTag[];
   privacy: UserPrivacySettings | null;
-  xpLevel: XPLevel | null;
 }
 
 export default function Profile() {
@@ -130,7 +122,7 @@ export default function Profile() {
   const { data: profileData, isLoading: isLoadingProfile } = useQuery<ProfileData>({
     queryKey: ['my-profile-data'],
     queryFn: async () => {
-      if (!user?.id) return { profile: null, badges: [], tags: [], privacy: null, xpLevel: null };
+      if (!user?.id) return { profile: null, badges: [], tags: [], privacy: null };
       
       // Fetch profile
       const { data: profile } = await supabase
@@ -158,13 +150,6 @@ export default function Profile() {
         .eq('user_id', user.id)
         .single();
       
-      // Fetch XP level
-      const { data: xpLevel } = await supabase
-        .from('user_xp_levels')
-        .select('total_xp, current_level, quiz_streak, longest_streak')
-        .eq('user_id', user.id)
-        .single();
-      
       return {
         profile,
         badges: badges || [],
@@ -177,7 +162,6 @@ export default function Profile() {
           allowDiscovery: privacy.allow_discovery,
           sharedDimensions: privacy.shared_dimensions || [],
         } : null,
-        xpLevel: xpLevel || null,
       };
     },
     enabled: !!user?.id,
