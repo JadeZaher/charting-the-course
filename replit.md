@@ -6,6 +6,14 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 
 ## Recent Changes (January 2026)
 
+**Tile Architecture Migration (Phase 1 - Jan 29):**
+- Added `permissions` (jsonb) and `isArchived` (boolean) columns to users table
+- Added `hiddenFromUser` (boolean) to quizzes table for admin proxy feature
+- Added `submittedBy` (varchar) to quiz_results for proxy submissions
+- Created new `profile_tiles` table for generic tile architecture
+- Backfilled existing admin users with full permissions array
+- Old badge/tag system preserved for backward compatibility
+
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
 - Replaced Replit Auth with Supabase Auth
