@@ -64,11 +64,6 @@ interface PublicProfileData {
     survey_results?: Record<string, any>;
     survey_json?: any;
   }>;
-  xpLevel: {
-    total_xp: number;
-    current_level: number;
-    quiz_streak: number;
-  } | null;
   privacy: {
     is_profile_public: boolean;
     show_badges: boolean;
@@ -650,10 +645,7 @@ export default function PublicProfile() {
         })) || [];
       }
       
-      // XP/Levels disabled - gamification is paused
-      const xpLevel = null;
-      
-      return { profile, badges, tags, agreements, quizResults, xpLevel, privacy };
+      return { profile, badges, tags, agreements, quizResults, privacy };
     },
     enabled: !!username,
   });
@@ -709,7 +701,6 @@ export default function PublicProfile() {
   const privacy = data.privacy;
   const displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Anonymous';
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
-  const levelProgress = data.xpLevel ? ((data.xpLevel.total_xp % 100) / 100) * 100 : 0;
   
   const tagsByDimension = data.tags.reduce((acc, tag) => {
     const dim = tag.dimension || 'general';
@@ -801,30 +792,10 @@ export default function PublicProfile() {
                     >
                       {copied ? <Check className="h-3 w-3 mr-1" /> : <Share2 className="h-3 w-3 mr-1" />}
                       {copied ? 'Copied!' : 'Share Profile'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-              {/* Right: Journey Progress */}
-              {data.xpLevel && data.xpLevel.total_xp > 0 && (
-                <div className="lg:w-48">
-                  <div className="text-xs text-white/50 uppercase tracking-wider mb-2 text-center lg:text-right">Journey Progress</div>
-                  <div className="flex flex-col gap-2">
-                    <Progress value={levelProgress} className="h-1.5 bg-white/10" />
-                    <div className="flex justify-between text-xs text-white/50">
-                      <span>{data.xpLevel.total_xp} XP</span>
-                      <span>Lvl {data.xpLevel.current_level}</span>
-                    </div>
-                    {data.xpLevel.quiz_streak > 0 && (
-                      <div className="flex items-center justify-center lg:justify-end gap-1 text-amber-400 text-xs">
-                        <Zap className="h-3 w-3" />
-                        {data.xpLevel.quiz_streak} day streak
-                      </div>
-                    )}
+                    </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Bio */}
