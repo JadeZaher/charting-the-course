@@ -192,7 +192,7 @@ export default function QuizResults() {
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={() => setLocation("/profile")}
+          onClick={() => window.history.length > 1 ? window.history.back() : setLocation("/profile")}
           data-testid="button-back"
         >
           <ArrowLeft className="h-5 w-5" />
