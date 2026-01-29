@@ -43,6 +43,8 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - `is_archived` boolean on `profiles` table for soft-delete functionality
 - Existing RLS helper functions (`is_admin()`, `is_admin_or_facilitator()`) remain unchanged
 - Backward compatibility: role-based access works via `user_roles` → `roles` lookup
+- AdminPanel uses single Dialog pattern outside user list for reliable state management
+- UserManagement and AdminPanel mutations now target `profiles` table directly
 
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
