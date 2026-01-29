@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { 
-  ArrowLeft, Sparkles, Heart, TrendingUp, Target, Brain, 
+  ArrowLeft, Sparkles, Heart, Target, Brain, 
   MapPin, Globe, Linkedin, Twitter, Github, 
-  Briefcase, Users, Compass, Zap, Award, Share2,
+  Briefcase, Compass, Zap, Share2,
   ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -524,7 +524,6 @@ export default function PublicProfile() {
   const username = params?.username;
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile");
   const [scrollY, setScrollY] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -800,31 +799,6 @@ export default function PublicProfile() {
       <AnimatedCrystals scrollY={scrollY} isScrolling={isScrolling} />
       
       <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        {/* Tab Navigation */}
-        <CrystalCard>
-          <div className="flex items-center justify-center gap-1 p-2 flex-wrap">
-            {[
-              { key: 'profile', label: 'Profile', icon: '👤' },
-              { key: 'journey', label: 'Journey', icon: '🗺️' },
-              { key: 'alignment', label: 'Alignment', icon: '🎯' },
-              { key: 'connections', label: 'Connections', icon: '🤝' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`
-                  px-5 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2
-                  ${activeTab === tab.key 
-                    ? 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-cyan-300 border border-cyan-500/30' 
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'}
-                `}
-              >
-                <span>{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </CrystalCard>
 
         {/* Main Profile Card */}
         <CrystalCard featured>
@@ -841,11 +815,6 @@ export default function PublicProfile() {
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  {data.xpLevel && data.xpLevel.current_level > 1 && (
-                    <div className="absolute -bottom-1 -right-1 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-lg border border-white/20">
-                      Lvl {data.xpLevel.current_level}
-                    </div>
-                  )}
                 </div>
                 
                 {/* Name & Info */}
@@ -941,10 +910,8 @@ export default function PublicProfile() {
           </div>
         </CrystalCard>
 
-        {/* ==================== PROFILE TAB ==================== */}
-        {activeTab === 'profile' && (
-          <>
-            {/* Tags Grid */}
+        {/* Profile Content Section */}
+        {/* Tags Grid */}
             {hasTags && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {hasSocialLinks && (
@@ -1055,83 +1022,8 @@ export default function PublicProfile() {
                 </div>
               </CrystalCard>
             )}
-          </>
-        )}
 
-        {/* ==================== JOURNEY TAB ==================== */}
-        {activeTab === 'journey' && (
-          <>
-            {/* XP Progress Card */}
-            {data.xpLevel && (
-              <CrystalCard featured>
-                <div className="p-6">
-                  <SectionLabel icon={TrendingUp} title="Experience & Progress" />
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                    <div className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-4xl font-bold text-cyan-400">{data.xpLevel.total_xp}</div>
-                      <div className="text-sm text-white/60 mt-1">Total XP</div>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-4xl font-bold text-emerald-400">Lvl {data.xpLevel.current_level}</div>
-                      <div className="text-sm text-white/60 mt-1">Current Level</div>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-4xl font-bold text-amber-400">{data.xpLevel.quiz_streak}</div>
-                      <div className="text-sm text-white/60 mt-1">Day Streak 🔥</div>
-                    </div>
-                  </div>
-                  
-                  {/* Level Progress */}
-                  <div className="mt-6">
-                    <div className="flex justify-between text-sm text-white/50 mb-2">
-                      <span>Level {data.xpLevel.current_level}</span>
-                      <span>Level {data.xpLevel.current_level + 1}</span>
-                    </div>
-                    <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 transition-all duration-500" 
-                        style={{ width: `${levelProgress}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-white/40 mt-2 text-center">
-                      {100 - (data.xpLevel.total_xp % 100)} XP to next level
-                    </p>
-                  </div>
-                </div>
-              </CrystalCard>
-            )}
-
-            {/* Quiz History */}
-            {hasQuizResults && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 px-1">
-                  <Award className="h-5 w-5 text-cyan-400" />
-                  <h3 className="text-lg font-semibold text-white">Quiz Journey ({data.quizResults.length} completed)</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {data.quizResults.map(result => (
-                    <QuizResultCard key={result.id} result={result} />
-                  ))}
-                    </div>
-                  </div>
-            )}
-
-            {/* Empty State */}
-            {!data.xpLevel && !hasQuizResults && (
-              <CrystalCard>
-                <div className="p-8 text-center">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />
-                  <p className="text-white/50">No journey progress yet. Take quizzes to start!</p>
-                </div>
-              </CrystalCard>
-            )}
-          </>
-        )}
-
-        {/* ==================== ALIGNMENT TAB ==================== */}
-        {activeTab === 'alignment' && (
-          <>
+        {/* Alignment Content Section */}
             <CrystalCard featured>
               <div className="p-6">
                 <SectionLabel icon={Target} title="Values & Alignment" />
@@ -1215,36 +1107,6 @@ export default function PublicProfile() {
                 </div>
               </CrystalCard>
             )}
-          </>
-        )}
-
-        {/* ==================== CONNECTIONS TAB ==================== */}
-        {activeTab === 'connections' && (
-          <CrystalCard featured>
-            <div className="p-8 text-center">
-              <Users className="h-16 w-16 mx-auto mb-4 text-cyan-400/30" />
-              <h3 className="text-xl font-semibold text-white mb-2">Coming Soon!</h3>
-              <p className="text-white/60 max-w-md mx-auto">
-                The Connections feature will help you discover users with similar profiles, 
-                shared values, and complementary skills. Stay tuned!
-              </p>
-              <div className="mt-6 flex items-center justify-center gap-4">
-                <div className="text-center">
-                  <div className="text-2xl">🎯</div>
-                  <p className="text-xs text-white/40 mt-1">Match by Values</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl">🤝</div>
-                  <p className="text-xs text-white/40 mt-1">Find Similar</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl">⚡</div>
-                  <p className="text-xs text-white/40 mt-1">Complementary Skills</p>
-                </div>
-              </div>
-            </div>
-          </CrystalCard>
-        )}
 
         {/* Footer */}
         <div className="text-center py-6">

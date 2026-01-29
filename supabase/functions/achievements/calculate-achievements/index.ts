@@ -1,6 +1,8 @@
+// DISABLED: Gamification paused as part of Tile Architecture Migration (Jan 2026)
 // Edge Function: Calculate and Assign Achievements After Quiz Submission
 // Called after quiz submission to check and award badges, XP, and achievements
 
+/*
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createSupabaseClient, getAuthUser, createServiceRoleClient, corsHeaders, handleCors } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse } from "../../_shared/response.ts";
@@ -284,4 +286,35 @@ serve(async (req) => {
     );
   }
 });
+*/
 
+// Placeholder response for disabled function
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  return new Response(
+    JSON.stringify({ 
+      success: true,
+      message: "Gamification is currently disabled",
+      badges_earned: [],
+      achievements_earned: [],
+      xp_awarded: 0,
+      leveled_up: false,
+      new_level: null
+    }),
+    { 
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    }
+  );
+});

@@ -23,7 +23,6 @@ import {
   LayoutDashboard,
   BookOpen,
   User,
-  Map,
   Settings,
   LogOut,
   FileEdit,
@@ -50,11 +49,6 @@ const menuItems = [
     url: "/profile",
     icon: User,
   },
-  {
-    title: "Map View",
-    url: "/map",
-    icon: Map,
-  },
 ];
 
 const facilitatorItems = [
@@ -62,11 +56,6 @@ const facilitatorItems = [
     title: "Manage Quizzes",
     url: "/quiz/manage",
     icon: FileEdit,
-  },
-  {
-    title: "Teams",
-    url: "/admin?tab=teams",
-    icon: Users,
   },
 ];
 

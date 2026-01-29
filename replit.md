@@ -14,6 +14,13 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Backfilled existing admin users with full permissions array
 - Old badge/tag system preserved for backward compatibility
 
+**Phase 2 Cleanup (Jan 29):**
+- Disabled gamification backend (calculate-achievements returns graceful no-op)
+- Removed Teams and Map View from sidebar navigation
+- Simplified Profile.tsx: removed tabs, StatCards, XP/level progress
+- Simplified PublicProfile.tsx: removed Journey and Connections tabs
+- Both profiles now use single-page scrolling layout
+
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
 - Replaced Replit Auth with Supabase Auth
