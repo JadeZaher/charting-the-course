@@ -1,12 +1,11 @@
-// Edge Function: Submit Quiz with Tile Generation (Phase 4)
-// Generates profile tiles from quiz answers instead of tags/badges
-// For assessment quizzes: No Pass/Fail scoring, creates profile tiles
-// For graded quizzes: Still calculates score, but also creates tiles
+// Edge Function: Submit Quiz with Tag Extraction & Badge Generation
+// Enhanced version of submit-answers that includes full tag/badge workflow
+// Matches behavior of existing Express API POST /api/quizzes/:id/submit
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, createServiceRoleClient, corsHeaders, handleCors } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse } from "../../_shared/response.ts";
-import { generateTilesFromSubmission, isAssessmentQuiz, cleanupOldTiles, getStrategyForQuiz } from "../../_shared/tileGeneration.ts";
+import { extractTagsFromQuizSubmission, determineBadgesFromTags } from "../../_shared/tagExtraction.ts";
 import type { SubmitQuizRequest, QuizResult } from "../../_shared/types.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -82,17 +81,18 @@ serve(async (req) => {
       );
     }
 
-    // Use service role client for transaction-like operations
+    // Use service role client for transaction-like operations (needed for retake check and all DB operations)
     const adminSupabase = createServiceRoleClient();
 
     // Business rule: Check for existing results if retakes not allowed
+    // Must use service role client to bypass RLS
     if (!quiz.allow_retakes) {
       const { data: existingResult } = await adminSupabase
         .from("quiz_results")
         .select("id")
         .eq("user_id", user.id)
         .eq("quiz_id", quizId)
-        .maybeSingle();
+        .maybeSingle(); // Use maybeSingle() to handle case when no result exists
 
       if (existingResult) {
         return errorResponse(
@@ -103,60 +103,61 @@ serve(async (req) => {
       }
     }
 
-    // Determine if this is an assessment quiz (no correct answers)
-    const isAssessment = isAssessmentQuiz(quiz.survey_json);
-
-    // Calculate score only for graded quizzes
+    // Calculate score (matching Express API logic)
     let score = 0;
-    let isPassed: boolean | null = null;
-    
-    if (!isAssessment) {
-      let correctCount = 0;
-      let totalQuestions = 0;
+    let isPassed = true;
+    let correctCount = 0;
+    let totalQuestions = 0;
 
-      if (quiz.survey_json && typeof quiz.survey_json === "object") {
-        const surveyDef = quiz.survey_json as any;
+    if (quiz.survey_json && typeof quiz.survey_json === "object") {
+      const surveyDef = quiz.survey_json as any;
 
-        if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
-          for (const page of surveyDef.pages) {
-            if (page.elements && Array.isArray(page.elements)) {
-              for (const element of page.elements) {
-                if (element.correctAnswer !== undefined && element.correctAnswer !== null) {
-                  totalQuestions++;
-                  const userAnswer = survey_results[element.name];
+      if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
+        for (const page of surveyDef.pages) {
+          if (page.elements && Array.isArray(page.elements)) {
+            for (const element of page.elements) {
+              if (
+                element.correctAnswer !== undefined &&
+                element.correctAnswer !== null
+              ) {
+                totalQuestions++;
+                const userAnswer = survey_results[element.name];
 
-                  if (userAnswer !== undefined) {
-                    const userAnswerStr = String(userAnswer).trim().toLowerCase();
-                    const correctAnswerStr = String(element.correctAnswer).trim().toLowerCase();
+                if (userAnswer !== undefined) {
+                  const userAnswerStr = String(userAnswer).trim().toLowerCase();
+                  const correctAnswerStr = String(element.correctAnswer)
+                    .trim()
+                    .toLowerCase();
 
-                    if (userAnswerStr === correctAnswerStr) {
-                      correctCount++;
-                    }
+                  if (userAnswerStr === correctAnswerStr) {
+                    correctCount++;
                   }
                 }
               }
             }
           }
         }
-
-        score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
       }
 
-      // Check passing score
-      if (quiz.passing_score) {
-        isPassed = score >= quiz.passing_score;
-      }
+      score =
+        totalQuestions > 0
+          ? Math.round((correctCount / totalQuestions) * 100)
+          : 0;
+    }
+
+    // Check passing score
+    if (quiz.passing_score) {
+      isPassed = score >= quiz.passing_score;
     }
 
     // Save quiz result
-    // For assessments, score is 0 (not null) to maintain DB compatibility
     const { data: quizResult, error: resultError } = await adminSupabase
       .from("quiz_results")
       .insert({
         quiz_id: quizId,
         user_id: user.id,
         survey_results,
-        score: isAssessment ? 0 : score,
+        score,
         is_passed: isPassed,
         time_spent: time_spent || null,
         is_imported: false,
@@ -166,90 +167,109 @@ serve(async (req) => {
 
     if (resultError) {
       console.error("Error saving quiz result:", resultError);
+      console.error("Quiz ID:", quizId);
+      console.error("User ID:", user.id);
+      console.error("Score:", score);
       return errorResponse("Failed to save quiz result", resultError.message, 500);
     }
 
     if (!quizResult) {
+      console.error("Quiz result insert returned no data");
       return errorResponse("Failed to save quiz result: no data returned", undefined, 500);
     }
 
-    // Clean up old tiles from previous submissions (retakes)
-    await cleanupOldTiles(adminSupabase, user.id, quizId, quizResult.id);
+    // Clean up tags from previous quiz attempts (retakes)
+    const { data: previousResults } = await adminSupabase
+      .from("quiz_results")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("quiz_id", quizId)
+      .neq("id", quizResult.id)
+      .order("completed_at", { ascending: false });
 
-    // Get strategy for this quiz
-    const strategy = getStrategyForQuiz(quizId, quiz.survey_json);
+    if (previousResults && previousResults.length > 0) {
+      for (const prevResult of previousResults) {
+        await adminSupabase
+          .from("user_tags")
+          .delete()
+          .eq("quiz_result_id", prevResult.id);
+      }
+    }
 
-    // Generate profile tiles from submission
-    const tiles = generateTilesFromSubmission(
+    // Extract tags from quiz submission
+    const extractedTags = extractTagsFromQuizSubmission(
       user.id,
       quizResult.id,
       quiz.survey_json,
-      survey_results as Record<string, any>,
-      strategy
+      survey_results
     );
 
-    // Save tiles to database
-    let tilesCreated = 0;
-    if (tiles.length > 0) {
-      const { data: createdTiles, error: tilesError } = await adminSupabase
-        .from("profile_tiles")
-        .insert(tiles)
+    // Save tags to database
+    let tagsCreated = 0;
+    if (extractedTags.length > 0) {
+      const { data: createdTags, error: tagsError } = await adminSupabase
+        .from("user_tags")
+        .insert(extractedTags)
         .select();
 
-      if (tilesError) {
-        console.error("Error saving tiles:", tilesError);
-        // Don't fail the submission, just log the error
+      if (tagsError) {
+        console.error("Error saving tags:", tagsError);
       } else {
-        tilesCreated = createdTiles?.length || 0;
-        
-        // Ensure user has a default layout, create one if not
-        const { data: existingLayout } = await adminSupabase
-          .from("profile_layouts")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("is_default", true)
-          .maybeSingle();
-        
-        if (!existingLayout && createdTiles && createdTiles.length > 0) {
-          // Create default public layout
-          const { data: newLayout } = await adminSupabase
-            .from("profile_layouts")
-            .insert({
-              user_id: user.id,
-              name: "Public",
-              slug: "public",
-              is_default: true,
-            })
-            .select()
-            .single();
-          
-          if (newLayout) {
-            // Create layout settings for all tiles
-            const layoutSettings = createdTiles.map((tile: any, index: number) => ({
-              layout_id: newLayout.id,
-              tile_id: tile.id,
-              is_visible: true,
-              display_order: tile.display_order || index,
-            }));
-            
-            await adminSupabase
-              .from("tile_layout_settings")
-              .insert(layoutSettings);
-          }
-        } else if (existingLayout && createdTiles) {
-          // Add new tiles to existing layout
-          const layoutSettings = createdTiles.map((tile: any, index: number) => ({
-            layout_id: existingLayout.id,
-            tile_id: tile.id,
-            is_visible: true,
-            display_order: tile.display_order || index,
-          }));
-          
-          await adminSupabase
-            .from("tile_layout_settings")
-            .insert(layoutSettings);
-        }
+        tagsCreated = createdTags?.length || 0;
       }
+    }
+
+    // Recalculate badges from ALL current tags
+    // Delete all existing badges and rebuild from scratch
+    await adminSupabase.from("user_badges").delete().eq("user_id", user.id);
+
+    // Get all user tags
+    const { data: allUserTags } = await adminSupabase
+      .from("user_tags")
+      .select("tag_key, tag_value, tag_category")
+      .eq("user_id", user.id);
+
+    // Determine badges to earn
+    const badgesToEarn = determineBadgesFromTags(allUserTags || []);
+
+    // Create badges
+    let badgesCreated = 0;
+    if (badgesToEarn.length > 0) {
+      const badgeInserts = badgesToEarn.map((badge) => ({
+        user_id: user.id,
+        badge_key: badge.badge_key,
+        badge_name: badge.badge_name,
+        badge_description: badge.badge_description,
+        badge_category: badge.badge_category,
+        badge_icon: badge.badge_icon,
+        strength: 1,
+        source_tag_keys: badge.source_tag_keys,
+      }));
+
+      const { data: createdBadges, error: badgesError } = await adminSupabase
+        .from("user_badges")
+        .insert(badgeInserts)
+        .select();
+
+      if (badgesError) {
+        console.error("Error saving badges:", badgesError);
+      } else {
+        badgesCreated = createdBadges?.length || 0;
+      }
+    }
+
+    // Update user profile stats (optional - function may not exist)
+    try {
+      const { error: rpcError } = await adminSupabase.rpc("recalculate_user_profile_stats", {
+        user_uuid: user.id,
+      });
+      if (rpcError) {
+        console.warn("recalculate_user_profile_stats RPC not available:", rpcError.message);
+        // Continue without failing - stats can be recalculated later
+      }
+    } catch (rpcError) {
+      console.warn("recalculate_user_profile_stats RPC failed:", rpcError);
+      // Continue without failing - stats can be recalculated later
     }
 
     // Delete quiz progress since it's completed
@@ -259,12 +279,12 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .eq("quiz_id", quizId);
 
-    // Return result with tile stats
+    // Return result with tag/badge stats
     return successResponse(
       {
         result: quizResult as QuizResult,
-        tiles_created: tilesCreated,
-        is_assessment: isAssessment,
+        tags_created: tagsCreated,
+        badges_earned: badgesCreated,
       },
       201
     );

@@ -51,10 +51,10 @@ export default function TakeQuiz() {
     mutationFn: async (data: { surveyResults: any; timeSpent: number }) => {
       if (!user?.id || !quizId || !quiz) throw new Error('Not authenticated or quiz not found');
       
-      // Call the submit-with-tags edge function
+      // Call the submit-with-tiles edge function
       // This handles: scoring, retake checks, tile generation, cleanup
       const { data: response, error } = await supabase.functions.invoke(
-        `quiz/submit-with-tags/${quizId}`,
+        `quiz/submit-with-tiles/${quizId}`,
         {
           body: {
             survey_results: data.surveyResults,
