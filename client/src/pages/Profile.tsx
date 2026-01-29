@@ -9,7 +9,7 @@ import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 import { 
   Edit, Save, X, CheckCircle, Clock, FileText, Loader2 as LoaderIcon,
-  Lock, Eye, EyeOff, Copy, Link2, Share2
+  Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/supabase";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { TileGrid, ProfileTile } from "@/components/profile/tiles";
 
 interface ProfileDimensions {
   personality?: any;
@@ -118,6 +119,42 @@ export default function Profile() {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch profile tiles
+  const { data: profileTiles = [], isLoading: isLoadingTiles } = useQuery<ProfileTile[]>({
+    queryKey: ['profile-tiles', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('profile_tiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('display_order', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Toggle tile visibility mutation
+  const toggleTileVisibilityMutation = useMutation({
+    mutationFn: async ({ tileId, isVisible }: { tileId: string; isVisible: boolean }) => {
+      const { error } = await supabase
+        .from('profile_tiles')
+        .update({ is_visible: isVisible })
+        .eq('id', tileId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile-tiles'] });
+    },
+  });
+
+  const handleToggleTileVisibility = (tileId: string, isVisible: boolean) => {
+    toggleTileVisibilityMutation.mutate({ tileId, isVisible });
+  };
 
   const { data: profileData, isLoading: isLoadingProfile } = useQuery<ProfileData>({
     queryKey: ['my-profile-data'],
@@ -868,6 +905,34 @@ export default function Profile() {
                   Others can visit this link to view your public profile based on your privacy settings.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Profile Insights Section */}
+          <Card data-testid="card-profile-insights">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Profile Insights
+              </CardTitle>
+              <CardDescription>
+                Your personality, strengths, and interests based on quiz results
+                {profileTiles.some(t => !t.is_visible) && (
+                  <span className="text-xs ml-2">(Hidden tiles shown dimmed - hover to toggle visibility)</span>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingTiles ? (
+                <p className="text-muted-foreground text-center py-8">Loading insights...</p>
+              ) : (
+                <TileGrid 
+                  tiles={profileTiles} 
+                  isOwner={true}
+                  onToggleVisibility={handleToggleTileVisibility}
+                  showHidden={true}
+                />
+              )}
             </CardContent>
           </Card>
 

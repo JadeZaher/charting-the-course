@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { TileGrid, ProfileTile } from "@/components/profile/tiles";
+import { calculateAlignment, createAlignmentTile } from "@/lib/alignment";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 interface PublicProfileData {
   profile: {
@@ -45,6 +48,7 @@ interface PublicProfileData {
     tag_value: string;
     dimension: string | null;
   }>;
+  tiles: ProfileTile[];
   agreements: Array<{
     id: string;
     agreement_key: string;
@@ -518,6 +522,7 @@ export default function PublicProfile() {
   const [, params] = useRoute("/users/:username");
   const username = params?.username;
   const { toast } = useToast();
+  const { user } = useSupabaseAuth();
   const [copied, setCopied] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -644,9 +649,33 @@ export default function PublicProfile() {
         })) || [];
       }
       
-      return { profile, badges, tags, agreements, quizResults, privacy };
+      // Fetch profile tiles (only visible ones for public view)
+      let tiles: ProfileTile[] = [];
+      const { data: tileData } = await supabase
+        .from('profile_tiles')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_visible', true)
+        .order('display_order', { ascending: true });
+      tiles = (tileData || []) as ProfileTile[];
+      
+      return { profile, badges, tags, tiles, agreements, quizResults, privacy };
     },
     enabled: !!username,
+  });
+
+  // Query viewer's tiles for alignment calculation
+  const { data: viewerTiles } = useQuery<ProfileTile[]>({
+    queryKey: ['viewer-tiles', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('profile_tiles')
+        .select('*')
+        .eq('user_id', user.id);
+      return (data || []) as ProfileTile[];
+    },
+    enabled: !!user?.id && !!data?.profile && user.id !== data.profile.id,
   });
 
   const handleShare = async () => {
@@ -712,6 +741,17 @@ export default function PublicProfile() {
   const hasTags = privacy?.show_tags !== false && data.tags.length > 0;
   const hasQuizResults = privacy?.show_quiz_results !== false && data.quizResults.length > 0;
   const hasSocialLinks = profile.social_links && Object.values(profile.social_links).some(v => v);
+  const hasTiles = data.tiles && data.tiles.length > 0;
+  
+  // Calculate alignment if viewer is logged in and not viewing own profile
+  const isViewingOwnProfile = user?.id === profile.id;
+  const alignment = (!isViewingOwnProfile && viewerTiles && viewerTiles.length > 0 && data.tiles.length > 0)
+    ? calculateAlignment(viewerTiles, data.tiles)
+    : null;
+  const alignmentTile = alignment ? createAlignmentTile(alignment) : null;
+  const displayTiles = alignmentTile 
+    ? [alignmentTile, ...data.tiles] 
+    : data.tiles;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 relative overflow-hidden">
@@ -834,6 +874,29 @@ export default function PublicProfile() {
           </div>
         </CrystalCard>
 
+        {/* Profile Insights (Tiles) Section */}
+        {hasTiles && (
+          <CrystalCard>
+            <div className="p-4">
+              <SectionLabel icon={Sparkles} title="Profile Insights" />
+              {alignment && (
+                <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-bold text-cyan-300">{alignment.score}%</div>
+                    <div>
+                      <p className="text-sm font-medium text-white">Your Alignment</p>
+                      <p className="text-xs text-white/60">{alignment.insights[0]}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_>div>div]:bg-white/5 [&_>div>div]:border-white/10 [&_>div>div]:text-white [&_h3]:text-white [&_p]:text-white/70">
+                <TileGrid tiles={displayTiles} isOwner={false} />
+              </div>
+            </div>
+          </CrystalCard>
+        )}
+
         {/* Profile Content Section */}
         {/* Tags Grid */}
             {hasTags && (
@@ -938,7 +1001,7 @@ export default function PublicProfile() {
             )}
 
             {/* Empty State */}
-            {!hasBadges && !hasTags && !profile.bio && (
+            {!hasBadges && !hasTags && !hasTiles && !profile.bio && (
               <CrystalCard>
                 <div className="p-8 text-center">
                   <Compass className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />

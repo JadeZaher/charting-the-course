@@ -201,6 +201,54 @@ serve(async (req) => {
         // Don't fail the submission, just log the error
       } else {
         tilesCreated = createdTiles?.length || 0;
+        
+        // Ensure user has a default layout, create one if not
+        const { data: existingLayout } = await adminSupabase
+          .from("profile_layouts")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("is_default", true)
+          .maybeSingle();
+        
+        if (!existingLayout && createdTiles && createdTiles.length > 0) {
+          // Create default public layout
+          const { data: newLayout } = await adminSupabase
+            .from("profile_layouts")
+            .insert({
+              user_id: user.id,
+              name: "Public",
+              slug: "public",
+              is_default: true,
+            })
+            .select()
+            .single();
+          
+          if (newLayout) {
+            // Create layout settings for all tiles
+            const layoutSettings = createdTiles.map((tile: any, index: number) => ({
+              layout_id: newLayout.id,
+              tile_id: tile.id,
+              is_visible: true,
+              display_order: tile.display_order || index,
+            }));
+            
+            await adminSupabase
+              .from("tile_layout_settings")
+              .insert(layoutSettings);
+          }
+        } else if (existingLayout && createdTiles) {
+          // Add new tiles to existing layout
+          const layoutSettings = createdTiles.map((tile: any, index: number) => ({
+            layout_id: existingLayout.id,
+            tile_id: tile.id,
+            is_visible: true,
+            display_order: tile.display_order || index,
+          }));
+          
+          await adminSupabase
+            .from("tile_layout_settings")
+            .insert(layoutSettings);
+        }
       }
     }
 
