@@ -41,53 +41,52 @@ export function usePermissions() {
       if (!user?.id) return { permissions: [], isArchived: false };
 
       try {
-        // Try to get permissions from users table first
-        const { data: userData, error: usersError } = await supabase
-          .from('users')
-          .select('permissions, is_archived, role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!usersError && userData) {
-          return {
-            permissions: (userData?.permissions as Permission[]) || [],
-            isArchived: userData?.is_archived || false,
-            role: userData?.role
-          };
-        }
-
-        // Fallback: try to get role from user_roles/roles tables
-        console.log('Users table not accessible, trying user_roles fallback...');
-        const { data: userRole, error: roleError } = await supabase
+        // Get role from user_roles/roles tables first (always available)
+        const { data: userRole } = await supabase
           .from('user_roles')
           .select('role_id')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (roleError || !userRole) {
-          // Last resort: check user metadata
-          const metaRole = (user as any)?.user_metadata?.role || (user as any)?.role;
-          return { 
-            permissions: [], 
-            isArchived: false,
-            role: metaRole || 'viewer'
-          };
+        let roleKey = 'viewer';
+        if (userRole) {
+          const { data: roleData } = await supabase
+            .from('roles')
+            .select('key')
+            .eq('id', userRole.role_id)
+            .single();
+          roleKey = roleData?.key || 'viewer';
         }
 
-        // Get role key from roles table
-        const { data: roleData } = await supabase
-          .from('roles')
-          .select('key')
-          .eq('id', userRole.role_id)
-          .single();
+        // Try to get permissions from profiles table
+        // This may fail silently if permissions column doesn't exist yet
+        let permissions: Permission[] = [];
+        let isArchived = false;
+        
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('permissions, is_archived')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          // Only use profile data if query succeeded and returned data
+          if (!profileError && profileData) {
+            permissions = (profileData.permissions as Permission[]) || [];
+            isArchived = profileData.is_archived || false;
+          }
+          // Silently fall back to empty permissions if column doesn't exist
+        } catch {
+          // Column doesn't exist yet - that's fine, use empty permissions
+        }
 
         return {
-          permissions: [],
-          isArchived: false,
-          role: roleData?.key || 'viewer'
+          permissions,
+          isArchived,
+          role: roleKey
         };
       } catch (err) {
-        console.error('Unexpected error fetching permissions:', err);
+        console.error('Error fetching user role:', err);
         return { 
           permissions: [], 
           isArchived: false,

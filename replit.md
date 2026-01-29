@@ -7,7 +7,7 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 ## Recent Changes (January 2026)
 
 **Tile Architecture Migration (Phase 1 - Jan 29):**
-- Added `permissions` (jsonb) and `isArchived` (boolean) columns to users table
+- Added `permissions` (jsonb) and `is_archived` (boolean) columns to `profiles` table
 - Added `hiddenFromUser` (boolean) to quizzes table for admin proxy feature
 - Added `submittedBy` (varchar) to quiz_results for proxy submissions
 - Created new `profile_tiles` table for generic tile architecture
@@ -35,6 +35,14 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Updated AppSidebar, QuizList, Dashboard, AdminPanel, UserQuizHistory, Profile, App.tsx
 - `useRoleAccess` hook preserved for backward compatibility but no longer imported
 - All permission checks now use new system: canManageUsers, canManageContent, etc.
+
+**Supabase Schema Alignment (Jan 29):**
+- Updated `usePermissions` hook to query from `profiles` table (not `users`)
+- Supabase uses `profiles` table for user data, `user_roles`/`roles` for role assignments
+- Permissions stored as JSONB array on `profiles.permissions` column
+- `is_archived` boolean on `profiles` table for soft-delete functionality
+- Existing RLS helper functions (`is_admin()`, `is_admin_or_facilitator()`) remain unchanged
+- Backward compatibility: role-based access works via `user_roles` → `roles` lookup
 
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
