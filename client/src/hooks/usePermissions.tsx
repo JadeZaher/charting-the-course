@@ -40,22 +40,60 @@ export function usePermissions() {
     queryFn: async () => {
       if (!user?.id) return { permissions: [], isArchived: false };
 
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('permissions, is_archived, role')
-        .eq('id', user.id)
-        .maybeSingle();
+      try {
+        // Try to get permissions from users table first
+        const { data: userData, error: usersError } = await supabase
+          .from('users')
+          .select('permissions, is_archived, role')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching permissions:', error);
-        return { permissions: [], isArchived: false };
+        if (!usersError && userData) {
+          return {
+            permissions: (userData?.permissions as Permission[]) || [],
+            isArchived: userData?.is_archived || false,
+            role: userData?.role
+          };
+        }
+
+        // Fallback: try to get role from user_roles/roles tables
+        console.log('Users table not accessible, trying user_roles fallback...');
+        const { data: userRole, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (roleError || !userRole) {
+          // Last resort: check user metadata
+          const metaRole = (user as any)?.user_metadata?.role || (user as any)?.role;
+          return { 
+            permissions: [], 
+            isArchived: false,
+            role: metaRole || 'viewer'
+          };
+        }
+
+        // Get role key from roles table
+        const { data: roleData } = await supabase
+          .from('roles')
+          .select('key')
+          .eq('id', userRole.role_id)
+          .single();
+
+        return {
+          permissions: [],
+          isArchived: false,
+          role: roleData?.key || 'viewer'
+        };
+      } catch (err) {
+        console.error('Unexpected error fetching permissions:', err);
+        return { 
+          permissions: [], 
+          isArchived: false,
+          role: 'viewer'
+        };
       }
-
-      return {
-        permissions: (userData?.permissions as Permission[]) || [],
-        isArchived: userData?.is_archived || false,
-        role: userData?.role
-      };
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
