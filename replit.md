@@ -24,6 +24,8 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Both profiles now use single-page scrolling layout
 - Created SQL migration for proxy feature columns (`supabase/migrations/20260129_add_proxy_columns.sql`)
 - Improved QuizResults.tsx: now shows all responses for assessment quizzes (not just gradable questions)
+- Added MyQuizHistory.tsx page for viewing all quiz history (not just recent 5)
+- Profile page now has "View All History" link to access complete quiz history
 
 **Phase 3 Security & Permissions (Jan 29):**
 - Created `usePermissions` hook for granular permission checks from JSONB column

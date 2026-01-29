@@ -873,8 +873,19 @@ export default function Profile() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Quiz Results</CardTitle>
-              <CardDescription>Your most recent completed quizzes</CardDescription>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Recent Quiz Results</CardTitle>
+                  <CardDescription>Your most recent completed quizzes</CardDescription>
+                </div>
+                {completedQuizzes.length > 5 && (
+                  <Link href="/my-quiz-history">
+                    <Button variant="outline" size="sm" data-testid="button-view-all-history">
+                      View All
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingQuizzes ? (
@@ -902,6 +913,13 @@ export default function Profile() {
                       </div>
                     </Link>
                   ))}
+                  <Link href="/my-quiz-history">
+                    <div className="text-center pt-2">
+                      <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid="link-view-all-history">
+                        View All History
+                      </Button>
+                    </div>
+                  </Link>
                 </div>
               ) : (
                 <div className="text-center py-8 space-y-2">

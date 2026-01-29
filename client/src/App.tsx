@@ -21,6 +21,7 @@ import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
+import MyQuizHistory from "@/pages/MyQuizHistory";
 import NotFound from "@/pages/not-found";
 
 // Loading spinner component
@@ -152,6 +153,11 @@ function AuthenticatedRoutes() {
       {/* Profile - all authenticated users */}
       <Route path="/profile">
         <ProtectedRoute component={Profile} />
+      </Route>
+      
+      {/* My Quiz History - all authenticated users */}
+      <Route path="/my-quiz-history">
+        <ProtectedRoute component={MyQuizHistory} />
       </Route>
       
       {/* Admin panel - requires canManageUsers permission */}
