@@ -8,7 +8,8 @@ import {
   ArrowLeft, Sparkles, Heart, Target, Brain, 
   MapPin, Globe, Linkedin, Twitter, Github, 
   Briefcase, Compass, Zap, Share2,
-  ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight
+  ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
+  Users, Award
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -622,52 +623,8 @@ export default function PublicProfile() {
         tags = tagData || [];
       }
       
-      // Fetch agreements with definitions
+      // Agreements feature - tables may not exist yet
       let agreements: any[] = [];
-      if (privacy?.show_tags !== false) { // Use same privacy setting as tags for now
-        // First get user agreements
-        const { data: userAgreements } = await supabase
-          .from('user_agreements')
-          .select('id, agreement_key, source_quiz_id, created_at')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        
-        if (userAgreements && userAgreements.length > 0) {
-          // Get agreement keys
-          const agreementKeys = [...new Set(userAgreements.map(ua => ua.agreement_key))];
-          
-          // Fetch agreement definitions
-          const { data: agreementDefs } = await supabase
-            .from('agreement_definitions')
-            .select('agreement_key, agreement_statement, agreement_category')
-            .in('agreement_key', agreementKeys);
-          
-          // Get quiz IDs
-          const quizIds = [...new Set(userAgreements.map(ua => ua.source_quiz_id))];
-          
-          // Fetch quiz titles
-          const { data: quizzes } = await supabase
-            .from('quizzes')
-            .select('id, title')
-            .in('id', quizIds);
-          
-          // Combine data
-          agreements = userAgreements.map(ua => {
-            const def = agreementDefs?.find(ad => ad.agreement_key === ua.agreement_key);
-            const quiz = quizzes?.find(q => q.id === ua.source_quiz_id);
-            
-            return {
-              id: ua.id,
-              agreement_key: ua.agreement_key,
-              agreement_statement: def?.agreement_statement || ua.agreement_key,
-              agreement_category: def?.agreement_category || null,
-              source_quiz_id: ua.source_quiz_id,
-              quiz_title: quiz?.title || null,
-              created_at: ua.created_at
-            };
-          });
-        }
-      }
       
       // Fetch quiz results with survey data
       let quizResults: any[] = [];
@@ -693,11 +650,8 @@ export default function PublicProfile() {
         })) || [];
       }
       
-      const { data: xpLevel } = await supabase
-        .from('user_xp_levels')
-        .select('total_xp, current_level, quiz_streak')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // XP/Levels disabled - gamification is paused
+      const xpLevel = null;
       
       return { profile, badges, tags, agreements, quizResults, xpLevel, privacy };
     },
