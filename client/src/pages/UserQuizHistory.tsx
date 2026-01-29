@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useParams } from "wouter";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -185,7 +185,7 @@ async function fetchUserXP(userId: string): Promise<UserXP | null> {
 }
 
 export default function UserQuizHistory() {
-  const { permissions, isLoading: roleLoading } = useRoleAccess();
+  const { isAdmin, canManageUsers, isLoading: roleLoading } = usePermissions();
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
   const { toast } = useToast();
@@ -208,7 +208,7 @@ export default function UserQuizHistory() {
     );
   }
 
-  if (!permissions.isAdmin) {
+  if (!isAdmin && !canManageUsers) {
     return <Redirect to="/" />;
   }
 

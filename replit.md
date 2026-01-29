@@ -29,6 +29,13 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 - Backward-compatible: OR logic checks both old roles AND new permissions
 - Created RLS migration SQL in `supabase/migrations/20260129_permissions_rls.sql`
 
+**Permissions Migration Complete (Jan 29):**
+- Migrated all components from `useRoleAccess` to `usePermissions` hook
+- Updated filter dropdown in UserManagement from roles to permissions
+- Updated AppSidebar, QuizList, Dashboard, AdminPanel, UserQuizHistory, Profile, App.tsx
+- `useRoleAccess` hook preserved for backward compatibility but no longer imported
+- All permission checks now use new system: canManageUsers, canManageContent, etc.
+
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
 - Replaced Replit Auth with Supabase Auth

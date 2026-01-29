@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import {
@@ -137,14 +136,13 @@ async function fetchUsers(): Promise<UserProfile[]> {
 }
 
 export default function UserManagement() {
-  const { permissions: rolePermissions, isLoading: roleLoading } = useRoleAccess();
-  const { canManageUsers, isLoading: permLoading } = usePermissions();
+  const { canManageUsers, isAdmin, isLoading: permLoading } = usePermissions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [editedPermissions, setEditedPermissions] = useState<Permission[]>([]);
-  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [permissionFilter, setPermissionFilter] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -152,7 +150,7 @@ export default function UserManagement() {
     queryKey: ['admin-users-management'],
     queryFn: fetchUsers,
     retry: false,
-    enabled: rolePermissions.isAdmin || canManageUsers,
+    enabled: isAdmin || canManageUsers,
   });
 
   const updatePermissionsMutation = useMutation({
@@ -209,7 +207,7 @@ export default function UserManagement() {
     },
   });
 
-  if (roleLoading || permLoading) {
+  if (permLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -217,7 +215,7 @@ export default function UserManagement() {
     );
   }
 
-  if (!rolePermissions.isAdmin && !canManageUsers) {
+  if (!isAdmin && !canManageUsers) {
     return <Redirect to="/" />;
   }
 
@@ -227,10 +225,12 @@ export default function UserManagement() {
       (user.first_name && user.first_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (user.last_name && user.last_name.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    const matchesPermission = permissionFilter === "all" || 
+      (permissionFilter === "none" && user.permissions.length === 0) ||
+      user.permissions.includes(permissionFilter as Permission);
     const matchesArchiveFilter = showArchived ? user.isArchived : !user.isArchived;
     
-    return matchesSearch && matchesRole && matchesArchiveFilter;
+    return matchesSearch && matchesPermission && matchesArchiveFilter;
   });
 
   const activeUsers = users.filter(u => !u.isArchived);
@@ -366,16 +366,16 @@ export default function UserManagement() {
                   data-testid="input-search-users"
                 />
               </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full sm:w-40" data-testid="select-role-filter">
-                  <SelectValue placeholder="Filter by role" />
+              <Select value={permissionFilter} onValueChange={setPermissionFilter}>
+                <SelectTrigger className="w-full sm:w-48" data-testid="select-permission-filter">
+                  <SelectValue placeholder="Filter by permission" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="facilitator">Facilitator</SelectItem>
-                  <SelectItem value="contributor">Contributor</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="none">No Permissions</SelectItem>
+                  {ALL_PERMISSIONS.map(perm => (
+                    <SelectItem key={perm} value={perm}>{PERMISSION_LABELS[perm]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <div className="flex items-center gap-2">
@@ -486,7 +486,7 @@ export default function UserManagement() {
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
-                {searchQuery || roleFilter !== "all" 
+                {searchQuery || permissionFilter !== "all" 
                   ? "No users match your filters" 
                   : showArchived 
                     ? "No archived users"

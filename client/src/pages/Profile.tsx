@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
@@ -79,7 +79,8 @@ interface ProfileData {
 
 export default function Profile() {
   const { user } = useSupabaseAuth();
-  const { role } = useRoleAccess();
+  const { legacyRole } = usePermissions();
+  const role = legacyRole || 'viewer';
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState("");

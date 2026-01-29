@@ -3,17 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { BookOpen, Map, User, Shield, Video, ArrowRight, FileEdit, Award, TrendingUp } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 // TODO: Enable when Edge Functions are deployed
 // import { useUserProgress } from "@/hooks/useAchievements";
 
 export default function Dashboard() {
   const { user } = useSupabaseAuth();
-  const { permissions, roleName } = useRoleAccess();
+  const { canManageContent, canManageUsers, isAdmin, legacyRole } = usePermissions();
+  const roleName = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1));
   // TODO: Enable when Edge Functions are deployed
   // const { xpLevel, currentLevel, recentAchievements } = useUserProgress(undefined, true);
-  const xpLevel = null;
-  const currentLevel = null;
+  const xpLevel: any = null;
+  const currentLevel: any = null;
   const recentAchievements: unknown[] = [];
 
   // Get display name
@@ -46,8 +47,8 @@ export default function Dashboard() {
     },
   ];
 
-  // Add quiz management for facilitators and admins
-  if (permissions.canCreateQuizzes) {
+  // Add quiz management for content managers
+  if (canManageContent) {
     navigationCards.push({
       title: "Manage Quizzes",
       description: "Create, edit, and manage your quizzes",
@@ -57,8 +58,8 @@ export default function Dashboard() {
     });
   }
 
-  // Add admin panel for admins
-  if (permissions.canAccessAdminPanel) {
+  // Add admin panel for admins/user managers
+  if (isAdmin || canManageUsers) {
     navigationCards.push({
       title: "Admin Panel",
       description: "Manage users, roles, badges, and platform settings",
@@ -77,7 +78,7 @@ export default function Dashboard() {
         </h1>
         <p className="text-lg text-muted-foreground max-w-3xl" data-testid="text-welcome-description">
           You're logged in as <span className="font-medium text-foreground">{roleName}</span>.
-          {permissions.isAdminOrFacilitator 
+          {canManageContent 
             ? " You have access to quiz creation and management tools."
             : " Explore quizzes and track your progress."
           }

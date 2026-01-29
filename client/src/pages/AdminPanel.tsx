@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import {
   Dialog,
@@ -69,11 +69,15 @@ async function fetchUsers() {
     `);
 
   // Merge profiles with roles
-  return profiles?.map(profile => ({
-    ...profile,
-    role: userRoles?.find(ur => ur.user_id === profile.id)?.roles?.key || 'viewer',
-    roleName: userRoles?.find(ur => ur.user_id === profile.id)?.roles?.name || 'Viewer',
-  })) || [];
+  return profiles?.map(profile => {
+    const roleData = userRoles?.find(ur => ur.user_id === profile.id);
+    const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
+    return {
+      ...profile,
+      role: roles?.key || 'viewer',
+      roleName: roles?.name || 'Viewer',
+    };
+  }) || [];
 }
 
 // Fetch quizzes
@@ -339,7 +343,7 @@ async function uploadBadgeIcon(file: File, badgeKey: string): Promise<string> {
 
 export default function AdminPanel() {
   // All hooks must be called at the top, before any conditional returns
-  const { permissions, isLoading: roleLoading } = useRoleAccess();
+  const { isAdmin, canManageUsers, isLoading: roleLoading } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -394,31 +398,31 @@ export default function AdminPanel() {
   const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
     queryFn: fetchUsers,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: quizzes = [], isLoading: quizzesLoading } = useQuery({
     queryKey: ['admin-quizzes'],
     queryFn: fetchQuizzes,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ['admin-badges'],
     queryFn: fetchBadges,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['admin-teams'],
     queryFn: fetchTeams,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
     queryKey: ['admin-assignments'],
     queryFn: fetchAssignments,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   // Badge mutations
@@ -652,7 +656,7 @@ export default function AdminPanel() {
     );
   }
 
-  if (!permissions.canAccessAdminPanel) {
+  if (!isAdmin && !canManageUsers) {
     return <Redirect to="/" />;
   }
 

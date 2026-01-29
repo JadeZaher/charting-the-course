@@ -8,7 +8,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -42,13 +42,13 @@ function ProtectedRoute({
   requiredPermission,
 }: { 
   component: React.ComponentType;
-  requiredPermission?: 'canAccessAdminPanel' | 'canCreateQuizzes' | 'canManageUsers' | 'isAdmin';
+  requiredPermission?: 'canManageUsers' | 'canManageContent' | 'canProxyQuiz' | 'canViewAnalytics' | 'isAdmin';
 }) {
   const { isAuthenticated, isLoading } = useSupabaseAuth();
-  const { permissions, isLoading: roleLoading, error: roleError } = useRoleAccess();
+  const { canManageUsers, canManageContent, canProxyQuiz, canViewAnalytics, isAdmin, isLoading: permLoading, error: permError } = usePermissions();
   const [location] = useLocation();
 
-  // Show loading only for auth check, not for role (role has fallback)
+  // Show loading only for auth check
   if (isLoading) {
     return <LoadingScreen />;
   }
@@ -58,13 +58,13 @@ function ProtectedRoute({
     return <Redirect to={`/login?redirect=${encodeURIComponent(location)}`} />;
   }
 
-  // Show error if role fetch failed (optional - can be removed if you want silent fallback)
-  if (roleError) {
+  // Show error if permission fetch failed
+  if (permError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <h1 className="text-2xl font-bold text-destructive">Error Loading Permissions</h1>
-          <p className="text-muted-foreground">{(roleError as Error).message || 'Failed to load user permissions'}</p>
+          <p className="text-muted-foreground">{(permError as Error).message || 'Failed to load user permissions'}</p>
           <a href="/" className="text-primary underline" onClick={() => window.location.reload()}>
             Retry
           </a>
@@ -73,17 +73,27 @@ function ProtectedRoute({
     );
   }
 
-  // Check permission if required (don't wait for role loading - use fallback permissions)
-  if (requiredPermission && !roleLoading && !permissions[requiredPermission]) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
-          <a href="/" className="text-primary underline">Go to Dashboard</a>
+  // Check permission if required
+  if (requiredPermission && !permLoading) {
+    const permissionMap: Record<string, boolean> = {
+      canManageUsers,
+      canManageContent,
+      canProxyQuiz,
+      canViewAnalytics,
+      isAdmin,
+    };
+    
+    if (!permissionMap[requiredPermission]) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
+            <p className="text-muted-foreground">You don't have permission to access this page.</p>
+            <a href="/" className="text-primary underline">Go to Dashboard</a>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   return <Component />;
@@ -135,9 +145,9 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={QuizResults} />
       </Route>
       
-      {/* Quiz management - requires canCreateQuizzes permission */}
+      {/* Quiz management - requires canManageContent permission */}
       <Route path="/quiz/manage">
-        <ProtectedRoute component={QuizManagement} requiredPermission="canCreateQuizzes" />
+        <ProtectedRoute component={QuizManagement} requiredPermission="canManageContent" />
       </Route>
       
       {/* Profile - all authenticated users */}
@@ -145,9 +155,9 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={Profile} />
       </Route>
       
-      {/* Admin panel - requires canAccessAdminPanel permission */}
+      {/* Admin panel - requires canManageUsers permission */}
       <Route path="/admin">
-        <ProtectedRoute component={AdminPanel} requiredPermission="canAccessAdminPanel" />
+        <ProtectedRoute component={AdminPanel} requiredPermission="canManageUsers" />
       </Route>
       
       {/* User Management - requires isAdmin permission */}
