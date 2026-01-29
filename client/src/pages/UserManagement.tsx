@@ -66,6 +66,7 @@ interface UserProfile {
 }
 
 async function fetchUsers(): Promise<UserProfile[]> {
+  // Get profiles with permissions and is_archived directly from profiles table
   const { data: profiles, error: profileError } = await supabase
     .from('profiles')
     .select(`
@@ -75,18 +76,15 @@ async function fetchUsers(): Promise<UserProfile[]> {
       username,
       avatar_url,
       profile_visibility,
-      created_at
+      created_at,
+      permissions,
+      is_archived
     `)
     .order('created_at', { ascending: false });
 
   if (profileError) throw profileError;
 
-  const { data: usersData, error: usersError } = await supabase
-    .from('users')
-    .select('id, permissions, is_archived, role');
-
-  if (usersError) console.error('Error fetching users data:', usersError);
-
+  // Get roles from user_roles/roles tables
   const { data: userRoles, error: rolesError } = await supabase
     .from('user_roles')
     .select(`
@@ -99,6 +97,7 @@ async function fetchUsers(): Promise<UserProfile[]> {
 
   if (rolesError) console.error('Error fetching roles:', rolesError);
 
+  // Get quiz counts
   const { data: quizCounts, error: quizError } = await supabase
     .from('quiz_results')
     .select('user_id');
@@ -110,26 +109,16 @@ async function fetchUsers(): Promise<UserProfile[]> {
     quizCountMap[result.user_id] = (quizCountMap[result.user_id] || 0) + 1;
   });
 
-  const usersMap: Record<string, { permissions: Permission[], isArchived: boolean, role?: string }> = {};
-  usersData?.forEach(u => {
-    usersMap[u.id] = {
-      permissions: (u.permissions as Permission[]) || [],
-      isArchived: u.is_archived || false,
-      role: u.role
-    };
-  });
-
   return profiles?.map(profile => {
-    const userData = usersMap[profile.id] || { permissions: [], isArchived: false };
     const roleData = userRoles?.find(ur => ur.user_id === profile.id);
     const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
     
     return {
       ...profile,
-      role: userData.role || roles?.key || 'viewer',
+      role: roles?.key || 'viewer',
       roleName: roles?.name || 'Viewer',
-      permissions: userData.permissions,
-      isArchived: userData.isArchived,
+      permissions: ((profile as any).permissions as Permission[]) || [],
+      isArchived: (profile as any).is_archived || false,
       quiz_count: quizCountMap[profile.id] || 0,
     };
   }) || [];
@@ -156,7 +145,7 @@ export default function UserManagement() {
   const updatePermissionsMutation = useMutation({
     mutationFn: async ({ userId, permissions }: { userId: string; permissions: Permission[] }) => {
       const { error } = await supabase
-        .from('users')
+        .from('profiles')
         .update({ permissions })
         .eq('id', userId);
 
@@ -183,7 +172,7 @@ export default function UserManagement() {
   const archiveUserMutation = useMutation({
     mutationFn: async ({ userId, archive }: { userId: string; archive: boolean }) => {
       const { error } = await supabase
-        .from('users')
+        .from('profiles')
         .update({ is_archived: archive })
         .eq('id', userId);
 
