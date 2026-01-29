@@ -1,54 +1,66 @@
 -- Phase 3: Permissions-based RLS Policies
 -- These policies use OR logic for backward compatibility:
--- - Old role-based access continues to work
--- - New permissions-based access also works
+-- - Old role-based access continues to work (via user_roles/roles tables)
+-- - New permissions-based access also works (via profiles.permissions JSONB)
 -- Both systems can coexist until full migration
 
 -- ==================================================
--- USERS TABLE POLICIES
+-- PROFILES TABLE POLICIES
 -- ==================================================
 
 -- Drop existing policies if they exist (to avoid conflicts)
-DROP POLICY IF EXISTS "users_select_own" ON users;
-DROP POLICY IF EXISTS "users_update_own" ON users;
-DROP POLICY IF EXISTS "users_admin_select_all" ON users;
-DROP POLICY IF EXISTS "users_admin_update_all" ON users;
+DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
+DROP POLICY IF EXISTS "profiles_admin_select_all" ON profiles;
+DROP POLICY IF EXISTS "profiles_admin_update_all" ON profiles;
 
--- Users can read their own data
-CREATE POLICY "users_select_own" ON users
+-- Users can read their own profile
+CREATE POLICY "profiles_select_own" ON profiles
   FOR SELECT
   USING (auth.uid()::text = id);
 
--- Users can update their own basic info
-CREATE POLICY "users_update_own" ON users
+-- Users can update their own profile (except permissions and is_archived)
+CREATE POLICY "profiles_update_own" ON profiles
   FOR UPDATE
   USING (auth.uid()::text = id)
   WITH CHECK (auth.uid()::text = id);
 
--- Admins/managers can view all users (backward compatible)
-CREATE POLICY "users_admin_select_all" ON users
+-- Admins/managers can view all profiles (backward compatible with roles)
+CREATE POLICY "profiles_admin_select_all" ON profiles
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
+      SELECT 1 FROM profiles p 
+      WHERE p.id = auth.uid()::text 
       AND (
-        u.role = 'admin' 
-        OR u.permissions ? 'manage_users'
+        -- New permissions check
+        p.permissions ? 'manage_users'
+        -- Backward compatible: check role via user_roles
+        OR EXISTS (
+          SELECT 1 FROM user_roles ur 
+          JOIN roles r ON ur.role_id = r.id 
+          WHERE ur.user_id = auth.uid()::text 
+          AND r.key = 'admin'
+        )
       )
     )
   );
 
--- Admins/managers can update all users (backward compatible)
-CREATE POLICY "users_admin_update_all" ON users
+-- Admins/managers can update all profiles (backward compatible)
+CREATE POLICY "profiles_admin_update_all" ON profiles
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
+      SELECT 1 FROM profiles p 
+      WHERE p.id = auth.uid()::text 
       AND (
-        u.role = 'admin' 
-        OR u.permissions ? 'manage_users'
+        p.permissions ? 'manage_users'
+        OR EXISTS (
+          SELECT 1 FROM user_roles ur 
+          JOIN roles r ON ur.role_id = r.id 
+          WHERE ur.user_id = auth.uid()::text 
+          AND r.key = 'admin'
+        )
       )
     )
   );
@@ -72,11 +84,16 @@ CREATE POLICY "quizzes_content_manager_insert" ON quizzes
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
+      SELECT 1 FROM profiles p 
+      WHERE p.id = auth.uid()::text 
       AND (
-        u.role IN ('admin', 'facilitator', 'contributor')
-        OR u.permissions ? 'manage_content'
+        p.permissions ? 'manage_content'
+        OR EXISTS (
+          SELECT 1 FROM user_roles ur 
+          JOIN roles r ON ur.role_id = r.id 
+          WHERE ur.user_id = auth.uid()::text 
+          AND r.key IN ('admin', 'facilitator', 'contributor')
+        )
       )
     )
   );
@@ -87,20 +104,29 @@ CREATE POLICY "quizzes_content_manager_update" ON quizzes
   USING (
     created_by = auth.uid()::text
     OR EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
-      AND (u.role = 'admin' OR u.permissions ? 'manage_content')
+      SELECT 1 FROM profiles p 
+      WHERE p.id = auth.uid()::text 
+      AND (
+        p.permissions ? 'manage_content'
+        OR EXISTS (
+          SELECT 1 FROM user_roles ur 
+          JOIN roles r ON ur.role_id = r.id 
+          WHERE ur.user_id = auth.uid()::text 
+          AND r.key = 'admin'
+        )
+      )
     )
   );
 
--- Only admins can delete quizzes (strict - admin role only)
+-- Only admins can delete quizzes
 CREATE POLICY "quizzes_admin_delete" ON quizzes
   FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
-      AND u.role = 'admin'
+      SELECT 1 FROM user_roles ur 
+      JOIN roles r ON ur.role_id = r.id 
+      WHERE ur.user_id = auth.uid()::text 
+      AND r.key = 'admin'
     )
   );
 
@@ -128,11 +154,16 @@ CREATE POLICY "quiz_results_admin_select_all" ON quiz_results
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
+      SELECT 1 FROM profiles p 
+      WHERE p.id = auth.uid()::text 
       AND (
-        u.role IN ('admin', 'facilitator')
-        OR u.permissions ? 'view_analytics'
+        p.permissions ? 'view_analytics'
+        OR EXISTS (
+          SELECT 1 FROM user_roles ur 
+          JOIN roles r ON ur.role_id = r.id 
+          WHERE ur.user_id = auth.uid()::text 
+          AND r.key IN ('admin', 'facilitator')
+        )
       )
     )
   );
@@ -142,11 +173,16 @@ CREATE POLICY "quiz_results_proxy_insert" ON quiz_results
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM users u 
-      WHERE u.id = auth.uid()::text 
+      SELECT 1 FROM profiles p 
+      WHERE p.id = auth.uid()::text 
       AND (
-        u.role = 'admin'
-        OR u.permissions ? 'proxy_quiz'
+        p.permissions ? 'proxy_quiz'
+        OR EXISTS (
+          SELECT 1 FROM user_roles ur 
+          JOIN roles r ON ur.role_id = r.id 
+          WHERE ur.user_id = auth.uid()::text 
+          AND r.key = 'admin'
+        )
       )
     )
   );
@@ -188,8 +224,11 @@ CREATE POLICY "profile_tiles_delete_own" ON profile_tiles
 -- Example: permissions ? 'manage_users' returns true if 'manage_users' is in the array.
 --
 -- These policies maintain backward compatibility by checking:
--- 1. Old role-based access (role = 'admin', role IN ('admin', 'facilitator'), etc.)
--- 2. New permissions-based access (permissions ? 'permission_name')
+-- 1. New permissions-based access (profiles.permissions ? 'permission_name')
+-- 2. Old role-based access (via user_roles/roles join lookup)
+--
+-- The RLS now correctly uses the `profiles` table instead of `users` table,
+-- matching the actual Supabase schema.
 --
 -- Once migration is complete and all users have permissions set,
 -- the role-based checks can be removed.

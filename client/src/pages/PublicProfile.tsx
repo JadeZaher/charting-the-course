@@ -3,11 +3,10 @@ import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Sparkles, Heart, Target, Brain, 
   MapPin, Globe, Linkedin, Twitter, Github, 
-  Briefcase, Compass, Zap, Share2,
+  Briefcase, Compass, Share2,
   ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
   Users, Award
 } from "lucide-react";
