@@ -35,8 +35,11 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "npm run dev:client"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_database:1.0.0"]
+integrations = [
+  "javascript_log_in_with_replit:1.0.0",
+  "javascript_database:1.0.0",
+]
