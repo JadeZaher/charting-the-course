@@ -60,6 +60,9 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Permission types for granular access control
+export type Permission = "manage_users" | "manage_content" | "proxy_quiz" | "view_analytics";
+
 // Users table - integrated with Replit Auth
 // Note: id is set from Replit's sub claim during login via upsertUser
 export const users = pgTable("users", {
@@ -77,6 +80,9 @@ export const users = pgTable("users", {
   contactData: jsonb("contact_data").$type<ContactData>(),
   // Role and permissions
   role: text("role").notNull().default("viewer").$type<UserRole>(),
+  permissions: jsonb("permissions").$type<Permission[]>().default(sql`'[]'::jsonb`),
+  // User lifecycle
+  isArchived: boolean("is_archived").notNull().default(false),
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -134,6 +140,8 @@ export const quizzes = pgTable("quizzes", {
   // Visibility and permissions
   visibility: text("visibility").notNull().default("public").$type<QuizVisibility>(),
   teamId: varchar("team_id").references(() => teams.id, { onDelete: "set null" }),
+  // Admin proxy feature: if true, quiz is hidden from user's dashboard (admin takes on their behalf)
+  hiddenFromUser: boolean("hidden_from_user").notNull().default(false),
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: varchar("created_by").references(() => users.id),
@@ -168,6 +176,8 @@ export const quizResults = pgTable("quiz_results", {
   // Import metadata (if uploaded via JSON)
   isImported: boolean("is_imported").notNull().default(false),
   importedData: jsonb("imported_data"),
+  // Proxy submission: who actually submitted this (null = user submitted for themselves)
+  submittedBy: varchar("submitted_by").references(() => users.id, { onDelete: "set null" }),
   // Metadata
   completedAt: timestamp("completed_at").defaultNow().notNull(),
 });
@@ -226,6 +236,31 @@ export const userBadges = pgTable("user_badges", {
   userBadgesUserIndex: index("idx_user_badges_user").on(table.userId),
   userBadgesKeyIndex: index("idx_user_badges_key").on(table.badgeKey),
   uniqueUserBadge: uniqueIndex("user_badges_user_key_uniq").on(table.userId, table.badgeKey),
+}));
+
+// Tile types for the generic tile system
+export type TileType = "badge" | "text" | "chart" | "list" | "score" | "custom";
+
+// Profile tiles table - generic tile architecture for all profile content
+export const profileTiles = pgTable("profile_tiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Link to the quiz submission that generated this tile (nullable for manual tiles)
+  submissionId: varchar("submission_id").references(() => quizResults.id, { onDelete: "cascade" }),
+  // Tile type determines how it's rendered
+  type: text("type").notNull().$type<TileType>(),
+  // Flexible JSON data for tile content (structure depends on type)
+  data: jsonb("data").notNull(),
+  // Layout and ordering
+  layoutIndex: integer("layout_index").notNull().default(0),
+  // Visibility control
+  isVisible: boolean("is_visible").notNull().default(true),
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  profileTilesUserIndex: index("idx_profile_tiles_user").on(table.userId),
+  profileTilesSubmissionIndex: index("idx_profile_tiles_submission").on(table.submissionId),
 }));
 
 // User privacy settings - controls what's visible publicly
@@ -371,6 +406,15 @@ export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
   updatedAt: true,
 });
 
+export const insertProfileTileSchema = createInsertSchema(profileTiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  type: z.enum(["badge", "text", "chart", "list", "score", "custom"]),
+  data: z.record(z.any()),
+});
+
 export const insertUserPrivacySettingsSchema = createInsertSchema(userPrivacySettings).omit({
   createdAt: true,
   updatedAt: true,
@@ -409,6 +453,9 @@ export type UserTag = typeof userTags.$inferSelect;
 
 export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
 export type UserBadge = typeof userBadges.$inferSelect;
+
+export type InsertProfileTile = z.infer<typeof insertProfileTileSchema>;
+export type ProfileTile = typeof profileTiles.$inferSelect;
 
 export type InsertUserPrivacySettings = z.infer<typeof insertUserPrivacySettingsSchema>;
 export type UserPrivacySettings = typeof userPrivacySettings.$inferSelect;
