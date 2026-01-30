@@ -8,6 +8,18 @@ import { useRoute, useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
+interface ResultMetadata {
+  totalQuestions?: number;
+  answeredQuestions?: number;
+  skippedQuestions?: number;
+  correctCount?: number;
+  incorrectCount?: number;
+  gradableQuestions?: number;
+  completionPercentage?: number;
+  correctnessPercentage?: number;
+  isAssessment?: boolean;
+}
+
 interface QuizResult {
   id: string;
   quiz_id: string;
@@ -16,6 +28,7 @@ interface QuizResult {
   is_passed: boolean | null;
   time_spent: number | null;
   survey_results: any;
+  result_metadata?: ResultMetadata;
   completed_at: string;
 }
 
@@ -49,7 +62,17 @@ export default function QuizResults() {
       
       const { data, error } = await supabase
         .from('quiz_results')
-        .select('*')
+        .select(`
+          id,
+          quiz_id,
+          user_id,
+          score,
+          is_passed,
+          time_spent,
+          survey_results,
+          result_metadata,
+          completed_at
+        `)
         .eq('quiz_id', quizId)
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false })
@@ -239,10 +262,31 @@ export default function QuizResults() {
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Score</span>
                   <span className="font-semibold" data-testid="text-score-value">
-                    {scorePercentage}%
+                    {result.result_metadata?.correctCount !== undefined && result.result_metadata?.gradableQuestions
+                      ? `${result.result_metadata.correctCount}/${result.result_metadata.gradableQuestions} (${scorePercentage}%)`
+                      : `${scorePercentage}%`
+                    }
                   </span>
                 </div>
                 <Progress value={scorePercentage} />
+                
+                {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0 && (
+                  <>
+                    <div className="flex justify-between items-center pt-4 border-t">
+                      <span className="text-muted-foreground">Questions Answered</span>
+                      <span className="font-semibold">
+                        {result.result_metadata.answeredQuestions ?? 0}/{result.result_metadata.totalQuestions}
+                        {result.result_metadata.skippedQuestions !== undefined && result.result_metadata.skippedQuestions > 0 && (
+                          <span className="text-muted-foreground ml-1">
+                            ({result.result_metadata.skippedQuestions} skipped)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <Progress value={result.result_metadata.completionPercentage ?? 0} className="h-2" />
+                  </>
+                )}
+                
                 <div className="flex justify-between items-center pt-4 border-t">
                   <span className="text-muted-foreground">Time Spent</span>
                   <span className="font-semibold">{timeSpentMinutes} minutes</span>
@@ -266,10 +310,31 @@ export default function QuizResults() {
                   <CheckCircle className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{scorePercentage}%</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold">
+                    {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0
+                      ? `${result.result_metadata.answeredQuestions ?? 0}/${result.result_metadata.totalQuestions}`
+                      : `${scorePercentage}%`
+                    }
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0
+                      ? `Questions (${scorePercentage}%)`
+                      : "Completed"
+                    }
+                  </p>
                 </div>
               </div>
+              {result.result_metadata?.skippedQuestions !== undefined && result.result_metadata.skippedQuestions > 0 && result.result_metadata.totalQuestions !== undefined && (
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-muted">
+                    <XCircle className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{result.result_metadata.skippedQuestions}</p>
+                    <p className="text-sm text-muted-foreground">Skipped</p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-full bg-primary/10">
                   <Clock className="h-6 w-6 text-primary" />

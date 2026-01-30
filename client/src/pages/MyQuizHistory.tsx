@@ -8,6 +8,18 @@ import { Link, useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
+interface ResultMetadata {
+  totalQuestions?: number;
+  answeredQuestions?: number;
+  skippedQuestions?: number;
+  correctCount?: number;
+  incorrectCount?: number;
+  gradableQuestions?: number;
+  completionPercentage?: number;
+  correctnessPercentage?: number;
+  isAssessment?: boolean;
+}
+
 interface QuizResult {
   id: string;
   quiz_id: string;
@@ -15,6 +27,7 @@ interface QuizResult {
   score: number | null;
   is_passed: boolean | null;
   time_spent: number | null;
+  result_metadata?: ResultMetadata;
   completed_at: string;
   quiz?: {
     title: string;
@@ -41,6 +54,7 @@ export default function MyQuizHistory() {
           score,
           is_passed,
           time_spent,
+          result_metadata,
           completed_at,
           quizzes (title, description)
         `)
@@ -56,6 +70,7 @@ export default function MyQuizHistory() {
         score: item.score,
         is_passed: item.is_passed,
         time_spent: item.time_spent,
+        result_metadata: item.result_metadata,
         completed_at: item.completed_at,
         quiz: item.quizzes,
       }));
@@ -151,14 +166,30 @@ export default function MyQuizHistory() {
                     <div className="flex items-center gap-3 flex-shrink-0">
                       {result.score !== null && (
                         result.is_passed !== null ? (
-                          // Graded quiz - show score with pass/fail
-                          <Badge variant={result.is_passed ? "default" : "destructive"}>
-                            {result.score}%
-                          </Badge>
+                          // Graded quiz - show score with pass/fail, and completion if available
+                          <div className="flex items-center gap-2">
+                            <Badge variant={result.is_passed ? "default" : "destructive"}>
+                              {result.result_metadata?.correctCount !== undefined && result.result_metadata?.gradableQuestions
+                                ? `${result.result_metadata.correctCount}/${result.result_metadata.gradableQuestions}`
+                                : `${result.score}%`
+                              }
+                            </Badge>
+                            {result.result_metadata?.completionPercentage !== undefined && 
+                             result.result_metadata?.totalQuestions !== undefined &&
+                             result.result_metadata.totalQuestions > 0 &&
+                             result.result_metadata.completionPercentage < 100 && (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                {result.result_metadata.completionPercentage}% done
+                              </Badge>
+                            )}
+                          </div>
                         ) : (
-                          // Assessment - show completion percentage
+                          // Assessment - show completion with counts if available
                           <Badge variant="secondary">
-                            {result.score}% completed
+                            {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0
+                              ? `${result.result_metadata.answeredQuestions ?? 0}/${result.result_metadata.totalQuestions}`
+                              : `${result.score}%`
+                            } completed
                           </Badge>
                         )
                       )}

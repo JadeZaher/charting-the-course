@@ -109,6 +109,7 @@ serve(async (req) => {
     // Calculate score (correctness for graded, completion for assessments)
     let score = 0;
     let isPassed: boolean | null = null;
+    let resultMetadata: Record<string, any> = {};
     
     if (quiz.survey_json && typeof quiz.survey_json === "object") {
       const surveyDef = quiz.survey_json as any;
@@ -159,18 +160,40 @@ serve(async (req) => {
         }
       }
 
+      // Calculate percentages
+      const completionPercentage = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+      const correctnessPercentage = gradableQuestions > 0 ? Math.round((correctCount / gradableQuestions) * 100) : 0;
+      const skippedQuestions = totalQuestions - answeredQuestions;
+      const incorrectCount = gradableQuestions - correctCount;
+      
       if (isAssessment) {
         // For assessments: score = completion percentage
-        score = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+        score = completionPercentage;
       } else {
         // For graded quizzes: score = correctness percentage
-        score = gradableQuestions > 0 ? Math.round((correctCount / gradableQuestions) * 100) : 0;
+        score = correctnessPercentage;
         
         // Check passing score
         if (quiz.passing_score) {
           isPassed = score >= quiz.passing_score;
         }
       }
+      
+      // Build result metadata
+      resultMetadata = {
+        totalQuestions,
+        answeredQuestions,
+        skippedQuestions,
+        completionPercentage,
+        isAssessment,
+        // Only include graded-specific fields for graded quizzes
+        ...(isAssessment ? {} : {
+          correctCount,
+          incorrectCount,
+          gradableQuestions,
+          correctnessPercentage,
+        }),
+      };
     }
 
     // Save quiz result
@@ -186,6 +209,7 @@ serve(async (req) => {
         is_passed: isPassed,
         time_spent: time_spent || null,
         is_imported: false,
+        result_metadata: resultMetadata,
       })
       .select()
       .single();

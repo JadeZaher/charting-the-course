@@ -49,6 +49,24 @@ export const contactDataSchema = z.object({
   privacyLevel: z.string().optional(),
 }).passthrough();
 
+// Result metadata for flexible quiz result data
+export type ResultMetadata = {
+  // Question counts
+  totalQuestions?: number;
+  answeredQuestions?: number;
+  skippedQuestions?: number;
+  // For graded quizzes
+  correctCount?: number;
+  incorrectCount?: number;
+  gradableQuestions?: number;
+  // Percentages
+  completionPercentage?: number;
+  correctnessPercentage?: number;
+  // Quiz type indicator
+  isAssessment?: boolean;
+  // Extensible for future metadata
+} & Record<string, any>;
+
 // Session storage table (required for Replit Auth)
 export const sessions = pgTable(
   "sessions",
@@ -176,6 +194,8 @@ export const quizResults = pgTable("quiz_results", {
   // Import metadata (if uploaded via JSON)
   isImported: boolean("is_imported").notNull().default(false),
   importedData: jsonb("imported_data"),
+  // Flexible result metadata (counts, breakdowns, custom data)
+  resultMetadata: jsonb("result_metadata").$type<ResultMetadata>(),
   // Proxy submission: who actually submitted this (null = user submitted for themselves)
   submittedBy: varchar("submitted_by").references(() => users.id, { onDelete: "set null" }),
   // Metadata
