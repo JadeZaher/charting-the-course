@@ -84,9 +84,14 @@ export default function TakeQuiz() {
       // Invalidate all relevant caches to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['my-quiz-results'] });
       queryClient.invalidateQueries({ queryKey: ['my-quiz-history'] });
-      queryClient.invalidateQueries({ queryKey: ['quiz-result', quizId] });
       queryClient.invalidateQueries({ queryKey: ['profile-tiles'] });
       queryClient.invalidateQueries({ queryKey: ['my-profile-data'] });
+      
+      // Invalidate the specific result cache if we have the result ID
+      const resultId = data.result?.id;
+      if (resultId) {
+        queryClient.invalidateQueries({ queryKey: ['quiz-result', resultId] });
+      }
       
       // Show success message
       let description = "Your answers have been saved successfully";
@@ -98,7 +103,14 @@ export default function TakeQuiz() {
         title: "Quiz Submitted!",
         description,
       });
-      setLocation(`/quiz/results/${quizId}`);
+      
+      // Navigate to the specific result by its ID
+      if (resultId) {
+        setLocation(`/quiz/results/${resultId}`);
+      } else {
+        // Fallback to quiz ID (backwards compatibility)
+        setLocation(`/quiz/results/${quizId}`);
+      }
     },
     onError: (error: any) => {
       toast({

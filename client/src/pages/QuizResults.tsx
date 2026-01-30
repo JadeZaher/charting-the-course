@@ -50,17 +50,44 @@ interface ExtractedQuestion {
 }
 
 export default function QuizResults() {
-  const [, params] = useRoute("/quiz/results/:quizId");
+  const [, params] = useRoute("/quiz/results/:id");
   const [, setLocation] = useLocation();
   const { user } = useSupabaseAuth();
-  const quizId = params?.quizId;
+  const resultId = params?.id;
 
   const { data: result, isLoading: resultLoading } = useQuery<QuizResult | null>({
-    queryKey: ['quiz-result', quizId],
+    queryKey: ['quiz-result', resultId],
     queryFn: async () => {
-      if (!user?.id || !quizId) return null;
+      if (!user?.id || !resultId) return null;
       
-      const { data, error } = await supabase
+      // First, try to fetch by result ID directly
+      let query = supabase
+        .from('quiz_results')
+        .select(`
+          id,
+          quiz_id,
+          user_id,
+          score,
+          is_passed,
+          time_spent,
+          survey_results,
+          result_metadata,
+          completed_at
+        `);
+      
+      // Check if the ID looks like a UUID (result ID) or could be a quiz ID
+      // Result IDs and quiz IDs are both UUIDs, but we try result ID first
+      const { data: resultById, error: resultByIdError } = await query
+        .eq('id', resultId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (resultById) {
+        return resultById;
+      }
+      
+      // If not found by result ID, try as quiz ID (backwards compatibility)
+      const { data: resultByQuizId, error: resultByQuizError } = await supabase
         .from('quiz_results')
         .select(`
           id,
@@ -73,16 +100,16 @@ export default function QuizResults() {
           result_metadata,
           completed_at
         `)
-        .eq('quiz_id', quizId)
+        .eq('quiz_id', resultId)
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      if (resultByQuizError && resultByQuizError.code !== 'PGRST116') throw resultByQuizError;
+      return resultByQuizId;
     },
-    enabled: !!quizId && !!user?.id,
+    enabled: !!resultId && !!user?.id,
   });
 
   const { data: quiz, isLoading: quizLoading } = useQuery<Quiz | null>({
