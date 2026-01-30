@@ -51,6 +51,9 @@ export default function TakeQuiz() {
     mutationFn: async (data: { surveyResults: any; timeSpent: number }) => {
       if (!user?.id || !quizId || !quiz) throw new Error('Not authenticated or quiz not found');
       
+      console.log('Submitting quiz:', quizId, 'for user:', user.id);
+      console.log('Survey results:', data.surveyResults);
+      
       // Call the submit-with-tiles edge function
       // This handles: scoring, retake checks, tile generation, cleanup
       const { data: response, error } = await supabase.functions.invoke(
@@ -63,6 +66,9 @@ export default function TakeQuiz() {
         }
       );
       
+      console.log('Edge function response:', response);
+      console.log('Edge function error:', error);
+      
       if (error) {
         console.error('Edge function error:', error);
         throw new Error(error.message || 'Failed to submit quiz');
@@ -73,6 +79,8 @@ export default function TakeQuiz() {
       }
       
       const result = response?.data || response;
+      
+      console.log('Parsed result:', result);
       
       return {
         result: result.result,
