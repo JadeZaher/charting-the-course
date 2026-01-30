@@ -958,7 +958,7 @@ export default function Profile() {
               ) : completedQuizzes.length > 0 ? (
                 <div className="space-y-3">
                   {completedQuizzes.slice(0, 5).map((result) => (
-                    <Link key={result.id} href={`/quiz/results/${result.quiz_id}`}>
+                    <Link key={result.id} href={`/quiz/results/${result.id}`}>
                       <div
                         className="flex items-center justify-between p-4 rounded-lg border hover-elevate active-elevate-2 cursor-pointer"
                         data-testid={`completed-quiz-${result.id}`}
