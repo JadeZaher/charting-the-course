@@ -81,7 +81,10 @@ export default function TakeQuiz() {
       };
     },
     onSuccess: (data) => {
+      // Invalidate all relevant caches to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['my-quiz-results'] });
+      queryClient.invalidateQueries({ queryKey: ['my-quiz-history'] });
+      queryClient.invalidateQueries({ queryKey: ['quiz-result', quizId] });
       queryClient.invalidateQueries({ queryKey: ['profile-tiles'] });
       queryClient.invalidateQueries({ queryKey: ['my-profile-data'] });
       
