@@ -54,7 +54,7 @@ export default function TakeQuiz() {
       // Call the submit-with-tiles edge function
       // This handles: scoring, retake checks, tile generation, cleanup
       const { data: response, error } = await supabase.functions.invoke(
-        `quiz/submit-with-tiles/${quizId}`,
+        `submit-with-tiles/${quizId}`,
         {
           body: {
             survey_results: data.surveyResults,
