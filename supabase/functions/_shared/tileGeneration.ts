@@ -411,6 +411,7 @@ function applyGeneratorTemplate(
 
 /**
  * Auto-generate tiles from survey structure (default behavior)
+ * Creates tiles even from quizzes without explicit tile configuration
  */
 function autoGenerateTilesFromSurvey(
   userId: string,
@@ -433,6 +434,9 @@ function autoGenerateTilesFromSurvey(
     growth: []
   };
   
+  // Collect all answers for a default "Quiz Responses" tile when no dimensions are specified
+  const allAnswers: Array<{ question: string; answer: string; element: any }> = [];
+  
   let displayOrder = 0;
   
   // Process survey elements
@@ -448,6 +452,15 @@ function autoGenerateTilesFromSurvey(
     
     // Format the answer for display
     const formattedAnswer = formatAnswerForDisplay(userAnswer, element);
+    
+    // Collect all answers for default tile
+    if (formattedAnswer) {
+      allAnswers.push({
+        question: element.title || element.name,
+        answer: formattedAnswer,
+        element
+      });
+    }
     
     // If question has profileDimension, group it
     if (profileDimension && dimensionAnswers[profileDimension]) {
@@ -562,8 +575,10 @@ function autoGenerateTilesFromSurvey(
   }
   
   // Create aggregated dimension tiles (list type)
+  let hasDimensionTiles = false;
   for (const [dimension, answers] of Object.entries(dimensionAnswers) as [ProfileDimension, typeof dimensionAnswers['personality']][]) {
     if (answers.length > 0) {
+      hasDimensionTiles = true;
       tiles.push({
         user_id: userId,
         submission_id: submissionId,
@@ -581,6 +596,29 @@ function autoGenerateTilesFromSurvey(
         is_visible: true
       });
     }
+  }
+  
+  // If no dimension-specific tiles and no custom tiles were created,
+  // create a default tile from all answers using the quiz title
+  if (tiles.length === 0 && allAnswers.length > 0) {
+    const quizTitle = surveyJson.title || 'Quiz Responses';
+    
+    tiles.push({
+      user_id: userId,
+      submission_id: submissionId,
+      tile_type: 'list',
+      dimension: 'interests', // Default dimension for quiz-based insights
+      title: quizTitle,
+      content: {
+        items: allAnswers.map(a => ({
+          label: a.question,
+          value: a.answer
+        })),
+        icon: 'ClipboardList'
+      },
+      display_order: displayOrder++,
+      is_visible: true
+    });
   }
   
   return tiles;
