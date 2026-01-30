@@ -106,57 +106,83 @@ serve(async (req) => {
     // Determine if this is an assessment quiz (no correct answers)
     const isAssessment = isAssessmentQuiz(quiz.survey_json);
 
-    // Calculate score only for graded quizzes
+    // Calculate score (correctness for graded, completion for assessments)
     let score = 0;
     let isPassed: boolean | null = null;
     
-    if (!isAssessment) {
+    if (quiz.survey_json && typeof quiz.survey_json === "object") {
+      const surveyDef = quiz.survey_json as any;
       let correctCount = 0;
+      let gradableQuestions = 0;
       let totalQuestions = 0;
+      let answeredQuestions = 0;
 
-      if (quiz.survey_json && typeof quiz.survey_json === "object") {
-        const surveyDef = quiz.survey_json as any;
+      // Non-question element types in SurveyJS that should be excluded
+      const nonQuestionTypes = ['html', 'panel', 'image', 'expression', 'flowpanel'];
+      
+      if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
+        for (const page of surveyDef.pages) {
+          if (page.elements && Array.isArray(page.elements)) {
+            for (const element of page.elements) {
+              // Skip non-question elements
+              if (nonQuestionTypes.includes(element.type)) {
+                continue;
+              }
+              
+              // Count actual questions for completion percentage
+              totalQuestions++;
+              const userAnswer = survey_results[element.name];
+              
+              // Check if question was answered (not undefined/null/empty)
+              const isAnswered = userAnswer !== undefined && 
+                                 userAnswer !== null && 
+                                 userAnswer !== '' &&
+                                 !(Array.isArray(userAnswer) && userAnswer.length === 0);
+              
+              if (isAnswered) {
+                answeredQuestions++;
+              }
 
-        if (surveyDef.pages && Array.isArray(surveyDef.pages)) {
-          for (const page of surveyDef.pages) {
-            if (page.elements && Array.isArray(page.elements)) {
-              for (const element of page.elements) {
-                if (element.correctAnswer !== undefined && element.correctAnswer !== null) {
-                  totalQuestions++;
-                  const userAnswer = survey_results[element.name];
-
-                  if (userAnswer !== undefined) {
-                    const userAnswerStr = String(userAnswer).trim().toLowerCase();
-                    const correctAnswerStr = String(element.correctAnswer).trim().toLowerCase();
-
-                    if (userAnswerStr === correctAnswerStr) {
-                      correctCount++;
-                    }
+              // For graded quizzes, also track correctness
+              if (!isAssessment && element.correctAnswer !== undefined && element.correctAnswer !== null) {
+                gradableQuestions++;
+                if (isAnswered) {
+                  const userAnswerStr = String(userAnswer).trim().toLowerCase();
+                  const correctAnswerStr = String(element.correctAnswer).trim().toLowerCase();
+                  if (userAnswerStr === correctAnswerStr) {
+                    correctCount++;
                   }
                 }
               }
             }
           }
         }
-
-        score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
       }
 
-      // Check passing score
-      if (quiz.passing_score) {
-        isPassed = score >= quiz.passing_score;
+      if (isAssessment) {
+        // For assessments: score = completion percentage
+        score = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+      } else {
+        // For graded quizzes: score = correctness percentage
+        score = gradableQuestions > 0 ? Math.round((correctCount / gradableQuestions) * 100) : 0;
+        
+        // Check passing score
+        if (quiz.passing_score) {
+          isPassed = score >= quiz.passing_score;
+        }
       }
     }
 
     // Save quiz result
-    // For assessments, score is 0 (not null) to maintain DB compatibility
+    // For assessments: score = completion percentage
+    // For graded quizzes: score = correctness percentage
     const { data: quizResult, error: resultError } = await adminSupabase
       .from("quiz_results")
       .insert({
         quiz_id: quizId,
         user_id: user.id,
         survey_results,
-        score: isAssessment ? 0 : score,
+        score,
         is_passed: isPassed,
         time_spent: time_spent || null,
         is_imported: false,

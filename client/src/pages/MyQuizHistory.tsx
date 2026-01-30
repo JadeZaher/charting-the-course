@@ -150,9 +150,17 @@ export default function MyQuizHistory() {
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       {result.score !== null && (
-                        <Badge variant={result.is_passed ? "default" : "secondary"}>
-                          {result.score}%
-                        </Badge>
+                        result.is_passed !== null ? (
+                          // Graded quiz - show score with pass/fail
+                          <Badge variant={result.is_passed ? "default" : "destructive"}>
+                            {result.score}%
+                          </Badge>
+                        ) : (
+                          // Assessment - show completion percentage
+                          <Badge variant="secondary">
+                            {result.score}% completed
+                          </Badge>
+                        )
                       )}
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>

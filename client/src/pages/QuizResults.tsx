@@ -266,8 +266,8 @@ export default function QuizResults() {
                   <CheckCircle className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{allQuestions.length}</p>
-                  <p className="text-sm text-muted-foreground">Questions Answered</p>
+                  <p className="text-2xl font-bold">{scorePercentage}%</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export default function QuizResults() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{new Date(result.completed_at).toLocaleDateString()}</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-sm text-muted-foreground">Date</p>
                 </div>
               </div>
             </div>
