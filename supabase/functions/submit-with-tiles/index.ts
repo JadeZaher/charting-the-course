@@ -4,10 +4,10 @@
 // For graded quizzes: Still calculates score, but also creates tiles
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, createServiceRoleClient, corsHeaders, handleCors } from "../../_shared/auth.ts";
-import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse } from "../../_shared/response.ts";
-import { generateTilesFromSubmission, isAssessmentQuiz, cleanupOldTiles, getStrategyForQuiz } from "../../_shared/tileGeneration.ts";
-import type { SubmitQuizRequest, QuizResult } from "../../_shared/types.ts";
+import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, createServiceRoleClient, corsHeaders, handleCors } from "../_shared/auth.ts";
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse } from "../_shared/response.ts";
+import { generateTilesFromSubmission, isAssessmentQuiz, cleanupOldTiles, getStrategyForQuiz } from "../_shared/tileGeneration.ts";
+import type { SubmitQuizRequest, QuizResult } from "../_shared/types.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // Validation schema for quiz submission
