@@ -2,9 +2,9 @@
 -- This table stores all profile content tiles generated from quiz results
 
 CREATE TABLE IF NOT EXISTS profile_tiles (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id VARCHAR NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  submission_id VARCHAR REFERENCES quiz_results(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  submission_id UUID REFERENCES quiz_results(id) ON DELETE CASCADE,
   tile_type VARCHAR NOT NULL CHECK (tile_type IN ('badge', 'text', 'chart', 'list', 'score', 'custom')),
   dimension VARCHAR CHECK (dimension IN ('personality', 'strengths', 'values', 'interests', 'growth')),
   title VARCHAR NOT NULL,
