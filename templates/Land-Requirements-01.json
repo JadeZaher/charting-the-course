@@ -1,0 +1,280 @@
+{
+  "pages": [
+    {
+      "name": "page_project_intent",
+      "title": "Project Scope",
+      "elements": [
+        {
+          "name": "project_type",
+          "type": "radiogroup",
+          "title": "What type of project do you envision?",
+          "tagKey": "project-scale",
+          "choices": [
+            {
+              "text": "🏡 Private Homestead / Retreat",
+              "value": "homestead",
+              "badgeIcon": "Home",
+              "customTag": "Homesteader"
+            },
+            {
+              "text": "🌱 Small Farm / Permaculture Site",
+              "value": "farm",
+              "badgeIcon": "Sprout",
+              "customTag": "Cultivator"
+            },
+            {
+              "text": "🏘️ Eco-Village / Co-Living Community",
+              "value": "community",
+              "badgeIcon": "Users",
+              "customTag": "Community Builder"
+            },
+            {
+              "text": "🏗️ Commercial / Mixed-Use Development",
+              "value": "commercial",
+              "badgeIcon": "Building",
+              "customTag": "Developer"
+            }
+          ],
+          "tileType": "text",
+          "tileTitle": "Project Scale",
+          "isRequired": true,
+          "description": "Select the scale that best fits your goals.",
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        },
+        {
+          "html": "<div style='background: #eef2ff; padding: 20px; border-radius: 8px; border-left: 4px solid #6366f1;'><strong>🚀 Ready for the Big Picture?</strong><br>Projects of this scale require a <strong>Comprehensive Blueprint</strong> approach. Please click 'Complete' below to be redirected to our advanced planning module.</div>",
+          "name": "blueprint_redirect_notice",
+          "type": "html",
+          "visibleIf": "{project_type} = 'community' or {project_type} = 'commercial'"
+        }
+      ]
+    },
+    {
+      "name": "page_land_specs",
+      "title": "📍 Location & Specs",
+      "elements": [
+        {
+          "name": "target_region",
+          "type": "text",
+          "title": "Preferred Location / Region",
+          "tagKey": "target-region",
+          "tileType": "text",
+          "tileTitle": "Target Region",
+          "badgeIcon": "MapPin",
+          "isRequired": true,
+          "placeholder": "e.g., Pacific Northwest, Costa Rica...",
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        },
+        {
+          "name": "land_size",
+          "type": "radiogroup",
+          "title": "Ideal Land Size",
+          "tagKey": "land-size",
+          "choices": [
+            {
+              "text": "< 1 Acre (Micro)",
+              "value": "micro",
+              "customTag": "Micro-Land"
+            },
+            {
+              "text": "1 - 5 Acres",
+              "value": "small",
+              "customTag": "Small Lot"
+            },
+            {
+              "text": "5 - 20 Acres",
+              "value": "medium",
+              "customTag": "Medium Lot"
+            },
+            {
+              "text": "20+ Acres",
+              "value": "large",
+              "badgeIcon": "Mountain",
+              "customTag": "Large Acreage"
+            }
+          ],
+          "tileType": "text",
+          "tileTitle": "Ideal Land Size",
+          "isRequired": true,
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        },
+        {
+          "name": "eco_criteria",
+          "type": "checkbox",
+          "title": "Ecological & Infrastructure Needs",
+          "tagKey": "eco-preferences",
+          "choices": [
+            {
+              "text": "🌳 High Natural Shade (Preserve Trees)",
+              "value": "shade",
+              "badgeIcon": "Trees",
+              "customTag": "Tree Guardian"
+            },
+            {
+              "text": "💧 Natural Water Source (Creek/Spring)",
+              "value": "water",
+              "customTag": "Water Seeker"
+            },
+            {
+              "text": "🛣️ Existing Road Access",
+              "value": "access",
+              "customTag": "Access Required"
+            }
+          ],
+          "tileType": "list",
+          "tileTitle": "Ecological Needs",
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        }
+      ],
+      "visibleIf": "{project_type} = 'homestead' or {project_type} = 'farm'"
+    },
+    {
+      "name": "page_resources",
+      "title": "💰 Resources & ROI",
+      "elements": [
+        {
+          "name": "capital_available",
+          "type": "radiogroup",
+          "title": "Capital Available for Land Acquisition",
+          "tagKey": "budget-tier",
+          "choices": [
+            {
+              "text": "Under $50k",
+              "value": "tier1"
+            },
+            {
+              "text": "$50k - $150k",
+              "value": "tier2"
+            },
+            {
+              "text": "$150k - $500k",
+              "value": "tier3",
+              "badgeIcon": "PiggyBank"
+            },
+            {
+              "text": "$500k+",
+              "value": "tier4",
+              "badgeIcon": "Landmark"
+            }
+          ],
+          "tileType": "text",
+          "tileTitle": "Budget Range",
+          "isRequired": true,
+          "profileDimension": "project_resources",
+          "defaultVisibility": "private"
+        },
+        {
+          "name": "expected_roi",
+          "type": "radiogroup",
+          "title": "Expected Return on Investment (ROI)",
+          "tagKey": "roi-expectations",
+          "choices": [
+            {
+              "text": "💖 Social/Community Capital only",
+              "value": "social",
+              "customTag": "Impact Investor"
+            },
+            {
+              "text": "📈 Moderate (5-10%)",
+              "value": "moderate",
+              "customTag": "Growth Focused"
+            },
+            {
+              "text": "🚀 Aggressive (10%+)",
+              "value": "aggressive",
+              "customTag": "High Yield Seeker"
+            }
+          ],
+          "tileType": "text",
+          "badgeIcon": "TrendingUp",
+          "profileDimension": "project_resources",
+          "defaultVisibility": "private"
+        }
+      ],
+      "visibleIf": "{project_type} = 'homestead' or {project_type} = 'farm'"
+    },
+    {
+      "name": "page_alignment",
+      "title": "🤝 Role & Alignment",
+      "elements": [
+        {
+          "name": "project_role",
+          "type": "radiogroup",
+          "title": "How do you view your involvement?",
+          "tagKey": "participation-style",
+          "choices": [
+            {
+              "text": "🔨 Active Builder (Hands-on)",
+              "value": "active",
+              "badgeIcon": "Hammer",
+              "customTag": "Active Builder"
+            },
+            {
+              "text": "💼 Passive Funder (Financial Support)",
+              "value": "passive",
+              "badgeIcon": "Armchair",
+              "customTag": "Passive Backer"
+            }
+          ],
+          "tileType": "text",
+          "tileTitle": "Project Role",
+          "isRequired": true,
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        },
+        {
+          "name": "active_time_commitment",
+          "type": "rating",
+          "title": "Hours per week you can dedicate?",
+          "tagKey": "time-commitment",
+          "tileType": "score",
+          "tileTitle": "Time Commitment",
+          "rateMax": 5,
+          "visibleIf": "{project_role} = 'active'",
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public",
+          "maxRateDescription": "Full Time",
+          "minRateDescription": "Minimal"
+        },
+        {
+          "name": "collective_trust",
+          "type": "boolean",
+          "title": "Are you willing to place the land title into the Collective Trust?",
+          "tagKey": "trust-alignment",
+          "tileType": "badge",
+          "tileTitle": "Trust Alignment",
+          "badgeIcon": "Handshake",
+          "customTag": "Trust Aligned",
+          "labelTrue": "Yes, I align with the Collective.",
+          "valueTrue": "aligned",
+          "labelFalse": "No, I prefer private title.",
+          "valueFalse": "private",
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        },
+        {
+          "name": "best_outcome_vision",
+          "type": "comment",
+          "title": "In your own words, what is the best possible outcome?",
+          "tagKey": "vision-statement",
+          "tileType": "text",
+          "tileTitle": "Project Vision",
+          "badgeIcon": "Quote",
+          "profileDimension": "land_criteria",
+          "defaultVisibility": "public"
+        }
+      ],
+      "visibleIf": "{project_type} = 'homestead' or {project_type} = 'farm'"
+    }
+  ],
+  "title": "🌲 Land & Project Vision",
+  "description": "Help us match you with the perfect land opportunities.",
+  "completeText": "Complete Profile",
+  "logoPosition": "right",
+  "completedHtml": "<div style='text-align:center'><h3>Thank you!</h3><p>Your land requirements have been saved to your profile.</p></div>",
+  "showQuestionNumbers": "off"
+}

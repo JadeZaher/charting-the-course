@@ -23,7 +23,6 @@ import {
   LayoutDashboard,
   BookOpen,
   User,
-  Map,
   Settings,
   LogOut,
   FileEdit,
@@ -32,7 +31,7 @@ import {
   Compass,
 } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const menuItems = [
   {
@@ -50,11 +49,6 @@ const menuItems = [
     url: "/profile",
     icon: User,
   },
-  {
-    title: "Map View",
-    url: "/map",
-    icon: Map,
-  },
 ];
 
 const facilitatorItems = [
@@ -62,11 +56,6 @@ const facilitatorItems = [
     title: "Manage Quizzes",
     url: "/quiz/manage",
     icon: FileEdit,
-  },
-  {
-    title: "Teams",
-    url: "/admin?tab=teams",
-    icon: Users,
   },
 ];
 
@@ -121,7 +110,7 @@ function MenuItemWithTooltip({
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { user, signOut, isSigningOut } = useSupabaseAuth();
-  const { role, roleName, permissions } = useRoleAccess();
+  const { legacyRole, canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -140,7 +129,7 @@ export function AppSidebar() {
   const displayName = `${firstName} ${lastName}`.trim() || user?.email?.split('@')[0] || "User";
 
   // Get role display for badge
-  const roleDisplay = (role.charAt(0).toUpperCase() + role.slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
+  const roleDisplay = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
 
   return (
     <Sidebar collapsible="icon">
@@ -176,7 +165,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {permissions.isAdminOrFacilitator && (
+        {canManageContent && (
           <SidebarGroup>
             <SidebarGroupLabel>Quiz Management</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -195,7 +184,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {permissions.isAdmin && (
+        {(isAdmin || canManageUsers) && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>

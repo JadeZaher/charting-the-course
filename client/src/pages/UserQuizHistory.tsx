@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useParams } from "wouter";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -185,7 +185,7 @@ async function fetchUserXP(userId: string): Promise<UserXP | null> {
 }
 
 export default function UserQuizHistory() {
-  const { permissions, isLoading: roleLoading } = useRoleAccess();
+  const { isAdmin, canManageUsers, isLoading: roleLoading } = usePermissions();
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
   const { toast } = useToast();
@@ -199,44 +199,32 @@ export default function UserQuizHistory() {
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [resetXPDialog, setResetXPDialog] = useState(false);
 
-  // Check access
-  if (roleLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!permissions.isAdmin) {
-    return <Redirect to="/" />;
-  }
-
+  // All hooks must be called before any conditional returns
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['user-profile', userId],
     queryFn: () => fetchUserProfile(userId!),
-    enabled: !!userId,
+    enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   const { data: quizResults = [], isLoading: resultsLoading } = useQuery({
     queryKey: ['user-quiz-results', userId],
     queryFn: () => fetchUserQuizResults(userId!),
-    enabled: !!userId,
+    enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ['user-badges-history', userId],
     queryFn: () => fetchUserBadges(userId!),
-    enabled: !!userId,
+    enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   const { data: userXP } = useQuery({
     queryKey: ['user-xp', userId],
     queryFn: () => fetchUserXP(userId!),
-    enabled: !!userId,
+    enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
-  // Delete single quiz result
+  // Delete single quiz result - must be before conditional returns
   const deleteResultMutation = useMutation({
     mutationFn: async (resultId: string) => {
       const { error } = await supabase
@@ -391,6 +379,19 @@ export default function UserQuizHistory() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  // Check access - must come AFTER all hooks but before rendering
+  if (roleLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAdmin && !canManageUsers) {
+    return <Redirect to="/" />;
+  }
 
   const isLoading = userLoading || resultsLoading || badgesLoading;
 

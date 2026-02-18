@@ -1,0 +1,1017 @@
+[
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_select_public",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_xp_levels.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_xp_levels",
+    "policyname": "user_xp_levels_update_own",
+    "cmd": "UPDATE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "level_definitions",
+    "policyname": "level_definitions_modify_admin",
+    "cmd": "ALL",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "level_definitions",
+    "policyname": "level_definitions_select_all",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_delete_own",
+    "cmd": "DELETE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "profile_share_links",
+    "policyname": "profile_share_links_update_own",
+    "cmd": "UPDATE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_select_own",
+    "cmd": "SELECT",
+    "qual": "(auth.uid() = id)",
+    "with_check": null
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_select_public",
+    "cmd": "SELECT",
+    "qual": "(profile_visibility = 'public'::profile_visibility)",
+    "with_check": null
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "profiles",
+    "policyname": "profiles_update_own",
+    "cmd": "UPDATE",
+    "qual": "(auth.uid() = id)",
+    "with_check": "(auth.uid() = id)"
+  },
+  {
+    "tablename": "user_roles",
+    "policyname": "user_roles_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_roles",
+    "policyname": "user_roles_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_roles",
+    "policyname": "user_roles_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_roles",
+    "policyname": "user_roles_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_roles",
+    "policyname": "user_roles_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "roles",
+    "policyname": "roles_modify_admin",
+    "cmd": "ALL",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "roles",
+    "policyname": "roles_select_all",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_delete_creator",
+    "cmd": "DELETE",
+    "qual": "(created_by = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_insert_authenticated",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "((auth.uid() IS NOT NULL) AND (created_by = auth.uid()))"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_select_member",
+    "cmd": "SELECT",
+    "qual": "((created_by = auth.uid()) OR is_team_member(auth.uid(), id))",
+    "with_check": null
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_update_creator",
+    "cmd": "UPDATE",
+    "qual": "(created_by = auth.uid())",
+    "with_check": "(created_by = auth.uid())"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_delete_creator",
+    "cmd": "DELETE",
+    "qual": "(EXISTS ( SELECT 1\n   FROM teams\n  WHERE ((teams.id = team_members.team_id) AND (teams.created_by = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_insert_creator",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM teams\n  WHERE ((teams.id = team_members.team_id) AND (teams.created_by = auth.uid()))))"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_select_team_creator",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM teams\n  WHERE ((teams.id = team_members.team_id) AND (teams.created_by = auth.uid()))))",
+    "with_check": null
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "team_members_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_insert_admin_facilitator",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "((created_by = auth.uid()) AND (is_admin_or_facilitator(auth.uid()) OR is_admin(auth.uid()) OR is_facilitator(auth.uid())))"
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_select_admin_facilitator",
+    "cmd": "SELECT",
+    "qual": "(is_admin_or_facilitator(auth.uid()) OR is_admin(auth.uid()) OR is_facilitator(auth.uid()))",
+    "with_check": null
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_select_assigned",
+    "cmd": "SELECT",
+    "qual": "((visibility = 'assigned'::quiz_visibility) AND (is_published = true) AND is_assigned_to_quiz(auth.uid(), id))",
+    "with_check": null
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_select_creator",
+    "cmd": "SELECT",
+    "qual": "(created_by = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_select_public",
+    "cmd": "SELECT",
+    "qual": "((visibility = 'public'::quiz_visibility) AND (is_published = true))",
+    "with_check": null
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_select_team",
+    "cmd": "SELECT",
+    "qual": "((visibility = 'team'::quiz_visibility) AND (is_published = true) AND are_in_same_team(auth.uid(), created_by))",
+    "with_check": null
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_update_admin_facilitator",
+    "cmd": "UPDATE",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "quizzes",
+    "policyname": "quizzes_update_creator",
+    "cmd": "UPDATE",
+    "qual": "(created_by = auth.uid())",
+    "with_check": "(created_by = auth.uid())"
+  },
+  {
+    "tablename": "quiz_assignments",
+    "policyname": "quiz_assignments_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_assignments",
+    "policyname": "quiz_assignments_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "quiz_assignments",
+    "policyname": "quiz_assignments_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_assignments",
+    "policyname": "quiz_assignments_select_user",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_assignments",
+    "policyname": "quiz_assignments_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_delete_own",
+    "cmd": "DELETE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_select_public",
+    "cmd": "SELECT",
+    "qual": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_tags.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility)))) OR (EXISTS ( SELECT 1\n   FROM user_privacy_settings\n  WHERE ((user_privacy_settings.user_id = user_tags.user_id) AND (user_privacy_settings.show_tags = true)))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_tags",
+    "policyname": "user_tags_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_select_quiz_creator",
+    "cmd": "SELECT",
+    "qual": "is_quiz_creator(auth.uid(), quiz_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_results",
+    "policyname": "quiz_results_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_delete_own",
+    "cmd": "DELETE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_select_quiz_creator",
+    "cmd": "SELECT",
+    "qual": "is_quiz_creator(auth.uid(), quiz_id)",
+    "with_check": null
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "quiz_progress",
+    "policyname": "quiz_progress_update_own",
+    "cmd": "UPDATE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_select_public",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_achievements.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_achievements",
+    "policyname": "user_achievements_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_select_public",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_privacy_settings.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_privacy_settings",
+    "policyname": "user_privacy_settings_update_own",
+    "cmd": "UPDATE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_select_public",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_profile_data.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_profile_data",
+    "policyname": "user_profile_data_update_own",
+    "cmd": "UPDATE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "badge_definitions",
+    "policyname": "badge_definitions_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "badge_definitions",
+    "policyname": "badge_definitions_insert_admin_facilitator",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "badge_definitions",
+    "policyname": "badge_definitions_select_active",
+    "cmd": "SELECT",
+    "qual": "(is_active = true)",
+    "with_check": null
+  },
+  {
+    "tablename": "badge_definitions",
+    "policyname": "badge_definitions_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "badge_definitions",
+    "policyname": "badge_definitions_update_admin_facilitator",
+    "cmd": "UPDATE",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_delete_own",
+    "cmd": "DELETE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_insert_own",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_select_public",
+    "cmd": "SELECT",
+    "qual": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_badges.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility)))) OR (EXISTS ( SELECT 1\n   FROM user_privacy_settings\n  WHERE ((user_privacy_settings.user_id = user_badges.user_id) AND (user_privacy_settings.show_badges = true)))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_badges",
+    "policyname": "user_badges_update_own",
+    "cmd": "UPDATE",
+    "qual": "(user_id = auth.uid())",
+    "with_check": "(user_id = auth.uid())"
+  },
+  {
+    "tablename": "tag_definitions",
+    "policyname": "tag_definitions_modify_admin_facilitator",
+    "cmd": "ALL",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "tag_definitions",
+    "policyname": "tag_definitions_select_active",
+    "cmd": "SELECT",
+    "qual": "(is_active = true)",
+    "with_check": null
+  },
+  {
+    "tablename": "tag_definitions",
+    "policyname": "tag_definitions_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "dimension_definitions",
+    "policyname": "dimension_definitions_modify_admin_facilitator",
+    "cmd": "ALL",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "dimension_definitions",
+    "policyname": "dimension_definitions_select_active",
+    "cmd": "SELECT",
+    "qual": "(is_active = true)",
+    "with_check": null
+  },
+  {
+    "tablename": "dimension_definitions",
+    "policyname": "dimension_definitions_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_dimensions",
+    "policyname": "user_dimensions_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_dimensions",
+    "policyname": "user_dimensions_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_dimensions",
+    "policyname": "user_dimensions_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_dimensions",
+    "policyname": "user_dimensions_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_dimensions",
+    "policyname": "user_dimensions_select_public",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_dimensions.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_dimensions",
+    "policyname": "user_dimensions_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_agreements",
+    "policyname": "user_agreements_delete_admin",
+    "cmd": "DELETE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_agreements",
+    "policyname": "user_agreements_insert_admin",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "user_agreements",
+    "policyname": "user_agreements_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_agreements",
+    "policyname": "user_agreements_select_own",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "tablename": "user_agreements",
+    "policyname": "user_agreements_select_public",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = user_agreements.user_id) AND (profiles.profile_visibility = 'public'::profile_visibility))))",
+    "with_check": null
+  },
+  {
+    "tablename": "user_agreements",
+    "policyname": "user_agreements_update_admin",
+    "cmd": "UPDATE",
+    "qual": "is_admin(auth.uid())",
+    "with_check": "is_admin(auth.uid())"
+  },
+  {
+    "tablename": "agreement_definitions",
+    "policyname": "agreement_definitions_modify_admin_facilitator",
+    "cmd": "ALL",
+    "qual": "is_admin_or_facilitator(auth.uid())",
+    "with_check": "is_admin_or_facilitator(auth.uid())"
+  },
+  {
+    "tablename": "agreement_definitions",
+    "policyname": "agreement_definitions_select_active",
+    "cmd": "SELECT",
+    "qual": "(is_active = true)",
+    "with_check": null
+  },
+  {
+    "tablename": "agreement_definitions",
+    "policyname": "agreement_definitions_select_admin",
+    "cmd": "SELECT",
+    "qual": "is_admin(auth.uid())",
+    "with_check": null
+  }
+]

@@ -1,20 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { BookOpen, Map, User, Shield, Video, ArrowRight, FileEdit, Award, TrendingUp } from "lucide-react";
+import { BookOpen, User, Shield, Video, ArrowRight, FileEdit } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 // TODO: Enable when Edge Functions are deployed
 // import { useUserProgress } from "@/hooks/useAchievements";
 
 export default function Dashboard() {
   const { user } = useSupabaseAuth();
-  const { permissions, roleName } = useRoleAccess();
-  // TODO: Enable when Edge Functions are deployed
-  // const { xpLevel, currentLevel, recentAchievements } = useUserProgress(undefined, true);
-  const xpLevel = null;
-  const currentLevel = null;
-  const recentAchievements: unknown[] = [];
+  const { canManageContent, canManageUsers, isAdmin, legacyRole } = usePermissions();
+  const roleName = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1));
 
   // Get display name
   const firstName = user?.user_metadata?.first_name || '';
@@ -31,13 +27,6 @@ export default function Dashboard() {
       testId: "card-nav-quizzes",
     },
     {
-      title: "Map View",
-      description: "Explore global collaborative mindmaps from webinars",
-      icon: Map,
-      href: "/map",
-      testId: "card-nav-map",
-    },
-    {
       title: "Profile",
       description: "View your progress, badges, achievements, and personal stats",
       icon: User,
@@ -46,8 +35,8 @@ export default function Dashboard() {
     },
   ];
 
-  // Add quiz management for facilitators and admins
-  if (permissions.canCreateQuizzes) {
+  // Add quiz management for content managers
+  if (canManageContent) {
     navigationCards.push({
       title: "Manage Quizzes",
       description: "Create, edit, and manage your quizzes",
@@ -57,8 +46,8 @@ export default function Dashboard() {
     });
   }
 
-  // Add admin panel for admins
-  if (permissions.canAccessAdminPanel) {
+  // Add admin panel for admins/user managers
+  if (isAdmin || canManageUsers) {
     navigationCards.push({
       title: "Admin Panel",
       description: "Manage users, roles, badges, and platform settings",
@@ -77,58 +66,11 @@ export default function Dashboard() {
         </h1>
         <p className="text-lg text-muted-foreground max-w-3xl" data-testid="text-welcome-description">
           You're logged in as <span className="font-medium text-foreground">{roleName}</span>.
-          {permissions.isAdminOrFacilitator 
+          {canManageContent 
             ? " You have access to quiz creation and management tools."
             : " Explore quizzes and track your progress."
           }
         </p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl">
-                {currentLevel?.level_icon || '🌱'}
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{currentLevel?.level_name || 'Newcomer'}</p>
-                <p className="text-sm text-muted-foreground">Level {xpLevel?.current_level || 1}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{xpLevel?.total_xp || 0} XP</p>
-                <p className="text-sm text-muted-foreground">
-                  {xpLevel?.xp_to_next_level || 100} to next level
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Award className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{recentAchievements?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Recent Achievements</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Video Section */}

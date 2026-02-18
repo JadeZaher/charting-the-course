@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Clock, ArrowRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Quiz {
   id: string;
@@ -21,18 +21,18 @@ interface Quiz {
 
 export default function QuizList() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { isAdminOrFacilitator } = useRoleAccess();
+  const { canManageContent } = usePermissions();
 
   const { data: quizzes, isLoading, error } = useQuery<Quiz[]>({
-    queryKey: ['quizzes-list', isAdminOrFacilitator],
+    queryKey: ['quizzes-list', canManageContent],
     queryFn: async () => {
       let query = supabase
         .from('quizzes')
         .select('id, title, description, visibility, is_published, time_limit, created_at');
       
-      // Admins and facilitators can see ALL quizzes (RLS will handle it)
+      // Content managers can see ALL quizzes (RLS will handle it)
       // Regular users only see published public/assigned quizzes
-      if (!isAdminOrFacilitator) {
+      if (!canManageContent) {
         query = query
           .eq('is_published', true)
           .in('visibility', ['public', 'assigned']);

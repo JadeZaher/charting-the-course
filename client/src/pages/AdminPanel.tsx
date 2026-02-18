@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/supabase";
 import {
   Dialog,
@@ -40,22 +41,60 @@ const getRoleBadgeRole = (role?: string): Role => {
   return (role.charAt(0).toUpperCase() + role.slice(1)) as Role;
 };
 
-// Fetch users from profiles table with roles
+// Fetch users from profiles table with roles and permissions
 async function fetchUsers() {
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select(`
-      id,
-      first_name,
-      last_name,
-      username,
-      avatar_url,
-      profile_visibility,
-      created_at
-    `)
-    .order('created_at', { ascending: false });
+  // Try to get profiles with permissions columns
+  let profiles: any[] = [];
+  let hasPermissionsColumn = true;
+  
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        username,
+        avatar_url,
+        profile_visibility,
+        created_at,
+        permissions,
+        is_archived
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) throw error;
+    if (error) {
+      // If error mentions column doesn't exist, fallback to basic query
+      if (error.message?.includes('permissions') || error.message?.includes('is_archived')) {
+        hasPermissionsColumn = false;
+      } else {
+        throw error;
+      }
+    } else {
+      profiles = data || [];
+    }
+  } catch (e) {
+    hasPermissionsColumn = false;
+  }
+
+  // Fallback: fetch without permissions columns
+  if (!hasPermissionsColumn) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        username,
+        avatar_url,
+        profile_visibility,
+        created_at
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    profiles = data || [];
+  }
 
   // Get roles for each user
   const { data: userRoles } = await supabase
@@ -68,12 +107,18 @@ async function fetchUsers() {
       )
     `);
 
-  // Merge profiles with roles
-  return profiles?.map(profile => ({
-    ...profile,
-    role: userRoles?.find(ur => ur.user_id === profile.id)?.roles?.key || 'viewer',
-    roleName: userRoles?.find(ur => ur.user_id === profile.id)?.roles?.name || 'Viewer',
-  })) || [];
+  // Merge profiles with roles and permissions
+  return profiles.map(profile => {
+    const roleData = userRoles?.find(ur => ur.user_id === profile.id);
+    const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
+    return {
+      ...profile,
+      role: roles?.key || 'viewer',
+      roleName: roles?.name || 'Viewer',
+      permissions: ((profile as any).permissions as Permission[]) || [],
+      isArchived: (profile as any).is_archived || false,
+    };
+  });
 }
 
 // Fetch quizzes
@@ -339,7 +384,7 @@ async function uploadBadgeIcon(file: File, badgeKey: string): Promise<string> {
 
 export default function AdminPanel() {
   // All hooks must be called at the top, before any conditional returns
-  const { permissions, isLoading: roleLoading } = useRoleAccess();
+  const { isAdmin, canManageUsers, isLoading: roleLoading } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -348,6 +393,8 @@ export default function AdminPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newRole, setNewRole] = useState("");
+  const [editedPermissions, setEditedPermissions] = useState<Permission[]>([]);
+  const [isEditPermissionsOpen, setIsEditPermissionsOpen] = useState(false);
   const [isCreateBadgeOpen, setIsCreateBadgeOpen] = useState(false);
   const [editingBadge, setEditingBadge] = useState<any>(null);
   const [iconType, setIconType] = useState<'emoji' | 'image'>('emoji');
@@ -394,31 +441,31 @@ export default function AdminPanel() {
   const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
     queryFn: fetchUsers,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: quizzes = [], isLoading: quizzesLoading } = useQuery({
     queryKey: ['admin-quizzes'],
     queryFn: fetchQuizzes,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ['admin-badges'],
     queryFn: fetchBadges,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['admin-teams'],
     queryFn: fetchTeams,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
     queryKey: ['admin-assignments'],
     queryFn: fetchAssignments,
-    enabled: permissions.canAccessAdminPanel,
+    enabled: isAdmin || canManageUsers,
   });
 
   // Badge mutations
@@ -652,7 +699,7 @@ export default function AdminPanel() {
     );
   }
 
-  if (!permissions.canAccessAdminPanel) {
+  if (!isAdmin && !canManageUsers) {
     return <Redirect to="/" />;
   }
 
@@ -816,6 +863,35 @@ export default function AdminPanel() {
       toast({
         title: "Error",
         description: error.message || "Failed to update role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePermissionsChange = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ permissions: editedPermissions })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Permissions Updated",
+        description: `${selectedUser.first_name || selectedUser.username}'s permissions have been updated`,
+      });
+
+      refetchUsers();
+      setIsEditPermissionsOpen(false);
+      setSelectedUser(null);
+      setEditedPermissions([]);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update permissions",
         variant: "destructive",
       });
     }
@@ -1046,48 +1122,19 @@ export default function AdminPanel() {
                           @{user.username} • {user.profile_visibility} profile
                         </p>
                       </div>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setNewRole(user.role);
-                            }}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit Role
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Change User Role</DialogTitle>
-                            <DialogDescription>
-                              Update the role for {user.first_name || user.username}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 pt-4">
-                            <div className="space-y-2">
-                              <Label>New Role</Label>
-                              <Select value={newRole} onValueChange={setNewRole}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="facilitator">Facilitator</SelectItem>
-                                  <SelectItem value="contributor">Contributor</SelectItem>
-                                  <SelectItem value="viewer">Viewer</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <Button onClick={handleRoleChange} className="w-full">
-                              Update Role
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setEditedPermissions(user.permissions || []);
+                          setIsEditPermissionsOpen(true);
+                        }}
+                        data-testid={`button-edit-permissions-${user.id}`}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit Permissions
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -1098,6 +1145,61 @@ export default function AdminPanel() {
               )}
             </CardContent>
           </Card>
+
+          {/* Single Edit Permissions Dialog - outside the map for proper state management */}
+          <Dialog 
+            open={isEditPermissionsOpen} 
+            onOpenChange={(open) => {
+              setIsEditPermissionsOpen(open);
+              if (!open) {
+                setSelectedUser(null);
+                setEditedPermissions([]);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit User Permissions</DialogTitle>
+                <DialogDescription>
+                  Update permissions for {selectedUser?.first_name || selectedUser?.username || 'user'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-3">
+                  {ALL_PERMISSIONS.map((permission) => (
+                    <div key={permission} className="flex items-start gap-3">
+                      <Checkbox
+                        id={`perm-dialog-${permission}`}
+                        checked={editedPermissions.includes(permission)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setEditedPermissions(prev => [...prev, permission]);
+                          } else {
+                            setEditedPermissions(prev => prev.filter(p => p !== permission));
+                          }
+                        }}
+                        data-testid={`checkbox-permission-${permission}`}
+                      />
+                      <div className="flex-1">
+                        <Label 
+                          htmlFor={`perm-dialog-${permission}`}
+                          className="font-medium cursor-pointer"
+                        >
+                          {PERMISSION_LABELS[permission]}
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {PERMISSION_DESCRIPTIONS[permission]}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button onClick={handlePermissionsChange} className="w-full">
+                  Update Permissions
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Teams Tab */}

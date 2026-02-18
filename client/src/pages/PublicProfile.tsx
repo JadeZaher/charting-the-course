@@ -3,15 +3,18 @@ import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { 
-  ArrowLeft, Sparkles, Heart, TrendingUp, Target, Brain, 
+  ArrowLeft, Sparkles, Heart, Target, Brain, 
   MapPin, Globe, Linkedin, Twitter, Github, 
-  Briefcase, Users, Compass, Zap, Award, Share2,
-  ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight
+  Briefcase, Compass, Share2, TrendingUp,
+  ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
+  Users, Award
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { TileGrid, ProfileTile } from "@/components/profile/tiles";
+import { calculateAlignment, createAlignmentTile } from "@/lib/alignment";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 interface PublicProfileData {
   profile: {
@@ -45,6 +48,7 @@ interface PublicProfileData {
     tag_value: string;
     dimension: string | null;
   }>;
+  tiles: ProfileTile[];
   agreements: Array<{
     id: string;
     agreement_key: string;
@@ -63,11 +67,6 @@ interface PublicProfileData {
     survey_results?: Record<string, any>;
     survey_json?: any;
   }>;
-  xpLevel: {
-    total_xp: number;
-    current_level: number;
-    quiz_streak: number;
-  } | null;
   privacy: {
     is_profile_public: boolean;
     show_badges: boolean;
@@ -523,8 +522,8 @@ export default function PublicProfile() {
   const [, params] = useRoute("/users/:username");
   const username = params?.username;
   const { toast } = useToast();
+  const { user } = useSupabaseAuth();
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile");
   const [scrollY, setScrollY] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -623,52 +622,8 @@ export default function PublicProfile() {
         tags = tagData || [];
       }
       
-      // Fetch agreements with definitions
+      // Agreements feature - tables may not exist yet
       let agreements: any[] = [];
-      if (privacy?.show_tags !== false) { // Use same privacy setting as tags for now
-        // First get user agreements
-        const { data: userAgreements } = await supabase
-          .from('user_agreements')
-          .select('id, agreement_key, source_quiz_id, created_at')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        
-        if (userAgreements && userAgreements.length > 0) {
-          // Get agreement keys
-          const agreementKeys = [...new Set(userAgreements.map(ua => ua.agreement_key))];
-          
-          // Fetch agreement definitions
-          const { data: agreementDefs } = await supabase
-            .from('agreement_definitions')
-            .select('agreement_key, agreement_statement, agreement_category')
-            .in('agreement_key', agreementKeys);
-          
-          // Get quiz IDs
-          const quizIds = [...new Set(userAgreements.map(ua => ua.source_quiz_id))];
-          
-          // Fetch quiz titles
-          const { data: quizzes } = await supabase
-            .from('quizzes')
-            .select('id, title')
-            .in('id', quizIds);
-          
-          // Combine data
-          agreements = userAgreements.map(ua => {
-            const def = agreementDefs?.find(ad => ad.agreement_key === ua.agreement_key);
-            const quiz = quizzes?.find(q => q.id === ua.source_quiz_id);
-            
-            return {
-              id: ua.id,
-              agreement_key: ua.agreement_key,
-              agreement_statement: def?.agreement_statement || ua.agreement_key,
-              agreement_category: def?.agreement_category || null,
-              source_quiz_id: ua.source_quiz_id,
-              quiz_title: quiz?.title || null,
-              created_at: ua.created_at
-            };
-          });
-        }
-      }
       
       // Fetch quiz results with survey data
       let quizResults: any[] = [];
@@ -694,15 +649,34 @@ export default function PublicProfile() {
         })) || [];
       }
       
-      const { data: xpLevel } = await supabase
-        .from('user_xp_levels')
-        .select('total_xp, current_level, quiz_streak')
+      // Fetch profile tiles (only visible ones for public view)
+      let tiles: ProfileTile[] = [];
+      const { data: tileData, error: tileError } = await supabase
+        .from('profile_tiles')
+        .select('*')
         .eq('user_id', userId)
-        .maybeSingle();
+        .eq('is_visible', true)
+        .order('display_order', { ascending: true });
       
-      return { profile, badges, tags, agreements, quizResults, xpLevel, privacy };
+      tiles = (tileData || []) as ProfileTile[];
+      
+      return { profile, badges, tags, tiles, agreements, quizResults, privacy };
     },
     enabled: !!username,
+  });
+
+  // Query viewer's tiles for alignment calculation
+  const { data: viewerTiles } = useQuery<ProfileTile[]>({
+    queryKey: ['viewer-tiles', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('profile_tiles')
+        .select('*')
+        .eq('user_id', user.id);
+      return (data || []) as ProfileTile[];
+    },
+    enabled: !!user?.id && !!data?.profile && user.id !== data.profile.id,
   });
 
   const handleShare = async () => {
@@ -756,7 +730,6 @@ export default function PublicProfile() {
   const privacy = data.privacy;
   const displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Anonymous';
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
-  const levelProgress = data.xpLevel ? ((data.xpLevel.total_xp % 100) / 100) * 100 : 0;
   
   const tagsByDimension = data.tags.reduce((acc, tag) => {
     const dim = tag.dimension || 'general';
@@ -769,6 +742,37 @@ export default function PublicProfile() {
   const hasTags = privacy?.show_tags !== false && data.tags.length > 0;
   const hasQuizResults = privacy?.show_quiz_results !== false && data.quizResults.length > 0;
   const hasSocialLinks = profile.social_links && Object.values(profile.social_links).some(v => v);
+  const hasTiles = data.tiles && data.tiles.length > 0;
+  
+  // Calculate alignment if viewer is logged in and not viewing own profile
+  const isViewingOwnProfile = user?.id === profile.id;
+  const alignment = (!isViewingOwnProfile && viewerTiles && viewerTiles.length > 0 && data.tiles.length > 0)
+    ? calculateAlignment(viewerTiles, data.tiles)
+    : null;
+  const alignmentTile = alignment ? createAlignmentTile(alignment) : null;
+  const displayTiles = alignmentTile 
+    ? [alignmentTile, ...data.tiles] 
+    : data.tiles;
+
+  // Configuration for known dimensions to maintain styling
+  const getDimensionConfig = (dim: string) => {
+    const configs: Record<string, { icon: any, title: string, variant: "default" | "cyan" | "emerald" | "amber" | "rose" }> = {
+      personality: { icon: Heart, title: "Personality", variant: "rose" },
+      strengths: { icon: Sparkles, title: "Primary Skills", variant: "emerald" },
+      interests: { icon: Briefcase, title: "Work & Projects", variant: "amber" },
+      values: { icon: Target, title: "Core Values", variant: "cyan" },
+      growth: { icon: Brain, title: "Growth Focus", variant: "emerald" },
+      general: { icon: Users, title: "Preferences", variant: "default" },
+      land_criteria: { icon: MapPin, title: "Land Criteria", variant: "emerald" },
+      project_resources: { icon: TrendingUp, title: "Project Resources", variant: "amber" },
+    };
+
+    return configs[dim] || {
+      icon: Sparkles, // Default icon for new dimensions
+      title: dim.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), // "land_criteria" -> "Land Criteria"
+      variant: "default"
+    };
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 relative overflow-hidden">
@@ -800,31 +804,6 @@ export default function PublicProfile() {
       <AnimatedCrystals scrollY={scrollY} isScrolling={isScrolling} />
       
       <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        {/* Tab Navigation */}
-        <CrystalCard>
-          <div className="flex items-center justify-center gap-1 p-2 flex-wrap">
-            {[
-              { key: 'profile', label: 'Profile', icon: '👤' },
-              { key: 'journey', label: 'Journey', icon: '🗺️' },
-              { key: 'alignment', label: 'Alignment', icon: '🎯' },
-              { key: 'connections', label: 'Connections', icon: '🤝' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`
-                  px-5 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2
-                  ${activeTab === tab.key 
-                    ? 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-cyan-300 border border-cyan-500/30' 
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'}
-                `}
-              >
-                <span>{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </CrystalCard>
 
         {/* Main Profile Card */}
         <CrystalCard featured>
@@ -841,11 +820,6 @@ export default function PublicProfile() {
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  {data.xpLevel && data.xpLevel.current_level > 1 && (
-                    <div className="absolute -bottom-1 -right-1 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-lg border border-white/20">
-                      Lvl {data.xpLevel.current_level}
-                    </div>
-                  )}
                 </div>
                 
                 {/* Name & Info */}
@@ -878,30 +852,10 @@ export default function PublicProfile() {
                     >
                       {copied ? <Check className="h-3 w-3 mr-1" /> : <Share2 className="h-3 w-3 mr-1" />}
                       {copied ? 'Copied!' : 'Share Profile'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-              {/* Right: Journey Progress */}
-              {data.xpLevel && data.xpLevel.total_xp > 0 && (
-                <div className="lg:w-48">
-                  <div className="text-xs text-white/50 uppercase tracking-wider mb-2 text-center lg:text-right">Journey Progress</div>
-                  <div className="flex flex-col gap-2">
-                    <Progress value={levelProgress} className="h-1.5 bg-white/10" />
-                    <div className="flex justify-between text-xs text-white/50">
-                      <span>{data.xpLevel.total_xp} XP</span>
-                      <span>Lvl {data.xpLevel.current_level}</span>
-                    </div>
-                    {data.xpLevel.quiz_streak > 0 && (
-                      <div className="flex items-center justify-center lg:justify-end gap-1 text-amber-400 text-xs">
-                        <Zap className="h-3 w-3" />
-                        {data.xpLevel.quiz_streak} day streak
-                      </div>
-                    )}
+                    </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Bio */}
@@ -941,10 +895,31 @@ export default function PublicProfile() {
           </div>
         </CrystalCard>
 
-        {/* ==================== PROFILE TAB ==================== */}
-        {activeTab === 'profile' && (
-          <>
-            {/* Tags Grid */}
+        {/* Profile Insights (Tiles) Section */}
+        {hasTiles && (
+          <CrystalCard>
+            <div className="p-4">
+              <SectionLabel icon={Sparkles} title="Profile Insights" />
+              {alignment && (
+                <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-bold text-cyan-300">{alignment.score}%</div>
+                    <div>
+                      <p className="text-sm font-medium text-white">Your Alignment</p>
+                      <p className="text-xs text-white/60">{alignment.insights[0]}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_>div>div]:bg-white/5 [&_>div>div]:border-white/10 [&_>div>div]:text-white [&_h3]:text-white [&_p]:text-white/70">
+                <TileGrid tiles={displayTiles} isOwner={false} />
+              </div>
+            </div>
+          </CrystalCard>
+        )}
+
+        {/* Profile Content Section */}
+        {/* Tags Grid */}
             {hasTags && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {hasSocialLinks && (
@@ -971,57 +946,25 @@ export default function PublicProfile() {
                   </CrystalCard>
                 )}
 
-                {tagsByDimension['personality']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Heart} title="Personality" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['personality'].map((tag, i) => (
-                          <TagPill key={i} variant="rose">{tag.tag_value}</TagPill>
-                        ))}
+                {Object.entries(tagsByDimension).map(([dim, tags]) => {
+                  // Skip values/growth if they are displayed in the Alignment section below
+                  // Remove this check if you want them in the grid instead
+                  if (dim === 'values' || dim === 'growth') return null;
+                  
+                  const config = getDimensionConfig(dim);
+                  return (
+                    <CrystalCard key={dim}>
+                      <div className="p-4">
+                        <SectionLabel icon={config.icon} title={config.title} />
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map((tag, i) => (
+                            <TagPill key={i} variant={config.variant}>{tag.tag_value}</TagPill>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </CrystalCard>
-                )}
-                
-                {tagsByDimension['strengths']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Sparkles} title="Primary Skills" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['strengths'].map((tag, i) => (
-                          <TagPill key={i} variant="emerald">{tag.tag_value}</TagPill>
-                        ))}
-                      </div>
-                    </div>
-                  </CrystalCard>
-                )}
-                
-                {tagsByDimension['interests']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Briefcase} title="Work & Projects" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['interests'].map((tag, i) => (
-                          <TagPill key={i} variant="amber">{tag.tag_value}</TagPill>
-                        ))}
-                      </div>
-                    </div>
-                  </CrystalCard>
-                )}
-
-                {tagsByDimension['general']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Users} title="Preferences" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['general'].map((tag, i) => (
-                          <TagPill key={i}>{tag.tag_value}</TagPill>
-                        ))}
-              </div>
-            </div>
-                  </CrystalCard>
-                )}
+                    </CrystalCard>
+                  );
+                })}
           </div>
             )}
 
@@ -1047,7 +990,7 @@ export default function PublicProfile() {
             )}
 
             {/* Empty State */}
-            {!hasBadges && !hasTags && !profile.bio && (
+            {!hasBadges && !hasTags && !hasTiles && !profile.bio && (
               <CrystalCard>
                 <div className="p-8 text-center">
                   <Compass className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />
@@ -1055,83 +998,8 @@ export default function PublicProfile() {
                 </div>
               </CrystalCard>
             )}
-          </>
-        )}
 
-        {/* ==================== JOURNEY TAB ==================== */}
-        {activeTab === 'journey' && (
-          <>
-            {/* XP Progress Card */}
-            {data.xpLevel && (
-              <CrystalCard featured>
-                <div className="p-6">
-                  <SectionLabel icon={TrendingUp} title="Experience & Progress" />
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                    <div className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-4xl font-bold text-cyan-400">{data.xpLevel.total_xp}</div>
-                      <div className="text-sm text-white/60 mt-1">Total XP</div>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-4xl font-bold text-emerald-400">Lvl {data.xpLevel.current_level}</div>
-                      <div className="text-sm text-white/60 mt-1">Current Level</div>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-4xl font-bold text-amber-400">{data.xpLevel.quiz_streak}</div>
-                      <div className="text-sm text-white/60 mt-1">Day Streak 🔥</div>
-                    </div>
-                  </div>
-                  
-                  {/* Level Progress */}
-                  <div className="mt-6">
-                    <div className="flex justify-between text-sm text-white/50 mb-2">
-                      <span>Level {data.xpLevel.current_level}</span>
-                      <span>Level {data.xpLevel.current_level + 1}</span>
-                    </div>
-                    <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 transition-all duration-500" 
-                        style={{ width: `${levelProgress}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-white/40 mt-2 text-center">
-                      {100 - (data.xpLevel.total_xp % 100)} XP to next level
-                    </p>
-                  </div>
-                </div>
-              </CrystalCard>
-            )}
-
-            {/* Quiz History */}
-            {hasQuizResults && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 px-1">
-                  <Award className="h-5 w-5 text-cyan-400" />
-                  <h3 className="text-lg font-semibold text-white">Quiz Journey ({data.quizResults.length} completed)</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {data.quizResults.map(result => (
-                    <QuizResultCard key={result.id} result={result} />
-                  ))}
-                    </div>
-                  </div>
-            )}
-
-            {/* Empty State */}
-            {!data.xpLevel && !hasQuizResults && (
-              <CrystalCard>
-                <div className="p-8 text-center">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />
-                  <p className="text-white/50">No journey progress yet. Take quizzes to start!</p>
-                </div>
-              </CrystalCard>
-            )}
-          </>
-        )}
-
-        {/* ==================== ALIGNMENT TAB ==================== */}
-        {activeTab === 'alignment' && (
-          <>
+        {/* Alignment Content Section */}
             <CrystalCard featured>
               <div className="p-6">
                 <SectionLabel icon={Target} title="Values & Alignment" />
@@ -1215,36 +1083,6 @@ export default function PublicProfile() {
                 </div>
               </CrystalCard>
             )}
-          </>
-        )}
-
-        {/* ==================== CONNECTIONS TAB ==================== */}
-        {activeTab === 'connections' && (
-          <CrystalCard featured>
-            <div className="p-8 text-center">
-              <Users className="h-16 w-16 mx-auto mb-4 text-cyan-400/30" />
-              <h3 className="text-xl font-semibold text-white mb-2">Coming Soon!</h3>
-              <p className="text-white/60 max-w-md mx-auto">
-                The Connections feature will help you discover users with similar profiles, 
-                shared values, and complementary skills. Stay tuned!
-              </p>
-              <div className="mt-6 flex items-center justify-center gap-4">
-                <div className="text-center">
-                  <div className="text-2xl">🎯</div>
-                  <p className="text-xs text-white/40 mt-1">Match by Values</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl">🤝</div>
-                  <p className="text-xs text-white/40 mt-1">Find Similar</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl">⚡</div>
-                  <p className="text-xs text-white/40 mt-1">Complementary Skills</p>
-                </div>
-              </div>
-            </div>
-          </CrystalCard>
-        )}
 
         {/* Footer */}
         <div className="text-center py-6">

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "4fdfcb14-eab0-4ab8-bf29-767ae82ea84d",
+    "quiz_id": "84e85e92-d3aa-47a2-8260-bb91a0afe0b9",
+    "user_id": "afdefa90-efc1-4c86-a914-52337922c474",
+    "survey_results": {
+      "after_hours": "available",
+      "response_time": "same_day",
+      "video_comfort": 2,
+      "feedback_style": "supportive",
+      "channel_preference": [
+        "instant_message",
+        "text_sms",
+        "email",
+        "video_call",
+        "phone",
+        "in_person"
+      ],
+      "meeting_preference": "scheduled",
+      "conflict_communication": "voice",
+      "communication_energizers": [
+        "one_on_one",
+        "teaching",
+        "writing"
+      ]
+    },
+    "score": 0,
+    "completed_at": "2026-01-30 01:09:52.168558+00"
+  },
+  {
+    "id": "06089b94-43db-41b1-97b4-cc845dd166db",
+    "quiz_id": "84e85e92-d3aa-47a2-8260-bb91a0afe0b9",
+    "user_id": "afdefa90-efc1-4c86-a914-52337922c474",
+    "survey_results": {
+      "after_hours": "set_hours",
+      "response_time": "same_day",
+      "video_comfort": 3,
+      "feedback_style": "private",
+      "channel_preference": [
+        "instant_message",
+        "text_sms",
+        "email",
+        "phone",
+        "video_call",
+        "in_person"
+      ],
+      "meeting_preference": "spontaneous",
+      "conflict_communication": "voice",
+      "communication_energizers": [
+        "teaching",
+        "one_on_one",
+        "writing"
+      ]
+    },
+    "score": 0,
+    "completed_at": "2026-01-30 00:57:45.928859+00"
+  },
+  {
+    "id": "ac994bc0-b266-4efb-abf3-f19b0f31dd14",
+    "quiz_id": "113f90b0-1280-4e56-b5a1-acba2389b21b",
+    "user_id": "c46c1d11-0a12-49b4-9c0a-cb0cdc3f9294",
+    "survey_results": {
+      "first_reaction": "act",
+      "thinking_style": "practical",
+      "under_pressure": "steady",
+      "failure_response": "pivot",
+      "ambiguity_tolerance": 5,
+      "complexity_preference": "novel",
+      "problem_solving_tools": [
+        "whiteboard",
+        "discussion",
+        "prototyping"
+      ]
+    },
+    "score": 0,
+    "completed_at": "2026-01-29 06:24:57.106631+00"
+  },
+  {
+    "id": "278a6399-96d5-4ff8-af45-2f6ad2688eef",
+    "quiz_id": "a688a595-222d-443b-87f3-167221635a00",
+    "user_id": "afdefa90-efc1-4c86-a914-52337922c474",
+    "survey_results": {
+      "ideal_project": [
+        "innovation",
+        "autonomy"
+      ],
+      "value_ranking": [
+        "impact",
+        "autonomy",
+        "growth",
+        "recognition",
+        "security",
+        "creativity"
+      ],
+      "risk_tolerance": "calculated",
+      "career_direction": "entrepreneur",
+      "motivation_driver": "challenge",
+      "work_life_balance": 3,
+      "structure_preference": "high"
+    },
+    "score": 0,
+    "completed_at": "2026-01-28 21:11:42.969551+00"
+  },
+  {
+    "id": "1984314b-e7db-4248-96b5-dde3cf826b29",
+    "quiz_id": "a115611e-5b8e-4f7e-9fdb-f0c6b65f9d14",
+    "user_id": "c46c1d11-0a12-49b4-9c0a-cb0cdc3f9294",
+    "survey_results": {
+      "team_role": "leader",
+      "idea_sharing": "build",
+      "team_strengths": [
+        "organization"
+      ],
+      "decision_making": "consensus",
+      "pace_preference": "fast",
+      "feedback_frequency": "weekly",
+      "collaboration_preference": 3
+    },
+    "score": 0,
+    "completed_at": "2026-01-21 17:16:22.530598+00"
+  }
+]

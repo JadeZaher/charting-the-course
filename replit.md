@@ -6,6 +6,80 @@ CourseHub is a quiz hosting and analysis platform with profile-driven user disco
 
 ## Recent Changes (January 2026)
 
+**Tile Architecture Migration (Phase 1 - Jan 29):**
+- Added `permissions` (jsonb) and `is_archived` (boolean) columns to `profiles` table
+- Added `hiddenFromUser` (boolean) to quizzes table for admin proxy feature
+- Added `submittedBy` (varchar) to quiz_results for proxy submissions
+- Created new `profile_tiles` table for generic tile architecture (migration: `20260129_create_profile_tiles.sql`)
+- Backfilled existing admin users with full permissions array
+- Old badge/tag system preserved for backward compatibility
+
+**Phase 2 Cleanup (Jan 29):**
+- Disabled gamification backend (calculate-achievements returns graceful no-op)
+- Removed Teams and Map View from sidebar navigation
+- Removed MapView.tsx file and route from App.tsx
+- Removed Map View from Dashboard navigation cards
+- Simplified Profile.tsx: removed tabs, StatCards, XP/level progress, XPLevel interface
+- Simplified PublicProfile.tsx: removed Journey Progress XP section, removed Journey and Connections tabs
+- Both profiles now use single-page scrolling layout
+- Created SQL migration for proxy feature columns (`supabase/migrations/20260129_add_proxy_columns.sql`)
+- Improved QuizResults.tsx: now shows all responses for assessment quizzes (not just gradable questions)
+- Added MyQuizHistory.tsx page for viewing all quiz history (not just recent 5)
+- Profile page now has "View All History" link to access complete quiz history
+
+**Phase 6: Frontend Tile Display System (Jan 29):**
+- Created tile component library: `client/src/components/profile/tiles/`
+  - TileRenderer.tsx - Main component that renders tiles by type
+  - BadgeTile.tsx - Displays achievement badges with icons
+  - TextTile.tsx - Shows text-based insights
+  - ChartTile.tsx - Renders horizontal bar charts for scores
+  - ListTile.tsx - Displays lists of items with values
+  - ScoreTile.tsx - Shows score metrics with progress rings
+  - TileGrid.tsx - Grid layout with visibility toggle for profile owners
+- Updated Profile.tsx to fetch and display profile tiles with visibility controls
+- Updated PublicProfile.tsx to display visible tiles with alignment scoring
+- Created alignment function (`client/src/lib/alignment.ts`) for user similarity
+- Alignment shown to logged-in users viewing other profiles (Jaccard similarity + dimension bonus)
+- Created `profile_layouts` and `tile_layout_settings` tables for future multi-layout support
+
+**Phase 4: Strategy Engine - Survey to Tile (Jan 29):**
+- Created `supabase/functions/_shared/tileGeneration.ts` - Strategy engine for tile generation
+- Tile types: badge, text, chart, list, score, custom
+- Profile dimensions: personality, strengths, values, interests, growth
+- **NEW: Created `submit-with-tiles` edge function** for tile generation (backward-compatible deployment)
+- **Restored `submit-with-tags` to original version** - uses old tags/badges system for existing published site
+- Assessment quizzes (no correct answers) now skip Pass/Fail scoring (score=0, is_passed=null)
+- Tiles stored in `profile_tiles` table with submission_id linking to quiz_results
+- Strategy can be embedded in quiz metadata or registered per quiz ID
+- **Frontend Integration Complete**: TakeQuiz.tsx refactored to call `submit-with-tiles` edge function
+- Removed all local tag/badge/XP processing from frontend (300+ lines of deprecated code removed)
+- Deployment note: Deploy both `submit-with-tags` (legacy) and `submit-with-tiles` (new) functions
+
+**Phase 3 Security & Permissions (Jan 29):**
+- Created `usePermissions` hook for granular permission checks from JSONB column
+- Updated UserManagement.tsx with permissions checkboxes (replaces role dropdown)
+- Added archive/restore functionality for users with filter toggle
+- Permissions: manage_users, manage_content, proxy_quiz, view_analytics
+- Backward-compatible: OR logic checks both old roles AND new permissions
+- Created RLS migration SQL in `supabase/migrations/20260129_permissions_rls.sql`
+
+**Permissions Migration Complete (Jan 29):**
+- Migrated all components from `useRoleAccess` to `usePermissions` hook
+- Updated filter dropdown in UserManagement from roles to permissions
+- Updated AppSidebar, QuizList, Dashboard, AdminPanel, UserQuizHistory, Profile, App.tsx
+- `useRoleAccess` hook preserved for backward compatibility but no longer imported
+- All permission checks now use new system: canManageUsers, canManageContent, etc.
+
+**Supabase Schema Alignment (Jan 29):**
+- Updated `usePermissions` hook to query from `profiles` table (not `users`)
+- Supabase uses `profiles` table for user data, `user_roles`/`roles` for role assignments
+- Permissions stored as JSONB array on `profiles.permissions` column
+- `is_archived` boolean on `profiles` table for soft-delete functionality
+- Existing RLS helper functions (`is_admin()`, `is_admin_or_facilitator()`) remain unchanged
+- Backward compatibility: role-based access works via `user_roles` → `roles` lookup
+- AdminPanel uses single Dialog pattern outside user list for reliable state management
+- UserManagement and AdminPanel mutations now target `profiles` table directly
+
 **Architecture Migration to Supabase:**
 - Migrated from Node.js/Express backend to Supabase Edge Functions
 - Replaced Replit Auth with Supabase Auth
