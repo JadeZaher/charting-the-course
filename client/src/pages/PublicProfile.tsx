@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   ArrowLeft, Sparkles, Heart, Target, Brain, 
   MapPin, Globe, Linkedin, Twitter, Github, 
-  Briefcase, Compass, Share2,
+  Briefcase, Compass, Share2, TrendingUp,
   ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
   Users, Award
 } from "lucide-react";
@@ -651,12 +651,13 @@ export default function PublicProfile() {
       
       // Fetch profile tiles (only visible ones for public view)
       let tiles: ProfileTile[] = [];
-      const { data: tileData } = await supabase
+      const { data: tileData, error: tileError } = await supabase
         .from('profile_tiles')
         .select('*')
         .eq('user_id', userId)
         .eq('is_visible', true)
         .order('display_order', { ascending: true });
+      
       tiles = (tileData || []) as ProfileTile[];
       
       return { profile, badges, tags, tiles, agreements, quizResults, privacy };
@@ -752,6 +753,26 @@ export default function PublicProfile() {
   const displayTiles = alignmentTile 
     ? [alignmentTile, ...data.tiles] 
     : data.tiles;
+
+  // Configuration for known dimensions to maintain styling
+  const getDimensionConfig = (dim: string) => {
+    const configs: Record<string, { icon: any, title: string, variant: "default" | "cyan" | "emerald" | "amber" | "rose" }> = {
+      personality: { icon: Heart, title: "Personality", variant: "rose" },
+      strengths: { icon: Sparkles, title: "Primary Skills", variant: "emerald" },
+      interests: { icon: Briefcase, title: "Work & Projects", variant: "amber" },
+      values: { icon: Target, title: "Core Values", variant: "cyan" },
+      growth: { icon: Brain, title: "Growth Focus", variant: "emerald" },
+      general: { icon: Users, title: "Preferences", variant: "default" },
+      land_criteria: { icon: MapPin, title: "Land Criteria", variant: "emerald" },
+      project_resources: { icon: TrendingUp, title: "Project Resources", variant: "amber" },
+    };
+
+    return configs[dim] || {
+      icon: Sparkles, // Default icon for new dimensions
+      title: dim.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), // "land_criteria" -> "Land Criteria"
+      variant: "default"
+    };
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 relative overflow-hidden">
@@ -925,57 +946,25 @@ export default function PublicProfile() {
                   </CrystalCard>
                 )}
 
-                {tagsByDimension['personality']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Heart} title="Personality" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['personality'].map((tag, i) => (
-                          <TagPill key={i} variant="rose">{tag.tag_value}</TagPill>
-                        ))}
+                {Object.entries(tagsByDimension).map(([dim, tags]) => {
+                  // Skip values/growth if they are displayed in the Alignment section below
+                  // Remove this check if you want them in the grid instead
+                  if (dim === 'values' || dim === 'growth') return null;
+                  
+                  const config = getDimensionConfig(dim);
+                  return (
+                    <CrystalCard key={dim}>
+                      <div className="p-4">
+                        <SectionLabel icon={config.icon} title={config.title} />
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map((tag, i) => (
+                            <TagPill key={i} variant={config.variant}>{tag.tag_value}</TagPill>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </CrystalCard>
-                )}
-                
-                {tagsByDimension['strengths']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Sparkles} title="Primary Skills" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['strengths'].map((tag, i) => (
-                          <TagPill key={i} variant="emerald">{tag.tag_value}</TagPill>
-                        ))}
-                      </div>
-                    </div>
-                  </CrystalCard>
-                )}
-                
-                {tagsByDimension['interests']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Briefcase} title="Work & Projects" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['interests'].map((tag, i) => (
-                          <TagPill key={i} variant="amber">{tag.tag_value}</TagPill>
-                        ))}
-                      </div>
-                    </div>
-                  </CrystalCard>
-                )}
-
-                {tagsByDimension['general']?.length > 0 && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={Users} title="Preferences" />
-                      <div className="flex flex-wrap gap-2">
-                        {tagsByDimension['general'].map((tag, i) => (
-                          <TagPill key={i}>{tag.tag_value}</TagPill>
-                        ))}
-              </div>
-            </div>
-                  </CrystalCard>
-                )}
+                    </CrystalCard>
+                  );
+                })}
           </div>
             )}
 

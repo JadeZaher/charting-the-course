@@ -12,7 +12,7 @@ export interface ProfileTile {
   user_id: string;
   submission_id: string;
   tile_type: 'badge' | 'text' | 'chart' | 'list' | 'score' | 'custom';
-  dimension: 'personality' | 'strengths' | 'values' | 'interests' | 'growth' | null;
+  dimension: string | null;
   title: string;
   content: Record<string, unknown>;
   display_order: number;

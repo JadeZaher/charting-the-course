@@ -9,7 +9,7 @@ export type TileType = 'badge' | 'text' | 'chart' | 'list' | 'score' | 'custom';
 /**
  * Profile dimensions for organizing tiles
  */
-export type ProfileDimension = 'personality' | 'strengths' | 'values' | 'interests' | 'growth';
+export type ProfileDimension = string;
 
 /**
  * Profile tile structure for database insertion
@@ -201,8 +201,8 @@ function formatAnswerForDisplay(answer: unknown, element: any): string {
 /**
  * Get icon for a dimension
  */
-function getDimensionIcon(dimension: ProfileDimension): string {
-  const icons: Record<ProfileDimension, string> = {
+function getDimensionIcon(dimension: string): string {
+  const icons: Record<string, string> = {
     personality: 'Brain',
     strengths: 'Target',
     values: 'Heart',
@@ -422,17 +422,11 @@ function autoGenerateTilesFromSurvey(
   const tiles: ProfileTile[] = [];
   
   // Group answers by dimension for aggregation
-  const dimensionAnswers: Record<ProfileDimension, Array<{
+  const dimensionAnswers: Record<string, Array<{
     question: string;
     answer: string;
     element: any;
-  }>> = {
-    personality: [],
-    strengths: [],
-    values: [],
-    interests: [],
-    growth: []
-  };
+  }>> = {};
   
   // Collect all answers for a default "Quiz Responses" tile when no dimensions are specified
   const allAnswers: Array<{ question: string; answer: string; element: any }> = [];
@@ -463,7 +457,10 @@ function autoGenerateTilesFromSurvey(
     }
     
     // If question has profileDimension, group it
-    if (profileDimension && dimensionAnswers[profileDimension]) {
+    if (profileDimension) {
+      if (!dimensionAnswers[profileDimension]) {
+        dimensionAnswers[profileDimension] = [];
+      }
       dimensionAnswers[profileDimension].push({
         question: element.title || element.name,
         answer: formattedAnswer,
@@ -516,7 +513,7 @@ function autoGenerateTilesFromSurvey(
         title: element.tileTitle || element.title || element.name,
         content,
         display_order: displayOrder++,
-        is_visible: true
+        is_visible: element.defaultVisibility !== 'private'
       });
     }
     
@@ -548,7 +545,7 @@ function autoGenerateTilesFromSurvey(
                 source_answer: choiceValue
               },
               display_order: displayOrder++,
-              is_visible: true
+              is_visible: element.defaultVisibility !== 'private'
             });
           }
         }
@@ -576,7 +573,7 @@ function autoGenerateTilesFromSurvey(
   
   // Create aggregated dimension tiles (list type)
   let hasDimensionTiles = false;
-  for (const [dimension, answers] of Object.entries(dimensionAnswers) as [ProfileDimension, typeof dimensionAnswers['personality']][]) {
+  for (const [dimension, answers] of Object.entries(dimensionAnswers)) {
     if (answers.length > 0) {
       hasDimensionTiles = true;
       tiles.push({
@@ -627,15 +624,18 @@ function autoGenerateTilesFromSurvey(
 /**
  * Get human-readable title for a dimension
  */
-function getDimensionTitle(dimension: ProfileDimension): string {
-  const titles: Record<ProfileDimension, string> = {
+function getDimensionTitle(dimension: string): string {
+  const titles: Record<string, string> = {
     personality: 'Personality Traits',
     strengths: 'Key Strengths',
     values: 'Core Values',
     interests: 'Interests & Passions',
     growth: 'Growth Areas'
   };
-  return titles[dimension] || dimension;
+  return titles[dimension] || dimension
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 /**

@@ -24,11 +24,7 @@ import html2canvas from "html2canvas";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
 
 interface ProfileDimensions {
-  personality?: any;
-  strengths?: any;
-  values?: any;
-  interests?: any;
-  growth?: any;
+  [key: string]: any;
 }
 
 interface UserPrivacySettings {
