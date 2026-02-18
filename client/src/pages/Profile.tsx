@@ -8,8 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Edit, Save, X, CheckCircle, Clock, FileText, Loader2 as LoaderIcon,
-  Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles
+  Edit, Save, X, CheckCircle, Clock, FileText, Loader2 as LoaderIcon, Heart, Target, Brain, Briefcase, MapPin, TrendingUp,
+  Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
@@ -65,6 +65,23 @@ interface ProfileData {
   tags: UserTag[];
   privacy: UserPrivacySettings | null;
 }
+
+const DIMENSION_CONFIG: Record<string, { icon: React.ElementType, title: string }> = {
+  personality: { icon: Heart, title: "Personality" },
+  strengths: { icon: Sparkles, title: "Strengths" },
+  values: { icon: Target, title: "Values" },
+  interests: { icon: Briefcase, title: "Interests" },
+  growth: { icon: Brain, title: "Growth Areas" },
+  land_criteria: { icon: MapPin, title: "Land Criteria" },
+  project_resources: { icon: TrendingUp, title: "Project Resources" },
+};
+
+const getDimensionConfig = (dim: string) => {
+  return DIMENSION_CONFIG[dim] || {
+    icon: Sparkles,
+    title: dim.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+  };
+};
 
 export default function Profile() {
   const { user } = useSupabaseAuth();
@@ -694,6 +711,25 @@ export default function Profile() {
     return extractValues(dimData);
   };
 
+  const tilesByDimension = (profileTiles || []).reduce((acc, tile) => {
+    const dim = tile.dimension || 'general';
+    if (!acc[dim]) {
+      acc[dim] = [];
+    }
+    acc[dim].push(tile);
+    return acc;
+  }, {} as Record<string, ProfileTile[]>);
+
+  const dimensionOrder = Object.keys(DIMENSION_CONFIG);
+  const sortedDimensions = Object.keys(tilesByDimension).sort((a, b) => {
+    const indexA = dimensionOrder.indexOf(a);
+    const indexB = dimensionOrder.indexOf(b);
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b); // both are custom
+    if (indexA === -1) return 1; // custom dimensions at the end
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
   const DimensionCard = ({ 
     title, 
     description, 
@@ -904,33 +940,43 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Profile Insights Section */}
-          <Card data-testid="card-profile-insights">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                Profile Insights
-              </CardTitle>
-              <CardDescription>
-                Your personality, strengths, and interests based on quiz results
-                {profileTiles.some(t => !t.is_visible) && (
-                  <span className="text-xs ml-2">(Hidden tiles shown dimmed - hover to toggle visibility)</span>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingTiles ? (
-                <p className="text-muted-foreground text-center py-8">Loading insights...</p>
-              ) : (
-                <TileGrid 
-                  tiles={profileTiles} 
-                  isOwner={true}
-                  onToggleVisibility={handleToggleTileVisibility}
-                  showHidden={true}
-                />
-              )}
-            </CardContent>
-          </Card>
+          {/* Profile Insights Section - Grouped by Dimension */}
+          <div className="space-y-6">
+            {isLoadingTiles ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  <LoaderIcon className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  Loading insights...
+                </CardContent>
+              </Card>
+            ) : sortedDimensions.map(dim => {
+              const config = getDimensionConfig(dim);
+              const tiles = tilesByDimension[dim];
+              if (!tiles || tiles.length === 0) return null;
+
+              return (
+                <Card key={dim} data-testid={`card-dimension-${dim}`}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <config.icon className="h-5 w-5" />
+                      {config.title}
+                    </CardTitle>
+                    <CardDescription>
+                      Insights related to your {config.title.toLowerCase()}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TileGrid 
+                      tiles={tiles} 
+                      isOwner={true}
+                      onToggleVisibility={handleToggleTileVisibility}
+                      showHidden={true}
+                    />
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
           <Card>
             <CardHeader>
