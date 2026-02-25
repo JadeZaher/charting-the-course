@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Edit, Save, X, CheckCircle, Clock, FileText, Loader2 as LoaderIcon, Heart, Target, Brain, Briefcase, MapPin, TrendingUp,
-  Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles,
+  Edit, Save, X, CheckCircle, Clock, FileText, Loader2 as LoaderIcon,
+  Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
@@ -20,8 +20,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/supabase";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
+import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
 
 interface ProfileDimensions {
   [key: string]: any;
@@ -65,23 +65,6 @@ interface ProfileData {
   tags: UserTag[];
   privacy: UserPrivacySettings | null;
 }
-
-const DIMENSION_CONFIG: Record<string, { icon: React.ElementType, title: string }> = {
-  personality: { icon: Heart, title: "Personality" },
-  strengths: { icon: Sparkles, title: "Strengths" },
-  values: { icon: Target, title: "Values" },
-  interests: { icon: Briefcase, title: "Interests" },
-  growth: { icon: Brain, title: "Growth Areas" },
-  land_criteria: { icon: MapPin, title: "Land Criteria" },
-  project_resources: { icon: TrendingUp, title: "Project Resources" },
-};
-
-const getDimensionConfig = (dim: string) => {
-  return DIMENSION_CONFIG[dim] || {
-    icon: Sparkles,
-    title: dim.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-  };
-};
 
 export default function Profile() {
   const { user } = useSupabaseAuth();
@@ -711,7 +694,59 @@ export default function Profile() {
     return extractValues(dimData);
   };
 
-  const tilesByDimension = (profileTiles || []).reduce((acc, tile) => {
+  // Merge legacy badges and tags into tiles for unified display
+  const mergedTiles = useMemo(() => {
+    const legacyTiles: ProfileTile[] = [];
+    const timestamp = new Date().toISOString();
+
+    // Convert legacy badges to tiles
+    if (profileData?.badges) {
+      profileData.badges.forEach(badge => {
+        legacyTiles.push({
+          id: `legacy-badge-${badge.id}`,
+          user_id: user?.id || '',
+          submission_id: 'legacy',
+          tile_type: 'badge',
+          dimension: 'general',
+          title: badge.badge_name,
+          content: {
+            badge_key: badge.badge_key,
+            badge_description: badge.badge_description,
+            badge_category: badge.badge_category
+          },
+          display_order: 0,
+          is_visible: true,
+          created_at: timestamp,
+          updated_at: timestamp
+        });
+      });
+    }
+
+    // Convert legacy tags to list tiles (grouped by dimension)
+    if (profileData?.tags && profileData.tags.length > 0) {
+      // Simple grouping - in reality tags might not have dimension column in this interface
+      // so we'll put them in 'general' or try to infer
+      legacyTiles.push({
+        id: 'legacy-tags-general',
+        user_id: user?.id || '',
+        submission_id: 'legacy',
+        tile_type: 'list',
+        dimension: 'general',
+        title: 'Profile Tags',
+        content: {
+          items: profileData.tags.map(t => ({ label: t.tag_key, value: t.tag_value }))
+        },
+        display_order: 999,
+        is_visible: true,
+        created_at: timestamp,
+        updated_at: timestamp
+      });
+    }
+
+    return [...(profileTiles || []), ...legacyTiles];
+  }, [profileTiles, profileData?.badges, profileData?.tags, user?.id]);
+
+  const tilesByDimension = mergedTiles.reduce((acc, tile) => {
     const dim = tile.dimension || 'general';
     if (!acc[dim]) {
       acc[dim] = [];
@@ -720,7 +755,7 @@ export default function Profile() {
     return acc;
   }, {} as Record<string, ProfileTile[]>);
 
-  const dimensionOrder = Object.keys(DIMENSION_CONFIG);
+  const dimensionOrder = Object.keys(DIMENSION_CONFIGS);
   const sortedDimensions = Object.keys(tilesByDimension).sort((a, b) => {
     const indexA = dimensionOrder.indexOf(a);
     const indexB = dimensionOrder.indexOf(b);
@@ -729,59 +764,6 @@ export default function Profile() {
     if (indexB === -1) return -1;
     return indexA - indexB;
   });
-
-  const DimensionCard = ({ 
-    title, 
-    description, 
-    icon: Icon, 
-    dimension, 
-    color 
-  }: { 
-    title: string; 
-    description: string; 
-    icon: any; 
-    dimension: keyof ProfileDimensions; 
-    color: string;
-  }) => {
-    const tags = getTagsForDimension(dimension);
-    const isEmpty = tags.length === 0;
-
-    return (
-      <Card data-testid={`card-dimension-${dimension}`}>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${color}`}>
-              <Icon className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-lg">{title}</CardTitle>
-              <CardDescription className="text-sm">{description}</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isEmpty ? (
-            <div className="py-8 text-center space-y-2">
-              <p className="text-muted-foreground text-sm">
-                No {title.toLowerCase()} data yet
-              </p>
-              <p className="text-muted-foreground text-xs">
-                Complete quizzes with {title.toLowerCase()} questions to fill this dimension
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag, index) => (
-                <Badge key={index} variant="secondary" data-testid={`tag-${dimension}-${index}`}>
-                  {String(tag)}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  ArrowLeft, Sparkles, Heart, Target, Brain, 
-  MapPin, Globe, Linkedin, Twitter, Github, 
-  Briefcase, Compass, Share2, TrendingUp,
+  ArrowLeft, Sparkles, Heart, Target, Loader2 as LoaderIcon,
+  Globe, Linkedin, Twitter, Github, Compass, Share2, 
   ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
   Users, Award
 } from "lucide-react";
@@ -15,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
 import { calculateAlignment, createAlignmentTile } from "@/lib/alignment";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
+import { iconMap } from "@/components/profile/tiles/BadgeTile";
 
 interface PublicProfileData {
   profile: {
@@ -31,6 +32,7 @@ interface PublicProfileData {
     profile_tags: string[];
     share_slug: string | null;
     created_at: string;
+    profile_dimensions?: Record<string, any>;
   } | null;
   badges: Array<{
     id: string;
@@ -614,13 +616,12 @@ export default function PublicProfile() {
       }
       
       let tags: any[] = [];
-      if (privacy?.show_tags !== false) {
-        const { data: tagData } = await supabase
-          .from('user_tags')
-          .select('*')
-          .eq('user_id', userId);
-        tags = tagData || [];
-      }
+      // Always fetch tags to ensure legacy sections are visible during migration
+      const { data: tagData } = await supabase
+        .from('user_tags')
+        .select('*')
+        .eq('user_id', userId);
+      tags = tagData || [];
       
       // Agreements feature - tables may not exist yet
       let agreements: any[] = [];
@@ -693,6 +694,103 @@ export default function PublicProfile() {
     }
   };
 
+  // Calculate alignment if viewer is logged in and not viewing own profile
+  const isViewingOwnProfile = user?.id === data?.profile?.id;
+  const alignment = (!isViewingOwnProfile && viewerTiles && viewerTiles.length > 0 && data?.tiles && data.tiles.length > 0)
+    ? calculateAlignment(viewerTiles, data.tiles)
+    : null;
+    
+  const alignmentTile = alignment ? createAlignmentTile(alignment) : null;
+  
+  // Helper to extract values from profile dimensions JSON
+  const extractValues = (obj: any): string[] => {
+    const results: string[] = [];
+    if (typeof obj === 'string' || typeof obj === 'number') {
+      results.push(String(obj));
+    } else if (Array.isArray(obj)) {
+      obj.forEach(item => results.push(...extractValues(item)));
+    } else if (obj && typeof obj === 'object') {
+      Object.values(obj).forEach(value => {
+        results.push(...extractValues(value));
+      });
+    }
+    return results;
+  };
+
+  // Merge legacy badges and tags into tiles for unified display
+  const mergedTiles = useMemo(() => {
+    if (!data?.profile) return [];
+
+    // Legacy badges are no longer converted to tiles for this view.
+    // The "Badges & Achievements" section will now only show tile-based badges.
+    return [...(data.tiles || [])];
+  }, [data]);
+
+  // Convert legacy tags to tiles grouped by dimension
+  const legacyTilesByDimension = useMemo(() => {
+    const tilesByDim: Record<string, ProfileTile[]> = {};
+    const timestamp = new Date().toISOString();
+    
+    // Helper to add tiles
+    const addTile = (dim: string, items: any[], titleOverride?: string) => {
+      if (!tilesByDim[dim]) tilesByDim[dim] = [];
+      
+      tilesByDim[dim].push({
+        id: `legacy-tile-${dim}-${tilesByDim[dim].length}`,
+        user_id: data?.profile?.id || '',
+        submission_id: 'legacy',
+        tile_type: 'list',
+        dimension: dim,
+        title: titleOverride || 'Key Traits',
+        content: {
+          items: items.map(t => ({ 
+            label: t.tag_key || t.tag_value, 
+            value: t.tag_key ? t.tag_value : undefined 
+          }))
+        },
+        display_order: 999,
+        is_visible: true,
+        created_at: timestamp,
+        updated_at: timestamp
+      });
+    };
+
+    const tags = data?.tags || [];
+    
+    // If we have tags from the user_tags table, use them
+    if (tags.length > 0) {
+      const grouped = tags.reduce((acc, tag) => {
+        const dim = tag.dimension || 'general';
+        if (!acc[dim]) acc[dim] = [];
+        acc[dim].push(tag);
+        return acc;
+      }, {} as Record<string, typeof tags>);
+      
+      Object.entries(grouped).forEach(([dim, items]) => addTile(dim, items, getDimensionConfig(dim).title));
+      return tilesByDim;
+    }
+
+    // Fallback: Try to extract from profile_dimensions if user_tags is empty (likely due to RLS)
+    
+    // Priority 2: Fallback to profile_dimensions if user_tags is empty (likely due to RLS)
+    const dimensions = data?.profile?.profile_dimensions;
+    if (dimensions && Object.keys(dimensions).length > 0) {
+      Object.entries(dimensions).forEach(([dim, content]) => {
+        const values = extractValues(content);
+        if (values.length > 0) {
+          const items = values.map((val, i) => ({
+            tag_key: val,
+            tag_value: val
+          }));
+          addTile(dim, items, getDimensionConfig(dim).title);
+        }
+      });
+      return tilesByDim;
+    }
+
+    return {};
+  }, [data?.tags, data?.profile]);
+
   // Loading
   if (isLoading) {
     return (
@@ -731,49 +829,34 @@ export default function PublicProfile() {
   const displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Anonymous';
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
   
-  const tagsByDimension = data.tags.reduce((acc, tag) => {
-    const dim = tag.dimension || 'general';
-    if (!acc[dim]) acc[dim] = [];
-    acc[dim].push(tag);
+  const allTiles = mergedTiles;
+  const badgeTiles = allTiles.filter(t => t.tile_type === 'badge');
+  const insightTiles = allTiles.filter(t => t.tile_type !== 'badge');
+
+  const displayInsightTiles = alignmentTile ? [alignmentTile, ...insightTiles] : insightTiles;
+  const tilesByDimension = (displayInsightTiles || []).reduce((acc, tile) => {
+    const dim = tile.dimension || 'general';
+    if (!acc[dim]) {
+      acc[dim] = [];
+    }
+    acc[dim].push(tile);
     return acc;
-  }, {} as Record<string, typeof data.tags>);
+  }, {} as Record<string, ProfileTile[]>);
 
-  const hasBadges = privacy?.show_badges !== false && data.badges.length > 0;
-  const hasTags = privacy?.show_tags !== false && data.tags.length > 0;
-  const hasQuizResults = privacy?.show_quiz_results !== false && data.quizResults.length > 0;
+  const dimensionOrder = Object.keys(DIMENSION_CONFIGS);
+  const sortedDimensions = Object.keys(tilesByDimension).sort((a, b) => {
+    const indexA = dimensionOrder.indexOf(a);
+    const indexB = dimensionOrder.indexOf(b);
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b); // both are custom
+    if (indexA === -1) return 1; // custom dimensions at the end
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+  const showBadgesSection = badgeTiles.length > 0;
+  const showInsightsSection = displayInsightTiles.length > 0;
   const hasSocialLinks = profile.social_links && Object.values(profile.social_links).some(v => v);
-  const hasTiles = data.tiles && data.tiles.length > 0;
+  const hasLegacyTiles = Object.keys(legacyTilesByDimension).length > 0;
   
-  // Calculate alignment if viewer is logged in and not viewing own profile
-  const isViewingOwnProfile = user?.id === profile.id;
-  const alignment = (!isViewingOwnProfile && viewerTiles && viewerTiles.length > 0 && data.tiles.length > 0)
-    ? calculateAlignment(viewerTiles, data.tiles)
-    : null;
-  const alignmentTile = alignment ? createAlignmentTile(alignment) : null;
-  const displayTiles = alignmentTile 
-    ? [alignmentTile, ...data.tiles] 
-    : data.tiles;
-
-  // Configuration for known dimensions to maintain styling
-  const getDimensionConfig = (dim: string) => {
-    const configs: Record<string, { icon: any, title: string, variant: "default" | "cyan" | "emerald" | "amber" | "rose" }> = {
-      personality: { icon: Heart, title: "Personality", variant: "rose" },
-      strengths: { icon: Sparkles, title: "Primary Skills", variant: "emerald" },
-      interests: { icon: Briefcase, title: "Work & Projects", variant: "amber" },
-      values: { icon: Target, title: "Core Values", variant: "cyan" },
-      growth: { icon: Brain, title: "Growth Focus", variant: "emerald" },
-      general: { icon: Users, title: "Preferences", variant: "default" },
-      land_criteria: { icon: MapPin, title: "Land Criteria", variant: "emerald" },
-      project_resources: { icon: TrendingUp, title: "Project Resources", variant: "amber" },
-    };
-
-    return configs[dim] || {
-      icon: Sparkles, // Default icon for new dimensions
-      title: dim.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), // "land_criteria" -> "Land Criteria"
-      variant: "default"
-    };
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 relative overflow-hidden">
       {/* Aurora background */}
@@ -830,15 +913,19 @@ export default function PublicProfile() {
                   )}
                   
                   {/* Badge icons row */}
-                  {hasBadges && (
+                  {badgeTiles.length > 0 && (
                     <div className="flex items-center justify-center sm:justify-start gap-1 mb-3 flex-wrap">
-                      {data.badges.slice(0, 6).map(badge => (
-                        <span key={badge.id} className="text-xl" title={badge.badge_name}>
-                          {badge.badge_icon || '🏅'}
-                        </span>
-                      ))}
-                      {data.badges.length > 6 && (
-                        <span className="text-xs text-white/40 ml-1">+{data.badges.length - 6}</span>
+                      {badgeTiles.slice(0, 6).map(tile => {
+                        const iconKey = (tile.content.badge_icon as string || 'award').toLowerCase();
+                        const IconComponent = iconMap[iconKey] || Award;
+                        return (
+                          <span key={tile.id} className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10" title={tile.title}>
+                            <IconComponent className="w-3.5 h-3.5 text-cyan-400" />
+                          </span>
+                        );
+                      })}
+                      {badgeTiles.length > 6 && (
+                        <span className="text-xs text-white/40 ml-1">+{badgeTiles.length - 6}</span>
                       )}
                     </div>
                   )}
@@ -895,191 +982,72 @@ export default function PublicProfile() {
           </div>
         </CrystalCard>
 
-        {/* Profile Insights (Tiles) Section */}
-        {hasTiles && (
+        {/* Badges Section */}
+        {showBadgesSection && (
           <CrystalCard>
             <div className="p-4">
-              <SectionLabel icon={Sparkles} title="Profile Insights" />
-              {alignment && (
-                <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30">
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-cyan-300">{alignment.score}%</div>
-                    <div>
-                      <p className="text-sm font-medium text-white">Your Alignment</p>
-                      <p className="text-xs text-white/60">{alignment.insights[0]}</p>
+              <SectionLabel icon={Award} title={`Badges & Achievements (${badgeTiles.length})`} />
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                
+                {/* New Badge Tiles */}
+                {badgeTiles.map(tile => {
+                  const iconKey = (tile.content.badge_icon as string || 'award').toLowerCase();
+                  const IconComponent = iconMap[iconKey] || Award;
+                  
+                  return (
+                    <div
+                      key={tile.id}
+                      className="flex flex-col items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:scale-105 cursor-pointer"
+                      title={(tile.content.badge_description as string) || tile.title}
+                    >
+                      <IconComponent className="w-8 h-8 text-cyan-400 mb-1" />
+                      <span className="text-[10px] text-white/70 text-center line-clamp-2">{tile.title}</span>
                     </div>
-                  </div>
-                </div>
-              )}
-              <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_>div>div]:bg-white/5 [&_>div>div]:border-white/10 [&_>div>div]:text-white [&_h3]:text-white [&_p]:text-white/70">
-                <TileGrid tiles={displayTiles} isOwner={false} />
+                  );
+                })}
               </div>
             </div>
           </CrystalCard>
         )}
 
-        {/* Profile Content Section */}
-        {/* Tags Grid */}
-            {hasTags && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {hasSocialLinks && (
-                  <CrystalCard>
-                    <div className="p-4">
-                      <SectionLabel icon={ExternalLink} title="External Links" />
-                      <div className="space-y-2">
-                        {profile.social_links?.website && (
-                          <a href={profile.social_links.website} target="_blank" rel="noopener noreferrer" 
-                             className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-white/70 hover:text-white text-sm transition-colors">
-                            <Globe className="h-4 w-4 text-cyan-400" />
-                            Website
-                          </a>
-                        )}
-                        {profile.social_links?.linkedin && (
-                          <a href={profile.social_links.linkedin} target="_blank" rel="noopener noreferrer"
-                             className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-white/70 hover:text-white text-sm transition-colors">
-                            <Linkedin className="h-4 w-4 text-cyan-400" />
-                            LinkedIn
-                          </a>
-                )}
-              </div>
-                    </div>
-                  </CrystalCard>
-                )}
-
-                {Object.entries(tagsByDimension).map(([dim, tags]) => {
-                  // Skip values/growth if they are displayed in the Alignment section below
-                  // Remove this check if you want them in the grid instead
-                  if (dim === 'values' || dim === 'growth') return null;
-                  
-                  const config = getDimensionConfig(dim);
-                  return (
-                    <CrystalCard key={dim}>
-                      <div className="p-4">
-                        <SectionLabel icon={config.icon} title={config.title} />
-                        <div className="flex flex-wrap gap-2">
-                          {tags.map((tag, i) => (
-                            <TagPill key={i} variant={config.variant}>{tag.tag_value}</TagPill>
-                          ))}
-                        </div>
-                      </div>
-                    </CrystalCard>
-                  );
-                })}
-          </div>
-            )}
-
-            {/* Badges Section */}
-            {hasBadges && (
+        {/* Profile Insights Section - Grouped by Dimension */}
+        {showInsightsSection && (
+          <div className="space-y-4">
+            {isLoading ? (
               <CrystalCard>
-                <div className="p-4">
-                  <SectionLabel icon={Award} title={`Badges & Achievements (${data.badges.length})`} />
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                    {data.badges.map(badge => (
-                <div
-                  key={badge.id}
-                        className="flex flex-col items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:scale-105 cursor-pointer"
-                        title={badge.badge_description || badge.badge_name}
-                      >
-                        <span className="text-2xl mb-1">{badge.badge_icon || '🏅'}</span>
-                        <span className="text-[10px] text-white/70 text-center line-clamp-2">{badge.badge_name}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="p-8 text-center text-white/60">
+                  <LoaderIcon className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  Loading insights...
                 </div>
               </CrystalCard>
-            )}
+            ) : sortedDimensions.map(dim => {
+              const config = getDimensionConfig(dim);
+              const tiles = tilesByDimension[dim];
+              if (!tiles || tiles.length === 0) return null;
 
+              return (
+                <CrystalCard key={dim}>
+                  <div className="p-4">
+                    <SectionLabel icon={config.icon} title={config.title} />
+                    <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_>div>div]:bg-white/5 [&_>div>div]:border-white/10 [&_>div>div]:text-white [&_h3]:text-white [&_p]:text-white/70">
+                      <TileGrid 
+                        tiles={tiles} 
+                        isOwner={false}
+                      />
+                    </div>
+                  </div>
+                </CrystalCard>
+              );
+            })}
+          </div>
+        )}
+        
             {/* Empty State */}
-            {!hasBadges && !hasTags && !hasTiles && !profile.bio && (
+            {!showBadgesSection && !hasLegacyTiles && !showInsightsSection && !profile.bio && (
               <CrystalCard>
                 <div className="p-8 text-center">
                   <Compass className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />
                   <p className="text-white/50">This user hasn't added any public information yet.</p>
-                </div>
-              </CrystalCard>
-            )}
-
-        {/* Alignment Content Section */}
-            <CrystalCard featured>
-              <div className="p-6">
-                <SectionLabel icon={Target} title="Values & Alignment" />
-                <p className="text-white/60 text-sm mb-6">
-                  Shared values and principles this user has expressed agreement with through quizzes.
-                </p>
-                
-                {/* Values Tags */}
-                {tagsByDimension['values']?.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium text-white/70 mb-3">Core Values</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {tagsByDimension['values'].map((tag, i) => (
-                        <TagPill key={i} variant="cyan">{tag.tag_value}</TagPill>
-              ))}
-            </div>
-                  </div>
-                )}
-
-                {/* Growth Areas */}
-                {tagsByDimension['growth']?.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-white/70 mb-3">Growth Focus</h4>
-            <div className="flex flex-wrap gap-2">
-                      {tagsByDimension['growth'].map((tag, i) => (
-                        <TagPill key={i} variant="emerald">{tag.tag_value}</TagPill>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CrystalCard>
-
-            {/* Alignment Statements from Agreements */}
-            {data.agreements && data.agreements.length > 0 && (
-              <CrystalCard>
-                <div className="p-6">
-                  <SectionLabel icon={Heart} title="Alignment Statements" />
-                  <p className="text-white/60 text-sm mb-4">
-                    Values and principles this user has expressed agreement with through quizzes.
-                  </p>
-                  <div className="space-y-3">
-                    {data.agreements.map((agreement) => (
-                      <div 
-                        key={agreement.id} 
-                        className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-500/30 transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 mt-0.5">
-                            <Heart className="h-4 w-4 text-cyan-400/60" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white/90 leading-relaxed">
-                              {agreement.agreement_statement}
-                            </p>
-                            {agreement.quiz_title && (
-                              <p className="text-xs text-cyan-400/70 mt-2">
-                                From: {agreement.quiz_title}
-                              </p>
-                            )}
-                            {agreement.agreement_category && (
-                              <span className="inline-block mt-2 px-2 py-0.5 text-xs rounded-md bg-cyan-500/10 text-cyan-300/70 border border-cyan-500/20">
-                                {agreement.agreement_category}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CrystalCard>
-            )}
-
-            {/* Empty State */}
-            {(!tagsByDimension['values']?.length && !tagsByDimension['growth']?.length && (!data.agreements || data.agreements.length === 0)) && (
-              <CrystalCard>
-                <div className="p-8 text-center">
-                  <Target className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />
-                  <p className="text-white/50">No alignment data yet. Complete quizzes to discover shared values!</p>
                 </div>
               </CrystalCard>
             )}

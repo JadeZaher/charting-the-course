@@ -19,7 +19,7 @@ interface BadgeTileProps {
   };
 }
 
-const iconMap: Record<string, typeof Award> = {
+export const iconMap: Record<string, typeof Award> = {
   award: Award,
   star: Star,
   trophy: Trophy,
