@@ -52,8 +52,11 @@ export function useRecommendJourney(ethos_id: string) {
 // ── user progress ─────────────────────────────────────────────────────────────
 
 async function fetchUserProgress(ethos_id: string): Promise<UserJourneyProgress | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Use getSession() (local storage read) instead of getUser() (network call)
+  // to avoid ERR_CONNECTION_CLOSED failures during auth state transitions
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  const user = session.user;
 
   const { data, error } = await supabase
     .from('user_journey_progress')

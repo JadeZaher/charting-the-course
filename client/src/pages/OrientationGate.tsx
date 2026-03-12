@@ -21,12 +21,13 @@ export default function OrientationGate() {
 
   const { data: pathData, isLoading: pathLoading } = useDetectPath(ethosId);
   const { data: recData, isLoading: recLoading } = useRecommendJourney(ethosId);
-  const { data: existingProgress } = useUserProgress(ethosId);
+  const { data: existingProgress, isLoading: progressLoading } = useUserProgress(ethosId);
   const saveProgress = useSaveProgress();
 
   const [selectedMap, setSelectedMap] = useState<JourneyMap | null>(null);
 
-  const isLoading = ethosLoading || pathLoading || recLoading;
+  // Include progressLoading so skeletons stay up until we know if already completed
+  const isLoading = ethosLoading || pathLoading || recLoading || progressLoading;
   const allMaps: JourneyMap[] = recData
     ? [recData.recommended, ...recData.alternatives]
     : [];
