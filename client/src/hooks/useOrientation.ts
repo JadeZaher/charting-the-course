@@ -11,7 +11,8 @@ async function detectPath(ethos_id: string): Promise<OrientationPath> {
     body: { ethos_id },
   });
   if (error) throw new Error(error.message);
-  return data as OrientationPath;
+  // Edge Functions wrap responses in { data: T } via successResponse()
+  return (data as { data: OrientationPath }).data;
 }
 
 export function useDetectPath(ethos_id: string) {
@@ -36,7 +37,8 @@ async function recommendJourney(ethos_id: string): Promise<RecommendJourneyRespo
     body: { ethos_id },
   });
   if (error) throw new Error(error.message);
-  return data as RecommendJourneyResponse;
+  // Edge Functions wrap responses in { data: T } via successResponse()
+  return (data as { data: RecommendJourneyResponse }).data;
 }
 
 export function useRecommendJourney(ethos_id: string) {
@@ -90,7 +92,8 @@ async function saveProgress(params: SaveProgressParams): Promise<UserJourneyProg
     body: params,
   });
   if (error) throw new Error(error.message);
-  return data as UserJourneyProgress;
+  // Edge Functions wrap responses in { data: T } via successResponse()
+  return (data as { data: UserJourneyProgress }).data;
 }
 
 export function useSaveProgress() {

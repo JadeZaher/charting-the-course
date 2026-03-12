@@ -97,12 +97,12 @@ export default function OrientationGate() {
         <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/40 border">
           <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium mb-1.5">
-              Your detected path:{' '}
+            <div className="text-sm font-medium mb-1.5 flex items-center gap-2 flex-wrap">
+              <span>Your detected path:</span>
               <Badge variant={pathData.path === 'ready' ? 'default' : 'secondary'}>
                 {pathData.path === 'ready' ? '⚡ Ready to Join' : '🔭 Explorer'}
               </Badge>
-            </p>
+            </div>
             {pathData.signals.length > 0 && (
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 {pathData.signals.map((s, i) => (

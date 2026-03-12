@@ -26,7 +26,8 @@ async function fetchEthosList(sector?: string, limit = 20, offset = 0): Promise<
   });
 
   if (error) throw new Error(error.message || 'Failed to fetch ETHOS list');
-  return data as EthosListResponse;
+  // Edge Functions wrap responses in { data: T } via successResponse()
+  return (data as { data: EthosListResponse }).data;
 }
 
 async function fetchEthosDetail(slug: string): Promise<EthosDetailResponse> {
@@ -35,7 +36,8 @@ async function fetchEthosDetail(slug: string): Promise<EthosDetailResponse> {
   });
 
   if (error) throw new Error(error.message || 'Failed to fetch ETHOS detail');
-  return data as EthosDetailResponse;
+  // Edge Functions wrap responses in { data: T } via successResponse()
+  return (data as { data: EthosDetailResponse }).data;
 }
 
 export function useEthosList(sector?: string, limit = 20, offset = 0) {
