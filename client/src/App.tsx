@@ -23,6 +23,12 @@ import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
 import MyQuizHistory from "@/pages/MyQuizHistory";
 import NotFound from "@/pages/not-found";
+// Orientation Portal pages
+import EthosDiscover from "@/pages/EthosDiscover";
+import EthosDetail from "@/pages/EthosDetail";
+import OrientationGate from "@/pages/OrientationGate";
+import OrientationJourney from "@/pages/OrientationJourney";
+import OrientationComplete from "@/pages/OrientationComplete";
 
 // Loading spinner component
 function LoadingScreen() {
@@ -159,7 +165,24 @@ function AuthenticatedRoutes() {
       <Route path="/my-quiz-history">
         <ProtectedRoute component={MyQuizHistory} />
       </Route>
-      
+
+      {/* Orientation Portal - all authenticated users */}
+      <Route path="/discover">
+        <ProtectedRoute component={EthosDiscover} />
+      </Route>
+      <Route path="/ethos/:slug">
+        <ProtectedRoute component={EthosDetail} />
+      </Route>
+      <Route path="/orientation/:ethos_slug/complete">
+        <ProtectedRoute component={OrientationComplete} />
+      </Route>
+      <Route path="/orientation/:ethos_slug/journey">
+        <ProtectedRoute component={OrientationJourney} />
+      </Route>
+      <Route path="/orientation/:ethos_slug">
+        <ProtectedRoute component={OrientationGate} />
+      </Route>
+
       {/* Admin panel - requires canManageUsers permission */}
       <Route path="/admin">
         <ProtectedRoute component={AdminPanel} requiredPermission="canManageUsers" />

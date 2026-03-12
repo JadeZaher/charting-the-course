@@ -40,6 +40,11 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
+    title: "Discover",
+    url: "/discover",
+    icon: Compass,
+  },
+  {
     title: "Quizzes",
     url: "/quizzes",
     icon: BookOpen,
@@ -152,15 +157,22 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <MenuItemWithTooltip 
-                    item={item} 
-                    isActive={location === item.url || (item.url === '/dashboard' && location === '/')}
-                    isCollapsed={isCollapsed}
-                  />
-                </SidebarMenuItem>
-              ))}
+              {menuItems.map((item) => {
+                let isActive = location === item.url;
+                if (item.url === '/dashboard') isActive = isActive || location === '/';
+                if (item.url === '/discover') {
+                  isActive = isActive || location.startsWith('/ethos/') || location.startsWith('/orientation/');
+                }
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <MenuItemWithTooltip
+                      item={item}
+                      isActive={isActive}
+                      isCollapsed={isCollapsed}
+                    />
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
