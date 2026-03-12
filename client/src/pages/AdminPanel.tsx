@@ -10,8 +10,10 @@ import {
   Search, BookOpen, Users, ListChecks, Award,
   Shield, Loader2, Plus, Edit, Trash2, Eye, Upload, X, Image,
   UserPlus, UsersRound, ClipboardList, Mail, Send, CheckCircle,
-  Globe, Building2, Network, UserMinus, Bot, MessageSquare, ToggleLeft, ToggleRight
+  Globe, Building2, Network, UserMinus, Bot, MessageSquare, ToggleLeft, ToggleRight,
+  Settings, Map as MapIcon
 } from "lucide-react";
+import { APP_SETTINGS_KEYS } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
@@ -469,6 +471,11 @@ export default function AdminPanel() {
   const [omnibotSessionTypeFilter, setOmnibotSessionTypeFilter] = useState("all");
   const [omnibotSearch, setOmnibotSearch] = useState("");
 
+  // Settings tab state
+  const [ctcMapForm, setCtcMapForm] = useState({ prezi_url: "", description: "" });
+  const [ctcMapLoaded, setCtcMapLoaded] = useState(false);
+  const [savingCtcMap, setSavingCtcMap] = useState(false);
+
   // Query hooks - must be called before any conditional returns
   const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
@@ -544,6 +551,41 @@ export default function AdminPanel() {
     },
     enabled: isAdmin,
   });
+
+  // CTC Map settings query
+  useQuery({
+    queryKey: ['admin-ctc-map-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        `settings-get?key=${APP_SETTINGS_KEYS.ctcMap}`
+      );
+      if (error) throw error;
+      const value = data?.data?.value || { prezi_url: "", description: "" };
+      if (!ctcMapLoaded) {
+        setCtcMapForm({ prezi_url: value.prezi_url || "", description: value.description || "" });
+        setCtcMapLoaded(true);
+      }
+      return value;
+    },
+    enabled: !!(isAdmin || canManageContent),
+  });
+
+  const saveCtcMapSettings = async () => {
+    setSavingCtcMap(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("settings-update", {
+        body: { key: APP_SETTINGS_KEYS.ctcMap, value: ctcMapForm },
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['admin-ctc-map-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['ctc-map-settings'] });
+      toast({ title: "Map settings saved!" });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingCtcMap(false);
+    }
+  };
 
   // Badge mutations
   const createBadgeMutation = useMutation({
@@ -1233,6 +1275,12 @@ export default function AdminPanel() {
             <TabsTrigger value="omnibot" data-testid="tab-omnibot">
               <Bot className="h-4 w-4 mr-2" />
               OmniBot
+            </TabsTrigger>
+          )}
+          {(isAdmin || canManageContent) && (
+            <TabsTrigger value="settings" data-testid="tab-settings">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
             </TabsTrigger>
           )}
         </TabsList>
@@ -2665,6 +2713,61 @@ export default function AdminPanel() {
             </div>
           )}
         </TabsContent>
+
+        {/* Settings Tab */}
+        {(isAdmin || canManageContent) && (
+          <TabsContent value="settings" className="mt-6">
+            <div className="space-y-6 max-w-2xl">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <MapIcon className="h-5 w-5 text-primary" />
+                    <div>
+                      <CardTitle>Map Settings</CardTitle>
+                      <CardDescription>
+                        Configure the CTC Goals Map displayed on the Map page
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ctc-prezi-url">CTC Map Prezi URL</Label>
+                    <Input
+                      id="ctc-prezi-url"
+                      value={ctcMapForm.prezi_url}
+                      onChange={(e) => setCtcMapForm((f) => ({ ...f, prezi_url: e.target.value }))}
+                      placeholder="https://prezi.com/p/your-map-id/"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Paste the Prezi share link. It will be automatically converted to an embed URL.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ctc-description">Map Description</Label>
+                    <Textarea
+                      id="ctc-description"
+                      value={ctcMapForm.description}
+                      onChange={(e) =>
+                        setCtcMapForm((f) => ({ ...f, description: e.target.value }))
+                      }
+                      placeholder="Brief description shown above the map..."
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={saveCtcMapSettings} disabled={savingCtcMap}>
+                      {savingCtcMap ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      Save Map Settings
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

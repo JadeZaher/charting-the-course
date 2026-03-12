@@ -7,9 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Search, Users, Loader2, Edit, History, 
-  Shield, UserCheck, Archive, ArchiveRestore
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Search, Users, Loader2, Edit, History,
+  Shield, UserCheck, Archive, ArchiveRestore,
+  Download, Mail, CheckSquare, XSquare
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
@@ -134,6 +145,12 @@ export default function UserManagement() {
   const [permissionFilter, setPermissionFilter] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Batch selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkArchiveConfirm, setBulkArchiveConfirm] = useState(false);
+  const [bulkRestoreConfirm, setBulkRestoreConfirm] = useState(false);
+  const [bulkActionPending, setBulkActionPending] = useState(false);
 
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-users-management'],
@@ -268,6 +285,101 @@ export default function UserManagement() {
     archiveUserMutation.mutate({ userId: user.id, archive: !user.isArchived });
   };
 
+  // ——— Batch selection helpers ———
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredUsers.length && filteredUsers.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredUsers.map((u) => u.id)));
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected =
+    filteredUsers.length > 0 && selectedIds.size === filteredUsers.length;
+  const someSelected = selectedIds.size > 0;
+
+  const handleBulkArchive = async (archive: boolean) => {
+    setBulkActionPending(true);
+    const ids = Array.from(selectedIds);
+    for (const userId of ids) {
+      await supabase.from("profiles").update({ is_archived: archive }).eq("id", userId);
+    }
+    setBulkActionPending(false);
+    setSelectedIds(new Set());
+    setBulkArchiveConfirm(false);
+    setBulkRestoreConfirm(false);
+    queryClient.invalidateQueries({ queryKey: ["admin-users-management"] });
+    toast({
+      title: archive
+        ? `${ids.length} user${ids.length !== 1 ? "s" : ""} archived`
+        : `${ids.length} user${ids.length !== 1 ? "s" : ""} restored`,
+    });
+  };
+
+  // ——— CSV export ———
+  const handleExportCSV = () => {
+    const rows = filteredUsers.map((u) => ({
+      username: u.username || "",
+      name: getDisplayName(u),
+      role: u.roleName,
+      permissions: u.permissions.join("|"),
+      archived: u.isArchived ? "yes" : "no",
+      quiz_count: u.quiz_count ?? 0,
+      joined: new Date(u.created_at).toLocaleDateString(),
+    }));
+
+    const headers = ["username", "name", "role", "permissions", "archived", "quiz_count", "joined"];
+    const csv = [
+      headers.join(","),
+      ...rows.map((r) =>
+        headers
+          .map((h) => {
+            const v = String((r as any)[h]);
+            return v.includes(",") ? `"${v}"` : v;
+          })
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: `Exported ${rows.length} users as CSV` });
+  };
+
+  // ——— Resend invite ———
+  const handleResendInvite = async (user: UserProfile) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-users", {
+        body: { action: "resend_invite", user_id: user.id },
+      });
+      if (error) throw error;
+      toast({
+        title: "Invite resent",
+        description: `An invitation email has been sent to ${user.username || getDisplayName(user)}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Resend failed",
+        description: err.message || "Could not resend invite.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -345,6 +457,10 @@ export default function UserManagement() {
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -379,6 +495,46 @@ export default function UserManagement() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Bulk action toolbar */}
+          {someSelected && (
+            <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-lg bg-muted border text-sm">
+              <span className="font-medium">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                {showArchived ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBulkRestoreConfirm(true)}
+                    disabled={bulkActionPending}
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5 mr-1.5" />
+                    Restore Selected
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBulkArchiveConfirm(true)}
+                    disabled={bulkActionPending}
+                  >
+                    <Archive className="h-3.5 w-3.5 mr-1.5" />
+                    Archive Selected
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  <XSquare className="h-3.5 w-3.5 mr-1.5" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -388,6 +544,13 @@ export default function UserManagement() {
               <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Legacy Role</TableHead>
                     <TableHead>Permissions</TableHead>
@@ -398,6 +561,13 @@ export default function UserManagement() {
                 <TableBody>
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id} className={user.isArchived ? 'opacity-60' : ''}>
+                      <TableCell className="w-10">
+                        <Checkbox
+                          checked={selectedIds.has(user.id)}
+                          onCheckedChange={() => toggleSelectUser(user.id)}
+                          aria-label={`Select ${getDisplayName(user)}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
@@ -454,6 +624,15 @@ export default function UserManagement() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            title="Resend Invite Email"
+                            onClick={() => handleResendInvite(user)}
+                            data-testid={`button-invite-${user.id}`}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             title={user.isArchived ? "Restore User" : "Archive User"}
                             onClick={() => handleArchiveUser(user)}
                             data-testid={`button-archive-${user.id}`}
@@ -485,6 +664,51 @@ export default function UserManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Archive Confirmation */}
+      <AlertDialog open={bulkArchiveConfirm} onOpenChange={setBulkArchiveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {selectedIds.size} users?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These users will be archived and hidden from active lists. You can restore them later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleBulkArchive(true)}
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={bulkActionPending}
+            >
+              {bulkActionPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Archive All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Restore Confirmation */}
+      <AlertDialog open={bulkRestoreConfirm} onOpenChange={setBulkRestoreConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore {selectedIds.size} users?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These users will be restored to active status.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleBulkArchive(false)}
+              disabled={bulkActionPending}
+            >
+              {bulkActionPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Restore All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">

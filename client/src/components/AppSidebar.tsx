@@ -29,6 +29,8 @@ import {
   Loader2,
   Users,
   Compass,
+  MapPin,
+  Map,
 } from "lucide-react";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -54,6 +56,11 @@ const menuItems = [
     url: "/profile",
     icon: User,
   },
+  {
+    title: "Map",
+    url: "/map",
+    icon: MapPin,
+  },
 ];
 
 const facilitatorItems = [
@@ -69,6 +76,11 @@ const adminItems = [
     title: "Manage Users",
     url: "/admin/users",
     icon: Users,
+  },
+  {
+    title: "Journey Maps",
+    url: "/admin/journey-maps",
+    icon: Map,
   },
   {
     title: "Admin Panel",
@@ -206,6 +218,8 @@ export function AppSidebar() {
                   let isActive = false;
                   if (item.url === '/admin/users') {
                     isActive = location.startsWith('/admin/users');
+                  } else if (item.url === '/admin/journey-maps') {
+                    isActive = location.startsWith('/admin/journey-maps');
                   } else if (item.url === '/admin') {
                     isActive = location === '/admin';
                   } else {

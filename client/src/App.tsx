@@ -23,6 +23,9 @@ import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
 import MyQuizHistory from "@/pages/MyQuizHistory";
 import NotFound from "@/pages/not-found";
+import MapPage from "@/pages/MapPage";
+import JourneyMapList from "@/pages/JourneyMapList";
+import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
 import EthosDiscover from "@/pages/EthosDiscover";
 import EthosDetail from "@/pages/EthosDetail";
@@ -181,6 +184,22 @@ function AuthenticatedRoutes() {
       </Route>
       <Route path="/orientation/:ethos_slug">
         <ProtectedRoute component={OrientationGate} />
+      </Route>
+
+      {/* Map page - all authenticated users */}
+      <Route path="/map">
+        <ProtectedRoute component={MapPage} />
+      </Route>
+
+      {/* Journey Map Builder - requires canManageContent */}
+      <Route path="/admin/journey-maps/new">
+        <ProtectedRoute component={JourneyMapEditor} requiredPermission="canManageContent" />
+      </Route>
+      <Route path="/admin/journey-maps/:id">
+        <ProtectedRoute component={JourneyMapEditor} requiredPermission="canManageContent" />
+      </Route>
+      <Route path="/admin/journey-maps">
+        <ProtectedRoute component={JourneyMapList} requiredPermission="canManageContent" />
       </Route>
 
       {/* Admin panel - requires canManageUsers permission */}
