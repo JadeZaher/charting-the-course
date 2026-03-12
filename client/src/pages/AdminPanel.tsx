@@ -6,10 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { RoleBadge } from "@/components/RoleBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, BookOpen, Users, ListChecks, Award, 
+import {
+  Search, BookOpen, Users, ListChecks, Award,
   Shield, Loader2, Plus, Edit, Trash2, Eye, Upload, X, Image,
-  UserPlus, UsersRound, ClipboardList, Mail, Send, CheckCircle
+  UserPlus, UsersRound, ClipboardList, Mail, Send, CheckCircle,
+  Globe, Building2, Network, UserMinus, Bot, MessageSquare, ToggleLeft, ToggleRight
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
@@ -32,6 +33,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 type Role = "Admin" | "Facilitator" | "Contributor" | "Viewer";
@@ -384,7 +396,7 @@ async function uploadBadgeIcon(file: File, badgeKey: string): Promise<string> {
 
 export default function AdminPanel() {
   // All hooks must be called at the top, before any conditional returns
-  const { isAdmin, canManageUsers, isLoading: roleLoading } = usePermissions();
+  const { isAdmin, canManageUsers, canManageContent, isLoading: roleLoading } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -437,6 +449,26 @@ export default function AdminPanel() {
     role: 'viewer',
   });
 
+  // ETHOS management state
+  const [isEthosDialogOpen, setIsEthosDialogOpen] = useState(false);
+  const [editingEthos, setEditingEthos] = useState<any>(null);
+  const [ethosDeleteTarget, setEthosDeleteTarget] = useState<any>(null);
+  const [ethosHardDeleteTarget, setEthosHardDeleteTarget] = useState<any>(null);
+  const [ethosUserSearch, setEthosUserSearch] = useState("");
+  const [ethosUserResults, setEthosUserResults] = useState<any[]>([]);
+  const [memberForm, setMemberForm] = useState({ user_id: "", role_in_ethos: "member", member_type: "member" });
+  const defaultEthosForm = {
+    name: "", slug: "", tagline: "", sector: "", ethos_type: "team",
+    description: "", mission: "", external_url: "", image_url: "",
+    parent_ethos_id: "", is_public: true, is_active: true,
+  };
+  const [ethosForm, setEthosForm] = useState(defaultEthosForm);
+
+  // OmniBot session history state
+  const [selectedOmnibotSession, setSelectedOmnibotSession] = useState<any>(null);
+  const [omnibotSessionTypeFilter, setOmnibotSessionTypeFilter] = useState("all");
+  const [omnibotSearch, setOmnibotSearch] = useState("");
+
   // Query hooks - must be called before any conditional returns
   const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
@@ -466,6 +498,51 @@ export default function AdminPanel() {
     queryKey: ['admin-assignments'],
     queryFn: fetchAssignments,
     enabled: isAdmin || canManageUsers,
+  });
+
+  // ETHOS query
+  const { data: ethosListData = [], isLoading: ethosLoading, refetch: refetchEthos } = useQuery({
+    queryKey: ['admin-ethos'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('ethos-list', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      return res.data?.data || [];
+    },
+    enabled: isAdmin || canManageContent,
+  });
+
+  // ETHOS members query (for the currently editing ethos)
+  const { data: ethosMembers = [], refetch: refetchEthosMembers } = useQuery({
+    queryKey: ['admin-ethos-members', editingEthos?.id],
+    queryFn: async () => {
+      if (!editingEthos?.id) return [];
+      const { data, error } = await supabase
+        .from('ethos_members')
+        .select('*, profiles(id, username, display_name, avatar_url)')
+        .eq('ethos_id', editingEthos.id)
+        .order('joined_at');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!editingEthos?.id,
+  });
+
+  // OmniBot sessions query
+  const { data: omnibotSessions = [], isLoading: omnibotLoading } = useQuery({
+    queryKey: ['admin-omnibot-sessions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('omnibot_sessions')
+        .select('*, profiles(username, display_name)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isAdmin,
   });
 
   // Badge mutations
@@ -577,6 +654,164 @@ export default function AdminPanel() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  // ETHOS mutations
+  const createEthosMutation = useMutation({
+    mutationFn: async (data: typeof defaultEthosForm) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('ethos-create', {
+        body: { ...data, parent_ethos_id: data.parent_ethos_id || null },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw new Error(res.data?.error || res.error.message);
+      return res.data?.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
+      setEditingEthos(data);
+      toast({ title: "ETHOS Created", description: "New ETHOS has been created. Add members below." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateEthosMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof defaultEthosForm> }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('ethos-update', {
+        body: { id, ...data, parent_ethos_id: data.parent_ethos_id || null },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw new Error(res.data?.error || res.error.message);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
+      toast({ title: "ETHOS Updated", description: "Changes saved." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteEthosMutation = useMutation({
+    mutationFn: async ({ id, hard }: { id: string; hard: boolean }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('ethos-delete', {
+        body: { id, hard },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw new Error(res.data?.error || res.error.message);
+      return res.data?.data;
+    },
+    onSuccess: (_, { hard }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
+      setEthosDeleteTarget(null);
+      setEthosHardDeleteTarget(null);
+      if (editingEthos?.id === ethosDeleteTarget?.id || editingEthos?.id === ethosHardDeleteTarget?.id) {
+        setEditingEthos(null);
+        setIsEthosDialogOpen(false);
+      }
+      toast({ title: hard ? "ETHOS Deleted" : "ETHOS Deactivated", description: hard ? "ETHOS permanently removed." : "ETHOS set to inactive." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addEthosMemberMutation = useMutation({
+    mutationFn: async (data: { ethos_id: string; user_id: string; role_in_ethos: string; member_type: string }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('ethos-add-member', {
+        body: data,
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw new Error(res.data?.error || res.error.message);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      refetchEthosMembers();
+      setMemberForm({ user_id: "", role_in_ethos: "member", member_type: "member" });
+      setEthosUserSearch("");
+      setEthosUserResults([]);
+      toast({ title: "Member Added" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removeEthosMemberMutation = useMutation({
+    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('ethos-remove-member', {
+        body: { ethos_id, user_id },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw new Error(res.data?.error || res.error.message);
+    },
+    onSuccess: () => {
+      refetchEthosMembers();
+      toast({ title: "Member Removed" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const searchEthosUsers = async (query: string) => {
+    if (!query || query.length < 2) { setEthosUserResults([]); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('ethos-list-users', {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    // Client-side filter since invoke doesn't support query params easily
+    const all = res.data?.data || [];
+    const q = query.toLowerCase();
+    setEthosUserResults(all.filter((u: any) =>
+      u.username?.toLowerCase().includes(q) ||
+      u.display_name?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q)
+    ).slice(0, 10));
+  };
+
+  const openCreateEthos = () => {
+    setEditingEthos(null);
+    setEthosForm(defaultEthosForm);
+    setIsEthosDialogOpen(true);
+  };
+
+  const openEditEthos = (ethos: any) => {
+    setEditingEthos(ethos);
+    setEthosForm({
+      name: ethos.name || "",
+      slug: ethos.slug || "",
+      tagline: ethos.tagline || "",
+      sector: ethos.sector || "",
+      ethos_type: ethos.ethos_type || "team",
+      description: ethos.description || "",
+      mission: ethos.mission || "",
+      external_url: ethos.external_url || "",
+      image_url: ethos.image_url || "",
+      parent_ethos_id: ethos.parent_ethos_id || "",
+      is_public: ethos.is_public ?? true,
+      is_active: ethos.is_active ?? true,
+    });
+    setIsEthosDialogOpen(true);
+  };
+
+  const handleSaveEthos = () => {
+    if (!ethosForm.name || !ethosForm.slug) {
+      toast({ title: "Error", description: "Name and slug are required", variant: "destructive" });
+      return;
+    }
+    if (editingEthos?.id) {
+      updateEthosMutation.mutate({ id: editingEthos.id, data: ethosForm });
+    } else {
+      createEthosMutation.mutate(ethosForm);
+    }
+  };
 
   // Quiz assignment mutations
   const assignQuizMutation = useMutation({
@@ -988,6 +1223,18 @@ export default function AdminPanel() {
             <Award className="h-4 w-4 mr-2" />
             Badges
           </TabsTrigger>
+          {(isAdmin || canManageContent) && (
+            <TabsTrigger value="ethos" data-testid="tab-ethos">
+              <Globe className="h-4 w-4 mr-2" />
+              ETHOS
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="omnibot" data-testid="tab-omnibot">
+              <Bot className="h-4 w-4 mr-2" />
+              OmniBot
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Users Tab */}
@@ -2014,6 +2261,409 @@ export default function AdminPanel() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ETHOS Tab */}
+        <TabsContent value="ethos" className="mt-6">
+          {!(isAdmin || canManageContent) ? (
+            <Card><CardContent className="p-12 text-center text-muted-foreground">Access Denied — manage_content permission required.</CardContent></Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>ETHOS Management</CardTitle>
+                    <CardDescription>Create and manage ETHOS organizations ({ethosListData.length} total)</CardDescription>
+                  </div>
+                  <Button onClick={openCreateEthos}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create ETHOS
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {ethosLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                ) : ethosListData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Globe className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No ETHOS organizations yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">Click "Create ETHOS" to add the first one</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Name</th>
+                          <th className="text-left p-3 font-medium hidden md:table-cell">Slug</th>
+                          <th className="text-left p-3 font-medium hidden lg:table-cell">Sector</th>
+                          <th className="text-left p-3 font-medium hidden lg:table-cell">Type</th>
+                          <th className="text-left p-3 font-medium hidden md:table-cell">Members</th>
+                          <th className="text-left p-3 font-medium">Active</th>
+                          <th className="text-right p-3 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ethosListData.map((ethos: any) => (
+                          <tr key={ethos.id} className="border-t hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium">{ethos.name}</td>
+                            <td className="p-3 text-muted-foreground hidden md:table-cell">{ethos.slug}</td>
+                            <td className="p-3 hidden lg:table-cell">
+                              {ethos.sector ? <Badge variant="outline" className="capitalize">{ethos.sector}</Badge> : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="p-3 hidden lg:table-cell capitalize text-muted-foreground">{ethos.ethos_type || "—"}</td>
+                            <td className="p-3 hidden md:table-cell text-muted-foreground">{ethos.member_count ?? "—"}</td>
+                            <td className="p-3">
+                              <Switch
+                                checked={ethos.is_active}
+                                onCheckedChange={(checked) =>
+                                  updateEthosMutation.mutate({ id: ethos.id, data: { is_active: checked } })
+                                }
+                              />
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openEditEthos(ethos)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="text-destructive hover:text-destructive"
+                                  onClick={() => setEthosDeleteTarget(ethos)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ETHOS Create/Edit Dialog */}
+          <Dialog open={isEthosDialogOpen} onOpenChange={(open) => { setIsEthosDialogOpen(open); if (!open) { setEditingEthos(null); setEthosForm(defaultEthosForm); } }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingEthos ? `Edit: ${editingEthos.name}` : "Create New ETHOS"}</DialogTitle>
+                <DialogDescription>Fill in the organization details</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Name *</Label>
+                    <Input value={ethosForm.name} onChange={(e) => {
+                      const name = e.target.value;
+                      const slug = ethosForm.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                      setEthosForm({ ...ethosForm, name, slug: editingEthos ? ethosForm.slug : slug });
+                    }} placeholder="Open Tech Commons" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Slug *</Label>
+                    <Input value={ethosForm.slug} onChange={(e) => setEthosForm({ ...ethosForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} placeholder="open-tech-commons" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tagline</Label>
+                  <Input value={ethosForm.tagline} onChange={(e) => setEthosForm({ ...ethosForm, tagline: e.target.value })} placeholder="Short tagline" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Sector</Label>
+                    <Select value={ethosForm.sector} onValueChange={(v) => setEthosForm({ ...ethosForm, sector: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select sector" /></SelectTrigger>
+                      <SelectContent>
+                        {["ecology","technology","economics","culture","governance","other"].map(s => (
+                          <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ETHOS Type</Label>
+                    <Select value={ethosForm.ethos_type} onValueChange={(v) => setEthosForm({ ...ethosForm, ethos_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {["team","project","ecosystem","hub"].map(t => (
+                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea value={ethosForm.description} onChange={(e) => setEthosForm({ ...ethosForm, description: e.target.value })} rows={3} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Mission</Label>
+                  <Textarea value={ethosForm.mission} onChange={(e) => setEthosForm({ ...ethosForm, mission: e.target.value })} rows={2} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>External URL</Label>
+                    <Input value={ethosForm.external_url} onChange={(e) => setEthosForm({ ...ethosForm, external_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Image URL</Label>
+                    <Input value={ethosForm.image_url} onChange={(e) => setEthosForm({ ...ethosForm, image_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Parent ETHOS</Label>
+                  <Select value={ethosForm.parent_ethos_id || "none"} onValueChange={(v) => setEthosForm({ ...ethosForm, parent_ethos_id: v === "none" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="None (top-level)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None (top-level)</SelectItem>
+                      {ethosListData.filter((e: any) => e.id !== editingEthos?.id).map((e: any) => (
+                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={ethosForm.is_public} onCheckedChange={(v) => setEthosForm({ ...ethosForm, is_public: v })} id="ethos-public" />
+                    <Label htmlFor="ethos-public">Is Public</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={ethosForm.is_active} onCheckedChange={(v) => setEthosForm({ ...ethosForm, is_active: v })} id="ethos-active" />
+                    <Label htmlFor="ethos-active">Is Active</Label>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end pt-2 border-t">
+                  <Button variant="outline" onClick={() => setIsEthosDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSaveEthos} disabled={createEthosMutation.isPending || updateEthosMutation.isPending}>
+                    {(createEthosMutation.isPending || updateEthosMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingEthos ? "Save Changes" : "Create ETHOS"}
+                  </Button>
+                </div>
+
+                {/* Members sub-panel (only shown when editing) */}
+                {editingEthos && (
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      <h3 className="font-semibold">Members</h3>
+                      <Badge variant="outline">{ethosMembers.length}</Badge>
+                    </div>
+
+                    {/* Member list */}
+                    {ethosMembers.length > 0 && (
+                      <div className="space-y-2">
+                        {ethosMembers.map((m: any) => (
+                          <div key={m.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                            <div>
+                              <span className="font-medium">{m.profiles?.username || m.profiles?.display_name || m.user_id}</span>
+                              <span className="text-muted-foreground text-sm ml-2">{m.role_in_ethos}</span>
+                              <Badge variant="outline" className="ml-2 text-xs">{m.member_type}</Badge>
+                            </div>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                              onClick={() => removeEthosMemberMutation.mutate({ ethos_id: editingEthos.id, user_id: m.user_id })}
+                              disabled={removeEthosMemberMutation.isPending}>
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add member */}
+                    <div className="space-y-3 p-3 border rounded bg-muted/20">
+                      <p className="text-sm font-medium">Add Member</p>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Search by username or email..."
+                          value={ethosUserSearch}
+                          onChange={(e) => { setEthosUserSearch(e.target.value); searchEthosUsers(e.target.value); }}
+                        />
+                        {ethosUserResults.length > 0 && (
+                          <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
+                            {ethosUserResults.map((u: any) => (
+                              <button key={u.id} type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                                onClick={() => { setMemberForm({ ...memberForm, user_id: u.id }); setEthosUserSearch(u.username || u.display_name || u.email); setEthosUserResults([]); }}>
+                                {u.username || u.display_name} {u.email && <span className="text-muted-foreground">({u.email})</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Role in ETHOS</Label>
+                          <Input placeholder="e.g. steward" value={memberForm.role_in_ethos}
+                            onChange={(e) => setMemberForm({ ...memberForm, role_in_ethos: e.target.value })} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Member Type</Label>
+                          <Select value={memberForm.member_type} onValueChange={(v) => setMemberForm({ ...memberForm, member_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["member","steward","founder","pool"].map(t => (
+                                <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <Button size="sm" disabled={!memberForm.user_id || addEthosMemberMutation.isPending}
+                        onClick={() => addEthosMemberMutation.mutate({ ethos_id: editingEthos.id, ...memberForm })}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Soft-delete confirmation */}
+          <AlertDialog open={!!ethosDeleteTarget} onOpenChange={(open) => !open && setEthosDeleteTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deactivate ETHOS?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  "{ethosDeleteTarget?.name}" will be set to inactive. It won't appear publicly but data is preserved.
+                  To permanently delete, deactivate first then confirm hard delete.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button variant="outline" onClick={() => {
+                  setEthosHardDeleteTarget(ethosDeleteTarget);
+                  setEthosDeleteTarget(null);
+                }}>Hard Delete Instead</Button>
+                <AlertDialogAction onClick={() => deleteEthosMutation.mutate({ id: ethosDeleteTarget.id, hard: false })}>
+                  Deactivate
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Hard-delete confirmation */}
+          <AlertDialog open={!!ethosHardDeleteTarget} onOpenChange={(open) => !open && setEthosHardDeleteTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Permanently Delete ETHOS?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove "{ethosHardDeleteTarget?.name}" and all associated data. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteEthosMutation.mutate({ id: ethosHardDeleteTarget.id, hard: true })}>
+                  Delete Permanently
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </TabsContent>
+
+        {/* OmniBot Session History Tab */}
+        <TabsContent value="omnibot" className="mt-6">
+          {!isAdmin ? (
+            <Card><CardContent className="p-12 text-center text-muted-foreground">Admin access required.</CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Session List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="h-5 w-5" /> OmniBot Sessions
+                  </CardTitle>
+                  <div className="space-y-2 pt-2">
+                    <Input placeholder="Search by username..." value={omnibotSearch}
+                      onChange={(e) => setOmnibotSearch(e.target.value)} />
+                    <Select value={omnibotSessionTypeFilter} onValueChange={setOmnibotSessionTypeFilter}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="orientation">Orientation</SelectItem>
+                        <SelectItem value="intake">Intake</SelectItem>
+                        <SelectItem value="ongoing">Ongoing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {omnibotLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                  ) : (
+                    <div className="divide-y max-h-[60vh] overflow-y-auto">
+                      {omnibotSessions
+                        .filter((s: any) => omnibotSessionTypeFilter === "all" || s.session_type === omnibotSessionTypeFilter)
+                        .filter((s: any) => !omnibotSearch || s.profiles?.username?.toLowerCase().includes(omnibotSearch.toLowerCase()))
+                        .map((session: any) => {
+                          const msgs: any[] = Array.isArray(session.messages) ? session.messages : [];
+                          const lastMsg = msgs[msgs.length - 1];
+                          return (
+                            <button key={session.id} type="button"
+                              className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedOmnibotSession?.id === session.id ? 'bg-muted' : ''}`}
+                              onClick={() => setSelectedOmnibotSession(session)}>
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-sm">{session.profiles?.username || "Unknown User"}</span>
+                                <Badge variant="outline" className="text-xs capitalize">{session.session_type}</Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {new Date(session.created_at).toLocaleDateString()} · {msgs.length} messages
+                              </div>
+                              {lastMsg && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  {lastMsg.content?.substring(0, 80)}
+                                </p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      {omnibotSessions.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">No sessions found</div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Conversation Thread */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    {selectedOmnibotSession ? `Conversation — ${selectedOmnibotSession.profiles?.username || "Unknown"}` : "Select a session"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!selectedOmnibotSession ? (
+                    <div className="text-center py-16 text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                      <p>Click a session on the left to view the conversation</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                      {(Array.isArray(selectedOmnibotSession.messages) ? selectedOmnibotSession.messages : []).map((msg: any, i: number) => (
+                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                            msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                          }`}>
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            {msg.timestamp && (
+                              <p className={`text-xs mt-1 opacity-60`}>
+                                {new Date(msg.timestamp).toLocaleTimeString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
