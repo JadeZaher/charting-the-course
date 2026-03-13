@@ -5,7 +5,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, ArrowRight, ExternalLink, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, Users, Map } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 
 export default function EthosDetail() {
   const [, params] = useRoute('/ethos/:slug');
@@ -13,6 +15,16 @@ export default function EthosDetail() {
   const slug = params?.slug ?? '';
 
   const { data, isLoading, isError } = useEthosDetail(slug);
+
+  const ethosId = data?.ethos?.id;
+  const { data: journeyMaps = [] } = useQuery({
+    queryKey: ['ethos-journey-maps', ethosId],
+    queryFn: async () => {
+      const { data: mapsResp } = await supabase.functions.invoke(`journey-maps-list?ethos_id=${ethosId}&is_active=true`);
+      return mapsResp?.data?.maps || [];
+    },
+    enabled: !!ethosId,
+  });
 
   if (isLoading) {
     return (
@@ -142,6 +154,33 @@ export default function EthosDetail() {
           <ExternalLink className="h-3.5 w-3.5" />
           Visit external site
         </a>
+      )}
+
+      {/* Journey Maps */}
+      {journeyMaps.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Map className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold">Journey Maps</h2>
+          </div>
+          <div className="space-y-2.5">
+            {journeyMaps.map((map: any) => (
+              <div key={map.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:border-primary/40 transition-all">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{map.title}</p>
+                  {map.description && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{map.description}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{map.step_count} step{map.step_count !== 1 ? 's' : ''}</p>
+                </div>
+                <Button size="sm" className="ml-4 flex-shrink-0" onClick={() => navigate(`/orientation/${slug}`)}>
+                  Begin Journey
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Begin orientation CTA */}
