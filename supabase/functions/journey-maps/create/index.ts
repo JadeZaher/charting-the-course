@@ -1,5 +1,5 @@
-// Edge Function: ethos/add-member
-// POST — Upsert a user into ethos_members. Requires canManageContent.
+// Edge Function: journey-maps/create
+// POST — Insert new journey map. Requires canManageContent.
 
 import { createSupabaseClient, createServiceRoleClient, getAuthUser, isAdminOrFacilitator, handleCors } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from "../../_shared/response.ts";
@@ -17,31 +17,40 @@ Deno.serve(async (req) => {
     if (!canManage) return forbiddenResponse("Admin or facilitator access required");
 
     const body = await req.json();
-    const { ethos_id, user_id, role_in_ethos, member_type } = body;
+    const {
+      title, slug, description, ethos_id,
+      sector_alignment, role_types, min_alignment_score,
+      content_sequence, exit_package, is_active, is_default,
+    } = body;
 
-    if (!ethos_id || !user_id) {
-      return errorResponse("ethos_id and user_id are required", undefined, 400);
+    if (!title || !slug) {
+      return errorResponse("title and slug are required", undefined, 400);
     }
 
     const adminSupabase = createServiceRoleClient();
 
     const { data, error } = await adminSupabase
-      .from("ethos_members")
-      .upsert(
-        {
-          ethos_id,
-          user_id,
-          role_in_ethos: role_in_ethos || null,
-          member_type: member_type || "member",
-        },
-        { onConflict: "ethos_id,user_id" }
-      )
-      .select("*, profiles(username, display_name, avatar_url)")
+      .from("journey_maps")
+      .insert({
+        title,
+        slug,
+        description: description || null,
+        ethos_id: ethos_id || null,
+        sector_alignment: sector_alignment || [],
+        role_types: role_types || [],
+        min_alignment_score: min_alignment_score || 0,
+        content_sequence: content_sequence || [],
+        exit_package: exit_package || {},
+        is_active: is_active ?? true,
+        is_default: is_default ?? false,
+        created_by: user.id,
+      })
+      .select()
       .single();
 
     if (error) {
-      console.error("Error adding member:", error);
-      return errorResponse("Failed to add member", error.message, 500);
+      console.error("Error creating journey map:", error);
+      return errorResponse("Failed to create journey map", error.message, 500);
     }
 
     return successResponse(data, 201);

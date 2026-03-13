@@ -1,10 +1,48 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS" };
-const ok = (data: unknown, status = 200) => new Response(JSON.stringify({ data }), { status, headers: { ...cors, "Content-Type": "application/json" } });
-const err = (error: string, details?: unknown, status = 400) => new Response(JSON.stringify({ error, details }), { status, headers: { ...cors, "Content-Type": "application/json" } });
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  // (implementation deployed via MCP)
-  return err("Use deployed version", undefined, 501);
+// Edge Function: ethos/list-users
+// GET — Search profiles for member assignment. Requires canManageContent.
+// Query params: ?search=foo&limit=20
+
+import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, handleCors } from "../../_shared/auth.ts";
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from "../../_shared/response.ts";
+
+Deno.serve(async (req) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  try {
+    const supabase = createSupabaseClient();
+    const user = await getAuthUser(req, supabase);
+    if (!user) return unauthorizedResponse("Authentication required");
+
+    const canManage = await isAdminOrFacilitator(user.id, supabase);
+    if (!canManage) return forbiddenResponse("Admin or facilitator access required");
+
+    const url = new URL(req.url);
+    const search = url.searchParams.get("search") || "";
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
+
+    let query = supabase
+      .from("profiles")
+      .select("id, username, display_name, email, avatar_url")
+      .limit(limit)
+      .order("username");
+
+    if (search) {
+      query = query.or(
+        `username.ilike.%${search}%,display_name.ilike.%${search}%,email.ilike.%${search}%`
+      );
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching users:", error);
+      return errorResponse("Failed to fetch users", error.message, 500);
+    }
+
+    return successResponse({ users: data || [] });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return errorResponse("Internal server error", error instanceof Error ? error.message : String(error), 500);
+  }
 });
