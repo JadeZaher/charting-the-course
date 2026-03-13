@@ -1,51 +1,47 @@
-// Edge Function: Get App Setting
-// Any authenticated user can read settings (RLS enforced)
+// Edge Function: settings-get
+// Any authenticated user can read settings. Uses service role to bypass RLS.
+// Query params: ?key=ctc_map
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createSupabaseClient, getAuthUser, corsHeaders, handleCors } from "../../_shared/auth.ts";
-import { successResponse, errorResponse, unauthorizedResponse } from "../../_shared/response.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-serve(async (req) => {
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+};
+const ok = (data: unknown, status = 200) => new Response(JSON.stringify({ data }), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const fail = (error: string, details?: unknown, status = 400) => new Response(JSON.stringify({ error, details }), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
+function getUrl() { return Deno.env.get("SUPABASE_URL")!; }
+function getAnonKey() { return (Deno.env.get("ANON_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))!; }
+function getSvcKey() { return (Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!; }
+function anonClient() { return createClient(getUrl(), getAnonKey()); }
+function adminClient() { return createClient(getUrl(), getSvcKey(), { auth: { autoRefreshToken: false, persistSession: false } }); }
+
+async function getUser(req: Request) {
+  const auth = req.headers.get("Authorization");
+  if (!auth) return null;
+  const token = auth.replace("Bearer ", "");
+  const { data: { user }, error } = await anonClient().auth.getUser(token);
+  if (error || !user) return null;
+  return { id: user.id };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const supabase = createSupabaseClient();
-
-    const user = await getAuthUser(req, supabase);
-    if (!user) {
-      return unauthorizedResponse("Authentication required");
-    }
+    const user = await getUser(req);
+    if (!user) return fail("Authentication required", undefined, 401);
 
     const url = new URL(req.url);
     const key = url.searchParams.get("key");
+    if (!key) return fail("Missing required query parameter: key", undefined, 400);
 
-    if (!key) {
-      return errorResponse("Missing required query parameter: key", undefined, 400);
-    }
-
-    const { data, error } = await supabase
-      .from("app_settings")
-      .select("key, value, updated_at")
-      .eq("key", key)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching setting:", error);
-      return errorResponse("Failed to fetch setting", error.message, 500);
-    }
-
-    if (!data) {
-      return errorResponse(`Setting '${key}' not found`, undefined, 404);
-    }
-
-    return successResponse(data);
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    return errorResponse(
-      "Internal server error",
-      error instanceof Error ? error.message : String(error),
-      500
-    );
+    const { data, error } = await adminClient().from("app_settings").select("key, value, updated_at").eq("key", key).maybeSingle();
+    if (error) return fail("Failed to fetch setting", error.message, 500);
+    if (!data) return fail(`Setting '${key}' not found`, undefined, 404);
+    return ok(data);
+  } catch (e) {
+    return fail("Internal server error", e instanceof Error ? e.message : String(e), 500);
   }
 });

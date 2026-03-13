@@ -24,7 +24,7 @@ export async function sendOmniBotMessage(
     throw new Error(response.error.message || 'OmniBot request failed');
   }
 
-  return response.data as OmniBotResponse;
+  return response.data?.data as OmniBotResponse;
 }
 
 export function buildUserProfileSummary(tiles: { dimension?: string | null; content?: Record<string, unknown> }[]): string {

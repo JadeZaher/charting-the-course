@@ -1,48 +1,54 @@
-// Edge Function: ethos/list-users
-// GET — Search profiles for member assignment. Requires canManageContent.
-// Query params: ?search=foo&limit=20
+// Edge Function: ethos-list-users
+// GET — Search profiles for member assignment. Requires admin/facilitator.
+// Uses service role client to bypass profiles RLS.
+// Query params: ?search=foo&limit=50
 
-import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, handleCors } from "../../_shared/auth.ts";
-import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from "../../_shared/response.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS" };
+const ok = (data: unknown, status = 200) => new Response(JSON.stringify({ data }), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const fail = (error: string, details?: unknown, status = 400) => new Response(JSON.stringify({ error, details }), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+function getUrl() { return Deno.env.get("SUPABASE_URL")!; }
+function getAnonKey() { return (Deno.env.get("ANON_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))!; }
+function getSvcKey() { return (Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!; }
+function anonClient() { return createClient(getUrl(), getAnonKey()); }
+function adminClient() { return createClient(getUrl(), getSvcKey(), { auth: { autoRefreshToken: false, persistSession: false } }); }
+
+async function getUser(req: Request) {
+  const auth = req.headers.get("Authorization");
+  if (!auth) return null;
+  const token = auth.replace("Bearer ", "");
+  const { data: { user }, error } = await anonClient().auth.getUser(token);
+  if (error || !user) return null;
+  return { id: user.id };
+}
+async function canManage(userId: string): Promise<boolean> {
+  const { data } = await anonClient().rpc("is_admin_or_facilitator", { user_uuid: userId });
+  return data === true;
+}
 
 Deno.serve(async (req) => {
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
-
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const supabase = createSupabaseClient();
-    const user = await getAuthUser(req, supabase);
-    if (!user) return unauthorizedResponse("Authentication required");
-
-    const canManage = await isAdminOrFacilitator(user.id, supabase);
-    if (!canManage) return forbiddenResponse("Admin or facilitator access required");
+    const user = await getUser(req);
+    if (!user) return fail("Authentication required", undefined, 401);
+    if (!await canManage(user.id)) return fail("Admin or facilitator access required", undefined, 403);
 
     const url = new URL(req.url);
     const search = url.searchParams.get("search") || "";
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
 
-    let query = supabase
-      .from("profiles")
-      .select("id, username, display_name, email, avatar_url")
-      .limit(limit)
-      .order("username");
-
+    const sb = adminClient();
+    let query = sb.from("profiles").select("id, username, display_name, email, avatar_url").limit(limit).order("username");
     if (search) {
-      query = query.or(
-        `username.ilike.%${search}%,display_name.ilike.%${search}%,email.ilike.%${search}%`
-      );
+      query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
     const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching users:", error);
-      return errorResponse("Failed to fetch users", error.message, 500);
-    }
-
-    return successResponse({ users: data || [] });
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    return errorResponse("Internal server error", error instanceof Error ? error.message : String(error), 500);
+    if (error) return fail("Failed to fetch users", error.message, 500);
+    return ok({ users: data || [] });
+  } catch (e) {
+    return fail("Internal server error", e instanceof Error ? e.message : String(e), 500);
   }
 });

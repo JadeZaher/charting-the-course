@@ -40,7 +40,8 @@ export function OmniBotPanel({ context }: Props) {
     setIsLoading(true);
     try {
       const resp = await sendOmniBotMessage(newMsgs, context);
-      setMessages(m => [...m, resp.message]);
+      const botMsg = resp?.message ?? { role: 'assistant' as const, content: 'Sorry, I encountered an error. Please try again.' };
+      setMessages(m => [...m, botMsg]);
     } catch {
       setMessages(m => [
         ...m,
