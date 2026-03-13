@@ -11,6 +11,7 @@ import { ChoiceStep } from '@/components/orientation/ChoiceStep';
 import { ConfirmationStep } from '@/components/orientation/ConfirmationStep';
 import { ReflectionStep } from '@/components/orientation/ReflectionStep';
 import { AIConversationStep } from '@/components/orientation/AIConversationStep';
+import { SurveyStep } from '@/components/orientation/SurveyStep';
 import { OmniBotPanel } from '@/components/omnibot/OmniBotPanel';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -157,6 +158,9 @@ export default function OrientationJourney() {
             context={omnibotCtx}
             onComplete={handleStepComplete}
           />
+        )}
+        {currentStep.type === 'survey' && (
+          <SurveyStep step={currentStep} onComplete={handleStepComplete} />
         )}
       </div>
 

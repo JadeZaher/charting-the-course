@@ -35,7 +35,7 @@ export interface EthosMemberWithProfile {
 
 export interface JourneyStep {
   step: number;
-  type: 'video' | 'choice' | 'ai_conversation' | 'confirmation' | 'reflection';
+  type: 'video' | 'choice' | 'ai_conversation' | 'confirmation' | 'reflection' | 'survey';
   title: string;
   description?: string;
   video_url?: string;
@@ -46,6 +46,7 @@ export interface JourneyStep {
   ai_prompt_template?: string;
   confirmation_label?: string;
   reflection_prompt?: string;
+  quiz_id?: string;
 }
 
 export interface JourneyExitPackage {

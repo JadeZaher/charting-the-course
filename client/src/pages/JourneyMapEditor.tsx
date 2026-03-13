@@ -54,12 +54,13 @@ import {
   GitBranch,
   FileText,
   Loader2,
+  ClipboardList,
 } from "lucide-react";
 
 // ——————————————————————————————————————————————
 // Types
 // ——————————————————————————————————————————————
-type StepType = "video" | "choice" | "ai_conversation" | "confirmation" | "reflection";
+type StepType = "video" | "choice" | "ai_conversation" | "confirmation" | "reflection" | "survey";
 
 interface BranchCondition {
   dimension: string;
@@ -87,6 +88,7 @@ interface Step {
   session_type?: string;
   confirmation_label?: string;
   reflection_prompt?: string;
+  quiz_id?: string;
 }
 
 interface ExitPackageItem {
@@ -151,6 +153,8 @@ function makeDefaultStep(type: StepType): Step {
       return { ...base, confirmation_label: "" };
     case "reflection":
       return { ...base, reflection_prompt: "" };
+    case "survey":
+      return { ...base, quiz_id: "" };
   }
 }
 
@@ -160,6 +164,7 @@ const STEP_ICONS: Record<StepType, React.ElementType> = {
   ai_conversation: MessageSquare,
   confirmation: CheckSquare,
   reflection: FileText,
+  survey: ClipboardList,
 };
 
 const STEP_LABELS: Record<StepType, string> = {
@@ -168,21 +173,29 @@ const STEP_LABELS: Record<StepType, string> = {
   ai_conversation: "AI Conversation",
   confirmation: "Confirmation",
   reflection: "Reflection",
+  survey: "Survey / Quiz",
 };
 
 // ——————————————————————————————————————————————
 // Sortable Step Card
 // ——————————————————————————————————————————————
+interface QuizOption {
+  id: string;
+  title: string;
+}
+
 function SortableStepCard({
   step,
   index,
   onChange,
   onDelete,
+  quizzes,
 }: {
   step: Step;
   index: number;
   onChange: (updated: Step) => void;
   onDelete: () => void;
+  quizzes: QuizOption[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showBranch, setShowBranch] = useState(!!step.branch_condition);
@@ -412,6 +425,28 @@ function SortableStepCard({
                     placeholder="What should the user reflect on?"
                     rows={3}
                   />
+                </div>
+              )}
+
+              {step.type === "survey" && (
+                <div className="space-y-1.5">
+                  <Label>Quiz / Survey *</Label>
+                  <Select
+                    value={step.quiz_id || ""}
+                    onValueChange={(v) => update({ quiz_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a published quiz..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {quizzes.map((q) => (
+                        <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>
+                      ))}
+                      {quizzes.length === 0 && (
+                        <SelectItem value="" disabled>No published quizzes available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
@@ -652,6 +687,16 @@ export default function JourneyMapEditor() {
       const { data, error } = await supabase.functions.invoke("ethos-list");
       if (error) throw error;
       return (data?.data?.ethos || []) as EthosOption[];
+    },
+  });
+
+  const { data: quizList = [] } = useQuery<QuizOption[]>({
+    queryKey: ["quiz-list-editor"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("quiz-get-visible-quizzes");
+      if (error) throw error;
+      const quizzes = data?.data?.quizzes || data?.data || [];
+      return quizzes.map((q: any) => ({ id: q.id, title: q.title })) as QuizOption[];
     },
   });
 
@@ -913,6 +958,7 @@ export default function JourneyMapEditor() {
                     index={index}
                     onChange={(updated) => updateStep(step.id, updated)}
                     onDelete={() => deleteStep(step.id)}
+                    quizzes={quizList}
                   />
                 ))}
               </div>
