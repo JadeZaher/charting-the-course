@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -553,22 +553,23 @@ export default function AdminPanel() {
   });
 
   // CTC Map settings query
-  useQuery({
+  const { data: ctcMapData } = useQuery({
     queryKey: ['admin-ctc-map-settings'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke(
         `settings-get?key=${APP_SETTINGS_KEYS.ctcMap}`
       );
       if (error) throw error;
-      const value = data?.data?.value || { prezi_url: "", description: "" };
-      if (!ctcMapLoaded) {
-        setCtcMapForm({ prezi_url: value.prezi_url || "", description: value.description || "" });
-        setCtcMapLoaded(true);
-      }
-      return value;
+      return data?.data?.value || { prezi_url: "", description: "" };
     },
     enabled: !!(isAdmin || canManageContent),
   });
+  useEffect(() => {
+    if (ctcMapData && !ctcMapLoaded) {
+      setCtcMapForm({ prezi_url: ctcMapData.prezi_url || "", description: ctcMapData.description || "" });
+      setCtcMapLoaded(true);
+    }
+  }, [ctcMapData]);
 
   const saveCtcMapSettings = async () => {
     setSavingCtcMap(true);

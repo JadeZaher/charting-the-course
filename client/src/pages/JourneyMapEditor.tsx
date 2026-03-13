@@ -608,7 +608,7 @@ export default function JourneyMapEditor() {
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   // Fetch existing map when editing
-  const { isLoading: mapLoading } = useQuery({
+  const { isLoading: mapLoading, data: existingMap } = useQuery({
     queryKey: ["journey-map-edit", mapId],
     queryFn: async () => {
       if (!mapId) return null;
@@ -617,33 +617,33 @@ export default function JourneyMapEditor() {
       return data?.data;
     },
     enabled: !isNew,
-    onSuccess: (data: any) => {
-      if (!data) return;
-      setForm({
-        title: data.title || "",
-        slug: data.slug || "",
-        description: data.description || "",
-        ethos_id: data.ethos_id || "",
-        sector_alignment: (data.sector_alignment || []).join(", "),
-        role_types: (data.role_types || []).join(", "),
-        min_alignment_score: data.min_alignment_score || 0,
-        is_active: data.is_active ?? true,
-        is_default: data.is_default ?? false,
-      });
-      setSlugManuallyEdited(true); // Prevent overwriting slug on edit
-      // Load steps from content_sequence
-      const seq = Array.isArray(data.content_sequence) ? data.content_sequence : [];
-      setSteps(seq.map((s: any) => ({ ...s, id: s.id || generateId() })));
-      // Load exit package
-      const ep = data.exit_package || {};
-      setExitPackage({
-        documents: ep.documents || [],
-        tools: ep.tools || [],
-        next_steps: ep.next_steps || [],
-        omnibot_handoff_prompt: ep.omnibot_handoff_prompt || "",
-      });
-    },
   });
+  useEffect(() => {
+    if (!existingMap) return;
+    setForm({
+      title: existingMap.title || "",
+      slug: existingMap.slug || "",
+      description: existingMap.description || "",
+      ethos_id: existingMap.ethos_id || "",
+      sector_alignment: (existingMap.sector_alignment || []).join(", "),
+      role_types: (existingMap.role_types || []).join(", "),
+      min_alignment_score: existingMap.min_alignment_score || 0,
+      is_active: existingMap.is_active ?? true,
+      is_default: existingMap.is_default ?? false,
+    });
+    setSlugManuallyEdited(true); // Prevent overwriting slug on edit
+    // Load steps from content_sequence
+    const seq = Array.isArray(existingMap.content_sequence) ? existingMap.content_sequence : [];
+    setSteps(seq.map((s: any) => ({ ...s, id: s.id || generateId() })));
+    // Load exit package
+    const ep = existingMap.exit_package || {};
+    setExitPackage({
+      documents: ep.documents || [],
+      tools: ep.tools || [],
+      next_steps: ep.next_steps || [],
+      omnibot_handoff_prompt: ep.omnibot_handoff_prompt || "",
+    });
+  }, [existingMap]);
 
   // Fetch ETHOS for select
   const { data: ethosList = [] } = useQuery<EthosOption[]>({
