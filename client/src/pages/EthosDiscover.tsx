@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useEthosList } from '@/hooks/useEthos';
 import { EthosCard } from '@/components/ethos/EthosCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Globe } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useToast } from '@/hooks/use-toast';
 
 const SECTORS = ['all', 'ecology', 'technology', 'economics', 'culture', 'governance'];
 const LIMIT = 12;
 
 export default function EthosDiscover() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { isAdmin, canAccessDiscover, isLoading: permLoading } = usePermissions();
   const [sector, setSector] = useState<string>('all');
   const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    if (permLoading) return;
+    if (!isAdmin && !canAccessDiscover) {
+      toast({ title: "You don't have access to this page yet.", variant: 'destructive' });
+      setLocation('/dashboard');
+    }
+  }, [isAdmin, canAccessDiscover, permLoading]);
 
   const { data, isLoading, isError } = useEthosList(
     sector === 'all' ? undefined : sector,

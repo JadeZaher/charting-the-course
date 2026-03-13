@@ -72,6 +72,7 @@ interface UserProfile {
   roleName: string;
   permissions: Permission[];
   isArchived: boolean;
+  canAccessDiscover: boolean;
   email?: string;
   quiz_count?: number;
 }
@@ -89,7 +90,8 @@ async function fetchUsers(): Promise<UserProfile[]> {
       profile_visibility,
       created_at,
       permissions,
-      is_archived
+      is_archived,
+      can_access_discover
     `)
     .order('created_at', { ascending: false });
 
@@ -130,6 +132,7 @@ async function fetchUsers(): Promise<UserProfile[]> {
       roleName: roles?.name || 'Viewer',
       permissions: ((profile as any).permissions as Permission[]) || [],
       isArchived: (profile as any).is_archived || false,
+      canAccessDiscover: (profile as any).can_access_discover || false,
       quiz_count: quizCountMap[profile.id] || 0,
     };
   }) || [];
@@ -555,6 +558,7 @@ export default function UserManagement() {
                     <TableHead>Legacy Role</TableHead>
                     <TableHead>Permissions</TableHead>
                     <TableHead className="hidden md:table-cell">Quizzes</TableHead>
+                    <TableHead className="hidden lg:table-cell">Discover</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -604,6 +608,16 @@ export default function UserManagement() {
                         <Badge variant="secondary">
                           {user.quiz_count}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <Switch
+                          checked={user.canAccessDiscover}
+                          onCheckedChange={async (checked) => {
+                            await supabase.from('profiles').update({ can_access_discover: checked }).eq('id', user.id);
+                            queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
+                          }}
+                          aria-label="Toggle Discover access"
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">

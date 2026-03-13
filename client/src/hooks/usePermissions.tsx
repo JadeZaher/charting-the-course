@@ -29,6 +29,7 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
 interface UserPermissionData {
   permissions: Permission[];
   isArchived: boolean;
+  canAccessDiscover: boolean;
   role?: string;
 }
 
@@ -62,11 +63,12 @@ export function usePermissions() {
         // This may fail silently if permissions column doesn't exist yet
         let permissions: Permission[] = [];
         let isArchived = false;
+        let canAccessDiscover = false;
         
         try {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('permissions, is_archived')
+            .select('permissions, is_archived, can_access_discover')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -74,6 +76,7 @@ export function usePermissions() {
           if (!profileError && profileData) {
             permissions = (profileData.permissions as Permission[]) || [];
             isArchived = profileData.is_archived || false;
+            canAccessDiscover = profileData.can_access_discover || false;
           }
           // Silently fall back to empty permissions if column doesn't exist
         } catch {
@@ -83,6 +86,7 @@ export function usePermissions() {
         return {
           permissions,
           isArchived,
+          canAccessDiscover,
           role: roleKey
         };
       } catch (err) {
@@ -100,6 +104,7 @@ export function usePermissions() {
 
   const permissions = data?.permissions || [];
   const isArchived = data?.isArchived || false;
+  const canAccessDiscover = data?.canAccessDiscover || false;
   const legacyRole = data?.role;
 
   const hasPermission = useCallback(
@@ -156,6 +161,7 @@ export function usePermissions() {
   return useMemo(() => ({
     permissions,
     isArchived,
+    canAccessDiscover,
     legacyRole,
     isLoading: authLoading || permLoading,
     error,
@@ -169,7 +175,7 @@ export function usePermissions() {
     canDeleteQuizzes,
     isAdmin,
   }), [
-    permissions, isArchived, legacyRole, authLoading, permLoading, error,
+    permissions, isArchived, canAccessDiscover, legacyRole, authLoading, permLoading, error,
     hasPermission, hasAnyPermission, hasAllPermissions,
     canManageUsers, canManageContent, canProxyQuiz, canViewAnalytics, canDeleteQuizzes, isAdmin
   ]);

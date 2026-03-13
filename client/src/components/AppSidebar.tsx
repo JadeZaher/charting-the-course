@@ -127,7 +127,7 @@ function MenuItemWithTooltip({
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { user, signOut, isSigningOut } = useSupabaseAuth();
-  const { legacyRole, canManageContent, canManageUsers, isAdmin } = usePermissions();
+  const { legacyRole, canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -170,6 +170,9 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                // Discover is only visible to admins or users with explicit access
+                if (item.url === '/discover' && !isAdmin && !canAccessDiscover) return null;
+
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';
                 if (item.url === '/discover') {
