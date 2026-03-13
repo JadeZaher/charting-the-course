@@ -4,7 +4,8 @@ import { sendOmniBotMessage } from '@/lib/omnibot';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, User, SendHorizontal, X, Loader2, MessageCircle } from 'lucide-react';
+import { Bot, User, SendHorizontal, X, Loader2, MessageCircle, Mic, MicOff } from 'lucide-react';
+import { useSpeechInput } from '@/hooks/useSpeechInput';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -24,6 +25,10 @@ export function OmniBotPanel({ context }: Props) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { isListening, isSupported: isMicSupported, startListening, stopListening } = useSpeechInput({
+    onTranscript: (text) => setInput(prev => prev ? `${prev} ${text}` : text),
+  });
 
   useEffect(() => {
     if (open) {
@@ -133,28 +138,49 @@ export function OmniBotPanel({ context }: Props) {
           </div>
 
           {/* Input */}
-          <div className="border-t p-2.5 flex gap-2 flex-shrink-0">
-            <Textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Ask OmniBot anything…"
-              rows={2}
-              className="resize-none flex-1 text-xs"
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-            />
-            <Button
-              size="icon"
-              className="h-9 w-9 self-end flex-shrink-0"
-              onClick={send}
-              disabled={isLoading || !input.trim()}
-            >
-              <SendHorizontal className="h-3.5 w-3.5" />
-            </Button>
+          <div className="border-t p-2.5 flex-shrink-0">
+            {isListening && (
+              <p className="text-[10px] text-primary font-medium mb-1.5 px-0.5 animate-pulse">
+                Listening…
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Ask OmniBot anything…"
+                rows={2}
+                className="resize-none flex-1 text-xs"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+              />
+              <div className="flex flex-col gap-1.5 self-end">
+                {isMicSupported && (
+                  <Button
+                    size="icon"
+                    variant={isListening ? 'default' : 'outline'}
+                    className={cn('h-9 w-9 flex-shrink-0', isListening && 'animate-pulse')}
+                    onClick={isListening ? stopListening : startListening}
+                    disabled={isLoading}
+                    aria-label={isListening ? 'Stop recording' : 'Start voice input'}
+                  >
+                    {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  className="h-9 w-9 flex-shrink-0"
+                  onClick={send}
+                  disabled={isLoading || !input.trim()}
+                >
+                  <SendHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
