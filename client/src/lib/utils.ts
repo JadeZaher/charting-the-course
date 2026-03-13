@@ -6,17 +6,27 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Converts a Prezi share URL to an embed URL.
- * Prezi share: https://prezi.com/p/abc123/
+ * Converts a Prezi share URL to an embed URL, stripping query parameters.
+ * Prezi share: https://prezi.com/p/abc123/?token=...
  * Prezi embed: https://prezi.com/p/abc123/embed
  * Non-Prezi URLs are returned as-is.
  */
 export function prezify(url: string): string {
   if (!url) return '';
-  if (url.includes('prezi.com') && !url.includes('/embed')) {
-    return url.replace(/\/?$/, '/embed');
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('prezi.com')) {
+      parsed.search = '';
+      const cleanPath = parsed.pathname.replace(/\/$/, '');
+      if (!cleanPath.endsWith('/embed')) {
+        parsed.pathname = cleanPath + '/embed';
+      }
+      return parsed.toString();
+    }
+    return url;
+  } catch {
+    return url;
   }
-  return url;
 }
 
 export const APP_SETTINGS_KEYS = {

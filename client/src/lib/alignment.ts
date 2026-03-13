@@ -66,13 +66,17 @@ export function calculateAlignment(
     }
   });
 
-  const totalUnique = new Set([...viewerValues, ...profileValues]).size;
-  const jaccardSimilarity = totalUnique > 0 
-    ? commonValues.length / totalUnique 
-    : 0;
+  // SCORING WEIGHTS — adjust these to tune alignment sensitivity
+  // These are the only values that need changing to modify scoring behavior
+  const JACCARD_WEIGHT = 70;        // max points from value overlap
+  const DIMENSION_BONUS_PER = 10;   // points per shared dimension
+  const DIMENSION_BONUS_MAX = 30;   // cap on dimension bonus
+  const SCORE_MAX = 100;            // absolute maximum score
 
-  const dimensionBonus = commonDimensions.length * 10;
-  const score = Math.min(100, Math.round(jaccardSimilarity * 70 + dimensionBonus));
+  const totalUnique = new Set([...viewerValues, ...profileValues]).size;
+  const jaccardBase = totalUnique > 0 ? (commonValues.length / totalUnique) * JACCARD_WEIGHT : 0;
+  const dimensionBonus = Math.min(DIMENSION_BONUS_MAX, commonDimensions.length * DIMENSION_BONUS_PER);
+  const score = Math.min(SCORE_MAX, Math.round(jaccardBase + dimensionBonus));
 
   const insights: string[] = [];
   

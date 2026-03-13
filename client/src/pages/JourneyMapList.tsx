@@ -169,7 +169,7 @@ export default function JourneyMapList() {
         </div>
         <Button onClick={() => setLocation("/admin/journey-maps/new")}>
           <Plus className="h-4 w-4 mr-2" />
-          Create New Map
+          Create New Journey
         </Button>
       </div>
 
@@ -228,7 +228,7 @@ export default function JourneyMapList() {
               {!searchQuery && ethosFilter === "all" && activeFilter === "all" && (
                 <Button onClick={() => setLocation("/admin/journey-maps/new")}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create New Map
+                  Create New Journey
                 </Button>
               )}
             </div>
