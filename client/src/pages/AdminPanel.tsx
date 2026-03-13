@@ -516,7 +516,7 @@ export default function AdminPanel() {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (res.error) throw res.error;
-      return res.data?.data || [];
+      return res.data?.data?.ethos || [];
     },
     enabled: isAdmin || canManageContent,
   });
