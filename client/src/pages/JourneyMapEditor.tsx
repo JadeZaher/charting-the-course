@@ -651,7 +651,7 @@ export default function JourneyMapEditor() {
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("ethos-list");
       if (error) throw error;
-      return (data?.data || []) as EthosOption[];
+      return (data?.data?.ethos || []) as EthosOption[];
     },
   });
 

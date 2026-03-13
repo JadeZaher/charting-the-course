@@ -82,7 +82,7 @@ export default function JourneyMapList() {
         `journey-maps-list${params.toString() ? `?${params.toString()}` : ""}`
       );
       if (error) throw error;
-      return (data?.data || []) as JourneyMap[];
+      return (data?.data?.maps || []) as JourneyMap[];
     },
   });
 
@@ -92,7 +92,7 @@ export default function JourneyMapList() {
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("ethos-list");
       if (error) throw error;
-      return (data?.data || []) as EthosOption[];
+      return (data?.data?.ethos || []) as EthosOption[];
     },
   });
 

@@ -810,7 +810,7 @@ export default function AdminPanel() {
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
     // Client-side filter since invoke doesn't support query params easily
-    const all = res.data?.data || [];
+    const all = res.data?.data?.users || [];
     const q = query.toLowerCase();
     setEthosUserResults(all.filter((u: any) =>
       u.username?.toLowerCase().includes(q) ||
