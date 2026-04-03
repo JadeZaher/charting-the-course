@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     const OMNIBOT_API_URL = Deno.env.get("OMNIBOT_API_URL");
     const OMNIBOT_API_KEY = Deno.env.get("OMNIBOT_API_KEY");
-    const OMNIBOT_MODEL = Deno.env.get("OMNIBOT_MODEL") ?? "anthropic.claude-3-sonnet-20240229-v1:0";
+    const OMNIBOT_MODEL = "greenearth-agent";
 
     const systemContent = buildSystemPrompt(context);
     const messagesWithSystem: ChatMessage[] = [

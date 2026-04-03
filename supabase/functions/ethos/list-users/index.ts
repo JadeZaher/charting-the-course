@@ -40,9 +40,9 @@ Deno.serve(async (req) => {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
 
     const sb = adminClient();
-    let query = sb.from("profiles").select("id, username, display_name, email, avatar_url").limit(limit).order("username");
+    let query = sb.from("profiles").select("id, username, first_name, last_name, avatar_url").limit(limit).order("username");
     if (search) {
-      query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%,email.ilike.%${search}%`);
+      query = query.or(`username.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
     }
 
     const { data, error } = await query;

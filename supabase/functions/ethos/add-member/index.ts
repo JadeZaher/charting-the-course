@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
         },
         { onConflict: "ethos_id,user_id" }
       )
-      .select("*, profiles(username, display_name, avatar_url)")
+      .select("*, profiles(username, first_name, last_name, avatar_url)")
       .single();
 
     if (error) {

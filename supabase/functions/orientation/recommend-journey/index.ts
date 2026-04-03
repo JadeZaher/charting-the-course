@@ -34,19 +34,19 @@ Deno.serve(async (req) => {
     }
 
     // Get user's dimensions + tags for scoring
-    const { data: userDimensions } = await supabase
-      .from("user_dimensions")
-      .select("dimension_key")
+    const { data: userTags } = await supabase
+      .from("user_tags")
+      .select("tag_key, tag_value")
       .eq("user_id", user.id);
 
     const { data: userTiles } = await supabase
       .from("profile_tiles")
-      .select("dimension, content")
+      .select("dimension")
       .eq("user_id", user.id)
       .eq("is_visible", true);
 
     const userDimSet = new Set([
-      ...(userDimensions || []).map((d: any) => d.dimension_key?.toLowerCase()),
+      ...(userTags || []).map((t: any) => t.tag_value?.toLowerCase()).filter(Boolean),
       ...(userTiles || []).map((t: any) => t.dimension?.toLowerCase()).filter(Boolean),
     ]);
 

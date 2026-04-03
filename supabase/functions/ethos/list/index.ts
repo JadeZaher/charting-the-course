@@ -2,7 +2,7 @@
 // Returns active ETHOS with member counts and optional alignment scores
 // Query params: ?sector=ecology&limit=20&offset=0
 
-import { createSupabaseClient, getAuthUser, handleCors } from "../../_shared/auth.ts";
+import { createSupabaseClient, createServiceRoleClient, getAuthUser, isAdminOrFacilitator, handleCors } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse } from "../../_shared/response.ts";
 
 Deno.serve(async (req) => {
@@ -19,13 +19,33 @@ Deno.serve(async (req) => {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
+    const adminSupabase = createServiceRoleClient();
+    const isAdmin = await isAdminOrFacilitator(user.id, supabase);
+
+    // For non-admins, scope to ETHOS they have access to
+    let allowedEthosIds: string[] | null = null;
+    if (!isAdmin) {
+      const { data: accessRows } = await supabase
+        .from("ethos_user_access")
+        .select("ethos_id")
+        .eq("user_id", user.id);
+      allowedEthosIds = (accessRows || []).map((r: any) => r.ethos_id);
+      if (allowedEthosIds.length === 0) {
+        return successResponse({ ethos: [], total: 0 });
+      }
+    }
+
     // Query active ETHOS
-    let query = supabase
+    let query = adminSupabase
       .from("ethos")
       .select("id, slug, name, tagline, sector, ethos_type, image_url, is_active, is_public")
       .eq("is_active", true)
       .order("name")
       .range(offset, offset + limit - 1);
+
+    if (allowedEthosIds !== null) {
+      query = query.in("id", allowedEthosIds);
+    }
 
     if (sector && sector !== "all") {
       query = query.eq("sector", sector);
