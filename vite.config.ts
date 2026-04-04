@@ -23,10 +23,10 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
+      '/api': { target: 'http://localhost:8000', changeOrigin: true },
+      '/chat': { target: 'http://localhost:8000', changeOrigin: true },
+      '/messaging': { target: 'http://localhost:8000', changeOrigin: true, ws: true },
+      '/auth': { target: 'http://localhost:8000', changeOrigin: true },
     },
     fs: {
       strict: true,

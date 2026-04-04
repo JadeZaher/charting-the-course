@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -220,4 +220,37 @@ export function searchMessages(q: string): Promise<{ messages: MessageItem[] }> 
 }
 export function fetchMembersList(): Promise<{ members: MemberListItem[] }> {
   return apiFetch<{ members: MemberListItem[] }>('/api/v1/messaging/members');
+}
+
+// Courses API
+export function fetchCourses(params?: Record<string, string>): Promise<PaginatedResponse<CourseListItem>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/courses${qs}`);
+}
+export function fetchCourse(id: string): Promise<CourseDetail> { return apiFetch(`/api/v1/courses/${id}`); }
+export function createCourse(data: Record<string, any>): Promise<CourseDetail> {
+  return apiFetch('/api/v1/courses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function fetchQuizzes(params?: Record<string, string>): Promise<PaginatedResponse<QuizListItem>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/quizzes${qs}`);
+}
+export function fetchQuiz(id: string): Promise<QuizDetail> { return apiFetch(`/api/v1/quizzes/${id}`); }
+export function createQuiz(data: Record<string, any>): Promise<QuizDetail> {
+  return apiFetch('/api/v1/quizzes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function submitQuizResult(quizId: string, data: Record<string, any>): Promise<QuizResultItem> {
+  return apiFetch(`/api/v1/quizzes/${quizId}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function fetchQuizResults(quizId: string): Promise<{ results: QuizResultItem[] }> {
+  return apiFetch(`/api/v1/quizzes/${quizId}/results`);
+}
+export function fetchMemberQuizHistory(memberId: string): Promise<{ results: QuizResultItem[] }> {
+  return apiFetch(`/api/v1/members/${memberId}/quiz-history`);
+}
+export function fetchMemberBadges(memberId: string): Promise<{ badges: UserBadgeItem[] }> {
+  return apiFetch(`/api/v1/members/${memberId}/badges`);
+}
+export function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[] }> {
+  return apiFetch(`/api/v1/members/${memberId}/tags`);
 }

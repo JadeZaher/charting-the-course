@@ -418,3 +418,27 @@ export interface ChatSession {
   last_message: string | null;
   created_at: string;
 }
+
+// Course types
+export interface CourseListItem {
+  id: string; ecosystem_id: string; domain_id: string | null; title: string;
+  description: string | null; is_onboarding_required: boolean; sort_order: number; created_at: string;
+}
+export interface CourseDetail extends CourseListItem { quizzes: QuizListItem[]; }
+export interface QuizListItem {
+  id: string; course_id: string | null; title: string; description: string | null;
+  mode: string; time_limit: number | null; passing_score: number | null;
+  allow_retakes: boolean; visibility: string; is_published: boolean; created_at: string;
+}
+export interface QuizDetail extends QuizListItem { survey_json: Record<string, any> | null; }
+export interface QuizResultItem {
+  id: string; quiz_id: string; member_id: string; score: number | null;
+  is_passed: boolean | null; time_spent: number | null; completed_at: string | null; created_at: string;
+}
+export interface UserBadgeItem {
+  id: string; badge_key: string; badge_name: string; badge_description: string | null;
+  badge_category: string | null; badge_icon: string | null; strength: number | null; earned_at: string | null;
+}
+export interface UserTagItem {
+  id: string; tag_key: string; tag_value: string | null; tag_category: string | null; numeric_value: number | null;
+}
