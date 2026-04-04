@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -65,4 +65,58 @@ export function fetchEcosystem(id: string): Promise<EcosystemDetail> {
 // Dashboard API
 export function fetchDashboardSummary(): Promise<DashboardSummary> {
   return apiFetch<DashboardSummary>('/api/v1/dashboard/summary');
+}
+
+// Agreements API
+export function fetchAgreements(params?: Record<string, string>): Promise<PaginatedResponse<AgreementListItem>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<AgreementListItem>>(`/api/v1/agreements${qs}`);
+}
+export function fetchAgreement(id: string): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}`);
+}
+export function createAgreement(data: Record<string, any>): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>('/api/v1/agreements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateAgreement(id: string, data: Record<string, any>): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateAgreementStatus(id: string, status: string): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+}
+export function fetchAgreementHistory(id: string): Promise<AgreementHistory> {
+  return apiFetch<AgreementHistory>(`/api/v1/agreements/${id}/history`);
+}
+
+// Proposals API
+export function fetchProposals(params?: Record<string, string>): Promise<PaginatedResponse<ProposalListItem>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<ProposalListItem>>(`/api/v1/proposals${qs}`);
+}
+export function fetchProposal(id: string): Promise<ProposalDetail> {
+  return apiFetch<ProposalDetail>(`/api/v1/proposals/${id}`);
+}
+export function createProposal(data: Record<string, any>): Promise<ProposalDetail> {
+  return apiFetch<ProposalDetail>('/api/v1/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateProposal(id: string, data: Record<string, any>): Promise<ProposalDetail> {
+  return apiFetch<ProposalDetail>(`/api/v1/proposals/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateProposalStatus(id: string, status: string): Promise<ProposalDetail> {
+  return apiFetch<ProposalDetail>(`/api/v1/proposals/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+}
+export function fetchProposalAdvice(id: string): Promise<AdviceLog[]> {
+  return apiFetch<AdviceLog[]>(`/api/v1/proposals/${id}/advice`);
+}
+export function submitAdvice(id: string, data: Record<string, any>): Promise<AdviceLog> {
+  return apiFetch<AdviceLog>(`/api/v1/proposals/${id}/advice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function fetchProposalConsent(id: string): Promise<ConsentRecord[]> {
+  return apiFetch<ConsentRecord[]>(`/api/v1/proposals/${id}/consent`);
+}
+export function submitConsent(id: string, data: Record<string, any>): Promise<ConsentRecord> {
+  return apiFetch<ConsentRecord>(`/api/v1/proposals/${id}/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function fetchProposalTest(id: string): Promise<TestReport[]> {
+  return apiFetch<TestReport[]>(`/api/v1/proposals/${id}/test`);
 }

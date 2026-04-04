@@ -34,6 +34,8 @@ import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
 import OrientationComplete from "@/pages/OrientationComplete";
 import GovernanceDashboard from "@/pages/governance/DashboardHome";
+import { AgreementList, AgreementDetail, AgreementForm, AgreementHistory } from '@/pages/governance/agreements';
+import { ProposalList, ProposalDetail, ProposalForm } from '@/pages/governance/proposals';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 
 // Loading spinner component
@@ -149,6 +151,37 @@ function AuthenticatedRoutes() {
       {/* Governance dashboard */}
       <Route path="/governance">
         <ProtectedRoute component={GovernanceDashboard} />
+      </Route>
+
+      {/* Agreement routes */}
+      <Route path="/agreements/new">
+        <ProtectedRoute component={AgreementForm} />
+      </Route>
+      <Route path="/agreements/:id/edit">
+        <ProtectedRoute component={AgreementForm} />
+      </Route>
+      <Route path="/agreements/:id/history">
+        <ProtectedRoute component={AgreementHistory} />
+      </Route>
+      <Route path="/agreements/:id">
+        <ProtectedRoute component={AgreementDetail} />
+      </Route>
+      <Route path="/agreements">
+        <ProtectedRoute component={AgreementList} />
+      </Route>
+
+      {/* Proposal routes */}
+      <Route path="/proposals/new">
+        <ProtectedRoute component={ProposalForm} />
+      </Route>
+      <Route path="/proposals/:id/edit">
+        <ProtectedRoute component={ProposalForm} />
+      </Route>
+      <Route path="/proposals/:id">
+        <ProtectedRoute component={ProposalDetail} />
+      </Route>
+      <Route path="/proposals">
+        <ProtectedRoute component={ProposalList} />
       </Route>
 
       {/* Quiz routes - all authenticated users can take quizzes */}
