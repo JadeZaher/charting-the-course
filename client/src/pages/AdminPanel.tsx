@@ -18,7 +18,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/lib/supabase";
+import { fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord } from "@/lib/api-client";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 import {
   Dialog,
   DialogContent,
@@ -55,228 +65,47 @@ const getRoleBadgeRole = (role?: string): Role => {
   return (role.charAt(0).toUpperCase() + role.slice(1)) as Role;
 };
 
-// Fetch users from profiles table with roles and permissions
+// Fetch users from Sanic BFF API
 async function fetchUsers() {
-  // Try to get profiles with permissions columns
-  let profiles: any[] = [];
-  let hasPermissionsColumn = true;
-  
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        username,
-        avatar_url,
-        profile_visibility,
-        created_at,
-        permissions,
-        is_archived
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      // If error mentions column doesn't exist, fallback to basic query
-      if (error.message?.includes('permissions') || error.message?.includes('is_archived')) {
-        hasPermissionsColumn = false;
-      } else {
-        throw error;
-      }
-    } else {
-      profiles = data || [];
-    }
-  } catch (e) {
-    hasPermissionsColumn = false;
-  }
-
-  // Fallback: fetch without permissions columns
-  if (!hasPermissionsColumn) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        username,
-        avatar_url,
-        profile_visibility,
-        created_at
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    profiles = data || [];
-  }
-
-  // Get roles for each user
-  const { data: userRoles } = await supabase
-    .from('user_roles')
-    .select(`
-      user_id,
-      roles (
-        key,
-        name
-      )
-    `);
-
-  // Merge profiles with roles and permissions
-  return profiles.map(profile => {
-    const roleData = userRoles?.find(ur => ur.user_id === profile.id);
-    const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
-    return {
-      ...profile,
-      role: roles?.key || 'viewer',
-      roleName: roles?.name || 'Viewer',
-      permissions: ((profile as any).permissions as Permission[]) || [],
-      isArchived: (profile as any).is_archived || false,
-    };
-  });
+  const result = await fetchMembers();
+  const items = (result as any).items || (result as any).members || [];
+  return items.map((m: any) => ({
+    id: m.id,
+    first_name: m.display_name?.split(' ')[0] ?? null,
+    last_name: m.display_name?.split(' ').slice(1).join(' ') ?? null,
+    username: m.username ?? null,
+    avatar_url: m.avatar_url ?? null,
+    profile_visibility: m.profile_visibility ?? 'public',
+    created_at: m.created_at,
+    role: m.role ?? 'viewer',
+    roleName: m.role_name ?? 'Viewer',
+    permissions: (m.permissions as Permission[]) || [],
+    isArchived: m.is_archived ?? false,
+  }));
 }
 
-// Fetch quizzes
+// Fetch quizzes via Sanic BFF API
 async function fetchQuizzes() {
-  const { data, error } = await supabase
-    .from('quizzes')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  const result = await apiFetchQuizzes();
+  return (result as any).items || (result as any).quizzes || [];
 }
 
-// Fetch badge definitions
+// Fetch badge definitions — TODO: add endpoint to Sanic API
 async function fetchBadges() {
-  const { data, error } = await supabase
-    .from('badge_definitions')
-    .select('*')
-    .order('display_order', { ascending: true });
-
-  if (error) throw error;
-  return data || [];
+  // TODO: Replace with Sanic API endpoint when badge definitions endpoint is implemented
+  return [];
 }
 
-// Fetch teams
+// Fetch teams — TODO: add teams endpoint to Sanic API
 async function fetchTeams() {
-  // First, fetch teams with team_members
-  const { data: teams, error: teamsError } = await supabase
-    .from('teams')
-    .select(`
-      *,
-      team_members (
-        user_id
-      )
-    `)
-    .order('created_at', { ascending: false });
-
-  if (teamsError) {
-    console.error('Error fetching teams:', teamsError);
-    throw teamsError;
-  }
-
-  if (!teams || teams.length === 0) {
-    return [];
-  }
-
-  // Get all unique user IDs from team members
-  const userIds = new Set<string>();
-  teams.forEach((team: any) => {
-    if (team.team_members) {
-      team.team_members.forEach((member: any) => {
-        if (member.user_id) {
-          userIds.add(member.user_id);
-        }
-      });
-    }
-  });
-
-  // Fetch profiles for all team members
-  let profilesMap: Record<string, any> = {};
-  if (userIds.size > 0) {
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, username')
-      .in('id', Array.from(userIds));
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      // Continue without profiles if there's an error
-    } else if (profiles) {
-      profiles.forEach((profile: any) => {
-        profilesMap[profile.id] = profile;
-      });
-    }
-  }
-
-  // Merge profiles into team_members
-  const teamsWithProfiles = teams.map((team: any) => ({
-    ...team,
-    team_members: team.team_members?.map((member: any) => ({
-      ...member,
-      profile: profilesMap[member.user_id] || null,
-    })) || [],
-  }));
-
-  console.log('Fetched teams:', teamsWithProfiles.length, 'teams');
-  return teamsWithProfiles;
+  // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
+  return [];
 }
 
-// Fetch quiz assignments
+// Fetch quiz assignments — TODO: add assignments endpoint to Sanic API
 async function fetchAssignments() {
-  // First, fetch assignments with quiz and team info (these have proper foreign keys)
-  const { data: assignments, error: assignmentsError } = await supabase
-    .from('quiz_assignments')
-    .select(`
-      *,
-      quiz:quizzes (id, title),
-      team:teams (id, name)
-    `)
-    .order('created_at', { ascending: false });
-
-  if (assignmentsError) {
-    console.error('Error fetching assignments:', assignmentsError);
-    throw assignmentsError;
-  }
-
-  if (!assignments || assignments.length === 0) {
-    return [];
-  }
-
-  // Get all unique user IDs from assignments
-  const userIds = new Set<string>();
-  assignments.forEach((assignment: any) => {
-    if (assignment.user_id) {
-      userIds.add(assignment.user_id);
-    }
-  });
-
-  // Fetch profiles for all assigned users
-  let profilesMap: Record<string, any> = {};
-  if (userIds.size > 0) {
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, username')
-      .in('id', Array.from(userIds));
-
-    if (profilesError) {
-      console.error('Error fetching profiles for assignments:', profilesError);
-      // Continue without profiles if there's an error
-    } else if (profiles) {
-      profiles.forEach((profile: any) => {
-        profilesMap[profile.id] = profile;
-      });
-    }
-  }
-
-  // Merge profiles into assignments
-  const assignmentsWithProfiles = assignments.map((assignment: any) => ({
-    ...assignment,
-    user: assignment.user_id ? profilesMap[assignment.user_id] || null : null,
-  }));
-
-  console.log('Fetched assignments:', assignmentsWithProfiles.length, 'assignments');
-  return assignmentsWithProfiles;
+  // TODO: Replace with Sanic API endpoint when assignments endpoint is implemented
+  return [];
 }
 
 interface BadgeFormData {
@@ -297,103 +126,10 @@ const isEmojiIcon = (icon: string | null): boolean => {
   return !icon.startsWith('http') && !icon.startsWith('/');
 };
 
-// Ensure badges bucket exists (check and create if needed)
-async function ensureBadgesBucket(): Promise<boolean> {
-  try {
-    // Check if bucket exists
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
-    if (listError) {
-      console.warn('Could not list buckets:', listError.message);
-      return false;
-    }
-
-    const badgesBucket = buckets?.find(b => b.id === 'badges');
-    
-    if (badgesBucket) {
-      return true; // Bucket exists
-    }
-
-    // Bucket doesn't exist - try to create it using the database function
-    console.log('Badges bucket not found, attempting to create...');
-    const { data: result, error: rpcError } = await supabase.rpc('ensure_badges_bucket');
-
-    if (rpcError) {
-      console.warn('Could not create bucket automatically:', rpcError.message);
-      console.warn('Please run: npm run ensure-bucket or create it in Supabase Dashboard');
-      return false;
-    }
-
-    if (result?.success) {
-      console.log('✅ Badges bucket created successfully');
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Error ensuring badges bucket:', error);
-    return false;
-  }
-}
-
-// Upload badge icon to Supabase Storage
-async function uploadBadgeIcon(file: File, badgeKey: string): Promise<string> {
-  try {
-    // Ensure bucket exists first
-    const bucketExists = await ensureBadgesBucket();
-    if (!bucketExists) {
-      throw new Error('Badges storage bucket does not exist. Please run: npm run ensure-bucket (or create it in Supabase Dashboard)');
-    }
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`);
-    }
-
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      throw new Error(`File size exceeds 5MB limit. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
-    }
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${badgeKey}-${Date.now()}.${fileExt}`;
-    const filePath = `badge-icons/${fileName}`;
-
-    // Upload file
-    const { error: uploadError, data: uploadData } = await supabase.storage
-      .from('badges')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      
-      // Check if it's a bucket not found error
-      if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')) {
-        throw new Error('Badges storage bucket does not exist. Please create it in Supabase Dashboard > Storage, or run the migration: supabase db push');
-      }
-      
-      throw new Error(`Upload failed: ${uploadError.message}. Please ensure the badges storage bucket exists and you have upload permissions.`);
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('badges')
-      .getPublicUrl(filePath);
-
-    if (!urlData?.publicUrl) {
-      throw new Error('Failed to get public URL for uploaded file');
-    }
-
-    return urlData.publicUrl;
-  } catch (error: any) {
-    console.error('Badge icon upload error:', error);
-    throw error instanceof Error ? error : new Error(`Upload failed: ${String(error)}`);
-  }
+// Upload badge icon — TODO: implement file upload endpoint in Sanic API
+async function uploadBadgeIcon(_file: File, _badgeKey: string): Promise<string> {
+  // TODO: Replace with Sanic API endpoint when badge icon upload is implemented
+  throw new Error('Badge icon upload is not yet available on the Sanic API.');
 }
 
 export default function AdminPanel() {
@@ -507,60 +243,43 @@ export default function AdminPanel() {
     enabled: isAdmin || canManageUsers,
   });
 
-  // ETHOS query
+  // ETHOS query via Sanic BFF API
   const { data: ethosListData = [], isLoading: ethosLoading, refetch: refetchEthos } = useQuery({
     queryKey: ['admin-ethos'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-list', {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw res.error;
-      return res.data?.data?.ethos || [];
+      const result = await fetchEcosystems();
+      return (result as any).ecosystems || (result as any).items || [];
     },
     enabled: isAdmin || canManageContent,
   });
 
-  // ETHOS members query (for the currently editing ethos)
+  // ETHOS members query — TODO: add per-ecosystem members endpoint to Sanic API
   const { data: ethosMembers = [], refetch: refetchEthosMembers } = useQuery({
     queryKey: ['admin-ethos-members', editingEthos?.id],
     queryFn: async () => {
       if (!editingEthos?.id) return [];
-      const { data, error } = await supabase
-        .from('ethos_members')
-        .select('*, profiles(id, username, display_name, avatar_url)')
-        .eq('ethos_id', editingEthos.id)
-        .order('joined_at');
-      if (error) throw error;
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when ecosystem members endpoint is implemented
+      return [];
     },
     enabled: !!editingEthos?.id,
   });
 
-  // OmniBot sessions query
+  // OmniBot sessions query — TODO: add OmniBot sessions endpoint to Sanic API
   const { data: omnibotSessions = [], isLoading: omnibotLoading } = useQuery({
     queryKey: ['admin-omnibot-sessions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('omnibot_sessions')
-        .select('*, profiles(username, display_name)')
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when OmniBot sessions endpoint is implemented
+      return [];
     },
     enabled: isAdmin,
   });
 
-  // CTC Map settings query
+  // CTC Map settings query — TODO: add settings endpoint to Sanic API
   const { data: ctcMapData } = useQuery({
     queryKey: ['admin-ctc-map-settings'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke(
-        `settings-get?key=${APP_SETTINGS_KEYS.ctcMap}`
-      );
-      if (error) throw error;
-      return data?.data?.value || { prezi_url: "", description: "" };
+      // TODO: Replace with Sanic API endpoint when settings endpoint is implemented
+      return { prezi_url: "", description: "" };
     },
     enabled: !!(isAdmin || canManageContent),
   });
@@ -574,10 +293,12 @@ export default function AdminPanel() {
   const saveCtcMapSettings = async () => {
     setSavingCtcMap(true);
     try {
-      const { data, error } = await supabase.functions.invoke("settings-update", {
-        body: { key: APP_SETTINGS_KEYS.ctcMap, value: ctcMapForm },
+      // TODO: Replace with Sanic API endpoint when settings endpoint is implemented
+      await apiFetch('/api/v1/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: APP_SETTINGS_KEYS.ctcMap, value: ctcMapForm }),
       });
-      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['admin-ctc-map-settings'] });
       queryClient.invalidateQueries({ queryKey: ['ctc-map-settings'] });
       toast({ title: "Map settings saved!" });
@@ -588,18 +309,11 @@ export default function AdminPanel() {
     }
   };
 
-  // Badge mutations
+  // Badge mutations — TODO: add badge endpoints to Sanic API
   const createBadgeMutation = useMutation({
-    mutationFn: async (data: BadgeFormData) => {
-      const { error } = await supabase
-        .from('badge_definitions')
-        .insert({
-          ...data,
-          conditions: { type: 'custom' },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      if (error) throw error;
+    mutationFn: async (_data: BadgeFormData) => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge creation not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
@@ -613,12 +327,9 @@ export default function AdminPanel() {
   });
 
   const updateBadgeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<BadgeFormData> }) => {
-      const { error } = await supabase
-        .from('badge_definitions')
-        .update({ ...data, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+    mutationFn: async (_params: { id: string; data: Partial<BadgeFormData> }) => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge update not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
@@ -632,12 +343,9 @@ export default function AdminPanel() {
   });
 
   const deleteBadgeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('badge_definitions')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+    mutationFn: async (_id: string) => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge deletion not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
@@ -648,29 +356,11 @@ export default function AdminPanel() {
     },
   });
 
-  // Team mutations
+  // Team mutations — TODO: add teams endpoints to Sanic API
   const createTeamMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; member_ids: string[] }) => {
-      const { data: team, error: teamError } = await supabase
-        .from('teams')
-        .insert({ name: data.name, description: data.description })
-        .select()
-        .single();
-      
-      if (teamError) throw teamError;
-      
-      if (data.member_ids.length > 0) {
-        const members = data.member_ids.map(userId => ({
-          team_id: team.id,
-          user_id: userId,
-        }));
-        const { error: membersError } = await supabase
-          .from('team_members')
-          .insert(members);
-        if (membersError) throw membersError;
-      }
-      
-      return team;
+    mutationFn: async (_data: { name: string; description: string; member_ids: string[] }) => {
+      // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
+      throw new Error('Team creation not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
@@ -685,9 +375,9 @@ export default function AdminPanel() {
   });
 
   const deleteTeamMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('teams').delete().eq('id', id);
-      if (error) throw error;
+    mutationFn: async (_id: string) => {
+      // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
+      throw new Error('Team deletion not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
@@ -698,16 +388,10 @@ export default function AdminPanel() {
     },
   });
 
-  // ETHOS mutations
+  // ETHOS mutations via Sanic BFF API
   const createEthosMutation = useMutation({
     mutationFn: async (data: typeof defaultEthosForm) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-create', {
-        body: { ...data, parent_ethos_id: data.parent_ethos_id || null },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
+      return createEcosystemRecord({ ...data, parent_ethos_id: data.parent_ethos_id || null });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
@@ -721,13 +405,7 @@ export default function AdminPanel() {
 
   const updateEthosMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<typeof defaultEthosForm> }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-update', {
-        body: { id, ...data, parent_ethos_id: data.parent_ethos_id || null },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
+      return updateEcosystemRecord(id, { ...data, parent_ethos_id: data.parent_ethos_id || null });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
@@ -740,13 +418,11 @@ export default function AdminPanel() {
 
   const deleteEthosMutation = useMutation({
     mutationFn: async ({ id, hard }: { id: string; hard: boolean }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-delete', {
-        body: { id, hard },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+      return apiFetch<any>(`/api/v1/ecosystems/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hard }),
       });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
     },
     onSuccess: (_, { hard }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
@@ -765,13 +441,11 @@ export default function AdminPanel() {
 
   const addEthosMemberMutation = useMutation({
     mutationFn: async (data: { ethos_id: string; user_id: string; role_in_ethos: string; member_type: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-add-member', {
-        body: data,
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+      return apiFetch<any>(`/api/v1/ecosystems/${data.ethos_id}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
     },
     onSuccess: () => {
       refetchEthosMembers();
@@ -787,12 +461,7 @@ export default function AdminPanel() {
 
   const removeEthosMemberMutation = useMutation({
     mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-remove-member', {
-        body: { ethos_id, user_id },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
+      return apiFetch<any>(`/api/v1/ecosystems/${ethos_id}/members/${user_id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       refetchEthosMembers();
@@ -805,18 +474,9 @@ export default function AdminPanel() {
 
   const searchEthosUsers = async (query: string) => {
     if (!query || query.length < 2) { setEthosUserResults([]); return; }
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('ethos-list-users', {
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-    });
-    // Client-side filter since invoke doesn't support query params easily
-    const all = res.data?.data?.users || [];
-    const q = query.toLowerCase();
-    setEthosUserResults(all.filter((u: any) =>
-      u.username?.toLowerCase().includes(q) ||
-      u.display_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q)
-    ).slice(0, 10));
+    const result = await fetchMembers({ search: query }).catch(() => ({ items: [] }));
+    const all = (result as any).items || (result as any).members || [];
+    setEthosUserResults(all.slice(0, 10));
   };
 
   const openCreateEthos = () => {
@@ -882,9 +542,13 @@ export default function AdminPanel() {
       if (assignments.length === 0) {
         throw new Error('Please select at least one user or team');
       }
-      
-      const { error } = await supabase.from('quiz_assignments').insert(assignments);
-      if (error) throw error;
+
+      // TODO: Replace with Sanic API endpoint when quiz assignments endpoint is implemented
+      await apiFetch('/api/v1/quiz-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments }),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] });
@@ -899,8 +563,8 @@ export default function AdminPanel() {
 
   const deleteAssignmentMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('quiz_assignments').delete().eq('id', id);
-      if (error) throw error;
+      // TODO: Replace with Sanic API endpoint when quiz assignments endpoint is implemented
+      await apiFetch(`/api/v1/quiz-assignments/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] });
@@ -911,51 +575,19 @@ export default function AdminPanel() {
     },
   });
 
-  // Create user mutation
+  // Create user mutation via Sanic BFF API
   const createUserMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; first_name: string; last_name: string; role: string }) => {
-      // Create user via Supabase Admin API
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: data.first_name,
-          last_name: data.last_name,
-        },
+      // TODO: Replace with Sanic API invite/create-member endpoint when implemented
+      return apiFetch<any>('/api/v1/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name: `${data.first_name} ${data.last_name}`.trim(),
+          email: data.email,
+          role: data.role,
+        }),
       });
-      
-      if (authError) throw authError;
-      
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          username: data.email.split('@')[0],
-        })
-        .eq('id', authData.user.id);
-      
-      if (profileError) console.error('Profile update error:', profileError);
-      
-      // Assign role
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('key', data.role)
-        .single();
-      
-      if (roleData) {
-        await supabase
-          .from('user_roles')
-          .upsert({
-            user_id: authData.user.id,
-            role_id: roleData.id,
-          });
-      }
-      
-      return authData.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -1109,25 +741,12 @@ export default function AdminPanel() {
     if (!selectedUser || !newRole) return;
 
     try {
-      // Get role ID
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('key', newRole)
-        .single();
-
-      if (!roleData) throw new Error('Role not found');
-
-      // Update user role
-      const { error } = await supabase
-        .from('user_roles')
-        .upsert({
-          user_id: selectedUser.id,
-          role_id: roleData.id,
-          assigned_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-
-      if (error) throw error;
+      // TODO: replace with dedicated Sanic role assignment endpoint when available
+      await apiFetch(`/api/v1/members/${selectedUser.id}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
 
       toast({
         title: "Role Updated",
@@ -1150,12 +769,12 @@ export default function AdminPanel() {
     if (!selectedUser) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ permissions: editedPermissions })
-        .eq('id', selectedUser.id);
-
-      if (error) throw error;
+      // TODO: replace with dedicated Sanic permissions endpoint when available
+      await apiFetch(`/api/v1/members/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: editedPermissions }),
+      });
 
       toast({
         title: "Permissions Updated",

@@ -25,7 +25,17 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
-import { supabase } from "@/lib/supabase";
+import { fetchMembers, updateMember } from "@/lib/api-client";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 import {
   Dialog,
   DialogContent,
@@ -78,64 +88,23 @@ interface UserProfile {
 }
 
 async function fetchUsers(): Promise<UserProfile[]> {
-  // Get profiles with permissions and is_archived directly from profiles table
-  const { data: profiles, error: profileError } = await supabase
-    .from('profiles')
-    .select(`
-      id,
-      first_name,
-      last_name,
-      username,
-      avatar_url,
-      profile_visibility,
-      created_at,
-      permissions,
-      is_archived,
-      can_access_discover
-    `)
-    .order('created_at', { ascending: false });
-
-  if (profileError) throw profileError;
-
-  // Get roles from user_roles/roles tables
-  const { data: userRoles, error: rolesError } = await supabase
-    .from('user_roles')
-    .select(`
-      user_id,
-      roles (
-        key,
-        name
-      )
-    `);
-
-  if (rolesError) console.error('Error fetching roles:', rolesError);
-
-  // Get quiz counts
-  const { data: quizCounts, error: quizError } = await supabase
-    .from('quiz_results')
-    .select('user_id');
-
-  if (quizError) console.error('Error fetching quiz counts:', quizError);
-
-  const quizCountMap: Record<string, number> = {};
-  quizCounts?.forEach(result => {
-    quizCountMap[result.user_id] = (quizCountMap[result.user_id] || 0) + 1;
-  });
-
-  return profiles?.map(profile => {
-    const roleData = userRoles?.find(ur => ur.user_id === profile.id);
-    const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
-    
-    return {
-      ...profile,
-      role: roles?.key || 'viewer',
-      roleName: roles?.name || 'Viewer',
-      permissions: ((profile as any).permissions as Permission[]) || [],
-      isArchived: (profile as any).is_archived || false,
-      canAccessDiscover: (profile as any).can_access_discover || false,
-      quiz_count: quizCountMap[profile.id] || 0,
-    };
-  }) || [];
+  const result = await fetchMembers();
+  const items = (result as any).items || (result as any).members || [];
+  return items.map((m: any) => ({
+    id: m.id,
+    first_name: m.display_name?.split(' ')[0] ?? null,
+    last_name: m.display_name?.split(' ').slice(1).join(' ') ?? null,
+    username: m.username ?? null,
+    avatar_url: m.avatar_url ?? null,
+    profile_visibility: m.profile_visibility ?? 'public',
+    created_at: m.created_at,
+    role: m.role ?? 'viewer',
+    roleName: m.role_name ?? 'Viewer',
+    permissions: (m.permissions as Permission[]) || [],
+    isArchived: m.is_archived ?? false,
+    canAccessDiscover: m.can_access_discover ?? false,
+    quiz_count: m.quiz_count ?? 0,
+  })) as UserProfile[];
 }
 
 export default function UserManagement() {
@@ -164,12 +133,7 @@ export default function UserManagement() {
 
   const updatePermissionsMutation = useMutation({
     mutationFn: async ({ userId, permissions }: { userId: string; permissions: Permission[] }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ permissions })
-        .eq('id', userId);
-
-      if (error) throw error;
+      await updateMember(userId, { permissions });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
@@ -191,12 +155,7 @@ export default function UserManagement() {
 
   const archiveUserMutation = useMutation({
     mutationFn: async ({ userId, archive }: { userId: string; archive: boolean }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_archived: archive })
-        .eq('id', userId);
-
-      if (error) throw error;
+      await updateMember(userId, { is_archived: archive });
     },
     onSuccess: (_, { archive }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
@@ -314,7 +273,7 @@ export default function UserManagement() {
     setBulkActionPending(true);
     const ids = Array.from(selectedIds);
     for (const userId of ids) {
-      await supabase.from("profiles").update({ is_archived: archive }).eq("id", userId);
+      await updateMember(userId, { is_archived: archive }).catch(console.error);
     }
     setBulkActionPending(false);
     setSelectedIds(new Set());
@@ -366,10 +325,12 @@ export default function UserManagement() {
   // ——— Resend invite ———
   const handleResendInvite = async (user: UserProfile) => {
     try {
-      const { data, error } = await supabase.functions.invoke("admin-manage-users", {
-        body: { action: "resend_invite", user_id: user.id },
+      // TODO: Replace with Sanic API endpoint when invite management is implemented
+      await apiFetch('/api/v1/members/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id }),
       });
-      if (error) throw error;
       toast({
         title: "Invite resent",
         description: `An invitation email has been sent to ${user.username || getDisplayName(user)}.`,
@@ -613,7 +574,7 @@ export default function UserManagement() {
                         <Switch
                           checked={user.canAccessDiscover}
                           onCheckedChange={async (checked) => {
-                            await supabase.from('profiles').update({ can_access_discover: checked }).eq('id', user.id);
+                            await updateMember(user.id, { can_access_discover: checked });
                             queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
                           }}
                           aria-label="Toggle Discover access"

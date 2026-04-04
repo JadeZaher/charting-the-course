@@ -39,7 +39,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { fetchEcosystems, fetchQuizzes } from "@/lib/api-client";
 import {
   ArrowLeft,
   GripVertical,
@@ -120,6 +120,19 @@ interface EthosOption {
   id: string;
   name: string;
   slug: string;
+}
+
+// ——————————————————————————————————————————————
+// API helper
+// ——————————————————————————————————————————————
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
 }
 
 // ——————————————————————————————————————————————
@@ -647,9 +660,9 @@ export default function JourneyMapEditor() {
     queryKey: ["journey-map-edit", mapId],
     queryFn: async () => {
       if (!mapId) return null;
-      const { data, error } = await supabase.functions.invoke(`journey-maps-get?id=${mapId}`);
-      if (error) throw error;
-      return data?.data;
+      // TODO: replace with dedicated journey-maps-get Sanic endpoint when available
+      const result = await apiFetch<any>(`/api/v1/journey-maps/${mapId}`);
+      return result?.map ?? result?.data ?? result;
     },
     enabled: !isNew,
   });
@@ -684,18 +697,17 @@ export default function JourneyMapEditor() {
   const { data: ethosList = [] } = useQuery<EthosOption[]>({
     queryKey: ["ethos-list-editor"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("ethos-list");
-      if (error) throw error;
-      return (data?.data?.ethos || []) as EthosOption[];
+      const result = await fetchEcosystems();
+      const items = (result as any)?.ecosystems ?? (result as any)?.items ?? (Array.isArray(result) ? result : []);
+      return items.map((e: any) => ({ id: e.id, name: e.name, slug: e.slug })) as EthosOption[];
     },
   });
 
   const { data: quizList = [] } = useQuery<QuizOption[]>({
     queryKey: ["quiz-list-editor"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("quiz-get-visible-quizzes");
-      if (error) throw error;
-      const quizzes = data?.data?.quizzes || data?.data || [];
+      const result = await fetchQuizzes();
+      const quizzes = (result as any)?.quizzes ?? (result as any)?.items ?? (Array.isArray(result) ? result : []);
       return quizzes.map((q: any) => ({ id: q.id, title: q.title })) as QuizOption[];
     },
   });
@@ -760,11 +772,16 @@ export default function JourneyMapEditor() {
         exit_package: exitPackage,
       };
 
-      const fn = isNew ? "journey-maps-create" : "journey-maps-update";
-      const { data, error } = await supabase.functions.invoke(fn, { body: payload });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Save failed");
-      return data.data;
+      // TODO: replace with dedicated Sanic endpoints when journey-maps-create/update are available
+      const method = isNew ? 'POST' : 'PUT';
+      const url = isNew ? '/api/v1/journey-maps' : `/api/v1/journey-maps/${mapId}`;
+      const data = await apiFetch<any>(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!data?.success && !data?.id) throw new Error(data?.error || "Save failed");
+      return data?.data ?? data;
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });

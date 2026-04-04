@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useEthosDetail } from '@/hooks/useEthos';
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 import { useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
 import type { JourneyMap } from '@/types/orientation';
 import { VideoStep } from '@/components/orientation/VideoStep';
@@ -23,13 +32,9 @@ function useJourneyMap(journeyMapId?: string) {
     queryKey: ['journey-map', journeyMapId],
     queryFn: async () => {
       if (!journeyMapId) return null;
-      const { data, error } = await supabase
-        .from('journey_maps')
-        .select('*')
-        .eq('id', journeyMapId)
-        .single();
-      if (error) throw error;
-      return data as JourneyMap;
+      // TODO: replace with Sanic endpoint when journey-maps-get is available
+      const result = await apiFetch<any>(`/api/v1/journey-maps/${journeyMapId}`);
+      return (result?.map ?? result?.data ?? result) as JourneyMap;
     },
     enabled: !!journeyMapId,
   });

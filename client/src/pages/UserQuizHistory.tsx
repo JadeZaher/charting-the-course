@@ -12,7 +12,17 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useParams } from "wouter";
 import { usePermissions } from "@/hooks/usePermissions";
-import { supabase } from "@/lib/supabase";
+import { fetchMember, fetchMemberQuizHistory, fetchMemberBadges } from "@/lib/api-client";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -102,86 +112,75 @@ interface UserXP {
   quiz_streak: number;
 }
 
-// Fetch user profile
+// Fetch user profile via Sanic BFF API
 async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-
-  if (error) {
+  try {
+    const data = await fetchMember(userId);
+    return {
+      id: (data as any).id,
+      first_name: (data as any).display_name?.split(' ')[0] ?? null,
+      last_name: (data as any).display_name?.split(' ').slice(1).join(' ') ?? null,
+      username: (data as any).username ?? null,
+      avatar_url: (data as any).avatar_url ?? null,
+      bio: (data as any).bio ?? null,
+      headline: (data as any).headline ?? null,
+      profile_visibility: (data as any).profile_visibility ?? 'public',
+      created_at: (data as any).created_at,
+      role: (data as any).role ?? 'viewer',
+      roleName: (data as any).role_name ?? 'Viewer',
+    };
+  } catch (error) {
     console.error('Error fetching profile:', error);
     return null;
   }
-
-  const { data: roleData } = await supabase
-    .from('user_roles')
-    .select(`roles (key, name)`)
-    .eq('user_id', userId)
-    .single();
-
-  return {
-    ...profile,
-    role: (roleData?.roles as any)?.key || 'viewer',
-    roleName: (roleData?.roles as any)?.name || 'Viewer',
-  };
 }
 
-// Fetch user's quiz results
+// Fetch user's quiz results via Sanic BFF API
 async function fetchUserQuizResults(userId: string): Promise<QuizResult[]> {
-  const { data, error } = await supabase
-    .from('quiz_results')
-    .select(`*, quiz:quizzes (title, description, survey_json)`)
-    .eq('user_id', userId)
-    .order('completed_at', { ascending: false });
-
-  if (error) {
+  try {
+    const result = await fetchMemberQuizHistory(userId);
+    const items = (result as any).results || (result as any).items || [];
+    return items.map((r: any) => ({
+      id: r.id,
+      quiz_id: r.quiz_id,
+      user_id: r.member_id || userId,
+      score: r.score ?? 0,
+      is_passed: r.is_passed ?? null,
+      time_spent: r.time_spent ?? null,
+      completed_at: r.completed_at,
+      survey_results: r.survey_results ?? r.answers ?? {},
+      quiz: r.quiz ?? null,
+    })) as QuizResult[];
+  } catch (error) {
     console.error('Error fetching quiz results:', error);
     return [];
   }
-
-  return data || [];
 }
 
-// Fetch user's badges with XP info
+// Fetch user's badges via Sanic BFF API
 async function fetchUserBadges(userId: string): Promise<UserBadge[]> {
-  const { data, error } = await supabase
-    .from('user_badges')
-    .select('*')
-    .eq('user_id', userId)
-    .order('earned_at', { ascending: false });
-
-  if (error) {
+  try {
+    const result = await fetchMemberBadges(userId);
+    const badges = (result as any).badges || [];
+    return badges.map((b: any) => ({
+      id: b.id,
+      badge_key: b.badge_key || b.key,
+      badge_name: b.badge_name || b.name,
+      badge_icon: b.badge_icon || b.icon || null,
+      badge_color: b.badge_color || b.color || null,
+      earned_at: b.earned_at || b.created_at,
+      xp_reward: b.xp_reward ?? 0,
+    })) as UserBadge[];
+  } catch (error) {
     console.error('Error fetching badges:', error);
     return [];
   }
-
-  // Get XP rewards from badge definitions
-  const badgeKeys = data?.map(b => b.badge_key) || [];
-  const { data: definitions } = await supabase
-    .from('badge_definitions')
-    .select('badge_key, xp_reward')
-    .in('badge_key', badgeKeys);
-
-  const xpMap = new Map(definitions?.map(d => [d.badge_key, d.xp_reward]) || []);
-
-  return (data || []).map(b => ({
-    ...b,
-    xp_reward: xpMap.get(b.badge_key) || 0
-  }));
 }
 
-// Fetch user XP
-async function fetchUserXP(userId: string): Promise<UserXP | null> {
-  const { data, error } = await supabase
-    .from('user_xp_levels')
-    .select('total_xp, current_level, quiz_streak')
-    .eq('user_id', userId)
-    .single();
-
-  if (error) return null;
-  return data;
+// Fetch user XP — TODO: add XP endpoint to Sanic API
+async function fetchUserXP(_userId: string): Promise<UserXP | null> {
+  // TODO: Replace with Sanic API endpoint when XP/levels endpoint is implemented
+  return null;
 }
 
 export default function UserQuizHistory() {
@@ -227,12 +226,8 @@ export default function UserQuizHistory() {
   // Delete single quiz result - must be before conditional returns
   const deleteResultMutation = useMutation({
     mutationFn: async (resultId: string) => {
-      const { error } = await supabase
-        .from('quiz_results')
-        .delete()
-        .eq('id', resultId);
-      
-      if (error) throw error;
+      // TODO: Replace with Sanic API endpoint when quiz result deletion is implemented
+      await apiFetch(`/api/v1/quiz-results/${resultId}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-quiz-results', userId] });
@@ -247,20 +242,8 @@ export default function UserQuizHistory() {
   // Delete single badge
   const deleteBadgeMutation = useMutation({
     mutationFn: async (badge: UserBadge) => {
-      const { error } = await supabase
-        .from('user_badges')
-        .delete()
-        .eq('id', badge.id);
-      
-      if (error) throw error;
-
-      // Deduct XP if badge had XP reward
-      if (badge.xp_reward && badge.xp_reward > 0) {
-        await supabase.rpc('decrement_user_xp', {
-          p_user_id: userId,
-          p_xp_amount: badge.xp_reward
-        });
-      }
+      // TODO: Replace with Sanic API endpoint when badge deletion is implemented
+      await apiFetch(`/api/v1/members/${userId}/badges/${badge.id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-badges-history', userId] });
@@ -280,34 +263,13 @@ export default function UserQuizHistory() {
       const badgeIds = Array.from(selectedBadges);
 
       // Delete selected quiz results
-      if (resultIds.length > 0) {
-        const { error } = await supabase
-          .from('quiz_results')
-          .delete()
-          .in('id', resultIds);
-        
-        if (error) throw error;
+      for (const resultId of resultIds) {
+        await apiFetch(`/api/v1/quiz-results/${resultId}`, { method: 'DELETE' });
       }
 
-      // Delete selected badges and deduct XP
-      if (badgeIds.length > 0) {
-        const selectedBadgeObjects = badges.filter(b => badgeIds.includes(b.id));
-        const totalXP = selectedBadgeObjects.reduce((sum, b) => sum + (b.xp_reward || 0), 0);
-
-        const { error } = await supabase
-          .from('user_badges')
-          .delete()
-          .in('id', badgeIds);
-        
-        if (error) throw error;
-
-        // Deduct total XP
-        if (totalXP > 0) {
-          await supabase.rpc('decrement_user_xp', {
-            p_user_id: userId,
-            p_xp_amount: totalXP
-          });
-        }
+      // Delete selected badges
+      for (const badgeId of badgeIds) {
+        await apiFetch(`/api/v1/members/${userId}/badges/${badgeId}`, { method: 'DELETE' });
       }
     },
     onSuccess: () => {
@@ -327,43 +289,11 @@ export default function UserQuizHistory() {
     },
   });
 
-  // Reset user XP completely
+  // Reset user XP completely — TODO: add reset endpoint to Sanic API
   const resetXPMutation = useMutation({
     mutationFn: async () => {
-      // Delete all badges
-      await supabase
-        .from('user_badges')
-        .delete()
-        .eq('user_id', userId);
-
-      // Delete all quiz results
-      await supabase
-        .from('quiz_results')
-        .delete()
-        .eq('user_id', userId);
-
-      // Delete all tags
-      await supabase
-        .from('user_tags')
-        .delete()
-        .eq('user_id', userId);
-
-      // Delete all achievements
-      await supabase
-        .from('user_achievements')
-        .delete()
-        .eq('user_id', userId);
-
-      // Reset XP to 0
-      await supabase
-        .from('user_xp_levels')
-        .update({
-          total_xp: 0,
-          current_level: 1,
-          quiz_streak: 0,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
+      // TODO: Replace with Sanic API endpoint when member reset endpoint is implemented
+      await apiFetch(`/api/v1/members/${userId}/reset`, { method: 'POST' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-quiz-results', userId] });

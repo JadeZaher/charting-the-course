@@ -15,8 +15,28 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, Trash2, Edit, Check, X, Eye } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchQuizzes, createQuiz } from "@/lib/api-client";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
+function updateQuiz(id: string, data: Record<string, any>) {
+  return apiFetch<any>(`/api/v1/quizzes/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+function deleteQuiz(id: string) {
+  return apiFetch<any>(`/api/v1/quizzes/${id}`, { method: 'DELETE' });
+}
 
 interface Quiz {
   id: string;
@@ -32,7 +52,7 @@ interface Quiz {
 export default function QuizManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const [location, setLocation] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
@@ -55,16 +75,18 @@ export default function QuizManagement() {
   const { data: quizzes, isLoading, error: quizzesError } = useQuery<Quiz[]>({
     queryKey: ['quizzes-manage'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching quizzes for management:', error);
-        throw error;
-      }
-      return data || [];
+      const result = await fetchQuizzes();
+      const items = (result as any).items || (result as any).quizzes || [];
+      return items.map((q: any) => ({
+        id: q.id,
+        title: q.title,
+        description: q.description ?? null,
+        visibility: q.visibility ?? 'public',
+        is_published: q.is_published ?? false,
+        survey_json: q.survey_json ?? q.config ?? null,
+        created_at: q.created_at,
+        created_by: q.created_by ?? q.author_id ?? '',
+      })) as Quiz[];
     },
   });
 
@@ -102,22 +124,15 @@ export default function QuizManagement() {
 
   const createQuizMutation = useMutation({
     mutationFn: async (quizData: any) => {
-      const { data, error } = await supabase
-        .from('quizzes')
-        .insert({
-          title: quizData.title,
-          description: quizData.description,
-          visibility: quizData.visibility,
-          survey_json: quizData.surveyJson,
-          mode: quizData.mode || 'take',
-          is_published: false,
-          created_by: user?.id,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return createQuiz({
+        title: quizData.title,
+        description: quizData.description,
+        visibility: quizData.visibility,
+        survey_json: quizData.surveyJson,
+        mode: quizData.mode || 'take',
+        is_published: false,
+        created_by: member?.id,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
@@ -144,12 +159,7 @@ export default function QuizManagement() {
 
   const publishQuizMutation = useMutation({
     mutationFn: async (quizId: string) => {
-      const { error } = await supabase
-        .from('quizzes')
-        .update({ is_published: true })
-        .eq('id', quizId);
-      
-      if (error) throw error;
+      await updateQuiz(quizId, { is_published: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
@@ -169,26 +179,13 @@ export default function QuizManagement() {
 
   const updateQuizMutation = useMutation({
     mutationFn: async (quizData: { id: string; title: string; description: string; visibility: string; surveyJson: any; is_published: boolean }) => {
-      console.log('Updating quiz:', quizData);
-      const { data, error } = await supabase
-        .from('quizzes')
-        .update({
-          title: quizData.title,
-          description: quizData.description || null,
-          visibility: quizData.visibility,
-          survey_json: quizData.surveyJson,
-          is_published: quizData.is_published,
-        })
-        .eq('id', quizData.id)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error updating quiz:', error);
-        throw error;
-      }
-      console.log('Quiz updated successfully:', data);
-      return data;
+      return updateQuiz(quizData.id, {
+        title: quizData.title,
+        description: quizData.description || null,
+        visibility: quizData.visibility,
+        survey_json: quizData.surveyJson,
+        is_published: quizData.is_published,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
@@ -216,12 +213,7 @@ export default function QuizManagement() {
 
   const deleteQuizMutation = useMutation({
     mutationFn: async (quizId: string) => {
-      const { error } = await supabase
-        .from('quizzes')
-        .delete()
-        .eq('id', quizId);
-      
-      if (error) throw error;
+      await deleteQuiz(quizId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });

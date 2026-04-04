@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle, Clock, Calendar, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { supabase } from "@/lib/supabase";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchMemberQuizHistory } from "@/lib/api-client";
 
 interface ResultMetadata {
   totalQuestions?: number;
@@ -37,45 +37,28 @@ interface QuizResult {
 
 export default function MyQuizHistory() {
   const [, setLocation] = useLocation();
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const [showAll, setShowAll] = useState(false);
 
   const { data: quizResults = [], isLoading } = useQuery<QuizResult[]>({
-    queryKey: ['my-quiz-history', user?.id],
+    queryKey: ['my-quiz-history', member?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('quiz_results')
-        .select(`
-          id,
-          quiz_id,
-          user_id,
-          score,
-          is_passed,
-          time_spent,
-          result_metadata,
-          completed_at,
-          quizzes (title, description)
-        `)
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return (data || []).map((item: any) => ({
+      if (!member?.id) return [];
+      const result = await fetchMemberQuizHistory(member.id);
+      const items = (result as any).results || (result as any).items || [];
+      return items.map((item: any) => ({
         id: item.id,
         quiz_id: item.quiz_id,
-        user_id: item.user_id,
-        score: item.score,
-        is_passed: item.is_passed,
-        time_spent: item.time_spent,
-        result_metadata: item.result_metadata,
+        user_id: item.member_id || member.id,
+        score: item.score ?? null,
+        is_passed: item.is_passed ?? null,
+        time_spent: item.time_spent ?? null,
+        result_metadata: item.result_metadata ?? null,
         completed_at: item.completed_at,
-        quiz: item.quizzes,
-      }));
+        quiz: item.quiz ?? item.quizzes ?? null,
+      })) as QuizResult[];
     },
-    enabled: !!user?.id,
+    enabled: !!member?.id,
   });
 
   const displayedResults = showAll ? quizResults : quizResults.slice(0, 20);
@@ -87,7 +70,7 @@ export default function MyQuizHistory() {
     return `${minutes} min`;
   };
 
-  if (!user) {
+  if (!member) {
     return (
       <div className="max-w-4xl mx-auto">
         <Card>

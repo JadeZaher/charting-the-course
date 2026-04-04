@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
 import "survey-core/survey-core.css";
@@ -9,8 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuiz, useSubmitQuizResult } from "@/hooks/use-courses";
 
 interface Quiz {
   id: string;
@@ -26,66 +26,40 @@ export default function TakeQuiz() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const [survey, setSurvey] = useState<Model | null>(null);
   const [startTime] = useState(Date.now());
 
   const quizId = params?.id;
 
-  const { data: quiz, isLoading, error } = useQuery<Quiz>({
-    queryKey: ['quiz', quizId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('id, title, description, survey_json, time_limit, passing_score')
-        .eq('id', quizId)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!quizId,
-  });
+  const { data: quizData, isLoading, error } = useQuiz(quizId || '');
+  // Map API response to local Quiz shape
+  const quiz: Quiz | null = quizData
+    ? {
+        id: (quizData as any).id,
+        title: (quizData as any).title,
+        description: (quizData as any).description ?? null,
+        survey_json: (quizData as any).survey_json ?? (quizData as any).config ?? null,
+        time_limit: (quizData as any).time_limit ?? null,
+        passing_score: (quizData as any).passing_score ?? null,
+      }
+    : null;
+
+  const submitResultMutation = useSubmitQuizResult(quizId || '');
 
   const submitQuizMutation = useMutation({
     mutationFn: async (data: { surveyResults: any; timeSpent: number }) => {
-      if (!user?.id || !quizId || !quiz) throw new Error('Not authenticated or quiz not found');
-      
-      console.log('Submitting quiz:', quizId, 'for user:', user.id);
-      console.log('Survey results:', data.surveyResults);
-      
-      // Call the submit-with-tiles edge function
-      // This handles: scoring, retake checks, tile generation, cleanup
-      const { data: response, error } = await supabase.functions.invoke(
-        `submit-with-tiles/${quizId}`,
-        {
-          body: {
-            survey_results: data.surveyResults,
-            time_spent: data.timeSpent || undefined,
-          },
-        }
-      );
-      
-      console.log('Edge function response:', response);
-      console.log('Edge function error:', error);
-      
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message || 'Failed to submit quiz');
-      }
-      
-      if (response?.error) {
-        throw new Error(response.error);
-      }
-      
-      const result = response?.data || response;
-      
-      console.log('Parsed result:', result);
-      
+      if (!member?.id || !quizId || !quiz) throw new Error('Not authenticated or quiz not found');
+
+      const response = await submitResultMutation.mutateAsync({
+        survey_results: data.surveyResults,
+        time_spent: data.timeSpent || undefined,
+      });
+
       return {
-        result: result.result,
-        tilesCreated: result.tiles_created || 0,
-        isAssessment: result.is_assessment || false,
+        result: (response as any).result ?? response,
+        tilesCreated: (response as any).tiles_created || 0,
+        isAssessment: (response as any).is_assessment || false,
       };
     },
     onSuccess: (data) => {

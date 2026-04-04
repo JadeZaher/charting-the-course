@@ -7,7 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, ArrowRight, ExternalLink, Users, Map } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 
 export default function EthosDetail() {
   const [, params] = useRoute('/ethos/:slug');
@@ -20,8 +29,8 @@ export default function EthosDetail() {
   const { data: journeyMaps = [] } = useQuery({
     queryKey: ['ethos-journey-maps', ethosId],
     queryFn: async () => {
-      const { data: mapsResp } = await supabase.functions.invoke(`journey-maps-list?ethos_id=${ethosId}&is_active=true`);
-      return mapsResp?.data?.maps || [];
+      const result = await apiFetch<any>(`/api/v1/ecosystems/${ethosId}/journey-maps?is_active=true`);
+      return result?.maps || result?.items || [];
     },
     enabled: !!ethosId,
   });

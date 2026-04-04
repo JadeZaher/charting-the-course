@@ -1,5 +1,5 @@
 import { Redirect, useLocation } from "wouter";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -8,12 +8,12 @@ interface ProtectedRouteProps {
 }
 
 /**
- * Protects routes that require authentication
- * Redirects to login if not authenticated
- * Optionally checks for required role
+ * Protects routes that require authentication.
+ * Redirects to login if not authenticated.
+ * Optionally checks for required role.
  */
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   if (isLoading) {
@@ -30,13 +30,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return <Redirect to={`/login?redirect=${returnUrl}`} />;
   }
 
-  // TODO: Add role checking when useUserRole is integrated
-  // if (requiredRole) {
-  //   const { data: userRole } = useUserRole();
-  //   if (userRole?.key !== requiredRole && userRole?.key !== 'admin') {
-  //     return <Redirect to="/unauthorized" />;
-  //   }
-  // }
+  // Role checking via useRoleAccess can be added here if needed
+  // For now requiredRole prop is accepted but not enforced (all auth'd users pass)
+  void requiredRole;
 
   return <>{children}</>;
 }
@@ -45,7 +41,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
  * Redirects authenticated users away from public-only routes (like login)
  */
 export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -61,4 +57,3 @@ export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-
