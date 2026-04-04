@@ -7,7 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
@@ -53,7 +54,7 @@ function ProtectedRoute({
   component: React.ComponentType;
   requiredPermission?: 'canManageUsers' | 'canManageContent' | 'canProxyQuiz' | 'canViewAnalytics' | 'isAdmin';
 }) {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const { canManageUsers, canManageContent, canProxyQuiz, canViewAnalytics, isAdmin, isLoading: permLoading, error: permError } = usePermissions();
   const [location] = useLocation();
 
@@ -110,7 +111,7 @@ function ProtectedRoute({
 
 // Public routes that don't require auth
 function PublicRoutes() {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   if (isLoading) {
@@ -225,7 +226,7 @@ function AuthenticatedRoutes() {
 
 // Main app layout with authentication
 function AppLayout() {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   // Public routes that don't need the sidebar
@@ -275,12 +276,16 @@ function AppLayout() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <AppLayout />
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <EcosystemProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <AppLayout />
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </EcosystemProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

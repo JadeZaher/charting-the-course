@@ -2,84 +2,51 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { BookOpen, Users, BarChart3, MapPin, Loader2 } from "lucide-react";
+import { BookOpen, Users, BarChart3, MapPin, Loader2, KeyRound, UserPlus } from "lucide-react";
 import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_illustration_547be2cb.png";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
-import { useLocation, useSearch } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
+import { hasSavedIdentity, getSavedDid } from "@/lib/did-auth";
 
 export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const searchString = useSearch();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  
-  const { 
-    signIn, 
-    isSigningIn, 
-    signInError, 
-    isAuthenticated,
-    isLoading: isAuthLoading 
-  } = useSupabaseAuth();
+  const [displayName, setDisplayName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get redirect URL from query params
-  const getRedirectUrl = () => {
-    const params = new URLSearchParams(searchString);
-    return params.get('redirect') || '/';
-  };
+  const { login, isLoading: isAuthLoading, isAuthenticated, error: authError } = useAuth();
+
+  const hasIdentity = hasSavedIdentity();
+  const savedDid = getSavedDid();
 
   // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      setLocation(getRedirectUrl());
-    }
-  }, [isAuthenticated, setLocation]);
+  if (isAuthenticated && !isAuthLoading) {
+    setLocation('/dashboard');
+    return null;
+  }
 
-  const handleSupabaseLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
+    setIsSubmitting(true);
+
+    try {
+      await login(displayName || undefined);
       toast({
-        title: "Missing Fields",
-        description: "Please enter both email and password",
+        title: "Login Successful",
+        description: "Welcome to Charting the Course!",
+      });
+      setLocation('/dashboard');
+    } catch (err) {
+      toast({
+        title: "Authentication Failed",
+        description: err instanceof Error ? err.message : "Could not authenticate",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    signIn(
-      { email, password },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Login Successful",
-            description: "Welcome to Charting the Course!",
-          });
-          setLocation(getRedirectUrl());
-        },
-        onError: (error) => {
-          toast({
-            title: "Login Failed",
-            description: error.message || "Invalid credentials",
-            variant: "destructive",
-          });
-        },
-      }
-    );
-  };
-
-  // Quick login with test accounts
-  const handleQuickLogin = (role: 'admin' | 'facilitator' | 'viewer') => {
-    const testEmails = {
-      admin: 'admin@chartingthecourse.test',
-      facilitator: 'facilitator@chartingthecourse.test',
-      viewer: 'viewer@chartingthecourse.test',
-    };
-    setEmail(testEmails[role]);
-    setPassword('TestPassword123!');
   };
 
   if (isAuthLoading) {
@@ -104,94 +71,81 @@ export default function Login() {
 
           <Card>
             <CardHeader className="text-center">
-              <CardTitle>Sign In</CardTitle>
+              <CardTitle>
+                {hasIdentity ? 'Welcome Back' : 'Create Your Identity'}
+              </CardTitle>
               <CardDescription>
-                Sign in to access quizzes, track your progress, and collaborate with your team
+                {hasIdentity
+                  ? 'Sign in with your existing decentralized identity'
+                  : 'Generate a self-sovereign identity to get started'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Login Form */}
-              <form onSubmit={handleSupabaseLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isSigningIn}
-                    data-testid="input-email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isSigningIn}
-                    data-testid="input-password"
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isSigningIn}
-                  data-testid="button-login"
-                >
-                  {isSigningIn ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    "Sign In"
-                  )}
-                </Button>
+              <form onSubmit={handleLogin} className="space-y-4">
+                {hasIdentity && savedDid ? (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-md bg-muted">
+                      <Label className="text-xs text-muted-foreground">Your DID</Label>
+                      <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmitting}
+                      data-testid="button-login"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound className="w-4 h-4 mr-2" />
+                          Sign In
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName">Display Name (optional)</Label>
+                      <Input
+                        id="displayName"
+                        type="text"
+                        placeholder="How should we call you?"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        disabled={isSubmitting}
+                        data-testid="input-display-name"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmitting}
+                      data-testid="button-login"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating identity...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Create & Sign In
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </form>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Quick Login (Test)</span>
-                </div>
-              </div>
-
-              {/* Quick Login Buttons */}
-              <div className="grid grid-cols-3 gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleQuickLogin('admin')}
-                  disabled={isSigningIn}
-                >
-                  Admin
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleQuickLogin('facilitator')}
-                  disabled={isSigningIn}
-                >
-                  Facilitator
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleQuickLogin('viewer')}
-                  disabled={isSigningIn}
-                >
-                  Viewer
-                </Button>
-              </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Click a role above to fill in test credentials, then click Sign In
-              </p>
+              {authError && (
+                <p className="text-sm text-destructive text-center">{authError}</p>
+              )}
 
               <div className="space-y-4 pt-4">
                 <h3 className="font-semibold text-center">What You Can Do</h3>
@@ -240,7 +194,7 @@ export default function Login() {
       </div>
 
       {/* Right Side - Hero Image */}
-      <div 
+      <div
         className="hidden lg:flex flex-1 items-center justify-center relative overflow-hidden"
         style={{
           backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${loginHeroImage})`,
