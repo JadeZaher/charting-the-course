@@ -36,6 +36,14 @@ import OrientationComplete from "@/pages/OrientationComplete";
 import GovernanceDashboard from "@/pages/governance/DashboardHome";
 import { AgreementList, AgreementDetail, AgreementForm, AgreementHistory } from '@/pages/governance/agreements';
 import { ProposalList, ProposalDetail, ProposalForm } from '@/pages/governance/proposals';
+import { MemberList, MemberDetail, MemberForm } from '@/pages/governance/members';
+import { DomainList, DomainDetail, DomainForm } from '@/pages/governance/domains';
+import { DecisionList, DecisionDetail } from '@/pages/governance/decisions';
+import { OnboardingList, OnboardingCeremony } from '@/pages/governance/onboarding';
+import { ConflictList, ConflictDetail, ConflictForm } from '@/pages/governance/conflicts';
+import { EcosystemListPage, EcosystemDetailPage, EcosystemFormPage } from '@/pages/governance/ecosystems';
+import MessagingLayout from '@/pages/messaging/MessagingLayout';
+import ChatPanel from '@/pages/chat/ChatPanel';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 
 // Loading spinner component
@@ -256,6 +264,41 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={UserQuizHistory} requiredPermission="isAdmin" />
       </Route>
       
+      {/* Members */}
+      <Route path="/members/new"><ProtectedRoute component={MemberForm} /></Route>
+      <Route path="/members/:id/edit"><ProtectedRoute component={MemberForm} /></Route>
+      <Route path="/members/:id"><ProtectedRoute component={MemberDetail} /></Route>
+      <Route path="/members"><ProtectedRoute component={MemberList} /></Route>
+
+      {/* Domains */}
+      <Route path="/domains/new"><ProtectedRoute component={DomainForm} /></Route>
+      <Route path="/domains/:id/edit"><ProtectedRoute component={DomainForm} /></Route>
+      <Route path="/domains/:id"><ProtectedRoute component={DomainDetail} /></Route>
+      <Route path="/domains"><ProtectedRoute component={DomainList} /></Route>
+
+      {/* Decisions */}
+      <Route path="/decisions/:id"><ProtectedRoute component={DecisionDetail} /></Route>
+      <Route path="/decisions"><ProtectedRoute component={DecisionList} /></Route>
+
+      {/* Onboarding */}
+      <Route path="/onboarding/:memberId/ceremony"><ProtectedRoute component={OnboardingCeremony} /></Route>
+      <Route path="/onboarding"><ProtectedRoute component={OnboardingList} /></Route>
+
+      {/* Conflicts */}
+      <Route path="/conflicts/new"><ProtectedRoute component={ConflictForm} /></Route>
+      <Route path="/conflicts/:id"><ProtectedRoute component={ConflictDetail} /></Route>
+      <Route path="/conflicts"><ProtectedRoute component={ConflictList} /></Route>
+
+      {/* Ecosystems */}
+      <Route path="/ecosystems/new"><ProtectedRoute component={EcosystemFormPage} /></Route>
+      <Route path="/ecosystems/:id/edit"><ProtectedRoute component={EcosystemFormPage} /></Route>
+      <Route path="/ecosystems/:id"><ProtectedRoute component={EcosystemDetailPage} /></Route>
+      <Route path="/ecosystems"><ProtectedRoute component={EcosystemListPage} /></Route>
+
+      {/* Messaging + Chat */}
+      <Route path="/messaging"><ProtectedRoute component={MessagingLayout} /></Route>
+      <Route path="/chat"><ProtectedRoute component={ChatPanel} /></Route>
+
       {/* Fallback to public routes for unmatched paths */}
       <Route>
         <PublicRoutes />

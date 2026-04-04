@@ -254,3 +254,167 @@ export interface PaginatedResponse<T> {
   page: number;
   per_page: number;
 }
+
+// Member types
+export interface MemberListItem {
+  id: string;
+  member_id: string;
+  display_name: string;
+  current_status: string;
+  profile: string | null;
+  did: string | null;
+  phone: string | null;
+  created_at: string;
+}
+
+export interface MemberDetail extends MemberListItem {
+  ecosystem_id: string;
+  profile_picture: string | null;
+  skills_offered: string[] | null;
+  skills_needed: string[] | null;
+  interests: string[] | null;
+  updated_at: string;
+  onboarding: OnboardingState | null;
+}
+
+export interface OnboardingState {
+  id: string;
+  facilitator: string | null;
+  completion_percentage: number;
+  section_consents: Record<string, boolean> | null;
+  cooling_off_start: string | null;
+  cooling_off_end: string | null;
+  consent_date: string | null;
+}
+
+// Domain types
+export interface DomainListItem {
+  id: string;
+  domain_id: string;
+  version: string;
+  status: string;
+  purpose: string | null;
+  current_steward: string | null;
+  created_at: string;
+}
+
+export interface DomainElement {
+  id: string;
+  element_name: string;
+  element_value: Record<string, any> | null;
+}
+
+export interface DomainMetric {
+  id: string;
+  metric: string;
+  target: string | null;
+  measurement_method: string | null;
+}
+
+export interface DomainDetail extends DomainListItem {
+  ecosystem_id: string;
+  created_by: string | null;
+  parent_domain_id: string | null;
+  elements: DomainElement[];
+  metrics: DomainMetric[];
+  updated_at: string;
+}
+
+// Decision types
+export interface DecisionListItem {
+  id: string;
+  record_id: string;
+  date: string | null;
+  holding: string | null;
+  domain: string | null;
+  precedent_level: string | null;
+  status: string;
+  source_skill: string | null;
+  created_at: string;
+}
+
+export interface DecisionDetail extends DecisionListItem {
+  ecosystem_id: string;
+  ratio_decidendi: string | null;
+  obiter_dicta: string | null;
+  deliberation_summary: string | null;
+  source_layer: number | null;
+  artifact_type: string | null;
+  artifact_reference: string | null;
+  overruled_by: string | null;
+  superseded_by: string | null;
+  updated_at: string;
+}
+
+// Conflict types
+export interface ConflictListItem {
+  id: string;
+  case_id: string;
+  title: string;
+  status: string;
+  severity: string | null;
+  urgency: string | null;
+  domain: string | null;
+  safety_flag: boolean;
+  created_at: string;
+}
+
+export interface RepairAgreement {
+  id: string;
+  title: string;
+  responsible_party: string | null;
+  status: string;
+  commitments: Record<string, any> | null;
+  completed_date: string | null;
+}
+
+export interface ConflictDetail extends ConflictListItem {
+  ecosystem_id: string;
+  description: string | null;
+  scope: string | null;
+  tier: number | null;
+  root_cause_category: string | null;
+  parties: string[] | null;
+  reporter_id: string | null;
+  facilitator_id: string | null;
+  updated_at: string;
+  repair_agreements: RepairAgreement[];
+}
+
+// Messaging types
+export interface ConversationSummary {
+  id: string;
+  type: string;
+  title: string | null;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+  participants: { id: string; display_name: string }[];
+}
+
+export interface MessageItem {
+  id: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  message_type: string;
+  created_at: string;
+  edited_at: string | null;
+}
+
+export interface ConversationDetail {
+  id: string;
+  type: string;
+  title: string | null;
+  participants: { id: string; display_name: string; role: string }[];
+  messages: MessageItem[];
+  total_messages: number;
+}
+
+// Chat types
+export interface ChatSession {
+  id: string;
+  title: string | null;
+  last_message: string | null;
+  created_at: string;
+}
