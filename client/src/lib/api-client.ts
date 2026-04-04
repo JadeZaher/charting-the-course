@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -60,4 +60,9 @@ export function fetchEcosystems(): Promise<{ ecosystems: EcosystemSummary[]; tot
 
 export function fetchEcosystem(id: string): Promise<EcosystemDetail> {
   return apiFetch<EcosystemDetail>(`/api/v1/ecosystems/${id}`);
+}
+
+// Dashboard API
+export function fetchDashboardSummary(): Promise<DashboardSummary> {
+  return apiFetch<DashboardSummary>('/api/v1/dashboard/summary');
 }

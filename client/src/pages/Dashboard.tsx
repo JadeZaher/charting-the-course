@@ -1,21 +1,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { BookOpen, User, Shield, Video, ArrowRight, FileEdit } from "lucide-react";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { BookOpen, User, Shield, Video, ArrowRight, FileEdit, Scale } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 // TODO: Enable when Edge Functions are deployed
 // import { useUserProgress } from "@/hooks/useAchievements";
 
 export default function Dashboard() {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const { canManageContent, canManageUsers, isAdmin, legacyRole } = usePermissions();
   const roleName = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1));
 
   // Get display name
-  const firstName = user?.user_metadata?.first_name || '';
-  const lastName = user?.user_metadata?.last_name || '';
-  const displayName = `${firstName} ${lastName}`.trim() || user?.email?.split('@')[0] || 'User';
+  const displayName = member?.display_name || 'User';
 
   // Base navigation cards for all users
   const navigationCards = [
@@ -32,6 +30,13 @@ export default function Dashboard() {
       icon: User,
       href: "/profile",
       testId: "card-nav-profile",
+    },
+    {
+      title: "Governance",
+      description: "View governance summary, agreements, proposals, and decisions",
+      icon: Scale,
+      href: "/governance",
+      testId: "card-nav-governance",
     },
   ];
 

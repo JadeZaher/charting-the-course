@@ -33,6 +33,8 @@ import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
 import OrientationComplete from "@/pages/OrientationComplete";
+import GovernanceDashboard from "@/pages/governance/DashboardHome";
+import { EcosystemPicker } from "@/components/EcosystemPicker";
 
 // Loading spinner component
 function LoadingScreen() {
@@ -143,7 +145,12 @@ function AuthenticatedRoutes() {
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
-      
+
+      {/* Governance dashboard */}
+      <Route path="/governance">
+        <ProtectedRoute component={GovernanceDashboard} />
+      </Route>
+
       {/* Quiz routes - all authenticated users can take quizzes */}
       <Route path="/quizzes">
         <ProtectedRoute component={QuizList} />
@@ -262,6 +269,7 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-3 sm:p-4 border-b bg-background">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <EcosystemPicker />
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 min-w-0">

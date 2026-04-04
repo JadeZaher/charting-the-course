@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -12,8 +13,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { RoleBadge } from "./RoleBadge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -31,8 +31,17 @@ import {
   Compass,
   MapPin,
   Map,
+  FileText,
+  Vote,
+  Globe2,
+  Scale,
+  AlertTriangle,
+  Building2,
+  UserPlus,
+  MessageSquare,
+  Bot,
 } from "lucide-react";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 
 const menuItems = [
@@ -63,6 +72,23 @@ const menuItems = [
   },
 ];
 
+const governanceItems = [
+  { title: "Governance", url: "/governance", icon: LayoutDashboard },
+  { title: "Agreements", url: "/agreements", icon: FileText },
+  { title: "Proposals", url: "/proposals", icon: Vote },
+  { title: "Members", url: "/members", icon: Users },
+  { title: "Domains", url: "/domains", icon: Globe2 },
+  { title: "Decisions", url: "/decisions", icon: Scale },
+  { title: "Conflicts", url: "/conflicts", icon: AlertTriangle },
+  { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
+  { title: "Onboarding", url: "/onboarding", icon: UserPlus },
+];
+
+const communicationItems = [
+  { title: "Messaging", url: "/messaging", icon: MessageSquare },
+  { title: "AI Chat", url: "/chat", icon: Bot },
+];
+
 const facilitatorItems = [
   {
     title: "Manage Quizzes",
@@ -90,12 +116,12 @@ const adminItems = [
 ];
 
 // Menu item with tooltip for collapsed state
-function MenuItemWithTooltip({ 
-  item, 
-  isActive, 
-  isCollapsed 
-}: { 
-  item: { title: string; url: string; icon: any }; 
+function MenuItemWithTooltip({
+  item,
+  isActive,
+  isCollapsed
+}: {
+  item: { title: string; url: string; icon: any };
   isActive: boolean;
   isCollapsed: boolean;
 }) {
@@ -126,27 +152,25 @@ function MenuItemWithTooltip({
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { user, signOut, isSigningOut } = useSupabaseAuth();
-  const { legacyRole, canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
+  const { member, logout } = useAuth();
+  const { canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const displayName = member?.display_name || 'User';
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      setIsLoggingOut(true);
+      await logout();
       setLocation("/login");
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
-
-  // Get display name from user metadata or email
-  const firstName = user?.user_metadata?.first_name || '';
-  const lastName = user?.user_metadata?.last_name || '';
-  const displayName = `${firstName} ${lastName}`.trim() || user?.email?.split('@')[0] || "User";
-
-  // Get role display for badge
-  const roleDisplay = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
 
   return (
     <Sidebar collapsible="icon">
@@ -157,8 +181,8 @@ export function AppSidebar() {
           </div>
           {!isCollapsed && (
             <div className="overflow-hidden">
-              <h2 className="font-bold text-lg truncate">Charting the Course</h2>
-              <p className="text-xs text-muted-foreground">Learning Platform</p>
+              <h2 className="font-bold text-lg truncate">NEOS</h2>
+              <p className="text-xs text-muted-foreground">Governance Platform</p>
             </div>
           )}
         </div>
@@ -166,7 +190,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Learning</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
@@ -192,6 +216,40 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Governance</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {governanceItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <MenuItemWithTooltip
+                    item={item}
+                    isActive={location === item.url || location.startsWith(item.url + '/')}
+                    isCollapsed={isCollapsed}
+                  />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Communication</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {communicationItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <MenuItemWithTooltip
+                    item={item}
+                    isActive={location === item.url}
+                    isCollapsed={isCollapsed}
+                  />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {canManageContent && (
           <SidebarGroup>
             <SidebarGroupLabel>Quiz Management</SidebarGroupLabel>
@@ -199,8 +257,8 @@ export function AppSidebar() {
               <SidebarMenu>
                 {facilitatorItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <MenuItemWithTooltip 
-                      item={item} 
+                    <MenuItemWithTooltip
+                      item={item}
                       isActive={location === item.url}
                       isCollapsed={isCollapsed}
                     />
@@ -228,11 +286,11 @@ export function AppSidebar() {
                   } else {
                     isActive = location === item.url;
                   }
-                  
+
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <MenuItemWithTooltip 
-                        item={item} 
+                      <MenuItemWithTooltip
+                        item={item}
                         isActive={isActive}
                         isCollapsed={isCollapsed}
                       />
@@ -251,7 +309,6 @@ export function AppSidebar() {
             <TooltipTrigger asChild>
               <div className="flex justify-center">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.user_metadata?.avatar_url || ""} />
                   <AvatarFallback className="text-xs">
                     {displayName.split(' ').map(n => n[0]).join('').toUpperCase() || "?"}
                   </AvatarFallback>
@@ -260,30 +317,33 @@ export function AppSidebar() {
             </TooltipTrigger>
             <TooltipContent side="right">
               <p className="font-medium">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{roleDisplay}</p>
+              {member?.current_status && (
+                <p className="text-xs text-muted-foreground">{member.current_status}</p>
+              )}
             </TooltipContent>
           </Tooltip>
         ) : (
           <div className="flex items-center gap-3 mb-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.user_metadata?.avatar_url || ""} />
               <AvatarFallback>
                 {displayName.split(' ').map(n => n[0]).join('').toUpperCase() || "?"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
-              <RoleBadge role={roleDisplay} className="text-xs" />
+              {member?.current_status && (
+                <p className="text-xs text-muted-foreground">{member.current_status}</p>
+              )}
             </div>
           </div>
         )}
-        
+
         {isCollapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <SidebarMenuButton asChild className="w-full justify-center">
-                <button onClick={handleLogout} disabled={isSigningOut} data-testid="button-logout">
-                  {isSigningOut ? (
+                <button onClick={handleLogout} disabled={isLoggingOut} data-testid="button-logout">
+                  {isLoggingOut ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <LogOut className="h-4 w-4" />
@@ -295,13 +355,13 @@ export function AppSidebar() {
           </Tooltip>
         ) : (
           <SidebarMenuButton asChild className="w-full">
-            <button onClick={handleLogout} disabled={isSigningOut} data-testid="button-logout">
-              {isSigningOut ? (
+            <button onClick={handleLogout} disabled={isLoggingOut} data-testid="button-logout">
+              {isLoggingOut ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <LogOut className="h-4 w-4" />
               )}
-              <span>{isSigningOut ? "Logging out..." : "Logout"}</span>
+              <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
             </button>
           </SidebarMenuButton>
         )}

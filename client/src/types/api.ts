@@ -69,3 +69,27 @@ export interface EcosystemDetail extends EcosystemSummary {
   governance_summary: string | null;
   visibility: string;
 }
+
+// Dashboard types
+export interface SummaryCard {
+  label: string;
+  value: number;
+  trend: string | null;
+  href: string;
+  breakdown: Record<string, number> | null;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  timestamp: string;
+  label: string;
+  href: string;
+}
+
+export interface DashboardSummary {
+  cards: SummaryCard[];
+  activity: ActivityItem[];
+}
