@@ -63,12 +63,11 @@ export function usePermissions() {
         // This may fail silently if permissions column doesn't exist yet
         let permissions: Permission[] = [];
         let isArchived = false;
-        let canAccessDiscover = false;
-        
+
         try {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('permissions, is_archived, can_access_discover')
+            .select('permissions, is_archived')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -76,12 +75,19 @@ export function usePermissions() {
           if (!profileError && profileData) {
             permissions = (profileData.permissions as Permission[]) || [];
             isArchived = profileData.is_archived || false;
-            canAccessDiscover = profileData.can_access_discover || false;
           }
           // Silently fall back to empty permissions if column doesn't exist
         } catch {
           // Column doesn't exist yet - that's fine, use empty permissions
         }
+
+        // Discover access: user has ≥1 ethos_user_access row
+        const { data: ethosAccessRows } = await supabase
+          .from('ethos_user_access')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+        const canAccessDiscover = (ethosAccessRows?.length ?? 0) > 0;
 
         return {
           permissions,

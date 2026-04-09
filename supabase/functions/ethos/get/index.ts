@@ -2,8 +2,8 @@
 // Returns full ETHOS detail + members with profiles + viewer alignment score
 // Path: /functions/v1/ethos/get/:slug
 
-import { createSupabaseClient, getAuthUser, handleCors } from "../../_shared/auth.ts";
-import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from "../../_shared/response.ts";
+import { createSupabaseClient, getAuthUser, isAdminOrFacilitator, handleCors } from "../../_shared/auth.ts";
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, forbiddenResponse } from "../../_shared/response.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -33,6 +33,18 @@ Deno.serve(async (req) => {
 
     if (ethosError || !ethos) {
       return notFoundResponse("ETHOS not found");
+    }
+
+    // Access check: non-admins must have an ethos_user_access row for this ETHOS
+    const isAdmin = await isAdminOrFacilitator(user.id, supabase);
+    if (!isAdmin) {
+      const { data: accessRow } = await supabase
+        .from("ethos_user_access")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("ethos_id", ethos.id)
+        .maybeSingle();
+      if (!accessRow) return forbiddenResponse("Access not granted for this ETHOS");
     }
 
     // Fetch members with profile data

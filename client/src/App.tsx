@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDIDInit } from '@/hooks/useDID';
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -27,7 +28,7 @@ import MapPage from "@/pages/MapPage";
 import JourneyMapList from "@/pages/JourneyMapList";
 import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
-import EthosDiscover from "@/pages/EthosDiscover";
+import Discover from "@/pages/Discover";
 import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
@@ -133,6 +134,7 @@ function PublicRoutes() {
 
 // Authenticated routes with sidebar layout
 function AuthenticatedRoutes() {
+  useDIDInit();
   return (
     <Switch>
       {/* Public accessible routes */}
@@ -171,9 +173,12 @@ function AuthenticatedRoutes() {
 
       {/* Orientation Portal - all authenticated users */}
       <Route path="/discover">
-        <ProtectedRoute component={EthosDiscover} />
+        <ProtectedRoute component={Discover} />
       </Route>
       <Route path="/ethos/:slug">
+        <ProtectedRoute component={EthosDetail} />
+      </Route>
+      <Route path="/ethos/:slug/detail">
         <ProtectedRoute component={EthosDetail} />
       </Route>
       <Route path="/orientation/:ethos_slug/complete">
