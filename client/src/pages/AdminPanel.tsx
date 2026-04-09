@@ -2435,7 +2435,7 @@ export default function AdminPanel() {
                     <Select value={ethosForm.ethos_type} onValueChange={(v) => setEthosForm({ ...ethosForm, ethos_type: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {["team","project","ecosystem","hub"].map(t => (
+                        {["team","project","hub"].map(t => (
                           <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
                         ))}
                       </SelectContent>
