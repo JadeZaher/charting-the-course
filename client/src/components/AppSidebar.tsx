@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -40,6 +41,9 @@ import {
   UserPlus,
   MessageSquare,
   Bot,
+  Siren,
+  DoorOpen,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -82,6 +86,9 @@ const governanceItems = [
   { title: "Conflicts", url: "/conflicts", icon: AlertTriangle },
   { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
   { title: "Onboarding", url: "/onboarding", icon: UserPlus },
+  { title: "Emergency", url: "/emergency", icon: Siren },
+  { title: "Exit", url: "/exit", icon: DoorOpen },
+  { title: "Safeguards", url: "/safeguards", icon: ShieldCheck },
 ];
 
 const communicationItems = [
@@ -155,6 +162,20 @@ export function AppSidebar() {
   const { member, logout } = useAuth();
   const { canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
   const { state } = useSidebar();
+
+  const { data: ethosAccessRows = [] } = useQuery({
+    queryKey: ['ethos-user-access-sidebar', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('ethos_user_access')
+        .select('ethos_id')
+        .eq('user_id', user.id);
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+  const hasEthosAccess = ethosAccessRows.length > 0;
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -194,8 +215,8 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                // Discover is only visible to admins or users with explicit access
-                if (item.url === '/discover' && !isAdmin && !canAccessDiscover) return null;
+                // Discover is only visible to admins or users with at least one ethos_user_access row
+                if (item.url === '/discover' && !isAdmin && !hasEthosAccess) return null;
 
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';

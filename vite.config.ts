@@ -24,9 +24,8 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': { target: 'http://localhost:8000', changeOrigin: true },
-      '/chat': { target: 'http://localhost:8000', changeOrigin: true },
-      '/messaging': { target: 'http://localhost:8000', changeOrigin: true, ws: true },
-      '/auth': { target: 'http://localhost:8000', changeOrigin: true },
+      // WebSocket for real-time messaging
+      '/messaging/ws': { target: 'http://localhost:8000', changeOrigin: true, ws: true },
     },
     fs: {
       strict: true,

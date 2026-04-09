@@ -27,10 +27,9 @@ export default function QuizList() {
     queryKey: ['quizzes-list', canManageContent],
     queryFn: async () => {
       const params: Record<string, string> = {};
-      // Regular users only see published public/assigned quizzes
+      // Regular users only see published quizzes
       if (!canManageContent) {
         params.is_published = 'true';
-        params.visibility = 'public,assigned';
       }
       const result = await fetchQuizzes(params);
       const items = (result as any).items || (result as any).quizzes || [];

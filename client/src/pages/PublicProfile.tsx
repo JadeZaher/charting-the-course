@@ -3,11 +3,11 @@ import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import {
   ArrowLeft, Sparkles, Heart, Target, Loader2 as LoaderIcon,
-  Globe, Linkedin, Twitter, Github, Compass, Share2, 
+  Globe, Linkedin, Twitter, Github, Compass, Share2,
   ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
-  Users, Award
+  Users, Award, Edit
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
@@ -835,6 +835,24 @@ export default function PublicProfile() {
       <AnimatedCrystals scrollY={scrollY} isScrolling={isScrolling} />
       
       <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-6 space-y-4">
+
+        {/* Own-profile action bar */}
+        {isViewingOwnProfile && (
+          <div className="flex items-center justify-end gap-2">
+            <Link href="/profile">
+              <Button size="sm" variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            </Link>
+            <Link href="/profile?tab=privacy">
+              <Button size="sm" variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
+                <Settings className="h-4 w-4 mr-2" />
+                Privacy Settings
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Main Profile Card */}
         <CrystalCard featured>

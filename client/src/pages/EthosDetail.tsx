@@ -19,9 +19,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export default function EthosDetail() {
-  const [, params] = useRoute('/ethos/:slug');
+  const [, paramsBase] = useRoute('/ethos/:slug');
+  const [, paramsDetail] = useRoute('/ethos/:slug/detail');
   const [, navigate] = useLocation();
-  const slug = params?.slug ?? '';
+  const slug = (paramsDetail ?? paramsBase)?.slug ?? '';
 
   const { data, isLoading, isError } = useEthosDetail(slug);
 
@@ -60,7 +61,16 @@ export default function EthosDetail() {
   const { ethos, members, viewer_alignment } = data;
   const alignScore = ethos.alignment_score ?? viewer_alignment ?? null;
 
+  // New C3 fields — not yet in TypeScript type, access via any
+  const ethosAny = ethos as any;
+  const phase: string | null = ethosAny.phase ?? null;
+  const mapUrl: string | null = ethosAny.map_url ?? null;
+  const mapType: string = ethosAny.map_type ?? 'image';
+  const mapTitle: string | null = ethosAny.map_title ?? null;
+  const externalLinks: { label: string; url: string }[] = Array.isArray(ethosAny.external_links) ? ethosAny.external_links : [];
+
   return (
+    <ConsentGate ethosId={ethos.id}>
     <div className="max-w-3xl mx-auto space-y-8">
       {/* Back navigation */}
       <Button variant="ghost" size="sm" asChild>
@@ -100,6 +110,9 @@ export default function EthosDetail() {
             <Badge variant="secondary" className="capitalize">{ethos.ethos_type}</Badge>
             {ethos.is_active && (
               <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>
+            )}
+            {phase && PHASE_LABELS[phase] && (
+              <Badge variant="outline">{PHASE_LABELS[phase]}</Badge>
             )}
           </div>
 
@@ -192,6 +205,56 @@ export default function EthosDetail() {
         </div>
       )}
 
+      {/* C3: ETHOS Map */}
+      {mapUrl && (
+        <div>
+          <h2 className="font-semibold mb-3">Map</h2>
+          {mapType === 'miro' ? (
+            <iframe
+              src={mapUrl}
+              width="100%"
+              height="400"
+              frameBorder="0"
+              title={mapTitle ?? 'ETHOS Map'}
+              className="rounded-lg border"
+            />
+          ) : (
+            <img src={mapUrl} alt={mapTitle ?? 'ETHOS Map'} className="w-full rounded-lg border" />
+          )}
+          {mapTitle && (
+            <p className="text-xs text-muted-foreground mt-2">{mapTitle}</p>
+          )}
+        </div>
+      )}
+
+      {/* C3: External Links / Resources */}
+      {externalLinks.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-3">Resources</h2>
+          <ul className="space-y-1.5">
+            {externalLinks.map((link, i) => (
+              <li key={i}>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                  {link.label || link.url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* C3: Active Teams placeholder */}
+      <div className="rounded-lg border p-4">
+        <p className="text-sm font-medium mb-1">Active Teams</p>
+        <p className="text-muted-foreground text-sm">Team information available after full ecosystem connection.</p>
+      </div>
+
       {/* Begin orientation CTA */}
       <div className="flex justify-end pt-2">
         <Button size="lg" onClick={() => navigate(`/orientation/${slug}`)}>
@@ -200,5 +263,6 @@ export default function EthosDetail() {
         </Button>
       </div>
     </div>
+    </ConsentGate>
   );
 }

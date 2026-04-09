@@ -49,7 +49,7 @@ export default function OrientationJourney() {
   const ethos = ethosData?.ethos;
   const ethosId = ethos?.id ?? '';
 
-  const { data: progress, isLoading: progressLoading } = useUserProgress(ethosId);
+  const { data: progress, isLoading: progressLoading, isFetching: progressFetching } = useUserProgress(ethosId);
   const { data: journeyMap, isLoading: mapLoading } = useJourneyMap(progress?.journey_map_id);
   const saveProgress = useSaveProgress();
 
@@ -64,16 +64,16 @@ export default function OrientationJourney() {
 
   // Redirect to gate if no progress record found
   useEffect(() => {
-    if (!progressLoading && !progress && ethosId) {
+    if (!progressLoading && !progressFetching && !progress && ethosId) {
       navigate(`/orientation/${ethosSlug}`);
     }
-  }, [progressLoading, progress, ethosId, ethosSlug, navigate]);
+  }, [progressLoading, progressFetching, progress, ethosId, ethosSlug, navigate]);
 
   const steps = journeyMap?.content_sequence ?? [];
   const totalSteps = steps.length;
   const currentStep = steps[currentStepIdx];
   const progressPct = totalSteps > 0 ? Math.round((currentStepIdx / totalSteps) * 100) : 0;
-  const isLoading = progressLoading || mapLoading || !ethos;
+  const isLoading = progressLoading || progressFetching || mapLoading || !ethos;
 
   async function handleStepComplete(response?: unknown) {
     if (!progress || !journeyMap) return;

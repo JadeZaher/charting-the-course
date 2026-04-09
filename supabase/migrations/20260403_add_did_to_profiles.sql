@@ -1,0 +1,5 @@
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS did VARCHAR(500),
+  ADD COLUMN IF NOT EXISTS public_key TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_profiles_did ON profiles(did);

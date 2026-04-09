@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDIDInit } from '@/hooks/useDID';
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -28,7 +29,7 @@ import MapPage from "@/pages/MapPage";
 import JourneyMapList from "@/pages/JourneyMapList";
 import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
-import EthosDiscover from "@/pages/EthosDiscover";
+import Discover from "@/pages/Discover";
 import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
@@ -42,6 +43,9 @@ import { DecisionList, DecisionDetail } from '@/pages/governance/decisions';
 import { OnboardingList, OnboardingCeremony } from '@/pages/governance/onboarding';
 import { ConflictList, ConflictDetail, ConflictForm } from '@/pages/governance/conflicts';
 import { EcosystemListPage, EcosystemDetailPage, EcosystemFormPage } from '@/pages/governance/ecosystems';
+import { EmergencyDashboard, EmergencyDetail } from '@/pages/governance/emergency';
+import { ExitList, ExitDetail, ExitForm } from '@/pages/governance/exit';
+import { SafeguardsDashboard, AuditList, AuditDetail } from '@/pages/governance/safeguards';
 import MessagingLayout from '@/pages/messaging/MessagingLayout';
 import ChatPanel from '@/pages/chat/ChatPanel';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
@@ -146,6 +150,7 @@ function PublicRoutes() {
 
 // Authenticated routes with sidebar layout
 function AuthenticatedRoutes() {
+  useDIDInit();
   return (
     <Switch>
       {/* Public accessible routes */}
@@ -220,9 +225,12 @@ function AuthenticatedRoutes() {
 
       {/* Orientation Portal - all authenticated users */}
       <Route path="/discover">
-        <ProtectedRoute component={EthosDiscover} />
+        <ProtectedRoute component={Discover} />
       </Route>
       <Route path="/ethos/:slug">
+        <ProtectedRoute component={EthosDetail} />
+      </Route>
+      <Route path="/ethos/:slug/detail">
         <ProtectedRoute component={EthosDetail} />
       </Route>
       <Route path="/orientation/:ethos_slug/complete">
@@ -294,6 +302,20 @@ function AuthenticatedRoutes() {
       <Route path="/ecosystems/:id/edit"><ProtectedRoute component={EcosystemFormPage} /></Route>
       <Route path="/ecosystems/:id"><ProtectedRoute component={EcosystemDetailPage} /></Route>
       <Route path="/ecosystems"><ProtectedRoute component={EcosystemListPage} /></Route>
+
+      {/* Emergency */}
+      <Route path="/emergency/:id"><ProtectedRoute component={EmergencyDetail} /></Route>
+      <Route path="/emergency"><ProtectedRoute component={EmergencyDashboard} /></Route>
+
+      {/* Exit */}
+      <Route path="/exit/new"><ProtectedRoute component={ExitForm} /></Route>
+      <Route path="/exit/:id"><ProtectedRoute component={ExitDetail} /></Route>
+      <Route path="/exit"><ProtectedRoute component={ExitList} /></Route>
+
+      {/* Safeguards */}
+      <Route path="/safeguards/audits/:id"><ProtectedRoute component={AuditDetail} /></Route>
+      <Route path="/safeguards/audits"><ProtectedRoute component={AuditList} /></Route>
+      <Route path="/safeguards"><ProtectedRoute component={SafeguardsDashboard} /></Route>
 
       {/* Messaging + Chat */}
       <Route path="/messaging"><ProtectedRoute component={MessagingLayout} /></Route>

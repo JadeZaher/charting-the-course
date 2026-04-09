@@ -49,7 +49,7 @@ export default function EcosystemList() {
     return p;
   }, [status, visibility, search, page]);
 
-  const { data, isLoading, error } = useEcosystems(params);
+  const { data: rawData, isLoading, error } = useEcosystems(params);
 
   if (isLoading) return <LoadingState message="Loading ecosystems..." />;
 
@@ -62,6 +62,12 @@ export default function EcosystemList() {
     );
   }
 
+  // Normalize API response — API returns { ecosystems, total } but PaginatedResponse uses { items, total, per_page }
+  const data = rawData ? {
+    items: (rawData as any).items ?? (rawData as any).ecosystems ?? [],
+    total: rawData.total ?? 0,
+    per_page: (rawData as any).per_page ?? 20,
+  } : undefined;
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 1;
 
   return (

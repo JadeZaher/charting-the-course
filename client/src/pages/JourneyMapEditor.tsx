@@ -1,4 +1,17 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+
+class SurveyEditorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(e: Error) { return { hasError: true, error: e }; }
+  render() {
+    if (this.state.hasError)
+      return <div className="p-4 text-sm text-destructive border rounded">Survey editor error: {this.state.error?.message}</div>;
+    return this.props.children;
+  }
+}
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import {
@@ -442,25 +455,27 @@ function SortableStepCard({
               )}
 
               {step.type === "survey" && (
-                <div className="space-y-1.5">
-                  <Label>Quiz / Survey *</Label>
-                  <Select
-                    value={step.quiz_id || ""}
-                    onValueChange={(v) => update({ quiz_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a published quiz..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {quizzes.map((q) => (
-                        <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>
-                      ))}
-                      {quizzes.length === 0 && (
-                        <SelectItem value="" disabled>No published quizzes available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <SurveyEditorBoundary>
+                  <div className="space-y-1.5">
+                    <Label>Quiz / Survey *</Label>
+                    <Select
+                      value={step.quiz_id || ""}
+                      onValueChange={(v) => update({ quiz_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a published quiz..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {quizzes.map((q) => (
+                          <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>
+                        ))}
+                        {quizzes.length === 0 && (
+                          <SelectItem value="" disabled>No published quizzes available</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </SurveyEditorBoundary>
               )}
 
               {/* Branch condition */}

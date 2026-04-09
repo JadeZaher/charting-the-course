@@ -130,3 +130,50 @@ export function useUpdateEcosystem(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: Record<string, any>) => api.updateEcosystemRecord(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ecosystems'] }); qc.invalidateQueries({ queryKey: ['ecosystems', id] }); } });
 }
+
+// Emergency hooks
+export function useEmergencyState() {
+  return useQuery({ queryKey: ['emergency'], queryFn: () => api.fetchEmergencyState() });
+}
+export function useEmergency(id: string) {
+  return useQuery({ queryKey: ['emergency', id], queryFn: () => api.fetchEmergencyDetail(id), enabled: !!id });
+}
+export function useDeclareEmergency() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.declareEmergency, onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
+}
+export function useResolveEmergency() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.resolveEmergency(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
+}
+
+// Exit hooks
+export function useExits(params?: Record<string, string>) {
+  return useQuery({ queryKey: ['exits', params], queryFn: () => api.fetchExits(params) });
+}
+export function useExit(id: string) {
+  return useQuery({ queryKey: ['exits', id], queryFn: () => api.fetchExit(id), enabled: !!id });
+}
+export function useCreateExit() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.createExit, onSuccess: () => qc.invalidateQueries({ queryKey: ['exits'] }) });
+}
+export function useUpdateExitStatus(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateExitStatus(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['exits'] }); qc.invalidateQueries({ queryKey: ['exits', id] }); } });
+}
+
+// Safeguards hooks
+export function useSafeguards() {
+  return useQuery({ queryKey: ['safeguards'], queryFn: () => api.fetchSafeguards() });
+}
+export function useAudits(params?: Record<string, string>) {
+  return useQuery({ queryKey: ['audits', params], queryFn: () => api.fetchAudits(params) });
+}
+export function useAudit(id: string) {
+  return useQuery({ queryKey: ['audits', id], queryFn: () => api.fetchAudit(id), enabled: !!id });
+}
+export function useRequestAudit() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.requestAudit, onSuccess: () => { qc.invalidateQueries({ queryKey: ['audits'] }); qc.invalidateQueries({ queryKey: ['safeguards'] }); } });
+}

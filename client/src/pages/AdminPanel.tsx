@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -199,8 +199,14 @@ export default function AdminPanel() {
     name: "", slug: "", tagline: "", sector: "", ethos_type: "team",
     description: "", mission: "", external_url: "", image_url: "",
     parent_ethos_id: "", is_public: true, is_active: true,
+    phase: "forming", map_url: "", map_type: "image", map_title: "",
+    external_links: [] as { label: string; url: string }[],
   };
   const [ethosForm, setEthosForm] = useState(defaultEthosForm);
+  const [accessEthos, setAccessEthos] = useState<any>(null);
+  const [isAccessDialogOpen, setIsAccessDialogOpen] = useState(false);
+  const [accessUserSearch, setAccessUserSearch] = useState("");
+  const [accessUserResults, setAccessUserResults] = useState<any[]>([]);
 
   // OmniBot session history state
   const [selectedOmnibotSession, setSelectedOmnibotSession] = useState<any>(null);
@@ -264,6 +270,21 @@ export default function AdminPanel() {
     enabled: !!editingEthos?.id,
   });
 
+  // ETHOS access grants query — no join to avoid profiles RLS; resolve names client-side from users list
+  const { data: ethosAccessGrants = [], refetch: refetchAccessGrants } = useQuery({
+    queryKey: ['admin-ethos-access', accessEthos?.id],
+    queryFn: async () => {
+      if (!accessEthos?.id) return [];
+      const { data } = await supabase
+        .from('ethos_user_access')
+        .select('id, user_id, granted_at')
+        .eq('ethos_id', accessEthos.id)
+        .order('granted_at');
+      return data || [];
+    },
+    enabled: !!accessEthos?.id,
+  });
+
   // OmniBot sessions query — TODO: add OmniBot sessions endpoint to Sanic API
   const { data: omnibotSessions = [], isLoading: omnibotLoading } = useQuery({
     queryKey: ['admin-omnibot-sessions'],
@@ -273,6 +294,29 @@ export default function AdminPanel() {
     },
     enabled: isAdmin,
   });
+
+  // CTC handoff ready flags query
+  const { data: handoffData = [] } = useQuery({
+    queryKey: ['admin-ctc-handoff'],
+    queryFn: async () => {
+      const userIds = users.map((u: any) => u.id);
+      if (userIds.length === 0) return [];
+      const { data } = await supabase
+        .from('ctc_handoff')
+        .select('user_id, ready_for_neos_den')
+        .in('user_id', userIds);
+      return data || [];
+    },
+    enabled: (isAdmin || canManageUsers) && users.length > 0,
+  });
+
+  const handoffMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const row of (handoffData as any[])) {
+      map[row.user_id] = row.ready_for_neos_den ?? false;
+    }
+    return map;
+  }, [handoffData]);
 
   // CTC Map settings query — TODO: add settings endpoint to Sanic API
   const { data: ctcMapData } = useQuery({
@@ -474,10 +518,49 @@ export default function AdminPanel() {
 
   const searchEthosUsers = async (query: string) => {
     if (!query || query.length < 2) { setEthosUserResults([]); return; }
-    const result = await fetchMembers({ search: query }).catch(() => ({ items: [] }));
-    const all = (result as any).items || (result as any).members || [];
-    setEthosUserResults(all.slice(0, 10));
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke('ethos-list-users', {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    // Client-side filter since invoke doesn't support query params easily
+    const all = res.data?.data?.users || [];
+    const q = query.toLowerCase();
+    setEthosUserResults(all.filter((u: any) =>
+      u.username?.toLowerCase().includes(q) ||
+      u.display_name?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q)
+    ).slice(0, 10));
   };
+
+  const grantAccessMutation = useMutation({
+    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
+      const { error } = await supabase.from('ethos_user_access').insert({ ethos_id, user_id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchAccessGrants();
+      setAccessUserSearch('');
+      setAccessUserResults([]);
+      toast({ title: 'Access Granted' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const revokeAccessMutation = useMutation({
+    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
+      const { error } = await supabase.from('ethos_user_access').delete().eq('ethos_id', ethos_id).eq('user_id', user_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchAccessGrants();
+      toast({ title: 'Access Revoked' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
 
   const openCreateEthos = () => {
     setEditingEthos(null);
@@ -500,6 +583,11 @@ export default function AdminPanel() {
       parent_ethos_id: ethos.parent_ethos_id || "",
       is_public: ethos.is_public ?? true,
       is_active: ethos.is_active ?? true,
+      phase: ethos.phase || "forming",
+      map_url: ethos.map_url || "",
+      map_type: ethos.map_type || "image",
+      map_title: ethos.map_title || "",
+      external_links: Array.isArray(ethos.external_links) ? ethos.external_links : [],
     });
     setIsEthosDialogOpen(true);
   };
@@ -597,6 +685,37 @@ export default function AdminPanel() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // NEOS Den ready toggle mutation
+  const setNeosDenReadyMutation = useMutation({
+    mutationFn: async ({ user_id, ready_for_neos_den }: { user_id: string; ready_for_neos_den: boolean }) => {
+      const res = await supabase.functions.invoke('admin-set-neos-den-ready', {
+        body: { user_id, ready_for_neos_den },
+      });
+      if (res.error) throw res.error;
+      return res.data;
+    },
+    onMutate: async ({ user_id, ready_for_neos_den }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-ctc-handoff'] });
+      const previous = queryClient.getQueryData(['admin-ctc-handoff']);
+      queryClient.setQueryData(['admin-ctc-handoff'], (old: any) => {
+        const rows: any[] = old ?? [];
+        const exists = rows.some((r: any) => r.user_id === user_id);
+        if (exists) {
+          return rows.map((r: any) => r.user_id === user_id ? { ...r, ready_for_neos_den } : r);
+        }
+        return [...rows, { user_id, ready_for_neos_den }];
+      });
+      return { previous };
+    },
+    onError: (_err: any, _vars: any, context: any) => {
+      queryClient.setQueryData(['admin-ctc-handoff'], context?.previous);
+      toast({ title: 'Failed to update NEOS Den status', variant: 'destructive' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ctc-handoff'] });
     },
   });
 
@@ -1037,19 +1156,30 @@ export default function AdminPanel() {
                           @{user.username} • {user.profile_visibility} profile
                         </p>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setEditedPermissions(user.permissions || []);
-                          setIsEditPermissionsOpen(true);
-                        }}
-                        data-testid={`button-edit-permissions-${user.id}`}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit Permissions
-                      </Button>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={handoffMap[user.id] ?? false}
+                            onCheckedChange={(checked) =>
+                              setNeosDenReadyMutation.mutate({ user_id: user.id, ready_for_neos_den: checked })
+                            }
+                          />
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">NEOS Den</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setEditedPermissions(user.permissions || []);
+                            setIsEditPermissionsOpen(true);
+                          }}
+                          data-testid={`button-edit-permissions-${user.id}`}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit Permissions
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1992,6 +2122,10 @@ export default function AdminPanel() {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-2">
+                                <Button size="sm" variant="outline" title="Manage Access"
+                                  onClick={() => { setAccessEthos(ethos); setAccessUserSearch(''); setAccessUserResults([]); setIsAccessDialogOpen(true); }}>
+                                  <Shield className="h-4 w-4" />
+                                </Button>
                                 <Button size="sm" variant="outline" onClick={() => openEditEthos(ethos)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -2101,6 +2235,81 @@ export default function AdminPanel() {
                     <Label htmlFor="ethos-active">Is Active</Label>
                   </div>
                 </div>
+                {/* C3: Phase, Map, External Links */}
+                <div className="space-y-2">
+                  <Label>Phase</Label>
+                  <Select value={ethosForm.phase} onValueChange={(v) => setEthosForm({ ...ethosForm, phase: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="forming">Forming</SelectItem>
+                      <SelectItem value="startup">Startup</SelectItem>
+                      <SelectItem value="established">Established</SelectItem>
+                      <SelectItem value="full throttle">Full Throttle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Map URL <span className="text-muted-foreground font-normal">(Miro embed URL or image URL)</span></Label>
+                    <Input value={ethosForm.map_url} onChange={(e) => setEthosForm({ ...ethosForm, map_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Map Type</Label>
+                    <Select value={ethosForm.map_type} onValueChange={(v) => setEthosForm({ ...ethosForm, map_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="image">Image</SelectItem>
+                        <SelectItem value="miro">Miro Embed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Map Title</Label>
+                  <Input value={ethosForm.map_title} onChange={(e) => setEthosForm({ ...ethosForm, map_title: e.target.value })} placeholder="e.g. Team Structure Map" />
+                </div>
+                <div className="space-y-2">
+                  <Label>External Links</Label>
+                  {ethosForm.external_links.map((link, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Label"
+                        value={link.label}
+                        onChange={(e) => {
+                          const updated = ethosForm.external_links.map((l, idx) => idx === i ? { ...l, label: e.target.value } : l);
+                          setEthosForm({ ...ethosForm, external_links: updated });
+                        }}
+                        className="w-36 flex-shrink-0"
+                      />
+                      <Input
+                        placeholder="https://..."
+                        value={link.url}
+                        onChange={(e) => {
+                          const updated = ethosForm.external_links.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l);
+                          setEthosForm({ ...ethosForm, external_links: updated });
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive flex-shrink-0"
+                        onClick={() => setEthosForm({ ...ethosForm, external_links: ethosForm.external_links.filter((_, idx) => idx !== i) })}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEthosForm({ ...ethosForm, external_links: [...ethosForm.external_links, { label: "", url: "" }] })}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Link
+                  </Button>
+                </div>
                 <div className="flex gap-2 justify-end pt-2 border-t">
                   <Button variant="outline" onClick={() => setIsEthosDialogOpen(false)}>Cancel</Button>
                   <Button onClick={handleSaveEthos} disabled={createEthosMutation.isPending || updateEthosMutation.isPending}>
@@ -2124,7 +2333,7 @@ export default function AdminPanel() {
                         {ethosMembers.map((m: any) => (
                           <div key={m.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
                             <div>
-                              <span className="font-medium">{m.profiles?.username || m.profiles?.display_name || m.user_id}</span>
+                              <span className="font-medium">{[m.profiles?.first_name, m.profiles?.last_name].filter(Boolean).join(' ') || m.profiles?.username || m.user_id}</span>
                               <span className="text-muted-foreground text-sm ml-2">{m.role_in_ethos}</span>
                               <Badge variant="outline" className="ml-2 text-xs">{m.member_type}</Badge>
                             </div>
@@ -2151,9 +2360,19 @@ export default function AdminPanel() {
                           <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
                             {ethosUserResults.map((u: any) => (
                               <button key={u.id} type="button"
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                                onClick={() => { setMemberForm({ ...memberForm, user_id: u.id }); setEthosUserSearch(u.username || u.display_name || u.email); setEthosUserResults([]); }}>
-                                {u.username || u.display_name} {u.email && <span className="text-muted-foreground">({u.email})</span>}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                                onClick={() => {
+                                  setMemberForm({ ...memberForm, user_id: u.id });
+                                  setEthosUserSearch([u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id);
+                                  setEthosUserResults([]);
+                                }}>
+                                {u.avatar_url && (
+                                  <img src={u.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                )}
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}</span>
+                                  {u.username && <span className="text-xs text-muted-foreground">@{u.username}</span>}
+                                </div>
                               </button>
                             ))}
                           </div>
@@ -2185,6 +2404,68 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Manage Access Dialog */}
+          <Dialog open={isAccessDialogOpen} onOpenChange={(open) => { setIsAccessDialogOpen(open); if (!open) { setAccessEthos(null); setAccessUserSearch(''); setAccessUserResults([]); } }}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Access — {accessEthos?.name}</DialogTitle>
+                <DialogDescription>Grant or revoke Discover access for this ETHOS</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                {/* Current grants */}
+                <div>
+                  <p className="text-sm font-medium mb-2">Current Access ({(ethosAccessGrants as any[]).length})</p>
+                  {(ethosAccessGrants as any[]).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No users have been granted access yet.</p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {(ethosAccessGrants as any[]).map((g: any) => {
+                        const profile = users.find((u: any) => u.id === g.user_id);
+                        const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.username || g.user_id;
+                        return (
+                          <div key={g.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                            <div>
+                              <span className="font-medium text-sm">{displayName}</span>
+                              {profile?.username && <span className="text-muted-foreground text-xs ml-2">@{profile.username}</span>}
+                            </div>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                              onClick={() => revokeAccessMutation.mutate({ ethos_id: accessEthos.id, user_id: g.user_id })}
+                              disabled={revokeAccessMutation.isPending}>
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Grant access */}
+                <div className="border-t pt-3 space-y-2">
+                  <p className="text-sm font-medium">Grant Access</p>
+                  <Input
+                    placeholder="Search by username or email..."
+                    value={accessUserSearch}
+                    onChange={(e) => { setAccessUserSearch(e.target.value); searchAccessUsers(e.target.value); }}
+                  />
+                  {accessUserResults.length > 0 && (
+                    <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
+                      {accessUserResults.map((u: any) => (
+                        <button key={u.id} type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between"
+                          onClick={() => grantAccessMutation.mutate({ ethos_id: accessEthos.id, user_id: u.id })}
+                          disabled={grantAccessMutation.isPending}>
+                          <span>{u.username || u.display_name} {u.email && <span className="text-muted-foreground">({u.email})</span>}</span>
+                          <UserPlus className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>

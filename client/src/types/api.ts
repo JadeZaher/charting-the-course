@@ -442,3 +442,51 @@ export interface UserBadgeItem {
 export interface UserTagItem {
   id: string; tag_key: string; tag_value: string | null; tag_category: string | null; numeric_value: number | null;
 }
+
+// Emergency types
+export interface EmergencyState {
+  id: string;
+  ecosystem_id: string;
+  is_active: boolean;
+  declared_by: string;
+  reason: string;
+  auto_revert_days: number;
+  declared_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+}
+
+// Exit types
+export interface ExitListItem {
+  id: string;
+  member_id: string;
+  member_name: string;
+  exit_type: string;
+  status: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface ExitDetail extends ExitListItem {
+  unwinding_tracker: Record<string, any> | null;
+  ecosystem_id: string;
+  updated_at: string;
+}
+
+// Safeguards types
+export interface GovernanceAudit {
+  id: string;
+  ecosystem_id: string;
+  auditor: string;
+  status: string;
+  findings: string | null;
+  recommendations: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface SafeguardsOverview {
+  latest_audit: GovernanceAudit | null;
+  recent_audits: GovernanceAudit[];
+  health_score: number;
+}

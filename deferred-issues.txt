@@ -1,0 +1,11 @@
+DEFERRED ISSUES — CTC Spec Plan 1
+==================================
+
+[RESOLVED] recommend-journey: user_dimensions table does not exist
+File: supabase/functions/orientation/recommend-journey/index.ts, line 38
+Issue: Queries user_dimensions.dimension_key — this table is not in the live schema.
+       Real tables are user_tags and profile_tiles.
+       Effect: scoring always returns 0 for all maps. Maps still return correctly,
+       but recommendation ranking never works. Non-blocking for A2 fix.
+Action: Fix in a future pass — replace user_dimensions query with user_tags/profile_tiles
+        to enable real scoring.

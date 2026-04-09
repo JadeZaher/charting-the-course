@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyState, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -253,4 +253,48 @@ export function fetchMemberBadges(memberId: string): Promise<{ badges: UserBadge
 }
 export function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[] }> {
   return apiFetch(`/api/v1/members/${memberId}/tags`);
+}
+
+// Emergency API
+export function fetchEmergencyState(): Promise<EmergencyState> {
+  return apiFetch<EmergencyState>('/api/v1/emergency');
+}
+export function fetchEmergencyDetail(id: string): Promise<EmergencyState> {
+  return apiFetch<EmergencyState>(`/api/v1/emergency/${id}`);
+}
+export function declareEmergency(data: Record<string, any>): Promise<EmergencyState> {
+  return apiFetch<EmergencyState>('/api/v1/emergency', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function resolveEmergency(id: string): Promise<EmergencyState> {
+  return apiFetch<EmergencyState>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
+}
+
+// Exit API
+export function fetchExits(params?: Record<string, string>): Promise<PaginatedResponse<ExitListItem>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<ExitListItem>>(`/api/v1/exit${qs}`);
+}
+export function fetchExit(id: string): Promise<ExitDetail> {
+  return apiFetch<ExitDetail>(`/api/v1/exit/${id}`);
+}
+export function createExit(data: Record<string, any>): Promise<ExitDetail> {
+  return apiFetch<ExitDetail>('/api/v1/exit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateExitStatus(id: string, data: Record<string, any>): Promise<ExitDetail> {
+  return apiFetch<ExitDetail>(`/api/v1/exit/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// Safeguards API
+export function fetchSafeguards(): Promise<SafeguardsOverview> {
+  return apiFetch<SafeguardsOverview>('/api/v1/safeguards');
+}
+export function fetchAudits(params?: Record<string, string>): Promise<PaginatedResponse<GovernanceAudit>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<GovernanceAudit>>(`/api/v1/safeguards/audits${qs}`);
+}
+export function fetchAudit(id: string): Promise<GovernanceAudit> {
+  return apiFetch<GovernanceAudit>(`/api/v1/safeguards/audits/${id}`);
+}
+export function requestAudit(data: Record<string, any>): Promise<GovernanceAudit> {
+  return apiFetch<GovernanceAudit>('/api/v1/safeguards/audits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }

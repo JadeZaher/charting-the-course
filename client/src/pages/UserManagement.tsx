@@ -20,7 +20,7 @@ import {
 import {
   Search, Users, Loader2, Edit, History,
   Shield, UserCheck, Archive, ArchiveRestore,
-  Download, Mail, CheckSquare, XSquare
+  Download, Mail, CheckSquare, XSquare, Plus, X
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
@@ -60,6 +60,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
@@ -82,7 +87,6 @@ interface UserProfile {
   roleName: string;
   permissions: Permission[];
   isArchived: boolean;
-  canAccessDiscover: boolean;
   email?: string;
   quiz_count?: number;
 }
@@ -117,6 +121,7 @@ export default function UserManagement() {
   const [permissionFilter, setPermissionFilter] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addSolutionOpen, setAddSolutionOpen] = useState<string | null>(null);
 
   // Batch selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
