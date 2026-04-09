@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS ctc_handoff (
   areas_of_focus JSONB DEFAULT '[]',
   orientation_path TEXT,
   orientation_status TEXT DEFAULT 'in_progress',
-  ready_for_chief_den BOOLEAN NOT NULL DEFAULT false,
+  ready_for_neos_den BOOLEAN NOT NULL DEFAULT false,
   genplan_payload JSONB DEFAULT '{}',
   genplan_submitted BOOLEAN NOT NULL DEFAULT false,
   genplan_submitted_at TIMESTAMPTZ,
@@ -17,4 +17,4 @@ CREATE TABLE IF NOT EXISTS ctc_handoff (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ctc_handoff_user ON ctc_handoff(user_id);
-CREATE INDEX IF NOT EXISTS idx_ctc_handoff_ready ON ctc_handoff(ready_for_chief_den);
+CREATE INDEX IF NOT EXISTS idx_ctc_handoff_ready ON ctc_handoff(ready_for_neos_den);

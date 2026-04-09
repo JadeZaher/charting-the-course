@@ -28,7 +28,7 @@ import MapPage from "@/pages/MapPage";
 import JourneyMapList from "@/pages/JourneyMapList";
 import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
-import EthosDiscover from "@/pages/EthosDiscover";
+import Discover from "@/pages/Discover";
 import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
@@ -173,9 +173,12 @@ function AuthenticatedRoutes() {
 
       {/* Orientation Portal - all authenticated users */}
       <Route path="/discover">
-        <ProtectedRoute component={EthosDiscover} />
+        <ProtectedRoute component={Discover} />
       </Route>
       <Route path="/ethos/:slug">
+        <ProtectedRoute component={EthosDetail} />
+      </Route>
+      <Route path="/ethos/:slug/detail">
         <ProtectedRoute component={EthosDetail} />
       </Route>
       <Route path="/orientation/:ethos_slug/complete">

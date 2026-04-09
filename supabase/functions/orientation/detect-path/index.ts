@@ -11,6 +11,33 @@ interface DetectionResult {
   signals: string[];
 }
 
+async function checkSolutionAssignment(
+  userId: string,
+  supabase: any
+): Promise<{ assigned: boolean; placeholderMode: boolean }> {
+  // Read the designated survey reference from app_settings
+  const { data: setting } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'primary_solution_survey')
+    .single();
+
+  const surveyId = setting?.value?.survey_id;
+
+  // No survey bound yet — default ALLOW (placeholder mode)
+  if (!surveyId) return { assigned: true, placeholderMode: true };
+
+  // Survey is bound — check if this user has completed it
+  const { data: result } = await supabase
+    .from('quiz_results')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('quiz_id', surveyId)
+    .single();
+
+  return { assigned: !!result, placeholderMode: false };
+}
+
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
@@ -21,6 +48,8 @@ Deno.serve(async (req) => {
     if (!user) return unauthorizedResponse("Authentication required");
 
     const { ethos_id } = await req.json();
+
+    const assignmentCheck = await checkSolutionAssignment(user.id, supabase);
 
     // Fetch user's tiles
     const { data: userTiles } = await supabase
@@ -47,7 +76,13 @@ Deno.serve(async (req) => {
 
     const result = detectPath(userTiles || [], teamAssignments || [], ethosMembership);
 
-    return successResponse(result);
+    return successResponse({
+      ...result,
+      assignment: {
+        assigned: assignmentCheck.assigned,
+        placeholder_mode: assignmentCheck.placeholderMode,
+      },
+    });
 
   } catch (error) {
     console.error("Unexpected error:", error);

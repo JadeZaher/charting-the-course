@@ -1,7 +1,7 @@
 // Edge Function: omnibot/chat
 // OpenRouter-compatible AI proxy. Swap OMNIBOT_API_URL for Bedrock when ready.
 
-import { createSupabaseClient, getAuthUser, handleCors, corsHeaders } from "../../_shared/auth.ts";
+import { createSupabaseClient, createServiceRoleClient, getAuthUser, handleCors, corsHeaders } from "../../_shared/auth.ts";
 import { successResponse, errorResponse, unauthorizedResponse } from "../../_shared/response.ts";
 
 interface ChatMessage {
@@ -19,6 +19,16 @@ interface ChatRequest {
   };
   max_tokens?: number;
   session_id?: string;
+  current_flow?: string;
+  session_context?: string;
+}
+
+async function hashUserId(userId: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(userId);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 Deno.serve(async (req) => {
@@ -31,13 +41,61 @@ Deno.serve(async (req) => {
     if (!user) return unauthorizedResponse("Authentication required");
 
     const body: ChatRequest = await req.json();
-    const { messages, context, max_tokens = 800, session_id } = body;
+    const { messages, context, max_tokens = 800, session_id, current_flow, session_context } = body;
+
+    const adminSupabase = createServiceRoleClient();
+
+    const { data: profileData } = await adminSupabase
+      .from('profiles')
+      .select('did')
+      .eq('id', user.id)
+      .single();
+
+    const { data: roleData } = await adminSupabase
+      .from('user_roles')
+      .select('roles(key)')
+      .eq('user_id', user.id)
+      .single();
+    const accessLevel = (roleData?.roles as any)?.key ?? 'viewer';
+
+    const { data: ethosData } = await adminSupabase
+      .from('ethos_members')
+      .select('ethos_id, role_in_ethos, ethos(name, slug)')
+      .eq('user_id', user.id);
+    const relevantEthos = (ethosData ?? []).map((e: any) => ({
+      name: e.ethos?.name ?? null,
+      slug: e.ethos?.slug ?? null,
+      role: e.role_in_ethos ?? null,
+    }));
+
+    let canonicalDocuments: string[] = [];
+    try {
+      const { data: docsData } = await adminSupabase
+        .from('canonical_documents')
+        .select('title')
+        .limit(10);
+      canonicalDocuments = docsData?.map((d: any) => d.title) ?? [];
+    } catch {
+      canonicalDocuments = [];
+    }
+
+    const current_app = 'ctc';
+    const hashedUserId = await hashUserId(user.id);
 
     const OMNIBOT_API_URL = Deno.env.get("OMNIBOT_API_URL");
     const OMNIBOT_API_KEY = Deno.env.get("OMNIBOT_API_KEY");
     const OMNIBOT_MODEL = "greenearth-agent";
 
-    const systemContent = buildSystemPrompt(context);
+    const systemContent = buildSystemPrompt(context, {
+      hashed_user_id: hashedUserId,
+      did: profileData?.did ?? null,
+      access_level: accessLevel,
+      current_app,
+      current_flow: current_flow ?? null,
+      session_context: session_context ?? null,
+      relevant_ethos: relevantEthos,
+      canonical_documents: canonicalDocuments,
+    });
     const messagesWithSystem: ChatMessage[] = [
       { role: "system", content: systemContent },
       ...messages,
@@ -97,17 +155,47 @@ Deno.serve(async (req) => {
   }
 });
 
-function buildSystemPrompt(context?: ChatRequest["context"]): string {
+interface EnrichedContext {
+  hashed_user_id: string;
+  did: string | null;
+  access_level: string;
+  current_app: string;
+  current_flow?: string | null;
+  session_context?: string | null;
+  relevant_ethos: { name?: string | null; slug?: string | null; role?: string | null }[];
+  canonical_documents: string[];
+}
+
+function buildSystemPrompt(context?: ChatRequest["context"], enriched?: EnrichedContext): string {
   const base = `You are OmniBot, the intelligent guide for the OmniOne ecosystem — a regenerative coordination framework for civilizational-scale collaboration. You help people understand the system, find their place in it, and navigate their orientation journey. You are warm, clear, grounded, and non-coercive. You never pressure people to join anything. You illuminate; you don't recruit.`;
 
-  if (!context) return base;
+  if (!context && !enriched) return base;
 
   const parts = [base];
-  if (context.ethos_name) parts.push(`The user is exploring the ${context.ethos_name} ETHOS.`);
-  if (context.current_step) parts.push(`They are currently at: ${context.current_step}.`);
-  if (context.user_profile_summary) parts.push(`User profile context: ${context.user_profile_summary}`);
-  if (context.session_type === "intake") {
+  if (context?.ethos_name) parts.push(`The user is exploring the ${context.ethos_name} ETHOS.`);
+  if (context?.current_step) parts.push(`They are currently at: ${context.current_step}.`);
+  if (context?.user_profile_summary) parts.push(`User profile context: ${context.user_profile_summary}`);
+  if (context?.session_type === "intake") {
     parts.push(`This is an intake conversation. Ask short, open questions about what they want from life, what problems they care about, and how they like to work. Keep it conversational. 3-5 exchanges maximum before summarizing.`);
+  }
+
+  if (enriched) {
+    const ethosSummary = enriched.relevant_ethos.length > 0
+      ? enriched.relevant_ethos.map(e => `${e.name ?? 'Unknown'} (${e.slug ?? ''}) — role: ${e.role ?? 'member'}`).join(', ')
+      : 'none';
+    const docsSummary = enriched.canonical_documents.length > 0
+      ? enriched.canonical_documents.join(', ')
+      : 'none loaded';
+
+    parts.push(`## User Context
+User ID (hashed): ${enriched.hashed_user_id}
+DID: ${enriched.did ?? 'not yet generated'}
+Access Level: ${enriched.access_level}
+Current App: ${enriched.current_app}
+Current Flow: ${enriched.current_flow ?? 'unknown'}
+Session Context: ${enriched.session_context ?? 'none'}
+ETHOS Memberships: ${ethosSummary}
+Canonical Documents: ${docsSummary}`);
   }
 
   return parts.join("\n\n");

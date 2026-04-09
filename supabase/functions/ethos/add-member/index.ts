@@ -37,14 +37,15 @@ Deno.serve(async (req) => {
         { onConflict: "ethos_id,user_id" }
       )
       .select("*, profiles(username, first_name, last_name, avatar_url)")
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error adding member:", error);
       return errorResponse("Failed to add member", error.message, 500);
     }
 
-    return successResponse(data, 201);
+    // data may be null if upsert found existing row with no changes — still a success
+    return successResponse(data ?? { ethos_id, user_id, role_in_ethos, member_type }, 201);
   } catch (error) {
     console.error("Unexpected error:", error);
     return errorResponse("Internal server error", error instanceof Error ? error.message : String(error), 500);

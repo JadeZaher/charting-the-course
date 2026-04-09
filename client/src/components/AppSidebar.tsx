@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +13,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { supabase } from "@/lib/supabase";
 import { RoleBadge } from "./RoleBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -127,8 +129,22 @@ function MenuItemWithTooltip({
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { user, signOut, isSigningOut } = useSupabaseAuth();
-  const { legacyRole, canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
+  const { legacyRole, canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state } = useSidebar();
+
+  const { data: ethosAccessRows = [] } = useQuery({
+    queryKey: ['ethos-user-access-sidebar', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('ethos_user_access')
+        .select('ethos_id')
+        .eq('user_id', user.id);
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+  const hasEthosAccess = ethosAccessRows.length > 0;
   const isCollapsed = state === "collapsed";
 
   const handleLogout = async () => {
@@ -170,8 +186,8 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                // Discover is only visible to admins or users with explicit access
-                if (item.url === '/discover' && !isAdmin && !canAccessDiscover) return null;
+                // Discover is only visible to admins or users with at least one ethos_user_access row
+                if (item.url === '/discover' && !isAdmin && !hasEthosAccess) return null;
 
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';
