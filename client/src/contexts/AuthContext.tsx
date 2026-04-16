@@ -69,6 +69,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         display_name: displayName,
       });
 
+      // Non-fatal: write DID + public key to Supabase profiles table via edge function
+      try {
+        const publicKeyHex = Array.from(keys.publicKey)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/did/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ did: keys.did, public_key: publicKeyHex }),
+        });
+      } catch {
+        // Non-fatal — DID write failure does not block login
+      }
+
       // Session cookie is set by the response. Now fetch full member data.
       await checkSession();
     } catch (err) {
