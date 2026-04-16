@@ -7,6 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, ArrowRight, ExternalLink, Users, Map } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { ConsentGate } from '@/components/discovery/ConsentGate';
+
+const PHASE_LABELS: Record<string, string> = {
+  forming: 'Forming',
+  norming: 'Norming',
+  performing: 'Performing',
+  adjourning: 'Adjourning',
+  draft: 'Draft',
+  active: 'Active',
+  archived: 'Archived',
+};
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {

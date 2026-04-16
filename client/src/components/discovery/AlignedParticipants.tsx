@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { User, Phone, Mail, Edit2, Check, X } from 'lucide-react';
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 
 interface Participant {
   user_id: string;
@@ -83,22 +92,23 @@ export function AlignedParticipants({ ethosId }: Props) {
   const { data, isLoading, isError } = useQuery<{ participants: Participant[] }>({
     queryKey: ['participants-list', ethosId],
     queryFn: async () => {
-      const { data: res, error } = await supabase.functions.invoke(
-        `participants-list?ethos_id=${ethosId}`,
-        { method: 'GET' }
+      // TODO: implement GET /api/v1/participants?ethos_id= in NEOS Den
+      const result = await apiFetch<{ data: { participants: Participant[] } }>(
+        `/api/v1/participants?ethos_id=${encodeURIComponent(ethosId)}`
       );
-      if (error) throw new Error(error.message || 'Failed to fetch participants');
-      return (res as { data: { participants: Participant[] } }).data;
+      return result.data;
     },
     enabled: !!ethosId,
   });
 
   const updateContactMutation = useMutation({
     mutationFn: async ({ phone, email }: { phone: string; email: string }) => {
-      const { error } = await supabase.functions.invoke('participants-update-contact', {
-        body: { ethos_id: ethosId, phone: phone || null, email: email || null },
+      // TODO: implement PUT /api/v1/participants/contact in NEOS Den
+      await apiFetch('/api/v1/participants/contact', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ethos_id: ethosId, phone: phone || null, email: email || null }),
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['participants-list', ethosId] });

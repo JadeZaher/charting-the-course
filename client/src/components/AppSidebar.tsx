@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -163,19 +162,6 @@ export function AppSidebar() {
   const { canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
   const { state } = useSidebar();
 
-  const { data: ethosAccessRows = [] } = useQuery({
-    queryKey: ['ethos-user-access-sidebar', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('ethos_user_access')
-        .select('ethos_id')
-        .eq('user_id', user.id);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-  const hasEthosAccess = ethosAccessRows.length > 0;
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -216,7 +202,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => {
                 // Discover is only visible to admins or users with at least one ethos_user_access row
-                if (item.url === '/discover' && !isAdmin && !hasEthosAccess) return null;
+                if (item.url === '/discover' && !canAccessDiscover) return null;
 
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';

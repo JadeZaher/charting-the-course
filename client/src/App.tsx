@@ -10,7 +10,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useDIDInit } from '@/hooks/useDID';
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -150,7 +149,6 @@ function PublicRoutes() {
 
 // Authenticated routes with sidebar layout
 function AuthenticatedRoutes() {
-  useDIDInit();
   return (
     <Switch>
       {/* Public accessible routes */}

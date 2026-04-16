@@ -1,7 +1,6 @@
+import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -32,75 +31,31 @@ interface Props {
 }
 
 export function ConsentGate({ ethosId, children }: Props) {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const [, navigate] = useLocation();
-  const queryClient = useQueryClient();
 
-  // Check if user has already consented for this ethos
-  const { data: consentRow, isLoading: consentLoading } = useQuery({
-    queryKey: ['consent-check', user?.id, ethosId],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from('participant_contacts')
-        .select('consented_at')
-        .eq('user_id', user.id)
-        .eq('ethos_id', ethosId)
-        .not('consented_at', 'is', null)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id && !!ethosId,
-  });
+  // Consent persisted in localStorage per user per ethos
+  // TODO: Replace with GET/POST /api/v1/consent when NEOS Den endpoint exists
+  const consentKey = `consent:${ethosId}:${member?.id ?? 'anon'}`;
+  const [hasConsented, setHasConsented] = useState(
+    () => !!member?.id && localStorage.getItem(consentKey) === 'true'
+  );
+  const [isPending, setIsPending] = useState(false);
 
-  // Fetch consent text from app_settings
-  const { data: settingData, isLoading: settingLoading } = useQuery({
-    queryKey: ['app-settings-consent-text'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'ethos_consent_text')
-        .single();
-      return data?.value as ConsentText | null;
-    },
-  });
+  // TODO: Load consent text from /api/v1/settings/consent-text when endpoint exists
+  const consentText: ConsentText = DEFAULT_CONSENT;
 
-  const consentText: ConsentText = settingData ?? DEFAULT_CONSENT;
-  const hasConsented = !!consentRow;
-  const isLoading = consentLoading || settingLoading;
-
-  const acceptMutation = useMutation({
-    mutationFn: async () => {
-      if (!user?.id) return;
-      await supabase
-        .from('participant_contacts')
-        .upsert(
-          {
-            user_id: user.id,
-            ethos_id: ethosId,
-            consented_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,ethos_id' }
-        );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['consent-check', user?.id, ethosId] });
-    },
-  });
+  const handleAccept = () => {
+    if (!member?.id) return;
+    setIsPending(true);
+    localStorage.setItem(consentKey, 'true');
+    setHasConsented(true);
+    setIsPending(false);
+  };
 
   const handleDecline = () => {
     navigate('/discover');
   };
-
-  // Show loading until both queries resolve
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   // Already consented — render children directly
   if (hasConsented) {
@@ -136,15 +91,15 @@ export function ConsentGate({ ethosId, children }: Props) {
             <Button
               variant="outline"
               onClick={handleDecline}
-              disabled={acceptMutation.isPending}
+              disabled={isPending}
             >
               {consentText.decline_label}
             </Button>
             <Button
-              onClick={() => acceptMutation.mutate()}
-              disabled={acceptMutation.isPending}
+              onClick={handleAccept}
+              disabled={isPending}
             >
-              {acceptMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {consentText.accept_label}
             </Button>
           </div>

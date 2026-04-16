@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEthosList } from '@/hooks/useEthos';
-import { supabase } from '@/lib/supabase';
 import { AlignedParticipants } from '@/components/discovery/AlignedParticipants';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,25 +27,22 @@ interface AccessRow {
 }
 
 export default function Discover() {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const { isAdmin, isLoading: permLoading } = usePermissions();
   const [adminSelectedEthosId, setAdminSelectedEthosId] = useState<string>('');
 
-  const { data: accessRows = [], isLoading: accessLoading } = useQuery<AccessRow[]>({
-    queryKey: ['ethos-user-access', user?.id],
-    queryFn: async (): Promise<AccessRow[]> => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('ethos_user_access')
-        .select('ethos_id, ethos(id, name, slug, tagline)')
-        .eq('user_id', user.id);
-      return (data as unknown as AccessRow[]) || [];
-    },
-    enabled: !!user?.id,
-  });
-
   // Admin: fetch all ETHOS for dropdown selector
   const { data: allEthosData } = useEthosList(undefined, 100, 0);
+
+  // Derive the user's ethos access from their NEOS Den ecosystem membership
+  // TODO: Replace with /api/v1/members/:id/ethos-access when dedicated endpoint exists
+  const accessRows: AccessRow[] = member?.ecosystem_id
+    ? [{
+        ethos_id: member.ecosystem_id,
+        ethos: (allEthosData?.ethos ?? []).find(e => e.id === member.ecosystem_id) as unknown as EthosRef ?? null
+      }]
+    : [];
+  const accessLoading = false;
 
   if (accessLoading || permLoading) {
     return (

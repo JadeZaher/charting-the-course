@@ -270,17 +270,13 @@ export default function AdminPanel() {
     enabled: !!editingEthos?.id,
   });
 
-  // ETHOS access grants query — no join to avoid profiles RLS; resolve names client-side from users list
+  // ETHOS access grants query
   const { data: ethosAccessGrants = [], refetch: refetchAccessGrants } = useQuery({
     queryKey: ['admin-ethos-access', accessEthos?.id],
     queryFn: async () => {
       if (!accessEthos?.id) return [];
-      const { data } = await supabase
-        .from('ethos_user_access')
-        .select('id, user_id, granted_at')
-        .eq('ethos_id', accessEthos.id)
-        .order('granted_at');
-      return data || [];
+      // TODO: GET /api/v1/admin/ecosystems/:id/access — no NEOS Den endpoint yet
+      return [];
     },
     enabled: !!accessEthos?.id,
   });
@@ -299,13 +295,8 @@ export default function AdminPanel() {
   const { data: handoffData = [] } = useQuery({
     queryKey: ['admin-ctc-handoff'],
     queryFn: async () => {
-      const userIds = users.map((u: any) => u.id);
-      if (userIds.length === 0) return [];
-      const { data } = await supabase
-        .from('ctc_handoff')
-        .select('user_id, ready_for_neos_den')
-        .in('user_id', userIds);
-      return data || [];
+      // TODO: ctc_handoff is in Supabase — needs a NEOS Den proxy endpoint
+      return [];
     },
     enabled: (isAdmin || canManageUsers) && users.length > 0,
   });
@@ -518,24 +509,38 @@ export default function AdminPanel() {
 
   const searchEthosUsers = async (query: string) => {
     if (!query || query.length < 2) { setEthosUserResults([]); return; }
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('ethos-list-users', {
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-    });
-    // Client-side filter since invoke doesn't support query params easily
-    const all = res.data?.data?.users || [];
-    const q = query.toLowerCase();
-    setEthosUserResults(all.filter((u: any) =>
-      u.username?.toLowerCase().includes(q) ||
-      u.display_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q)
-    ).slice(0, 10));
+    try {
+      const result = await fetchMembers({ search: query, limit: '10' });
+      const members = (result as any).items || (result as any).members || [];
+      setEthosUserResults(members.map((m: any) => ({
+        id: m.id,
+        display_name: m.display_name,
+        did: m.did,
+      })));
+    } catch {
+      setEthosUserResults([]);
+    }
+  };
+
+  const searchAccessUsers = async (query: string) => {
+    if (!query || query.length < 2) { setAccessUserResults([]); return; }
+    try {
+      const result = await fetchMembers({ search: query, limit: '10' });
+      const members = (result as any).items || (result as any).members || [];
+      setAccessUserResults(members.map((m: any) => ({
+        id: m.id,
+        display_name: m.display_name,
+        did: m.did,
+      })));
+    } catch {
+      setAccessUserResults([]);
+    }
   };
 
   const grantAccessMutation = useMutation({
     mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
-      const { error } = await supabase.from('ethos_user_access').insert({ ethos_id, user_id });
-      if (error) throw error;
+      // TODO: POST /api/v1/admin/ecosystems/:id/access — no NEOS Den endpoint yet
+      throw new Error('Ethos access management requires a NEOS Den endpoint');
     },
     onSuccess: () => {
       refetchAccessGrants();
@@ -550,8 +555,8 @@ export default function AdminPanel() {
 
   const revokeAccessMutation = useMutation({
     mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
-      const { error } = await supabase.from('ethos_user_access').delete().eq('ethos_id', ethos_id).eq('user_id', user_id);
-      if (error) throw error;
+      // TODO: DELETE /api/v1/admin/ecosystems/:id/access/:user_id — no NEOS Den endpoint yet
+      throw new Error('Ethos access management requires a NEOS Den endpoint');
     },
     onSuccess: () => {
       refetchAccessGrants();
@@ -691,11 +696,15 @@ export default function AdminPanel() {
   // NEOS Den ready toggle mutation
   const setNeosDenReadyMutation = useMutation({
     mutationFn: async ({ user_id, ready_for_neos_den }: { user_id: string; ready_for_neos_den: boolean }) => {
-      const res = await supabase.functions.invoke('admin-set-neos-den-ready', {
-        body: { user_id, ready_for_neos_den },
+      // TODO: ctc_handoff.ready_for_neos_den lives in Supabase — needs a server-side proxy endpoint
+      // Interim: update NEOS Den member status as a signal
+      return await apiFetch(`/api/v1/members/${user_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_status: ready_for_neos_den ? 'active' : 'prospective',
+        }),
       });
-      if (res.error) throw res.error;
-      return res.data;
     },
     onMutate: async ({ user_id, ready_for_neos_den }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-ctc-handoff'] });
