@@ -12,13 +12,13 @@ import {
   Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/lib/supabase";
+import { fetchMember, updateMember, fetchMemberBadges, fetchMemberTags, fetchMemberQuizHistory } from "@/lib/api-client";
 import jsPDF from "jspdf";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
 import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
@@ -67,7 +67,7 @@ interface ProfileData {
 }
 
 export default function Profile() {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const { legacyRole } = usePermissions();
   const role = legacyRole || 'viewer';
   const queryClient = useQueryClient();
@@ -103,45 +103,35 @@ export default function Profile() {
   const { data: quizResults = [], isLoading: isLoadingQuizzes } = useQuery<QuizResult[]>({
     queryKey: ['my-quiz-results'],
     queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('quiz_results')
-        .select('id, quiz_id, user_id, score, is_passed, completed_at')
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+      if (!member?.id) return [];
+      const result = await fetchMemberQuizHistory(member.id);
+      const items = (result as any).results || (result as any).items || [];
+      return items.map((item: any) => ({
+        id: item.id,
+        quiz_id: item.quiz_id,
+        user_id: item.member_id || member.id,
+        score: item.score ?? null,
+        is_passed: item.is_passed ?? null,
+        completed_at: item.completed_at,
+      })) as QuizResult[];
     },
-    enabled: !!user?.id,
+    enabled: !!member?.id,
   });
 
-  // Fetch profile tiles
+  // Fetch profile tiles — TODO: add /api/v1/members/:id/tiles endpoint to Sanic API
   const { data: profileTiles = [], isLoading: isLoadingTiles } = useQuery<ProfileTile[]>({
-    queryKey: ['profile-tiles', user?.id],
+    queryKey: ['profile-tiles', member?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('profile_tiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('display_order', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when profile tiles endpoint is implemented
+      return [] as ProfileTile[];
     },
-    enabled: !!user?.id,
+    enabled: !!member?.id,
   });
 
-  // Toggle tile visibility mutation
+  // Toggle tile visibility mutation — TODO: implement when tiles endpoint exists
   const toggleTileVisibilityMutation = useMutation({
-    mutationFn: async ({ tileId, isVisible }: { tileId: string; isVisible: boolean }) => {
-      const { error } = await supabase
-        .from('profile_tiles')
-        .update({ is_visible: isVisible })
-        .eq('id', tileId);
-      
-      if (error) throw error;
+    mutationFn: async (_params: { tileId: string; isVisible: boolean }) => {
+      // TODO: Replace with Sanic API endpoint when profile tiles endpoint is implemented
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-tiles'] });
@@ -155,95 +145,66 @@ export default function Profile() {
   const { data: profileData, isLoading: isLoadingProfile } = useQuery<ProfileData>({
     queryKey: ['my-profile-data'],
     queryFn: async () => {
-      if (!user?.id) return { profile: null, badges: [], tags: [], privacy: null };
-      
-      // Fetch profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      // Fetch badges
-      const { data: badges } = await supabase
-        .from('user_badges')
-        .select('id, badge_key, badge_name, badge_description, badge_category')
-        .eq('user_id', user.id);
-      
-      // Fetch tags
-      const { data: tags } = await supabase
-        .from('user_tags')
-        .select('id, tag_key, tag_value')
-        .eq('user_id', user.id);
-      
-      // Fetch privacy settings
-      const { data: privacy } = await supabase
-        .from('user_privacy_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
+      if (!member?.id) return { profile: null, badges: [], tags: [], privacy: null };
+
+      const [memberData, badgesResult, tagsResult] = await Promise.all([
+        fetchMember(member.id),
+        fetchMemberBadges(member.id),
+        fetchMemberTags(member.id),
+      ]);
+
+      const badges: UserBadge[] = ((badgesResult as any).badges || []).map((b: any) => ({
+        id: b.id,
+        badge_key: b.badge_key || b.key,
+        badge_name: b.badge_name || b.name,
+        badge_description: b.badge_description || b.description || null,
+        badge_category: b.badge_category || b.category || null,
+      }));
+
+      const tags: UserTag[] = ((tagsResult as any).tags || []).map((t: any) => ({
+        id: t.id,
+        tag_key: t.tag_key || t.key,
+        tag_value: t.tag_value || t.value,
+      }));
+
+      // Privacy settings from member data (if available)
+      const privacyRaw = (memberData as any).privacy ?? null;
+      const privacy: UserPrivacySettings | null = privacyRaw
+        ? {
+            isProfilePublic: privacyRaw.is_profile_public ?? privacyRaw.isProfilePublic,
+            showBadges: privacyRaw.show_badges ?? privacyRaw.showBadges,
+            showTags: privacyRaw.show_tags ?? privacyRaw.showTags,
+            showQuizResults: privacyRaw.show_quiz_results ?? privacyRaw.showQuizResults,
+            allowDiscovery: privacyRaw.allow_discovery ?? privacyRaw.allowDiscovery,
+            sharedDimensions: privacyRaw.shared_dimensions ?? privacyRaw.sharedDimensions ?? [],
+          }
+        : null;
+
       return {
-        profile,
-        badges: badges || [],
-        tags: tags || [],
-        privacy: privacy ? {
-          isProfilePublic: privacy.is_profile_public,
-          showBadges: privacy.show_badges,
-          showTags: privacy.show_tags,
-          showQuizResults: privacy.show_quiz_results,
-          allowDiscovery: privacy.allow_discovery,
-          sharedDimensions: privacy.shared_dimensions || [],
-        } : null,
+        profile: memberData as any,
+        badges,
+        tags,
+        privacy,
       };
     },
-    enabled: !!user?.id,
+    enabled: !!member?.id,
   });
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (updates: Partial<UserPrivacySettings>) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      
-      const dbUpdates: any = {};
+      if (!member?.id) throw new Error('Not authenticated');
+
+      // Map camelCase privacy keys to snake_case for the API
+      const dbUpdates: Record<string, any> = {};
       if (updates.isProfilePublic !== undefined) dbUpdates.is_profile_public = updates.isProfilePublic;
       if (updates.showBadges !== undefined) dbUpdates.show_badges = updates.showBadges;
       if (updates.showTags !== undefined) dbUpdates.show_tags = updates.showTags;
       if (updates.showQuizResults !== undefined) dbUpdates.show_quiz_results = updates.showQuizResults;
       if (updates.allowDiscovery !== undefined) dbUpdates.allow_discovery = updates.allowDiscovery;
       if (updates.sharedDimensions !== undefined) dbUpdates.shared_dimensions = updates.sharedDimensions;
-      
-      // Update privacy settings
-      const { error } = await supabase
-        .from('user_privacy_settings')
-        .update(dbUpdates)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      // Also update profile_visibility in profiles table when isProfilePublic changes
-      if (updates.isProfilePublic !== undefined) {
-        // Use raw SQL to properly cast the enum value
-        const newVisibility = updates.isProfilePublic ? 'public' : 'private';
-        const { error: profileError } = await supabase.rpc('update_profile_visibility', {
-          p_user_id: user.id,
-          p_visibility: newVisibility
-        });
-        
-        if (profileError) {
-          // Fallback to direct update (might work depending on Supabase version)
-          const { error: fallbackError } = await supabase
-            .from('profiles')
-            .update({ 
-              profile_visibility: newVisibility as any,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', user.id);
-          
-          if (fallbackError) {
-            console.error('Failed to update profile visibility:', fallbackError);
-          }
-        }
-      }
+
+      // TODO: Replace with a dedicated privacy endpoint when available in the Sanic API
+      await updateMember(member.id, { privacy: dbUpdates });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-profile-data'] });
@@ -263,9 +224,8 @@ export default function Profile() {
 
   const updateLocationMutation = useMutation({
     mutationFn: async (data: typeof locationForm) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      // For now, store in profile's social_links JSON field or a dedicated column
-      // This is a placeholder - you may need to add proper columns
+      if (!member?.id) throw new Error('Not authenticated');
+      // TODO: Replace with Sanic API endpoint when location preferences endpoint is implemented
       toast({ title: "Note", description: "Location preferences saved locally" });
     },
     onSuccess: () => {
@@ -286,8 +246,8 @@ export default function Profile() {
 
   const updateContactMutation = useMutation({
     mutationFn: async (data: typeof contactForm) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      // For now, store locally - you may need to add proper columns
+      if (!member?.id) throw new Error('Not authenticated');
+      // TODO: Replace with Sanic API endpoint when contact preferences endpoint is implemented
       toast({ title: "Note", description: "Contact preferences saved locally" });
     },
     onSuccess: () => {
@@ -378,28 +338,20 @@ export default function Profile() {
   const profile = profileData?.profile;
   const firstName = profile?.first_name || '';
   const lastName = profile?.last_name || '';
-  const userEmail = user?.email || '';
+  const userEmail = member?.display_name || '';
   const userBio = profile?.bio || '';
   const avatarUrl = profile?.avatar_url || '';
   const username = profile?.username || '';
   const userCreatedAt = profile?.created_at;
 
   const handleSave = async () => {
-    if (!user?.id) return;
-    
+    if (!member?.id) return;
+
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: name.split(' ')[0] || '',
-          last_name: name.split(' ').slice(1).join(' ') || '',
-          bio: bio,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
-      
-      if (error) throw error;
-      
+      await updateMember(member.id, {
+        display_name: name,
+        bio: bio,
+      });
       queryClient.invalidateQueries({ queryKey: ['my-profile-data'] });
       setIsEditing(false);
       toast({
@@ -422,8 +374,8 @@ export default function Profile() {
   };
 
   const handleCopyProfileLink = () => {
-    if (!user?.id) return;
-    const profileUrl = `${window.location.origin}/users/${username || user.id}`;
+    if (!member?.id) return;
+    const profileUrl = `${window.location.origin}/users/${username || member.id}`;
     navigator.clipboard.writeText(profileUrl);
     toast({
       title: "Link Copied",
@@ -432,8 +384,8 @@ export default function Profile() {
   };
 
   const handleShareProfile = async () => {
-    if (!user?.id) return;
-    const profileUrl = `${window.location.origin}/users/${username || user.id}`;
+    if (!member?.id) return;
+    const profileUrl = `${window.location.origin}/users/${username || member.id}`;
     
     // Try native share API first
     if (navigator.share) {
@@ -639,7 +591,7 @@ export default function Profile() {
       pdf.text(`Charting the Course - Profile exported on ${new Date().toLocaleDateString()}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
 
       // Save PDF
-      const safeUsername = (username || user?.id || 'export').replace(/[^a-zA-Z0-9]/g, '-');
+      const safeUsername = (username || member?.id || 'export').replace(/[^a-zA-Z0-9]/g, '-');
       const fileName = `profile-${safeUsername}-${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
 
@@ -704,7 +656,7 @@ export default function Profile() {
       profileData.badges.forEach(badge => {
         legacyTiles.push({
           id: `legacy-badge-${badge.id}`,
-          user_id: user?.id || '',
+          user_id: member?.id || '',
           submission_id: 'legacy',
           tile_type: 'badge',
           dimension: 'general',
@@ -728,7 +680,7 @@ export default function Profile() {
       // so we'll put them in 'general' or try to infer
       legacyTiles.push({
         id: 'legacy-tags-general',
-        user_id: user?.id || '',
+        user_id: member?.id || '',
         submission_id: 'legacy',
         tile_type: 'list',
         dimension: 'general',
@@ -744,7 +696,7 @@ export default function Profile() {
     }
 
     return [...(profileTiles || []), ...legacyTiles];
-  }, [profileTiles, profileData?.badges, profileData?.tags, user?.id]);
+  }, [profileTiles, profileData?.badges, profileData?.tags, member?.id]);
 
   const tilesByDimension = mergedTiles.reduce((acc, tile) => {
     const dim = tile.dimension || 'general';
@@ -891,7 +843,7 @@ export default function Profile() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex-1 min-w-0">
                     <Input
-                      value={user?.id ? `${window.location.origin}/users/${username || user.id}` : ''}
+                      value={member?.id ? `${window.location.origin}/users/${username || member.id}` : ''}
                       readOnly
                       className="text-sm"
                       data-testid="input-profile-url"
@@ -1121,7 +1073,7 @@ export default function Profile() {
                 className="w-full" 
                 data-testid="button-preview-profile"
                 onClick={() => {
-                  const profileUrl = username ? `/users/${username}` : `/users/${user?.id}`;
+                  const profileUrl = username ? `/users/${username}` : `/users/${member?.id}`;
                   window.open(profileUrl, '_blank');
                 }}
               >

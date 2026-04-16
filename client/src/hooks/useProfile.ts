@@ -1,40 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import type { 
-  EnhancedProfile, 
-  PublicProfileResponse, 
+import { fetchMember, updateMember } from '@/lib/api-client';
+import { useAuth } from '@/contexts/AuthContext';
+import type {
+  EnhancedProfile,
+  PublicProfileResponse,
   PrivateProfileResponse,
-  UpdateEnhancedProfileRequest 
+  UpdateEnhancedProfileRequest
 } from '@/types/profile';
 
 /**
- * Hook to fetch and manage user profiles
- * NOTE: Edge Functions must be deployed. Set enabled: true when ready.
+ * Hook to fetch and manage user profiles via Sanic BFF API.
  */
 export function useProfile(identifier?: string, enabled = true) {
   const queryClient = useQueryClient();
+  const { member } = useAuth();
 
   // Fetch profile (public or private based on identifier)
   const profileQuery = useQuery({
     queryKey: ['profile', identifier || 'me'],
     queryFn: async () => {
-      if (identifier) {
-        // Fetch public profile by username/slug
-        const { data, error } = await supabase.functions.invoke(
-          `profile/get-public-profile/${identifier}`
-        );
-        if (error) throw error;
-        return data.data as PublicProfileResponse;
-      }
-      
-      // Fetch own private profile
-      const { data, error } = await supabase.functions.invoke(
-        'profile/get-private-profile'
-      );
-      if (error) throw error;
-      return data.data as PrivateProfileResponse;
+      const id = identifier || member?.id;
+      if (!id) return null;
+      // fetchMember returns MemberDetail which maps to the profile shape
+      const data = await fetchMember(id);
+      return data as unknown as PrivateProfileResponse | PublicProfileResponse;
     },
-    enabled, // Disabled until Edge Functions deployed
+    enabled: enabled && (!!identifier || !!member?.id),
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -43,12 +34,10 @@ export function useProfile(identifier?: string, enabled = true) {
   // Update profile mutation
   const updateProfile = useMutation({
     mutationFn: async (updates: UpdateEnhancedProfileRequest) => {
-      const { data, error } = await supabase.functions.invoke(
-        'profile/update-enhanced-profile',
-        { body: updates }
-      );
-      if (error) throw error;
-      return data.data as EnhancedProfile;
+      const id = member?.id;
+      if (!id) throw new Error('Not authenticated');
+      const data = await updateMember(id, updates as Record<string, any>);
+      return data as unknown as EnhancedProfile;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -68,29 +57,20 @@ export function useProfile(identifier?: string, enabled = true) {
 }
 
 /**
- * Hook to manage profile share links
+ * Hook to manage profile share links.
+ * TODO: Implement share link endpoints on the Sanic API when available.
  */
 export function useShareLinks() {
-  const queryClient = useQueryClient();
-
-  // Create share link
   const createShareLink = useMutation({
-    mutationFn: async (options?: {
+    mutationFn: async (_options?: {
       expires_at?: string;
       show_badges?: boolean;
       show_achievements?: boolean;
       show_stats?: boolean;
       show_quiz_history?: boolean;
     }) => {
-      const { data, error } = await supabase.functions.invoke(
-        'profile/create-share-link',
-        { body: options || {} }
-      );
-      if (error) throw error;
-      return data.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+      // TODO: Replace with Sanic API endpoint when share link feature is implemented
+      throw new Error('Share link creation not yet available on the Sanic API');
     },
   });
 
@@ -101,4 +81,3 @@ export function useShareLinks() {
     error: createShareLink.error,
   };
 }
-

@@ -3,18 +3,18 @@ import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import {
   ArrowLeft, Sparkles, Heart, Target, Loader2 as LoaderIcon,
-  Globe, Linkedin, Twitter, Github, Compass, Share2, 
+  Globe, Linkedin, Twitter, Github, Compass, Share2,
   ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
-  Users, Award
+  Users, Award, Edit
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
 import { calculateAlignment, createAlignmentTile } from "@/lib/alignment";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
+import { fetchMember, fetchMemberBadges, fetchMemberTags, fetchMemberQuizHistory } from "@/lib/api-client";
 import { iconMap } from "@/components/profile/tiles/BadgeTile";
 
 interface PublicProfileData {
@@ -524,7 +524,7 @@ export default function PublicProfile() {
   const [, params] = useRoute("/users/:username");
   const username = params?.username;
   const { toast } = useToast();
-  const { user } = useSupabaseAuth();
+  const { member: user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -560,125 +560,73 @@ export default function PublicProfile() {
     queryKey: ['public-profile', username],
     queryFn: async () => {
       if (!username) throw new Error('No username');
-      
-      let profile: any = null;
-      
-      const { data: byUsername } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('username', username)
-        .maybeSingle();
-      
-      if (byUsername) {
-        profile = byUsername;
-      } else {
-        const { data: bySlug } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('share_slug', username)
-          .maybeSingle();
-        
-        if (bySlug) {
-          profile = bySlug;
-        } else {
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (uuidRegex.test(username)) {
-            const { data: byId } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', username)
-              .maybeSingle();
-            
-            if (byId) profile = byId;
+
+      // Fetch member by id or slug via the API
+      const memberData = await fetchMember(username).catch(() => null);
+      if (!memberData) throw new Error('Profile not found');
+
+      const profile: PublicProfileData['profile'] = {
+        id: (memberData as any).id,
+        first_name: (memberData as any).display_name?.split(' ')[0] ?? null,
+        last_name: (memberData as any).display_name?.split(' ').slice(1).join(' ') ?? null,
+        username: (memberData as any).username ?? null,
+        avatar_url: (memberData as any).avatar_url ?? null,
+        cover_url: (memberData as any).cover_url ?? null,
+        bio: (memberData as any).bio ?? null,
+        headline: (memberData as any).headline ?? null,
+        profile_visibility: (memberData as any).profile_visibility ?? 'public',
+        social_links: (memberData as any).social_links ?? {},
+        profile_tags: (memberData as any).profile_tags ?? [],
+        share_slug: (memberData as any).share_slug ?? null,
+        created_at: (memberData as any).created_at,
+        profile_dimensions: (memberData as any).profile_dimensions,
+      };
+
+      if (profile?.profile_visibility === 'private') throw new Error('This profile is private');
+
+      const memberId = profile.id;
+
+      const [badgesResult, tagsResult, historyResult] = await Promise.all([
+        fetchMemberBadges(memberId).catch(() => ({ badges: [] })),
+        fetchMemberTags(memberId).catch(() => ({ tags: [] })),
+        fetchMemberQuizHistory(memberId).catch(() => ({ results: [] })),
+      ]);
+
+      const badges = ((badgesResult as any).badges || []);
+      const tags = ((tagsResult as any).tags || []);
+      const quizResults = ((historyResult as any).results || []).slice(0, 10).map((r: any) => ({
+        id: r.id,
+        quiz_id: r.quiz_id,
+        score: r.score,
+        completed_at: r.completed_at,
+        survey_results: r.survey_results ?? r.answers ?? {},
+        quiz_title: r.quiz?.title ?? r.quiz_title,
+        survey_json: r.quiz?.survey_json ?? r.survey_json,
+      }));
+
+      // Agreements - TODO: fetch from Sanic API when agreements per-member endpoint is available
+      const agreements: any[] = [];
+
+      // Profile tiles - TODO: fetch from Sanic API when member tiles endpoint is available
+      const tiles: ProfileTile[] = [];
+
+      const privacy: PublicProfileData['privacy'] = (memberData as any).privacy
+        ? {
+            is_profile_public: (memberData as any).privacy.is_profile_public ?? true,
+            show_badges: (memberData as any).privacy.show_badges ?? true,
+            show_tags: (memberData as any).privacy.show_tags ?? true,
+            show_quiz_results: (memberData as any).privacy.show_quiz_results ?? true,
+            allow_discovery: (memberData as any).privacy.allow_discovery ?? true,
           }
-        }
-      }
-      
-      if (!profile) throw new Error('Profile not found');
-      if (profile.profile_visibility === 'private') throw new Error('This profile is private');
-      
-      const userId = profile.id;
-      
-      const { data: privacy } = await supabase
-        .from('user_privacy_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      let badges: any[] = [];
-      if (privacy?.show_badges !== false) {
-        const { data: badgeData } = await supabase
-          .from('user_badges')
-          .select('*')
-          .eq('user_id', userId)
-          .order('earned_at', { ascending: false });
-        badges = badgeData || [];
-      }
-      
-      let tags: any[] = [];
-      // Always fetch tags to ensure legacy sections are visible during migration
-      const { data: tagData } = await supabase
-        .from('user_tags')
-        .select('*')
-        .eq('user_id', userId);
-      tags = tagData || [];
-      
-      // Agreements feature - tables may not exist yet
-      let agreements: any[] = [];
-      
-      // Fetch quiz results with survey data
-      let quizResults: any[] = [];
-      if (privacy?.show_quiz_results !== false) {
-        const { data: resultData } = await supabase
-          .from('quiz_results')
-          .select(`
-            id, quiz_id, score, completed_at, survey_results,
-            quiz:quizzes (title, survey_json)
-          `)
-          .eq('user_id', userId)
-          .order('completed_at', { ascending: false })
-          .limit(10);
-        
-        quizResults = resultData?.map(r => ({
-          id: r.id,
-          quiz_id: r.quiz_id,
-          score: r.score,
-          completed_at: r.completed_at,
-          survey_results: r.survey_results,
-          quiz_title: (r.quiz as any)?.title,
-          survey_json: (r.quiz as any)?.survey_json
-        })) || [];
-      }
-      
-      // Fetch profile tiles (only visible ones for public view)
-      let tiles: ProfileTile[] = [];
-      const { data: tileData, error: tileError } = await supabase
-        .from('profile_tiles')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_visible', true)
-        .order('display_order', { ascending: true });
-      
-      tiles = (tileData || []) as ProfileTile[];
-      
+        : null;
+
       return { profile, badges, tags, tiles, agreements, quizResults, privacy };
     },
     enabled: !!username,
   });
 
-  // Query viewer's tiles for alignment calculation
-  const { data: viewerTiles } = useQuery<ProfileTile[]>({
-    queryKey: ['viewer-tiles', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('profile_tiles')
-        .select('*')
-        .eq('user_id', user.id);
-      return (data || []) as ProfileTile[];
-    },
-    enabled: !!user?.id && !!data?.profile && user.id !== data.profile.id,
-  });
+  // Viewer tiles for alignment — TODO: fetch from Sanic API when tiles endpoint is available
+  const viewerTiles: ProfileTile[] = [];
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -887,6 +835,24 @@ export default function PublicProfile() {
       <AnimatedCrystals scrollY={scrollY} isScrolling={isScrolling} />
       
       <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-6 space-y-4">
+
+        {/* Own-profile action bar */}
+        {isViewingOwnProfile && (
+          <div className="flex items-center justify-end gap-2">
+            <Link href="/profile">
+              <Button size="sm" variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            </Link>
+            <Link href="/profile?tab=privacy">
+              <Button size="sm" variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
+                <Settings className="h-4 w-4 mr-2" />
+                Privacy Settings
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Main Profile Card */}
         <CrystalCard featured>

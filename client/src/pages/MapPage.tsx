@@ -13,9 +13,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
+import { updateMember } from "@/lib/api-client";
 import { prezify, APP_SETTINGS_KEYS } from "@/lib/utils";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 import { MapPin, Edit, Plus, Loader2, ExternalLink } from "lucide-react";
 
 // ——————————————————————————————————————————————
@@ -55,7 +65,7 @@ function MapEmbed({ url, title }: { url: string; title: string }) {
 // Main Page
 // ——————————————————————————————————————————————
 export default function MapPage() {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -69,45 +79,42 @@ export default function MapPage() {
   const { data: ctcSettings, isLoading: ctcLoading } = useQuery<CtcMapSettings>({
     queryKey: ["ctc-map-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke(
-        `settings-get?key=${APP_SETTINGS_KEYS.ctcMap}`
-      );
-      if (error) throw error;
-      return (data?.data?.value || { prezi_url: "", description: "" }) as CtcMapSettings;
+      // TODO: replace with Sanic settings endpoint when available
+      try {
+        const result = await apiFetch<any>(`/api/v1/settings?key=${APP_SETTINGS_KEYS.ctcMap}`);
+        return (result?.value || { prezi_url: "", description: "" }) as CtcMapSettings;
+      } catch {
+        return { prezi_url: "", description: "" } as CtcMapSettings;
+      }
     },
   });
 
   // ——— Own profile personal map ———
   const { data: personalMap, isLoading: personalLoading } = useQuery<PersonalMapData>({
-    queryKey: ["personal-map", user?.id],
+    queryKey: ["personal-map", member?.id],
     queryFn: async () => {
-      if (!user) return { personal_map_url: null, personal_map_notes: null };
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("personal_map_url, personal_map_notes")
-        .eq("id", user.id)
-        .single();
-      if (error) throw error;
-      return data as PersonalMapData;
+      if (!member) return { personal_map_url: null, personal_map_notes: null };
+      const result = await apiFetch<any>(`/api/v1/members/${member.id}`);
+      const m = result?.member ?? result?.data ?? result;
+      return {
+        personal_map_url: m?.personal_map_url ?? null,
+        personal_map_notes: m?.personal_map_notes ?? null,
+      } as PersonalMapData;
     },
-    enabled: !!user,
+    enabled: !!member,
   });
 
   // ——— Save personal map ———
   const savePersonalMapMutation = useMutation({
     mutationFn: async (values: { personal_map_url: string; personal_map_notes: string }) => {
-      if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          personal_map_url: values.personal_map_url || null,
-          personal_map_notes: values.personal_map_notes || null,
-        })
-        .eq("id", user.id);
-      if (error) throw error;
+      if (!member) throw new Error("Not authenticated");
+      await updateMember(member.id, {
+        personal_map_url: values.personal_map_url || null,
+        personal_map_notes: values.personal_map_notes || null,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["personal-map", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["personal-map", member?.id] });
       toast({ title: "Your map has been saved!" });
       setPersonalMapDialogOpen(false);
     },

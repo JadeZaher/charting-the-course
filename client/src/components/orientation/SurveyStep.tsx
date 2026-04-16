@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import type { JourneyStep } from '@/types/orientation';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle, ClipboardList } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useQuiz } from '@/hooks/use-courses';
+import { submitQuizResult } from '@/lib/api-client';
 
 interface Props {
   step: JourneyStep;
@@ -33,24 +34,21 @@ export function SurveyStep({ step, onComplete }: Props) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
-  const { data: quiz, isLoading, isError } = useQuery<Quiz | null>({
-    queryKey: ['orientation-quiz', quizId],
-    queryFn: async () => {
-      if (!quizId) return null;
-      const { data, error } = await supabase.functions.invoke(`quiz-get-quiz?id=${quizId}`);
-      if (error) throw error;
-      // Handle both wrapped and unwrapped response shapes
-      return (data?.data ?? data) as Quiz;
-    },
-    enabled: !!quizId,
-  });
+  const { data: quizData, isLoading, isError } = useQuiz(quizId || '');
+  // Map API response to local Quiz shape
+  const quiz: Quiz | null = quizData
+    ? {
+        id: (quizData as any).id,
+        title: (quizData as any).title,
+        description: (quizData as any).description,
+        questions: (quizData as any).questions || [],
+      }
+    : null;
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!quizId) return;
-      await supabase.functions.invoke('quiz-submit-answers', {
-        body: { quiz_id: quizId, answers },
-      });
+      await submitQuizResult(quizId, { answers });
     },
     onSuccess: () => {
       setSubmitted(true);

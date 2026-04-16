@@ -1,0 +1,3 @@
+-- C7.1: ctc_handoff GenPlan columns
+-- genplan_payload, genplan_submitted, genplan_submitted_at already present
+-- in 20260403_create_ctc_handoff.sql. No migration needed.

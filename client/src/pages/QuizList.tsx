@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Clock, ArrowRight } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { fetchQuizzes } from "@/lib/api-client";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface Quiz {
@@ -26,26 +26,22 @@ export default function QuizList() {
   const { data: quizzes, isLoading, error } = useQuery<Quiz[]>({
     queryKey: ['quizzes-list', canManageContent],
     queryFn: async () => {
-      let query = supabase
-        .from('quizzes')
-        .select('id, title, description, visibility, is_published, time_limit, created_at');
-      
-      // Content managers can see ALL quizzes (RLS will handle it)
-      // Regular users only see published public/assigned quizzes
+      const params: Record<string, string> = {};
+      // Regular users only see published quizzes
       if (!canManageContent) {
-        query = query
-          .eq('is_published', true)
-          .in('visibility', ['public', 'assigned']);
+        params.is_published = 'true';
       }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching quizzes:', error);
-        throw error;
-      }
-      
-      return data || [];
+      const result = await fetchQuizzes(params);
+      const items = (result as any).items || (result as any).quizzes || [];
+      return items.map((q: any) => ({
+        id: q.id,
+        title: q.title,
+        description: q.description ?? null,
+        visibility: q.visibility ?? 'public',
+        is_published: q.is_published ?? false,
+        time_limit: q.time_limit ?? null,
+        created_at: q.created_at,
+      })) as Quiz[];
     },
   });
 

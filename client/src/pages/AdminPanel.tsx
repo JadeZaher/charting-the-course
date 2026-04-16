@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/lib/supabase";
+import { fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord } from "@/lib/api-client";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 import {
   Dialog,
   DialogContent,
@@ -55,228 +65,47 @@ const getRoleBadgeRole = (role?: string): Role => {
   return (role.charAt(0).toUpperCase() + role.slice(1)) as Role;
 };
 
-// Fetch users from profiles table with roles and permissions
+// Fetch users from Sanic BFF API
 async function fetchUsers() {
-  // Try to get profiles with permissions columns
-  let profiles: any[] = [];
-  let hasPermissionsColumn = true;
-  
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        username,
-        avatar_url,
-        profile_visibility,
-        created_at,
-        permissions,
-        is_archived
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      // If error mentions column doesn't exist, fallback to basic query
-      if (error.message?.includes('permissions') || error.message?.includes('is_archived')) {
-        hasPermissionsColumn = false;
-      } else {
-        throw error;
-      }
-    } else {
-      profiles = data || [];
-    }
-  } catch (e) {
-    hasPermissionsColumn = false;
-  }
-
-  // Fallback: fetch without permissions columns
-  if (!hasPermissionsColumn) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        username,
-        avatar_url,
-        profile_visibility,
-        created_at
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    profiles = data || [];
-  }
-
-  // Get roles for each user
-  const { data: userRoles } = await supabase
-    .from('user_roles')
-    .select(`
-      user_id,
-      roles (
-        key,
-        name
-      )
-    `);
-
-  // Merge profiles with roles and permissions
-  return profiles.map(profile => {
-    const roleData = userRoles?.find(ur => ur.user_id === profile.id);
-    const roles = (roleData?.roles as unknown) as { key: string; name: string } | null;
-    return {
-      ...profile,
-      role: roles?.key || 'viewer',
-      roleName: roles?.name || 'Viewer',
-      permissions: ((profile as any).permissions as Permission[]) || [],
-      isArchived: (profile as any).is_archived || false,
-    };
-  });
+  const result = await fetchMembers();
+  const items = (result as any).items || (result as any).members || [];
+  return items.map((m: any) => ({
+    id: m.id,
+    first_name: m.display_name?.split(' ')[0] ?? null,
+    last_name: m.display_name?.split(' ').slice(1).join(' ') ?? null,
+    username: m.username ?? null,
+    avatar_url: m.avatar_url ?? null,
+    profile_visibility: m.profile_visibility ?? 'public',
+    created_at: m.created_at,
+    role: m.role ?? 'viewer',
+    roleName: m.role_name ?? 'Viewer',
+    permissions: (m.permissions as Permission[]) || [],
+    isArchived: m.is_archived ?? false,
+  }));
 }
 
-// Fetch quizzes
+// Fetch quizzes via Sanic BFF API
 async function fetchQuizzes() {
-  const { data, error } = await supabase
-    .from('quizzes')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  const result = await apiFetchQuizzes();
+  return (result as any).items || (result as any).quizzes || [];
 }
 
-// Fetch badge definitions
+// Fetch badge definitions — TODO: add endpoint to Sanic API
 async function fetchBadges() {
-  const { data, error } = await supabase
-    .from('badge_definitions')
-    .select('*')
-    .order('display_order', { ascending: true });
-
-  if (error) throw error;
-  return data || [];
+  // TODO: Replace with Sanic API endpoint when badge definitions endpoint is implemented
+  return [];
 }
 
-// Fetch teams
+// Fetch teams — TODO: add teams endpoint to Sanic API
 async function fetchTeams() {
-  // First, fetch teams with team_members
-  const { data: teams, error: teamsError } = await supabase
-    .from('teams')
-    .select(`
-      *,
-      team_members (
-        user_id
-      )
-    `)
-    .order('created_at', { ascending: false });
-
-  if (teamsError) {
-    console.error('Error fetching teams:', teamsError);
-    throw teamsError;
-  }
-
-  if (!teams || teams.length === 0) {
-    return [];
-  }
-
-  // Get all unique user IDs from team members
-  const userIds = new Set<string>();
-  teams.forEach((team: any) => {
-    if (team.team_members) {
-      team.team_members.forEach((member: any) => {
-        if (member.user_id) {
-          userIds.add(member.user_id);
-        }
-      });
-    }
-  });
-
-  // Fetch profiles for all team members
-  let profilesMap: Record<string, any> = {};
-  if (userIds.size > 0) {
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, username')
-      .in('id', Array.from(userIds));
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      // Continue without profiles if there's an error
-    } else if (profiles) {
-      profiles.forEach((profile: any) => {
-        profilesMap[profile.id] = profile;
-      });
-    }
-  }
-
-  // Merge profiles into team_members
-  const teamsWithProfiles = teams.map((team: any) => ({
-    ...team,
-    team_members: team.team_members?.map((member: any) => ({
-      ...member,
-      profile: profilesMap[member.user_id] || null,
-    })) || [],
-  }));
-
-  console.log('Fetched teams:', teamsWithProfiles.length, 'teams');
-  return teamsWithProfiles;
+  // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
+  return [];
 }
 
-// Fetch quiz assignments
+// Fetch quiz assignments — TODO: add assignments endpoint to Sanic API
 async function fetchAssignments() {
-  // First, fetch assignments with quiz and team info (these have proper foreign keys)
-  const { data: assignments, error: assignmentsError } = await supabase
-    .from('quiz_assignments')
-    .select(`
-      *,
-      quiz:quizzes (id, title),
-      team:teams (id, name)
-    `)
-    .order('created_at', { ascending: false });
-
-  if (assignmentsError) {
-    console.error('Error fetching assignments:', assignmentsError);
-    throw assignmentsError;
-  }
-
-  if (!assignments || assignments.length === 0) {
-    return [];
-  }
-
-  // Get all unique user IDs from assignments
-  const userIds = new Set<string>();
-  assignments.forEach((assignment: any) => {
-    if (assignment.user_id) {
-      userIds.add(assignment.user_id);
-    }
-  });
-
-  // Fetch profiles for all assigned users
-  let profilesMap: Record<string, any> = {};
-  if (userIds.size > 0) {
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, username')
-      .in('id', Array.from(userIds));
-
-    if (profilesError) {
-      console.error('Error fetching profiles for assignments:', profilesError);
-      // Continue without profiles if there's an error
-    } else if (profiles) {
-      profiles.forEach((profile: any) => {
-        profilesMap[profile.id] = profile;
-      });
-    }
-  }
-
-  // Merge profiles into assignments
-  const assignmentsWithProfiles = assignments.map((assignment: any) => ({
-    ...assignment,
-    user: assignment.user_id ? profilesMap[assignment.user_id] || null : null,
-  }));
-
-  console.log('Fetched assignments:', assignmentsWithProfiles.length, 'assignments');
-  return assignmentsWithProfiles;
+  // TODO: Replace with Sanic API endpoint when assignments endpoint is implemented
+  return [];
 }
 
 interface BadgeFormData {
@@ -297,103 +126,10 @@ const isEmojiIcon = (icon: string | null): boolean => {
   return !icon.startsWith('http') && !icon.startsWith('/');
 };
 
-// Ensure badges bucket exists (check and create if needed)
-async function ensureBadgesBucket(): Promise<boolean> {
-  try {
-    // Check if bucket exists
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
-    if (listError) {
-      console.warn('Could not list buckets:', listError.message);
-      return false;
-    }
-
-    const badgesBucket = buckets?.find(b => b.id === 'badges');
-    
-    if (badgesBucket) {
-      return true; // Bucket exists
-    }
-
-    // Bucket doesn't exist - try to create it using the database function
-    console.log('Badges bucket not found, attempting to create...');
-    const { data: result, error: rpcError } = await supabase.rpc('ensure_badges_bucket');
-
-    if (rpcError) {
-      console.warn('Could not create bucket automatically:', rpcError.message);
-      console.warn('Please run: npm run ensure-bucket or create it in Supabase Dashboard');
-      return false;
-    }
-
-    if (result?.success) {
-      console.log('✅ Badges bucket created successfully');
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Error ensuring badges bucket:', error);
-    return false;
-  }
-}
-
-// Upload badge icon to Supabase Storage
-async function uploadBadgeIcon(file: File, badgeKey: string): Promise<string> {
-  try {
-    // Ensure bucket exists first
-    const bucketExists = await ensureBadgesBucket();
-    if (!bucketExists) {
-      throw new Error('Badges storage bucket does not exist. Please run: npm run ensure-bucket (or create it in Supabase Dashboard)');
-    }
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`);
-    }
-
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      throw new Error(`File size exceeds 5MB limit. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
-    }
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${badgeKey}-${Date.now()}.${fileExt}`;
-    const filePath = `badge-icons/${fileName}`;
-
-    // Upload file
-    const { error: uploadError, data: uploadData } = await supabase.storage
-      .from('badges')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      
-      // Check if it's a bucket not found error
-      if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')) {
-        throw new Error('Badges storage bucket does not exist. Please create it in Supabase Dashboard > Storage, or run the migration: supabase db push');
-      }
-      
-      throw new Error(`Upload failed: ${uploadError.message}. Please ensure the badges storage bucket exists and you have upload permissions.`);
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('badges')
-      .getPublicUrl(filePath);
-
-    if (!urlData?.publicUrl) {
-      throw new Error('Failed to get public URL for uploaded file');
-    }
-
-    return urlData.publicUrl;
-  } catch (error: any) {
-    console.error('Badge icon upload error:', error);
-    throw error instanceof Error ? error : new Error(`Upload failed: ${String(error)}`);
-  }
+// Upload badge icon — TODO: implement file upload endpoint in Sanic API
+async function uploadBadgeIcon(_file: File, _badgeKey: string): Promise<string> {
+  // TODO: Replace with Sanic API endpoint when badge icon upload is implemented
+  throw new Error('Badge icon upload is not yet available on the Sanic API.');
 }
 
 export default function AdminPanel() {
@@ -463,8 +199,14 @@ export default function AdminPanel() {
     name: "", slug: "", tagline: "", sector: "", ethos_type: "team",
     description: "", mission: "", external_url: "", image_url: "",
     parent_ethos_id: "", is_public: true, is_active: true,
+    phase: "forming", map_url: "", map_type: "image", map_title: "",
+    external_links: [] as { label: string; url: string }[],
   };
   const [ethosForm, setEthosForm] = useState(defaultEthosForm);
+  const [accessEthos, setAccessEthos] = useState<any>(null);
+  const [isAccessDialogOpen, setIsAccessDialogOpen] = useState(false);
+  const [accessUserSearch, setAccessUserSearch] = useState("");
+  const [accessUserResults, setAccessUserResults] = useState<any[]>([]);
 
   // OmniBot session history state
   const [selectedOmnibotSession, setSelectedOmnibotSession] = useState<any>(null);
@@ -507,60 +249,81 @@ export default function AdminPanel() {
     enabled: isAdmin || canManageUsers,
   });
 
-  // ETHOS query
+  // ETHOS query via Sanic BFF API
   const { data: ethosListData = [], isLoading: ethosLoading, refetch: refetchEthos } = useQuery({
     queryKey: ['admin-ethos'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-list', {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw res.error;
-      return res.data?.data?.ethos || [];
+      const result = await fetchEcosystems();
+      return (result as any).ecosystems || (result as any).items || [];
     },
     enabled: isAdmin || canManageContent,
   });
 
-  // ETHOS members query (for the currently editing ethos)
+  // ETHOS members query — TODO: add per-ecosystem members endpoint to Sanic API
   const { data: ethosMembers = [], refetch: refetchEthosMembers } = useQuery({
     queryKey: ['admin-ethos-members', editingEthos?.id],
     queryFn: async () => {
       if (!editingEthos?.id) return [];
-      const { data, error } = await supabase
-        .from('ethos_members')
-        .select('*, profiles(id, username, display_name, avatar_url)')
-        .eq('ethos_id', editingEthos.id)
-        .order('joined_at');
-      if (error) throw error;
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when ecosystem members endpoint is implemented
+      return [];
     },
     enabled: !!editingEthos?.id,
   });
 
-  // OmniBot sessions query
+  // ETHOS access grants query — no join to avoid profiles RLS; resolve names client-side from users list
+  const { data: ethosAccessGrants = [], refetch: refetchAccessGrants } = useQuery({
+    queryKey: ['admin-ethos-access', accessEthos?.id],
+    queryFn: async () => {
+      if (!accessEthos?.id) return [];
+      const { data } = await supabase
+        .from('ethos_user_access')
+        .select('id, user_id, granted_at')
+        .eq('ethos_id', accessEthos.id)
+        .order('granted_at');
+      return data || [];
+    },
+    enabled: !!accessEthos?.id,
+  });
+
+  // OmniBot sessions query — TODO: add OmniBot sessions endpoint to Sanic API
   const { data: omnibotSessions = [], isLoading: omnibotLoading } = useQuery({
     queryKey: ['admin-omnibot-sessions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('omnibot_sessions')
-        .select('*, profiles(username, display_name)')
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when OmniBot sessions endpoint is implemented
+      return [];
     },
     enabled: isAdmin,
   });
 
-  // CTC Map settings query
+  // CTC handoff ready flags query
+  const { data: handoffData = [] } = useQuery({
+    queryKey: ['admin-ctc-handoff'],
+    queryFn: async () => {
+      const userIds = users.map((u: any) => u.id);
+      if (userIds.length === 0) return [];
+      const { data } = await supabase
+        .from('ctc_handoff')
+        .select('user_id, ready_for_neos_den')
+        .in('user_id', userIds);
+      return data || [];
+    },
+    enabled: (isAdmin || canManageUsers) && users.length > 0,
+  });
+
+  const handoffMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const row of (handoffData as any[])) {
+      map[row.user_id] = row.ready_for_neos_den ?? false;
+    }
+    return map;
+  }, [handoffData]);
+
+  // CTC Map settings query — TODO: add settings endpoint to Sanic API
   const { data: ctcMapData } = useQuery({
     queryKey: ['admin-ctc-map-settings'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke(
-        `settings-get?key=${APP_SETTINGS_KEYS.ctcMap}`
-      );
-      if (error) throw error;
-      return data?.data?.value || { prezi_url: "", description: "" };
+      // TODO: Replace with Sanic API endpoint when settings endpoint is implemented
+      return { prezi_url: "", description: "" };
     },
     enabled: !!(isAdmin || canManageContent),
   });
@@ -574,10 +337,12 @@ export default function AdminPanel() {
   const saveCtcMapSettings = async () => {
     setSavingCtcMap(true);
     try {
-      const { data, error } = await supabase.functions.invoke("settings-update", {
-        body: { key: APP_SETTINGS_KEYS.ctcMap, value: ctcMapForm },
+      // TODO: Replace with Sanic API endpoint when settings endpoint is implemented
+      await apiFetch('/api/v1/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: APP_SETTINGS_KEYS.ctcMap, value: ctcMapForm }),
       });
-      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['admin-ctc-map-settings'] });
       queryClient.invalidateQueries({ queryKey: ['ctc-map-settings'] });
       toast({ title: "Map settings saved!" });
@@ -588,18 +353,11 @@ export default function AdminPanel() {
     }
   };
 
-  // Badge mutations
+  // Badge mutations — TODO: add badge endpoints to Sanic API
   const createBadgeMutation = useMutation({
-    mutationFn: async (data: BadgeFormData) => {
-      const { error } = await supabase
-        .from('badge_definitions')
-        .insert({
-          ...data,
-          conditions: { type: 'custom' },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      if (error) throw error;
+    mutationFn: async (_data: BadgeFormData) => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge creation not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
@@ -613,12 +371,9 @@ export default function AdminPanel() {
   });
 
   const updateBadgeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<BadgeFormData> }) => {
-      const { error } = await supabase
-        .from('badge_definitions')
-        .update({ ...data, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+    mutationFn: async (_params: { id: string; data: Partial<BadgeFormData> }) => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge update not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
@@ -632,12 +387,9 @@ export default function AdminPanel() {
   });
 
   const deleteBadgeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('badge_definitions')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+    mutationFn: async (_id: string) => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge deletion not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
@@ -648,29 +400,11 @@ export default function AdminPanel() {
     },
   });
 
-  // Team mutations
+  // Team mutations — TODO: add teams endpoints to Sanic API
   const createTeamMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; member_ids: string[] }) => {
-      const { data: team, error: teamError } = await supabase
-        .from('teams')
-        .insert({ name: data.name, description: data.description })
-        .select()
-        .single();
-      
-      if (teamError) throw teamError;
-      
-      if (data.member_ids.length > 0) {
-        const members = data.member_ids.map(userId => ({
-          team_id: team.id,
-          user_id: userId,
-        }));
-        const { error: membersError } = await supabase
-          .from('team_members')
-          .insert(members);
-        if (membersError) throw membersError;
-      }
-      
-      return team;
+    mutationFn: async (_data: { name: string; description: string; member_ids: string[] }) => {
+      // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
+      throw new Error('Team creation not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
@@ -685,9 +419,9 @@ export default function AdminPanel() {
   });
 
   const deleteTeamMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('teams').delete().eq('id', id);
-      if (error) throw error;
+    mutationFn: async (_id: string) => {
+      // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
+      throw new Error('Team deletion not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
@@ -698,16 +432,10 @@ export default function AdminPanel() {
     },
   });
 
-  // ETHOS mutations
+  // ETHOS mutations via Sanic BFF API
   const createEthosMutation = useMutation({
     mutationFn: async (data: typeof defaultEthosForm) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-create', {
-        body: { ...data, parent_ethos_id: data.parent_ethos_id || null },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
+      return createEcosystemRecord({ ...data, parent_ethos_id: data.parent_ethos_id || null });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
@@ -721,13 +449,7 @@ export default function AdminPanel() {
 
   const updateEthosMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<typeof defaultEthosForm> }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-update', {
-        body: { id, ...data, parent_ethos_id: data.parent_ethos_id || null },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
+      return updateEcosystemRecord(id, { ...data, parent_ethos_id: data.parent_ethos_id || null });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
@@ -740,13 +462,11 @@ export default function AdminPanel() {
 
   const deleteEthosMutation = useMutation({
     mutationFn: async ({ id, hard }: { id: string; hard: boolean }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-delete', {
-        body: { id, hard },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+      return apiFetch<any>(`/api/v1/ecosystems/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hard }),
       });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
     },
     onSuccess: (_, { hard }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
@@ -765,13 +485,11 @@ export default function AdminPanel() {
 
   const addEthosMemberMutation = useMutation({
     mutationFn: async (data: { ethos_id: string; user_id: string; role_in_ethos: string; member_type: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-add-member', {
-        body: data,
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+      return apiFetch<any>(`/api/v1/ecosystems/${data.ethos_id}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
-      return res.data?.data;
     },
     onSuccess: () => {
       refetchEthosMembers();
@@ -787,12 +505,7 @@ export default function AdminPanel() {
 
   const removeEthosMemberMutation = useMutation({
     mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('ethos-remove-member', {
-        body: { ethos_id, user_id },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (res.error) throw new Error(res.data?.error || res.error.message);
+      return apiFetch<any>(`/api/v1/ecosystems/${ethos_id}/members/${user_id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       refetchEthosMembers();
@@ -819,6 +532,36 @@ export default function AdminPanel() {
     ).slice(0, 10));
   };
 
+  const grantAccessMutation = useMutation({
+    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
+      const { error } = await supabase.from('ethos_user_access').insert({ ethos_id, user_id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchAccessGrants();
+      setAccessUserSearch('');
+      setAccessUserResults([]);
+      toast({ title: 'Access Granted' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const revokeAccessMutation = useMutation({
+    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
+      const { error } = await supabase.from('ethos_user_access').delete().eq('ethos_id', ethos_id).eq('user_id', user_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchAccessGrants();
+      toast({ title: 'Access Revoked' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const openCreateEthos = () => {
     setEditingEthos(null);
     setEthosForm(defaultEthosForm);
@@ -840,6 +583,11 @@ export default function AdminPanel() {
       parent_ethos_id: ethos.parent_ethos_id || "",
       is_public: ethos.is_public ?? true,
       is_active: ethos.is_active ?? true,
+      phase: ethos.phase || "forming",
+      map_url: ethos.map_url || "",
+      map_type: ethos.map_type || "image",
+      map_title: ethos.map_title || "",
+      external_links: Array.isArray(ethos.external_links) ? ethos.external_links : [],
     });
     setIsEthosDialogOpen(true);
   };
@@ -882,9 +630,13 @@ export default function AdminPanel() {
       if (assignments.length === 0) {
         throw new Error('Please select at least one user or team');
       }
-      
-      const { error } = await supabase.from('quiz_assignments').insert(assignments);
-      if (error) throw error;
+
+      // TODO: Replace with Sanic API endpoint when quiz assignments endpoint is implemented
+      await apiFetch('/api/v1/quiz-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments }),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] });
@@ -899,8 +651,8 @@ export default function AdminPanel() {
 
   const deleteAssignmentMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('quiz_assignments').delete().eq('id', id);
-      if (error) throw error;
+      // TODO: Replace with Sanic API endpoint when quiz assignments endpoint is implemented
+      await apiFetch(`/api/v1/quiz-assignments/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] });
@@ -911,51 +663,19 @@ export default function AdminPanel() {
     },
   });
 
-  // Create user mutation
+  // Create user mutation via Sanic BFF API
   const createUserMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; first_name: string; last_name: string; role: string }) => {
-      // Create user via Supabase Admin API
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: data.first_name,
-          last_name: data.last_name,
-        },
+      // TODO: Replace with Sanic API invite/create-member endpoint when implemented
+      return apiFetch<any>('/api/v1/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name: `${data.first_name} ${data.last_name}`.trim(),
+          email: data.email,
+          role: data.role,
+        }),
       });
-      
-      if (authError) throw authError;
-      
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          username: data.email.split('@')[0],
-        })
-        .eq('id', authData.user.id);
-      
-      if (profileError) console.error('Profile update error:', profileError);
-      
-      // Assign role
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('key', data.role)
-        .single();
-      
-      if (roleData) {
-        await supabase
-          .from('user_roles')
-          .upsert({
-            user_id: authData.user.id,
-            role_id: roleData.id,
-          });
-      }
-      
-      return authData.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -965,6 +685,37 @@ export default function AdminPanel() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // NEOS Den ready toggle mutation
+  const setNeosDenReadyMutation = useMutation({
+    mutationFn: async ({ user_id, ready_for_neos_den }: { user_id: string; ready_for_neos_den: boolean }) => {
+      const res = await supabase.functions.invoke('admin-set-neos-den-ready', {
+        body: { user_id, ready_for_neos_den },
+      });
+      if (res.error) throw res.error;
+      return res.data;
+    },
+    onMutate: async ({ user_id, ready_for_neos_den }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-ctc-handoff'] });
+      const previous = queryClient.getQueryData(['admin-ctc-handoff']);
+      queryClient.setQueryData(['admin-ctc-handoff'], (old: any) => {
+        const rows: any[] = old ?? [];
+        const exists = rows.some((r: any) => r.user_id === user_id);
+        if (exists) {
+          return rows.map((r: any) => r.user_id === user_id ? { ...r, ready_for_neos_den } : r);
+        }
+        return [...rows, { user_id, ready_for_neos_den }];
+      });
+      return { previous };
+    },
+    onError: (_err: any, _vars: any, context: any) => {
+      queryClient.setQueryData(['admin-ctc-handoff'], context?.previous);
+      toast({ title: 'Failed to update NEOS Den status', variant: 'destructive' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ctc-handoff'] });
     },
   });
 
@@ -1109,25 +860,12 @@ export default function AdminPanel() {
     if (!selectedUser || !newRole) return;
 
     try {
-      // Get role ID
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('key', newRole)
-        .single();
-
-      if (!roleData) throw new Error('Role not found');
-
-      // Update user role
-      const { error } = await supabase
-        .from('user_roles')
-        .upsert({
-          user_id: selectedUser.id,
-          role_id: roleData.id,
-          assigned_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-
-      if (error) throw error;
+      // TODO: replace with dedicated Sanic role assignment endpoint when available
+      await apiFetch(`/api/v1/members/${selectedUser.id}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
 
       toast({
         title: "Role Updated",
@@ -1150,12 +888,12 @@ export default function AdminPanel() {
     if (!selectedUser) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ permissions: editedPermissions })
-        .eq('id', selectedUser.id);
-
-      if (error) throw error;
+      // TODO: replace with dedicated Sanic permissions endpoint when available
+      await apiFetch(`/api/v1/members/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: editedPermissions }),
+      });
 
       toast({
         title: "Permissions Updated",
@@ -1418,19 +1156,30 @@ export default function AdminPanel() {
                           @{user.username} • {user.profile_visibility} profile
                         </p>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setEditedPermissions(user.permissions || []);
-                          setIsEditPermissionsOpen(true);
-                        }}
-                        data-testid={`button-edit-permissions-${user.id}`}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit Permissions
-                      </Button>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={handoffMap[user.id] ?? false}
+                            onCheckedChange={(checked) =>
+                              setNeosDenReadyMutation.mutate({ user_id: user.id, ready_for_neos_den: checked })
+                            }
+                          />
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">NEOS Den</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setEditedPermissions(user.permissions || []);
+                            setIsEditPermissionsOpen(true);
+                          }}
+                          data-testid={`button-edit-permissions-${user.id}`}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit Permissions
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -2373,6 +2122,10 @@ export default function AdminPanel() {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-2">
+                                <Button size="sm" variant="outline" title="Manage Access"
+                                  onClick={() => { setAccessEthos(ethos); setAccessUserSearch(''); setAccessUserResults([]); setIsAccessDialogOpen(true); }}>
+                                  <Shield className="h-4 w-4" />
+                                </Button>
                                 <Button size="sm" variant="outline" onClick={() => openEditEthos(ethos)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -2482,6 +2235,81 @@ export default function AdminPanel() {
                     <Label htmlFor="ethos-active">Is Active</Label>
                   </div>
                 </div>
+                {/* C3: Phase, Map, External Links */}
+                <div className="space-y-2">
+                  <Label>Phase</Label>
+                  <Select value={ethosForm.phase} onValueChange={(v) => setEthosForm({ ...ethosForm, phase: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="forming">Forming</SelectItem>
+                      <SelectItem value="startup">Startup</SelectItem>
+                      <SelectItem value="established">Established</SelectItem>
+                      <SelectItem value="full throttle">Full Throttle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Map URL <span className="text-muted-foreground font-normal">(Miro embed URL or image URL)</span></Label>
+                    <Input value={ethosForm.map_url} onChange={(e) => setEthosForm({ ...ethosForm, map_url: e.target.value })} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Map Type</Label>
+                    <Select value={ethosForm.map_type} onValueChange={(v) => setEthosForm({ ...ethosForm, map_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="image">Image</SelectItem>
+                        <SelectItem value="miro">Miro Embed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Map Title</Label>
+                  <Input value={ethosForm.map_title} onChange={(e) => setEthosForm({ ...ethosForm, map_title: e.target.value })} placeholder="e.g. Team Structure Map" />
+                </div>
+                <div className="space-y-2">
+                  <Label>External Links</Label>
+                  {ethosForm.external_links.map((link, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Label"
+                        value={link.label}
+                        onChange={(e) => {
+                          const updated = ethosForm.external_links.map((l, idx) => idx === i ? { ...l, label: e.target.value } : l);
+                          setEthosForm({ ...ethosForm, external_links: updated });
+                        }}
+                        className="w-36 flex-shrink-0"
+                      />
+                      <Input
+                        placeholder="https://..."
+                        value={link.url}
+                        onChange={(e) => {
+                          const updated = ethosForm.external_links.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l);
+                          setEthosForm({ ...ethosForm, external_links: updated });
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive flex-shrink-0"
+                        onClick={() => setEthosForm({ ...ethosForm, external_links: ethosForm.external_links.filter((_, idx) => idx !== i) })}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEthosForm({ ...ethosForm, external_links: [...ethosForm.external_links, { label: "", url: "" }] })}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Link
+                  </Button>
+                </div>
                 <div className="flex gap-2 justify-end pt-2 border-t">
                   <Button variant="outline" onClick={() => setIsEthosDialogOpen(false)}>Cancel</Button>
                   <Button onClick={handleSaveEthos} disabled={createEthosMutation.isPending || updateEthosMutation.isPending}>
@@ -2505,7 +2333,7 @@ export default function AdminPanel() {
                         {ethosMembers.map((m: any) => (
                           <div key={m.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
                             <div>
-                              <span className="font-medium">{m.profiles?.username || m.profiles?.display_name || m.user_id}</span>
+                              <span className="font-medium">{[m.profiles?.first_name, m.profiles?.last_name].filter(Boolean).join(' ') || m.profiles?.username || m.user_id}</span>
                               <span className="text-muted-foreground text-sm ml-2">{m.role_in_ethos}</span>
                               <Badge variant="outline" className="ml-2 text-xs">{m.member_type}</Badge>
                             </div>
@@ -2532,9 +2360,19 @@ export default function AdminPanel() {
                           <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
                             {ethosUserResults.map((u: any) => (
                               <button key={u.id} type="button"
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                                onClick={() => { setMemberForm({ ...memberForm, user_id: u.id }); setEthosUserSearch(u.username || u.display_name || u.email); setEthosUserResults([]); }}>
-                                {u.username || u.display_name} {u.email && <span className="text-muted-foreground">({u.email})</span>}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                                onClick={() => {
+                                  setMemberForm({ ...memberForm, user_id: u.id });
+                                  setEthosUserSearch([u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id);
+                                  setEthosUserResults([]);
+                                }}>
+                                {u.avatar_url && (
+                                  <img src={u.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                )}
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}</span>
+                                  {u.username && <span className="text-xs text-muted-foreground">@{u.username}</span>}
+                                </div>
                               </button>
                             ))}
                           </div>
@@ -2566,6 +2404,68 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Manage Access Dialog */}
+          <Dialog open={isAccessDialogOpen} onOpenChange={(open) => { setIsAccessDialogOpen(open); if (!open) { setAccessEthos(null); setAccessUserSearch(''); setAccessUserResults([]); } }}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Access — {accessEthos?.name}</DialogTitle>
+                <DialogDescription>Grant or revoke Discover access for this ETHOS</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                {/* Current grants */}
+                <div>
+                  <p className="text-sm font-medium mb-2">Current Access ({(ethosAccessGrants as any[]).length})</p>
+                  {(ethosAccessGrants as any[]).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No users have been granted access yet.</p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {(ethosAccessGrants as any[]).map((g: any) => {
+                        const profile = users.find((u: any) => u.id === g.user_id);
+                        const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.username || g.user_id;
+                        return (
+                          <div key={g.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                            <div>
+                              <span className="font-medium text-sm">{displayName}</span>
+                              {profile?.username && <span className="text-muted-foreground text-xs ml-2">@{profile.username}</span>}
+                            </div>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                              onClick={() => revokeAccessMutation.mutate({ ethos_id: accessEthos.id, user_id: g.user_id })}
+                              disabled={revokeAccessMutation.isPending}>
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Grant access */}
+                <div className="border-t pt-3 space-y-2">
+                  <p className="text-sm font-medium">Grant Access</p>
+                  <Input
+                    placeholder="Search by username or email..."
+                    value={accessUserSearch}
+                    onChange={(e) => { setAccessUserSearch(e.target.value); searchAccessUsers(e.target.value); }}
+                  />
+                  {accessUserResults.length > 0 && (
+                    <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
+                      {accessUserResults.map((u: any) => (
+                        <button key={u.id} type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between"
+                          onClick={() => grantAccessMutation.mutate({ ethos_id: accessEthos.id, user_id: u.id })}
+                          disabled={grantAccessMutation.isPending}>
+                          <span>{u.username || u.display_name} {u.email && <span className="text-muted-foreground">({u.email})</span>}</span>
+                          <UserPlus className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>

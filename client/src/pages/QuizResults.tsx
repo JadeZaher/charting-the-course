@@ -5,8 +5,8 @@ import { CheckCircle, XCircle, Download, ArrowLeft, Clock, Calendar, User } from
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { supabase } from "@/lib/supabase";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchQuiz, fetchMemberQuizHistory } from "@/lib/api-client";
 
 interface ResultMetadata {
   totalQuestions?: number;
@@ -52,79 +52,52 @@ interface ExtractedQuestion {
 export default function QuizResults() {
   const [, params] = useRoute("/quiz/results/:id");
   const [, setLocation] = useLocation();
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const resultId = params?.id;
 
-  const { data: result, isLoading: resultLoading } = useQuery<QuizResult | null>({
-    queryKey: ['quiz-result', resultId],
+  // Fetch quiz history to find the specific result by ID or quiz ID
+  const { data: historyData, isLoading: resultLoading } = useQuery<QuizResult | null>({
+    queryKey: ['quiz-result', resultId, member?.id],
     queryFn: async () => {
-      if (!user?.id || !resultId) return null;
-      
-      // First, try to fetch by result ID directly
-      let query = supabase
-        .from('quiz_results')
-        .select(`
-          id,
-          quiz_id,
-          user_id,
-          score,
-          is_passed,
-          time_spent,
-          survey_results,
-          result_metadata,
-          completed_at
-        `);
-      
-      // Check if the ID looks like a UUID (result ID) or could be a quiz ID
-      // Result IDs and quiz IDs are both UUIDs, but we try result ID first
-      const { data: resultById, error: resultByIdError } = await query
-        .eq('id', resultId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (resultById) {
-        return resultById;
-      }
-      
-      // If not found by result ID, try as quiz ID (backwards compatibility)
-      const { data: resultByQuizId, error: resultByQuizError } = await supabase
-        .from('quiz_results')
-        .select(`
-          id,
-          quiz_id,
-          user_id,
-          score,
-          is_passed,
-          time_spent,
-          survey_results,
-          result_metadata,
-          completed_at
-        `)
-        .eq('quiz_id', resultId)
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (resultByQuizError && resultByQuizError.code !== 'PGRST116') throw resultByQuizError;
-      return resultByQuizId;
+      if (!member?.id || !resultId) return null;
+
+      // Fetch member quiz history and find the matching result
+      const historyResult = await fetchMemberQuizHistory(member.id);
+      const results: QuizResult[] = ((historyResult as any).results || []).map((r: any) => ({
+        id: r.id,
+        quiz_id: r.quiz_id,
+        user_id: r.member_id || member.id,
+        score: r.score ?? null,
+        is_passed: r.is_passed ?? null,
+        time_spent: r.time_spent ?? null,
+        survey_results: r.survey_results ?? r.answers ?? {},
+        result_metadata: r.result_metadata ?? null,
+        completed_at: r.completed_at,
+      }));
+
+      // Try to find by result ID first, then by quiz ID (backwards compat)
+      return results.find(r => r.id === resultId)
+        ?? results.filter(r => r.quiz_id === resultId).sort(
+          (a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
+        )[0]
+        ?? null;
     },
-    enabled: !!resultId && !!user?.id,
+    enabled: !!resultId && !!member?.id,
   });
+
+  const result = historyData;
 
   const { data: quiz, isLoading: quizLoading } = useQuery<Quiz | null>({
     queryKey: ['quiz', result?.quiz_id],
     queryFn: async () => {
       if (!result?.quiz_id) return null;
-      
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('id, title, description, survey_json')
-        .eq('id', result.quiz_id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const data = await fetchQuiz(result.quiz_id);
+      return {
+        id: (data as any).id,
+        title: (data as any).title,
+        description: (data as any).description ?? null,
+        survey_json: (data as any).survey_json ?? (data as any).config ?? null,
+      };
     },
     enabled: !!result?.quiz_id,
   });

@@ -7,8 +7,10 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDIDInit } from '@/hooks/useDID';
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -27,11 +29,26 @@ import MapPage from "@/pages/MapPage";
 import JourneyMapList from "@/pages/JourneyMapList";
 import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
-import EthosDiscover from "@/pages/EthosDiscover";
+import Discover from "@/pages/Discover";
 import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
 import OrientationComplete from "@/pages/OrientationComplete";
+import GovernanceDashboard from "@/pages/governance/DashboardHome";
+import { AgreementList, AgreementDetail, AgreementForm, AgreementHistory } from '@/pages/governance/agreements';
+import { ProposalList, ProposalDetail, ProposalForm } from '@/pages/governance/proposals';
+import { MemberList, MemberDetail, MemberForm } from '@/pages/governance/members';
+import { DomainList, DomainDetail, DomainForm } from '@/pages/governance/domains';
+import { DecisionList, DecisionDetail } from '@/pages/governance/decisions';
+import { OnboardingList, OnboardingCeremony } from '@/pages/governance/onboarding';
+import { ConflictList, ConflictDetail, ConflictForm } from '@/pages/governance/conflicts';
+import { EcosystemListPage, EcosystemDetailPage, EcosystemFormPage } from '@/pages/governance/ecosystems';
+import { EmergencyDashboard, EmergencyDetail } from '@/pages/governance/emergency';
+import { ExitList, ExitDetail, ExitForm } from '@/pages/governance/exit';
+import { SafeguardsDashboard, AuditList, AuditDetail } from '@/pages/governance/safeguards';
+import MessagingLayout from '@/pages/messaging/MessagingLayout';
+import ChatPanel from '@/pages/chat/ChatPanel';
+import { EcosystemPicker } from "@/components/EcosystemPicker";
 
 // Loading spinner component
 function LoadingScreen() {
@@ -53,7 +70,7 @@ function ProtectedRoute({
   component: React.ComponentType;
   requiredPermission?: 'canManageUsers' | 'canManageContent' | 'canProxyQuiz' | 'canViewAnalytics' | 'isAdmin';
 }) {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const { canManageUsers, canManageContent, canProxyQuiz, canViewAnalytics, isAdmin, isLoading: permLoading, error: permError } = usePermissions();
   const [location] = useLocation();
 
@@ -110,7 +127,7 @@ function ProtectedRoute({
 
 // Public routes that don't require auth
 function PublicRoutes() {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   if (isLoading) {
@@ -133,6 +150,7 @@ function PublicRoutes() {
 
 // Authenticated routes with sidebar layout
 function AuthenticatedRoutes() {
+  useDIDInit();
   return (
     <Switch>
       {/* Public accessible routes */}
@@ -142,7 +160,43 @@ function AuthenticatedRoutes() {
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
-      
+
+      {/* Governance dashboard */}
+      <Route path="/governance">
+        <ProtectedRoute component={GovernanceDashboard} />
+      </Route>
+
+      {/* Agreement routes */}
+      <Route path="/agreements/new">
+        <ProtectedRoute component={AgreementForm} />
+      </Route>
+      <Route path="/agreements/:id/edit">
+        <ProtectedRoute component={AgreementForm} />
+      </Route>
+      <Route path="/agreements/:id/history">
+        <ProtectedRoute component={AgreementHistory} />
+      </Route>
+      <Route path="/agreements/:id">
+        <ProtectedRoute component={AgreementDetail} />
+      </Route>
+      <Route path="/agreements">
+        <ProtectedRoute component={AgreementList} />
+      </Route>
+
+      {/* Proposal routes */}
+      <Route path="/proposals/new">
+        <ProtectedRoute component={ProposalForm} />
+      </Route>
+      <Route path="/proposals/:id/edit">
+        <ProtectedRoute component={ProposalForm} />
+      </Route>
+      <Route path="/proposals/:id">
+        <ProtectedRoute component={ProposalDetail} />
+      </Route>
+      <Route path="/proposals">
+        <ProtectedRoute component={ProposalList} />
+      </Route>
+
       {/* Quiz routes - all authenticated users can take quizzes */}
       <Route path="/quizzes">
         <ProtectedRoute component={QuizList} />
@@ -171,9 +225,12 @@ function AuthenticatedRoutes() {
 
       {/* Orientation Portal - all authenticated users */}
       <Route path="/discover">
-        <ProtectedRoute component={EthosDiscover} />
+        <ProtectedRoute component={Discover} />
       </Route>
       <Route path="/ethos/:slug">
+        <ProtectedRoute component={EthosDetail} />
+      </Route>
+      <Route path="/ethos/:slug/detail">
         <ProtectedRoute component={EthosDetail} />
       </Route>
       <Route path="/orientation/:ethos_slug/complete">
@@ -215,6 +272,55 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={UserQuizHistory} requiredPermission="isAdmin" />
       </Route>
       
+      {/* Members */}
+      <Route path="/members/new"><ProtectedRoute component={MemberForm} /></Route>
+      <Route path="/members/:id/edit"><ProtectedRoute component={MemberForm} /></Route>
+      <Route path="/members/:id"><ProtectedRoute component={MemberDetail} /></Route>
+      <Route path="/members"><ProtectedRoute component={MemberList} /></Route>
+
+      {/* Domains */}
+      <Route path="/domains/new"><ProtectedRoute component={DomainForm} /></Route>
+      <Route path="/domains/:id/edit"><ProtectedRoute component={DomainForm} /></Route>
+      <Route path="/domains/:id"><ProtectedRoute component={DomainDetail} /></Route>
+      <Route path="/domains"><ProtectedRoute component={DomainList} /></Route>
+
+      {/* Decisions */}
+      <Route path="/decisions/:id"><ProtectedRoute component={DecisionDetail} /></Route>
+      <Route path="/decisions"><ProtectedRoute component={DecisionList} /></Route>
+
+      {/* Onboarding */}
+      <Route path="/onboarding/:memberId/ceremony"><ProtectedRoute component={OnboardingCeremony} /></Route>
+      <Route path="/onboarding"><ProtectedRoute component={OnboardingList} /></Route>
+
+      {/* Conflicts */}
+      <Route path="/conflicts/new"><ProtectedRoute component={ConflictForm} /></Route>
+      <Route path="/conflicts/:id"><ProtectedRoute component={ConflictDetail} /></Route>
+      <Route path="/conflicts"><ProtectedRoute component={ConflictList} /></Route>
+
+      {/* Ecosystems */}
+      <Route path="/ecosystems/new"><ProtectedRoute component={EcosystemFormPage} /></Route>
+      <Route path="/ecosystems/:id/edit"><ProtectedRoute component={EcosystemFormPage} /></Route>
+      <Route path="/ecosystems/:id"><ProtectedRoute component={EcosystemDetailPage} /></Route>
+      <Route path="/ecosystems"><ProtectedRoute component={EcosystemListPage} /></Route>
+
+      {/* Emergency */}
+      <Route path="/emergency/:id"><ProtectedRoute component={EmergencyDetail} /></Route>
+      <Route path="/emergency"><ProtectedRoute component={EmergencyDashboard} /></Route>
+
+      {/* Exit */}
+      <Route path="/exit/new"><ProtectedRoute component={ExitForm} /></Route>
+      <Route path="/exit/:id"><ProtectedRoute component={ExitDetail} /></Route>
+      <Route path="/exit"><ProtectedRoute component={ExitList} /></Route>
+
+      {/* Safeguards */}
+      <Route path="/safeguards/audits/:id"><ProtectedRoute component={AuditDetail} /></Route>
+      <Route path="/safeguards/audits"><ProtectedRoute component={AuditList} /></Route>
+      <Route path="/safeguards"><ProtectedRoute component={SafeguardsDashboard} /></Route>
+
+      {/* Messaging + Chat */}
+      <Route path="/messaging"><ProtectedRoute component={MessagingLayout} /></Route>
+      <Route path="/chat"><ProtectedRoute component={ChatPanel} /></Route>
+
       {/* Fallback to public routes for unmatched paths */}
       <Route>
         <PublicRoutes />
@@ -225,7 +331,7 @@ function AuthenticatedRoutes() {
 
 // Main app layout with authentication
 function AppLayout() {
-  const { isAuthenticated, isLoading } = useSupabaseAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   // Public routes that don't need the sidebar
@@ -261,6 +367,7 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-3 sm:p-4 border-b bg-background">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <EcosystemPicker />
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 min-w-0">
@@ -275,12 +382,16 @@ function AppLayout() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <AppLayout />
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <EcosystemProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <AppLayout />
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </EcosystemProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { fetchMemberBadges } from '@/lib/api-client';
 import type { BadgeDefinition, UserBadge, CreateBadgeDefinitionRequest } from '@/types/badges';
 
 /**
- * Hook to fetch badge definitions
- * NOTE: Edge Functions must be deployed. Set enabled: true when ready.
+ * Hook to fetch badge definitions.
+ * TODO: Add a /api/v1/badges endpoint to the Sanic API when badge catalog is implemented.
  */
 export function useBadgeDefinitions(options?: {
   category?: string;
@@ -14,23 +14,11 @@ export function useBadgeDefinitions(options?: {
 }) {
   return useQuery({
     queryKey: ['badge-definitions', options],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (options?.category) params.set('category', options.category);
-      if (options?.featured) params.set('featured', 'true');
-      if (options?.includeInactive) params.set('include_inactive', 'true');
-
-      const { data, error } = await supabase.functions.invoke(
-        `badges/list-badges${params.toString() ? `?${params.toString()}` : ''}`
-      );
-      if (error) throw error;
-      return data.data as {
-        badges: BadgeDefinition[];
-        categories: string[];
-        total: number;
-      };
+    queryFn: async (): Promise<{ badges: BadgeDefinition[]; categories: string[]; total: number }> => {
+      // TODO: Replace with Sanic API endpoint when badge definitions endpoint is implemented
+      return { badges: [], categories: [], total: 0 };
     },
-    enabled: options?.enabled ?? false, // Disabled until Edge Functions deployed
+    enabled: options?.enabled ?? false,
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -38,26 +26,23 @@ export function useBadgeDefinitions(options?: {
 }
 
 /**
- * Hook to fetch user badges
- * NOTE: Edge Functions must be deployed. Set enabled: true when ready.
+ * Hook to fetch user badges via Sanic BFF API.
  */
 export function useUserBadges(userId?: string, enabled = false) {
   return useQuery({
     queryKey: ['user-badges', userId || 'me'],
     queryFn: async () => {
-      const endpoint = userId
-        ? `badges/get-user-badges/${userId}`
-        : 'badges/get-user-badges';
-      
-      const { data, error } = await supabase.functions.invoke(endpoint);
-      if (error) throw error;
-      return data.data as {
-        badges: (UserBadge & { badge_definitions?: BadgeDefinition })[];
-        total: number;
-        by_category: Record<string, number>;
-      };
+      if (!userId) return { badges: [], total: 0, by_category: {} };
+      const result = await fetchMemberBadges(userId);
+      const badges = (result.badges || []) as unknown as (UserBadge & { badge_definitions?: BadgeDefinition })[];
+      const by_category: Record<string, number> = {};
+      badges.forEach((b: any) => {
+        const cat = b.badge_category || b.category || 'general';
+        by_category[cat] = (by_category[cat] || 0) + 1;
+      });
+      return { badges, total: badges.length, by_category };
     },
-    enabled, // Disabled until Edge Functions deployed
+    enabled: enabled && !!userId,
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -65,49 +50,36 @@ export function useUserBadges(userId?: string, enabled = false) {
 }
 
 /**
- * Hook for badge management (admin/facilitator only)
+ * Hook for badge management (admin/facilitator only).
+ * TODO: Add badge management endpoints to the Sanic API.
  */
 export function useBadgeManagement() {
   const queryClient = useQueryClient();
 
-  // Create badge
   const createBadge = useMutation({
-    mutationFn: async (badge: CreateBadgeDefinitionRequest) => {
-      const { data, error } = await supabase.functions.invoke(
-        'badges/create-badge',
-        { body: badge }
-      );
-      if (error) throw error;
-      return data.data as BadgeDefinition;
+    mutationFn: async (_badge: CreateBadgeDefinitionRequest): Promise<BadgeDefinition> => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge management not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['badge-definitions'] });
     },
   });
 
-  // Update badge
   const updateBadge = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CreateBadgeDefinitionRequest> }) => {
-      const { data, error } = await supabase.functions.invoke(
-        `badges/update-badge/${id}`,
-        { body: updates }
-      );
-      if (error) throw error;
-      return data.data as BadgeDefinition;
+    mutationFn: async (_params: { id: string; updates: Partial<CreateBadgeDefinitionRequest> }): Promise<BadgeDefinition> => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge management not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['badge-definitions'] });
     },
   });
 
-  // Delete badge
   const deleteBadge = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.functions.invoke(
-        `badges/delete-badge/${id}`,
-        { method: 'DELETE' }
-      );
-      if (error) throw error;
+    mutationFn: async (_id: string): Promise<void> => {
+      // TODO: Replace with Sanic API endpoint when badge management is implemented
+      throw new Error('Badge management not yet available on the Sanic API');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['badge-definitions'] });
@@ -126,4 +98,3 @@ export function useBadgeManagement() {
     isDeleting: deleteBadge.isPending,
   };
 }
-

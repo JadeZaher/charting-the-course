@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { useUserRole } from './useSupabaseAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type UserRole = 'admin' | 'facilitator' | 'contributor' | 'viewer';
 
@@ -12,26 +12,26 @@ interface RolePermissions {
   canDeleteQuizzes: boolean;
   canPublishQuizzes: boolean;
   canAssignQuizzes: boolean;
-  
+
   // User management
   canManageUsers: boolean;
   canAssignRoles: boolean;
   canViewAllUsers: boolean;
-  
+
   // Badge management
   canCreateBadges: boolean;
   canEditBadges: boolean;
   canDeleteBadges: boolean;
   canAssignBadges: boolean;
-  
+
   // Profile
   canViewPublicProfiles: boolean;
   canEditOwnProfile: boolean;
-  
+
   // Analytics
   canViewAnalytics: boolean;
   canViewAllQuizResults: boolean;
-  
+
   // Admin
   isAdmin: boolean;
   isAdminOrFacilitator: boolean;
@@ -157,85 +157,105 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
   },
 };
 
+function profileToRole(profile: string | null | undefined): UserRole {
+  switch (profile) {
+    case 'co_creator':
+    case 'builder':
+      return 'admin';
+    case 'collaborator':
+      return 'facilitator';
+    default:
+      return 'viewer';
+  }
+}
+
+function roleToDisplayName(role: UserRole): string {
+  switch (role) {
+    case 'admin': return 'Admin';
+    case 'facilitator': return 'Facilitator';
+    case 'contributor': return 'Contributor';
+    default: return 'Viewer';
+  }
+}
+
 /**
- * Hook for role-based access control
- * Returns permissions based on the current user's role
+ * Hook for role-based access control.
+ * Derives role from the DID auth member's profile field.
  */
 export function useRoleAccess() {
-  const { data: userRole, isLoading, error } = useUserRole();
-  
-  const role = (userRole?.key || 'viewer') as UserRole;
+  const { member, isLoading } = useAuth();
+
+  const role = useMemo(() => profileToRole(member?.profile), [member?.profile]);
   const permissions = useMemo(
     () => rolePermissions[role] || rolePermissions.viewer,
     [role]
   );
-  
+
   const hasPermission = useCallback(
     (permission: keyof RolePermissions) => permissions[permission],
     [permissions]
   );
-  
+
   const hasAnyPermission = useCallback(
     (...perms: (keyof RolePermissions)[]) => perms.some(p => permissions[p]),
     [permissions]
   );
-  
+
   const hasAllPermissions = useCallback(
     (...perms: (keyof RolePermissions)[]) => perms.every(p => permissions[p]),
     [permissions]
   );
-  
+
   return useMemo(() => ({
     role,
-    roleName: userRole?.name || 'Viewer',
+    roleName: roleToDisplayName(role),
     permissions,
     isLoading,
-    error,
+    error: null,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-  }), [role, userRole?.name, permissions, isLoading, error, hasPermission, hasAnyPermission, hasAllPermissions]);
+  }), [role, permissions, isLoading, hasPermission, hasAnyPermission, hasAllPermissions]);
 }
 
 /**
  * Component that only renders children if user has required permission
  */
-export function RequirePermission({ 
-  permission, 
-  children, 
-  fallback = null 
-}: { 
+export function RequirePermission({
+  permission,
+  children,
+  fallback = null
+}: {
   permission: keyof RolePermissions;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }): React.ReactElement | null {
   const { permissions, isLoading } = useRoleAccess();
-  
+
   if (isLoading) return null;
   if (!permissions[permission]) return <>{fallback}</>;
-  
+
   return <>{children}</>;
 }
 
 /**
  * Component that only renders children if user has required role
  */
-export function RequireRole({ 
-  roles, 
-  children, 
-  fallback = null 
-}: { 
+export function RequireRole({
+  roles,
+  children,
+  fallback = null
+}: {
   roles: UserRole | UserRole[];
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }): React.ReactElement | null {
   const { role, isLoading } = useRoleAccess();
-  
+
   if (isLoading) return null;
-  
+
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   if (!allowedRoles.includes(role)) return <>{fallback}</>;
-  
+
   return <>{children}</>;
 }
-

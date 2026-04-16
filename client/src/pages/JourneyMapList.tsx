@@ -31,8 +31,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { fetchEcosystems } from "@/lib/api-client";
 import { Plus, Edit, Trash2, Copy, Map, Star, CheckCircle, XCircle, Search } from "lucide-react";
+
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((body as any).error || res.statusText);
+  }
+  return res.json();
+}
 
 interface JourneyMap {
   id: string;
@@ -77,12 +87,11 @@ export default function JourneyMapList() {
       const params = new URLSearchParams();
       if (ethosFilter !== "all") params.set("ethos_id", ethosFilter);
       if (activeFilter !== "all") params.set("is_active", activeFilter);
-
-      const { data, error } = await supabase.functions.invoke(
-        `journey-maps-list${params.toString() ? `?${params.toString()}` : ""}`
+      // TODO: replace with dedicated Sanic journey-maps-list endpoint when available
+      const result = await apiFetch<any>(
+        `/api/v1/journey-maps${params.toString() ? `?${params.toString()}` : ""}`
       );
-      if (error) throw error;
-      return (data?.data?.maps || []) as JourneyMap[];
+      return (result?.maps ?? result?.items ?? []) as JourneyMap[];
     },
   });
 
@@ -90,20 +99,17 @@ export default function JourneyMapList() {
   const { data: ethosList = [] } = useQuery<EthosOption[]>({
     queryKey: ["ethos-list-filter"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("ethos-list");
-      if (error) throw error;
-      return (data?.data?.ethos || []) as EthosOption[];
+      const result = await fetchEcosystems();
+      const items = (result as any)?.ecosystems ?? (result as any)?.items ?? (Array.isArray(result) ? result : []);
+      return items.map((e: any) => ({ id: e.id, name: e.name, slug: e.slug })) as EthosOption[];
     },
   });
 
   // Duplicate mutation
   const duplicateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase.functions.invoke("journey-maps-duplicate", {
-        body: { id },
-      });
-      if (error) throw error;
-      return data;
+      // TODO: replace with dedicated Sanic endpoint when journey-maps-duplicate is available
+      return await apiFetch<any>(`/api/v1/journey-maps/${id}/duplicate`, { method: 'POST' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });
@@ -117,11 +123,8 @@ export default function JourneyMapList() {
   // Soft delete mutation
   const softDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase.functions.invoke("journey-maps-delete", {
-        body: { id, hard: false },
-      });
-      if (error) throw error;
-      return data;
+      // TODO: replace with dedicated Sanic endpoint when journey-maps-delete is available
+      return await apiFetch<any>(`/api/v1/journey-maps/${id}/deactivate`, { method: 'POST' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });
@@ -136,11 +139,8 @@ export default function JourneyMapList() {
   // Hard delete mutation
   const hardDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase.functions.invoke("journey-maps-delete", {
-        body: { id, hard: true },
-      });
-      if (error) throw error;
-      return data;
+      // TODO: replace with dedicated Sanic endpoint when journey-maps-delete is available
+      return await apiFetch<any>(`/api/v1/journey-maps/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });

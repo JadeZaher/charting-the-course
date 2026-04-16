@@ -1,15 +1,10 @@
 import { useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useSupabaseAuth } from './useSupabaseAuth';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type Permission = 'manage_users' | 'manage_content' | 'proxy_quiz' | 'view_analytics';
 
 export const ALL_PERMISSIONS: Permission[] = [
-  'manage_users',
-  'manage_content', 
-  'proxy_quiz',
-  'view_analytics'
+  'manage_users', 'manage_content', 'proxy_quiz', 'view_analytics'
 ];
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
@@ -26,145 +21,66 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   view_analytics: 'Can view quiz analytics and reports'
 };
 
-interface UserPermissionData {
-  permissions: Permission[];
-  isArchived: boolean;
-  canAccessDiscover: boolean;
-  role?: string;
+function derivePermissions(profile: string | null | undefined): Permission[] {
+  switch (profile) {
+    case 'co_creator':
+    case 'builder':
+      return ['manage_users', 'manage_content', 'proxy_quiz', 'view_analytics'];
+    case 'collaborator':
+      return ['manage_content', 'proxy_quiz', 'view_analytics'];
+    default:
+      return [];
+  }
+}
+
+function deriveRole(profile: string | null | undefined): string {
+  switch (profile) {
+    case 'co_creator':
+    case 'builder':
+      return 'admin';
+    case 'collaborator':
+      return 'facilitator';
+    default:
+      return 'viewer';
+  }
 }
 
 export function usePermissions() {
-  const { user, isLoading: authLoading } = useSupabaseAuth();
+  const { member, isLoading, isAuthenticated } = useAuth();
 
-  const { data, isLoading: permLoading, error } = useQuery<UserPermissionData>({
-    queryKey: ['user-permissions', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return { permissions: [], isArchived: false };
-
-      try {
-        // Get role from user_roles/roles tables first (always available)
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('role_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        let roleKey = 'viewer';
-        if (userRole) {
-          const { data: roleData } = await supabase
-            .from('roles')
-            .select('key')
-            .eq('id', userRole.role_id)
-            .single();
-          roleKey = roleData?.key || 'viewer';
-        }
-
-        // Try to get permissions from profiles table
-        // This may fail silently if permissions column doesn't exist yet
-        let permissions: Permission[] = [];
-        let isArchived = false;
-        let canAccessDiscover = false;
-        
-        try {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('permissions, is_archived, can_access_discover')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          // Only use profile data if query succeeded and returned data
-          if (!profileError && profileData) {
-            permissions = (profileData.permissions as Permission[]) || [];
-            isArchived = profileData.is_archived || false;
-            canAccessDiscover = profileData.can_access_discover || false;
-          }
-          // Silently fall back to empty permissions if column doesn't exist
-        } catch {
-          // Column doesn't exist yet - that's fine, use empty permissions
-        }
-
-        return {
-          permissions,
-          isArchived,
-          canAccessDiscover,
-          role: roleKey
-        };
-      } catch (err) {
-        console.error('Error fetching user role:', err);
-        return { 
-          permissions: [], 
-          isArchived: false,
-          role: 'viewer'
-        };
-      }
-    },
-    enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const permissions = data?.permissions || [];
-  const isArchived = data?.isArchived || false;
-  const canAccessDiscover = data?.canAccessDiscover || false;
-  const legacyRole = data?.role;
+  const permissions = useMemo(() => derivePermissions(member?.profile), [member?.profile]);
+  const legacyRole = useMemo(() => deriveRole(member?.profile), [member?.profile]);
 
   const hasPermission = useCallback(
-    (permission: Permission): boolean => {
-      return permissions.includes(permission);
-    },
+    (permission: Permission): boolean => permissions.includes(permission),
     [permissions]
   );
 
   const hasAnyPermission = useCallback(
-    (...perms: Permission[]): boolean => {
-      return perms.some(p => permissions.includes(p));
-    },
+    (...perms: Permission[]): boolean => perms.some(p => permissions.includes(p)),
     [permissions]
   );
 
   const hasAllPermissions = useCallback(
-    (...perms: Permission[]): boolean => {
-      return perms.every(p => permissions.includes(p));
-    },
+    (...perms: Permission[]): boolean => perms.every(p => permissions.includes(p)),
     [permissions]
   );
 
-  const canManageUsers = useMemo(
-    () => hasPermission('manage_users') || legacyRole === 'admin',
-    [hasPermission, legacyRole]
-  );
-
-  const canManageContent = useMemo(
-    () => hasPermission('manage_content') || legacyRole === 'admin' || legacyRole === 'facilitator' || legacyRole === 'contributor',
-    [hasPermission, legacyRole]
-  );
-
-  const canProxyQuiz = useMemo(
-    () => hasPermission('proxy_quiz') || legacyRole === 'admin',
-    [hasPermission, legacyRole]
-  );
-
-  const canViewAnalytics = useMemo(
-    () => hasPermission('view_analytics') || legacyRole === 'admin' || legacyRole === 'facilitator',
-    [hasPermission, legacyRole]
-  );
-
-  const canDeleteQuizzes = useMemo(
-    () => legacyRole === 'admin',
-    [legacyRole]
-  );
-
-  const isAdmin = useMemo(
-    () => legacyRole === 'admin' || (permissions.includes('manage_users') && permissions.includes('manage_content')),
-    [legacyRole, permissions]
-  );
+  const canManageUsers = useMemo(() => hasPermission('manage_users'), [hasPermission]);
+  const canManageContent = useMemo(() => hasPermission('manage_content'), [hasPermission]);
+  const canProxyQuiz = useMemo(() => hasPermission('proxy_quiz'), [hasPermission]);
+  const canViewAnalytics = useMemo(() => hasPermission('view_analytics'), [hasPermission]);
+  const canDeleteQuizzes = useMemo(() => legacyRole === 'admin', [legacyRole]);
+  const isAdmin = useMemo(() => legacyRole === 'admin', [legacyRole]);
+  const canAccessDiscover = useMemo(() => isAuthenticated, [isAuthenticated]);
 
   return useMemo(() => ({
     permissions,
-    isArchived,
+    isArchived: false,
     canAccessDiscover,
     legacyRole,
-    isLoading: authLoading || permLoading,
-    error,
+    isLoading,
+    error: null,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -175,25 +91,19 @@ export function usePermissions() {
     canDeleteQuizzes,
     isAdmin,
   }), [
-    permissions, isArchived, canAccessDiscover, legacyRole, authLoading, permLoading, error,
+    permissions, canAccessDiscover, legacyRole, isLoading,
     hasPermission, hasAnyPermission, hasAllPermissions,
     canManageUsers, canManageContent, canProxyQuiz, canViewAnalytics, canDeleteQuizzes, isAdmin
   ]);
 }
 
-export function RequirePermission({ 
-  permission, 
-  children, 
-  fallback = null 
-}: { 
-  permission: Permission;
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+export function RequirePermission({
+  permission, children, fallback = null
+}: {
+  permission: Permission; children: React.ReactNode; fallback?: React.ReactNode;
 }): React.ReactElement | null {
   const { hasPermission, isLoading } = usePermissions();
-  
   if (isLoading) return null;
   if (!hasPermission(permission)) return <>{fallback}</>;
-  
   return <>{children}</>;
 }

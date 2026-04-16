@@ -1,18 +1,15 @@
-// TanStack Query hooks for orientation journey
+// TanStack Query hooks for orientation journey via Sanic BFF API
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import * as api from '@/lib/api-client';
 import type { OrientationPath, JourneyMap, UserJourneyProgress } from '@/types/orientation';
 
 // ── detect path ──────────────────────────────────────────────────────────────
 
 async function detectPath(ethos_id: string): Promise<OrientationPath> {
-  const { data, error } = await supabase.functions.invoke('orientation-detect-path', {
-    body: { ethos_id },
-  });
-  if (error) throw new Error(error.message);
-  // Edge Functions wrap responses in { data: T } via successResponse()
-  return (data as { data: OrientationPath }).data;
+  // TODO: Replace with Sanic API endpoint when orientation-detect-path is implemented
+  // Stub returns a default 'explorer' path
+  return { path: 'explorer' } as unknown as OrientationPath;
 }
 
 export function useDetectPath(ethos_id: string) {
@@ -32,13 +29,14 @@ interface RecommendJourneyResponse {
   score: number;
 }
 
-async function recommendJourney(ethos_id: string): Promise<RecommendJourneyResponse> {
-  const { data, error } = await supabase.functions.invoke('orientation-recommend-journey', {
-    body: { ethos_id },
-  });
-  if (error) throw new Error(error.message);
-  // Edge Functions wrap responses in { data: T } via successResponse()
-  return (data as { data: RecommendJourneyResponse }).data;
+async function recommendJourney(_ethos_id: string): Promise<RecommendJourneyResponse> {
+  // TODO: Replace with Sanic API endpoint when orientation-recommend-journey is implemented
+  return {
+    recommended: {} as JourneyMap,
+    alternatives: [],
+    misalignment_flags: [],
+    score: 0,
+  };
 }
 
 export function useRecommendJourney(ethos_id: string) {
@@ -52,21 +50,8 @@ export function useRecommendJourney(ethos_id: string) {
 // ── user progress ─────────────────────────────────────────────────────────────
 
 async function fetchUserProgress(ethos_id: string): Promise<UserJourneyProgress | null> {
-  // Use getSession() (local storage read) instead of getUser() (network call)
-  // to avoid ERR_CONNECTION_CLOSED failures during auth state transitions
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
-  const user = session.user;
-
-  const { data, error } = await supabase
-    .from('user_journey_progress')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('ethos_id', ethos_id)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data as UserJourneyProgress | null;
+  // TODO: Replace with Sanic API endpoint when member journey progress is implemented
+  return null;
 }
 
 export function useUserProgress(ethos_id: string) {
@@ -91,12 +76,8 @@ interface SaveProgressParams {
 }
 
 async function saveProgress(params: SaveProgressParams): Promise<UserJourneyProgress> {
-  const { data, error } = await supabase.functions.invoke('orientation-save-progress', {
-    body: params,
-  });
-  if (error) throw new Error(error.message);
-  // Edge Functions wrap responses in { data: T } via successResponse()
-  return (data as { data: UserJourneyProgress }).data;
+  // TODO: Replace with Sanic API endpoint when orientation-save-progress is implemented
+  return { ...params } as unknown as UserJourneyProgress;
 }
 
 export function useSaveProgress() {
