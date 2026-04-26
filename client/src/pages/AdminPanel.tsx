@@ -81,6 +81,7 @@ async function fetchUsers() {
     roleName: m.role_name ?? 'Viewer',
     permissions: (m.permissions as Permission[]) || [],
     isArchived: m.is_archived ?? false,
+    did: m.did ?? null,
   }));
 }
 
@@ -695,15 +696,11 @@ export default function AdminPanel() {
 
   // NEOS Den ready toggle mutation
   const setNeosDenReadyMutation = useMutation({
-    mutationFn: async ({ user_id, ready_for_neos_den }: { user_id: string; ready_for_neos_den: boolean }) => {
-      // TODO: ctc_handoff.ready_for_neos_den lives in Supabase — needs a server-side proxy endpoint
-      // Interim: update NEOS Den member status as a signal
-      return await apiFetch(`/api/v1/members/${user_id}`, {
+    mutationFn: async ({ user_id, did, ready_for_neos_den }: { user_id: string; did: string; ready_for_neos_den: boolean }) => {
+      return await apiFetch('/api/v1/admin/ctc/set-neos-den-ready', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          current_status: ready_for_neos_den ? 'active' : 'prospective',
-        }),
+        body: JSON.stringify({ did, ready: ready_for_neos_den }),
       });
     },
     onMutate: async ({ user_id, ready_for_neos_den }) => {
@@ -1170,7 +1167,7 @@ export default function AdminPanel() {
                           <Switch
                             checked={handoffMap[user.id] ?? false}
                             onCheckedChange={(checked) =>
-                              setNeosDenReadyMutation.mutate({ user_id: user.id, ready_for_neos_den: checked })
+                              setNeosDenReadyMutation.mutate({ user_id: user.id, did: (user as any).did || '', ready_for_neos_den: checked })
                             }
                           />
                           <span className="text-sm text-muted-foreground whitespace-nowrap">NEOS Den</span>

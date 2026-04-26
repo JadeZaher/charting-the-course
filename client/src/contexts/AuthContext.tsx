@@ -69,17 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         display_name: displayName,
       });
 
-      // Non-fatal: write DID + public key to Supabase profiles table via edge function
+      // Non-fatal: write DID + public key to NEOS Den profiles table
       try {
         const publicKeyHex = Array.from(keys.publicKey)
           .map(b => b.toString(16).padStart(2, '0'))
           .join('');
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/did/generate`, {
+        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/ctc/did/generate`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ did: keys.did, public_key: publicKeyHex }),
         });
       } catch {

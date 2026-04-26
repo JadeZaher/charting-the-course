@@ -20,30 +20,15 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 interface Participant {
   user_id: string;
-  username: string;
-  first_name: string;
-  last_name: string;
-  profile_url: string;
+  display_name: string | null;
   phone: string | null;
   email: string | null;
-  ethos_status: 'aligned' | 'member' | 'waiting';
-  ethos_role: string | null;
+  is_company: boolean | null;
+  consented_at: string | null;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  member: 'Active Member',
-  waiting: 'In Waiting Pool',
-  aligned: 'Matched',
-};
-
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline'> = {
-  member: 'default',
-  waiting: 'secondary',
-  aligned: 'outline',
-};
-
 function ParticipantCard({ p }: { p: Participant }) {
-  const displayName = [p.first_name, p.last_name].filter(Boolean).join(' ') || p.username || 'Member';
+  const displayName = p.display_name || 'Member';
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
       <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
@@ -51,14 +36,9 @@ function ParticipantCard({ p }: { p: Participant }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={p.profile_url} className="text-sm font-medium hover:underline truncate">
-            {displayName}
-          </a>
-          <Badge variant={STATUS_VARIANTS[p.ethos_status]}>{STATUS_LABELS[p.ethos_status]}</Badge>
+          <span className="text-sm font-medium truncate">{displayName}</span>
+          {p.is_company && <Badge variant="outline">Company</Badge>}
         </div>
-        {p.ethos_role && (
-          <p className="text-xs text-muted-foreground mt-0.5">{p.ethos_role}</p>
-        )}
         {(p.phone || p.email) && (
           <div className="flex flex-wrap gap-3 mt-1.5">
             {p.phone && (
@@ -92,22 +72,20 @@ export function AlignedParticipants({ ethosId }: Props) {
   const { data, isLoading, isError } = useQuery<{ participants: Participant[] }>({
     queryKey: ['participants-list', ethosId],
     queryFn: async () => {
-      // TODO: implement GET /api/v1/participants?ethos_id= in NEOS Den
-      const result = await apiFetch<{ data: { participants: Participant[] } }>(
-        `/api/v1/participants?ethos_id=${encodeURIComponent(ethosId)}`
+      const result = await apiFetch<Participant[]>(
+        `/api/v1/participants/?ethos_id=${encodeURIComponent(ethosId)}`
       );
-      return result.data;
+      return { participants: result };
     },
     enabled: !!ethosId,
   });
 
   const updateContactMutation = useMutation({
     mutationFn: async ({ phone, email }: { phone: string; email: string }) => {
-      // TODO: implement PUT /api/v1/participants/contact in NEOS Den
       await apiFetch('/api/v1/participants/contact', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ethos_id: ethosId, phone: phone || null, email: email || null }),
+        body: JSON.stringify({ ethos_id: ethosId, phone: phone || null, email: email || null, consented: true }),
       });
     },
     onSuccess: () => {
@@ -145,8 +123,6 @@ export function AlignedParticipants({ ethosId }: Props) {
   }
 
   const participants = data?.participants ?? [];
-  const ethosMembers = participants.filter(p => p.ethos_status === 'member');
-  const alignedAndWaiting = participants.filter(p => p.ethos_status !== 'member');
 
   return (
     <div className="space-y-5">
@@ -202,17 +178,10 @@ export function AlignedParticipants({ ethosId }: Props) {
         </div>
       )}
 
-      {ethosMembers.length > 0 && (
+      {participants.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETHOS Members</p>
-          {ethosMembers.map(p => <ParticipantCard key={p.user_id} p={p} />)}
-        </div>
-      )}
-
-      {alignedAndWaiting.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aligned Participants</p>
-          {alignedAndWaiting.map(p => <ParticipantCard key={p.user_id} p={p} />)}
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Consented Participants</p>
+          {participants.map(p => <ParticipantCard key={p.user_id} p={p} />)}
         </div>
       )}
     </div>
