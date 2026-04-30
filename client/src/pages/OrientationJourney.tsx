@@ -14,6 +14,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 import { useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
+import { saveGenplanInput } from '@/lib/api-client';
 import type { JourneyMap } from '@/types/orientation';
 import { VideoStep } from '@/components/orientation/VideoStep';
 import { ChoiceStep } from '@/components/orientation/ChoiceStep';
@@ -88,6 +89,22 @@ export default function OrientationJourney() {
       step_response: response,
       status: isLast ? 'complete' : 'in_progress',
     });
+
+    if (currentStep.type === 'choice' && currentStep.section_key && response) {
+      const choiceResponse = response as { choice: string };
+      const selectedChoice = currentStep.choices?.find(c => c.value === choiceResponse.choice);
+      if (selectedChoice && ethosId) {
+        await saveGenplanInput({
+          ethos_id: ethosId,
+          section_key: currentStep.section_key,
+          choice_key: choiceResponse.choice,
+          choice_label: selectedChoice.label,
+          choice_index: selectedChoice.choice_index ?? null,
+          output_text: selectedChoice.description ?? selectedChoice.label,
+          journey_step_id: String(currentStepIdx),
+        });
+      }
+    }
 
     if (isLast) {
       navigate(`/orientation/${ethosSlug}/complete`);
