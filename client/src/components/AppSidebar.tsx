@@ -31,18 +31,6 @@ import {
   Compass,
   MapPin,
   Map,
-  FileText,
-  Vote,
-  Globe2,
-  Scale,
-  AlertTriangle,
-  Building2,
-  UserPlus,
-  MessageSquare,
-  Bot,
-  Siren,
-  DoorOpen,
-  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -54,7 +42,7 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Discover",
+    title: "Orientation",
     url: "/discover",
     icon: Compass,
   },
@@ -73,26 +61,6 @@ const menuItems = [
     url: "/map",
     icon: MapPin,
   },
-];
-
-const governanceItems = [
-  { title: "Governance", url: "/governance", icon: LayoutDashboard },
-  { title: "Agreements", url: "/agreements", icon: FileText },
-  { title: "Proposals", url: "/proposals", icon: Vote },
-  { title: "Members", url: "/members", icon: Users },
-  { title: "Domains", url: "/domains", icon: Globe2 },
-  { title: "Decisions", url: "/decisions", icon: Scale },
-  { title: "Conflicts", url: "/conflicts", icon: AlertTriangle },
-  { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
-  { title: "Onboarding", url: "/onboarding", icon: UserPlus },
-  { title: "Emergency", url: "/emergency", icon: Siren },
-  { title: "Exit", url: "/exit", icon: DoorOpen },
-  { title: "Safeguards", url: "/safeguards", icon: ShieldCheck },
-];
-
-const communicationItems = [
-  { title: "Messaging", url: "/messaging", icon: MessageSquare },
-  { title: "AI Chat", url: "/chat", icon: Bot },
 ];
 
 const facilitatorItems = [
@@ -188,8 +156,8 @@ export function AppSidebar() {
           </div>
           {!isCollapsed && (
             <div className="overflow-hidden">
-              <h2 className="font-bold text-lg truncate">NEOS</h2>
-              <p className="text-xs text-muted-foreground">Governance Platform</p>
+              <h2 className="font-bold text-lg truncate">Charting the Course</h2>
+              <p className="text-xs text-muted-foreground">Orientation Platform</p>
             </div>
           )}
         </div>
@@ -219,40 +187,6 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Governance</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {governanceItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <MenuItemWithTooltip
-                    item={item}
-                    isActive={location === item.url || location.startsWith(item.url + '/')}
-                    isCollapsed={isCollapsed}
-                  />
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Communication</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {communicationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <MenuItemWithTooltip
-                    item={item}
-                    isActive={location === item.url}
-                    isCollapsed={isCollapsed}
-                  />
-                </SidebarMenuItem>
-              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
