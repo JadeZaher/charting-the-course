@@ -201,7 +201,6 @@ function SortableStepCard({
   quizzes: QuizOption[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showBranch, setShowBranch] = useState(!!step.branch_condition);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: step.id,
@@ -406,7 +405,7 @@ function SortableStepCard({
                   <div className="space-y-1.5">
                     <Label>Quiz / Survey *</Label>
                     <Select
-                      value={step.quiz_id || ""}
+                      value={step.quiz_id || "none"}
                       onValueChange={(v) => update({ quiz_id: v })}
                     >
                       <SelectTrigger>
@@ -417,7 +416,7 @@ function SortableStepCard({
                           <SelectItem key={q.id} value={q.id}>{q.title}</SelectItem>
                         ))}
                         {quizzes.length === 0 && (
-                          <SelectItem value="" disabled>No published quizzes available</SelectItem>
+                          <SelectItem value="none" disabled>No published quizzes available</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -425,60 +424,6 @@ function SortableStepCard({
                 </SurveyEditorBoundary>
               )}
 
-              {/* Branch condition */}
-              <div className="space-y-3 pt-2 border-t border-border/50">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id={`branch-${step.id}`}
-                    checked={showBranch}
-                    onCheckedChange={(v) => {
-                      setShowBranch(v);
-                      if (!v) update({ branch_condition: null });
-                      else update({ branch_condition: { dimension: "", min_score: 0 } });
-                    }}
-                  />
-                  <Label htmlFor={`branch-${step.id}`} className="text-sm">
-                    Branch condition (show only if profile dimension meets threshold)
-                  </Label>
-                </div>
-
-                {showBranch && (
-                  <div className="grid grid-cols-2 gap-3 ml-8">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Dimension</Label>
-                      <Input
-                        value={step.branch_condition?.dimension || ""}
-                        onChange={(e) =>
-                          update({
-                            branch_condition: {
-                              ...(step.branch_condition || { dimension: "", min_score: 0 }),
-                              dimension: e.target.value,
-                            },
-                          })
-                        }
-                        placeholder="e.g. leadership"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Min Score</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={step.branch_condition?.min_score ?? 0}
-                        onChange={(e) =>
-                          update({
-                            branch_condition: {
-                              ...(step.branch_condition || { dimension: "", min_score: 0 }),
-                              min_score: parseInt(e.target.value) || 0,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>

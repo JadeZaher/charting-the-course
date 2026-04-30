@@ -2177,30 +2177,6 @@ export default function AdminPanel() {
                   <Label>Tagline</Label>
                   <Input value={ethosForm.tagline} onChange={(e) => setEthosForm({ ...ethosForm, tagline: e.target.value })} placeholder="Short tagline" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Sector</Label>
-                    <Select value={ethosForm.sector} onValueChange={(v) => setEthosForm({ ...ethosForm, sector: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select sector" /></SelectTrigger>
-                      <SelectContent>
-                        {["ecology","technology","economics","culture","governance","other"].map(s => (
-                          <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>ETHOS Type</Label>
-                    <Select value={ethosForm.ethos_type} onValueChange={(v) => setEthosForm({ ...ethosForm, ethos_type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["team","project","hub"].map(t => (
-                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
                   <Textarea value={ethosForm.description} onChange={(e) => setEthosForm({ ...ethosForm, description: e.target.value })} rows={3} />
