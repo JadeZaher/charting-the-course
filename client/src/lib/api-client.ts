@@ -298,3 +298,17 @@ export function fetchAudit(id: string): Promise<GovernanceAudit> {
 export function requestAudit(data: Record<string, any>): Promise<GovernanceAudit> {
   return apiFetch<GovernanceAudit>('/api/v1/safeguards/audits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
+
+// Orientation API
+export function fetchEthosJourneyMaps(ethos_id: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/v1/ecosystems/${ethos_id}/journey-maps`);
+}
+export function fetchOrientationProgress(ethos_id: string): Promise<any> {
+  return apiFetch<any>(`/api/v1/orientation/progress/${ethos_id}`);
+}
+export function saveOrientationProgress(data: Record<string, any>): Promise<any> {
+  return apiFetch<any>('/api/v1/orientation/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function saveGenplanInput(data: Record<string, any>): Promise<any> {
+  return apiFetch<any>('/api/v1/orientation/genplan-inputs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
