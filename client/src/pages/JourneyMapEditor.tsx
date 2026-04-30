@@ -62,7 +62,6 @@ import {
   ChevronUp,
   Save,
   Video,
-  MessageSquare,
   CheckSquare,
   GitBranch,
   FileText,
@@ -73,7 +72,7 @@ import {
 // ——————————————————————————————————————————————
 // Types
 // ——————————————————————————————————————————————
-type StepType = "video" | "choice" | "ai_conversation" | "confirmation" | "reflection" | "survey";
+type StepType = "video" | "choice" | "confirmation" | "reflection" | "survey";
 
 interface BranchCondition {
   dimension: string;
@@ -97,24 +96,9 @@ interface Step {
   video_url?: string;
   choices?: ChoiceOption[];
   choice_routes?: Record<string, string>;
-  ai_prompt_template?: string;
-  session_type?: string;
   confirmation_label?: string;
   reflection_prompt?: string;
   quiz_id?: string;
-}
-
-interface ExitPackageItem {
-  label: string;
-  url?: string;
-  description?: string;
-}
-
-interface ExitPackage {
-  documents: ExitPackageItem[];
-  tools: ExitPackageItem[];
-  next_steps: ExitPackageItem[];
-  omnibot_handoff_prompt: string;
 }
 
 interface JourneyMapForm {
@@ -122,9 +106,6 @@ interface JourneyMapForm {
   slug: string;
   description: string;
   ethos_id: string;
-  sector_alignment: string;
-  role_types: string;
-  min_alignment_score: number;
   is_active: boolean;
   is_default: boolean;
 }
@@ -173,8 +154,6 @@ function makeDefaultStep(type: StepType): Step {
       return { ...base, video_url: "" };
     case "choice":
       return { ...base, choices: [{ value: "", label: "", description: "" }], choice_routes: {} };
-    case "ai_conversation":
-      return { ...base, ai_prompt_template: "", session_type: "orientation" };
     case "confirmation":
       return { ...base, confirmation_label: "" };
     case "reflection":
@@ -187,7 +166,6 @@ function makeDefaultStep(type: StepType): Step {
 const STEP_ICONS: Record<StepType, React.ElementType> = {
   video: Video,
   choice: GitBranch,
-  ai_conversation: MessageSquare,
   confirmation: CheckSquare,
   reflection: FileText,
   survey: ClipboardList,
@@ -196,7 +174,6 @@ const STEP_ICONS: Record<StepType, React.ElementType> = {
 const STEP_LABELS: Record<StepType, string> = {
   video: "Video",
   choice: "Choice",
-  ai_conversation: "AI Conversation",
   confirmation: "Confirmation",
   reflection: "Reflection",
   survey: "Survey / Quiz",
@@ -401,36 +378,6 @@ function SortableStepCard({
                 </div>
               )}
 
-              {step.type === "ai_conversation" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>AI Prompt Template *</Label>
-                    <Textarea
-                      value={step.ai_prompt_template || ""}
-                      onChange={(e) => update({ ai_prompt_template: e.target.value })}
-                      placeholder="System prompt for the AI conversation..."
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Session Type</Label>
-                    <Select
-                      value={step.session_type || "orientation"}
-                      onValueChange={(v) => update({ session_type: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="orientation">Orientation</SelectItem>
-                        <SelectItem value="intake">Intake</SelectItem>
-                        <SelectItem value="ongoing">Ongoing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
               {step.type === "confirmation" && (
                 <div className="space-y-1.5">
                   <Label>Confirmation Label *</Label>
@@ -541,97 +488,6 @@ function SortableStepCard({
 }
 
 // ——————————————————————————————————————————————
-// Exit Package Editor
-// ——————————————————————————————————————————————
-function ExitPackageEditor({
-  value,
-  onChange,
-}: {
-  value: ExitPackage;
-  onChange: (v: ExitPackage) => void;
-}) {
-  function updateItem(
-    section: keyof Pick<ExitPackage, "documents" | "tools" | "next_steps">,
-    index: number,
-    partial: Partial<ExitPackageItem>
-  ) {
-    const arr = [...value[section]];
-    arr[index] = { ...arr[index], ...partial };
-    onChange({ ...value, [section]: arr });
-  }
-
-  function addItem(section: keyof Pick<ExitPackage, "documents" | "tools" | "next_steps">) {
-    onChange({ ...value, [section]: [...value[section], { label: "", url: "", description: "" }] });
-  }
-
-  function removeItem(
-    section: keyof Pick<ExitPackage, "documents" | "tools" | "next_steps">,
-    index: number
-  ) {
-    onChange({ ...value, [section]: value[section].filter((_, i) => i !== index) });
-  }
-
-  function renderSection(
-    label: string,
-    section: keyof Pick<ExitPackage, "documents" | "tools" | "next_steps">
-  ) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="font-medium">{label}</Label>
-          <Button variant="outline" size="sm" onClick={() => addItem(section)}>
-            <Plus className="h-3 w-3 mr-1" />
-            Add
-          </Button>
-        </div>
-        {value[section].map((item, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-            <Input
-              value={item.label}
-              onChange={(e) => updateItem(section, i, { label: e.target.value })}
-              placeholder="Label"
-            />
-            <Input
-              value={item.url || ""}
-              onChange={(e) => updateItem(section, i, { url: e.target.value })}
-              placeholder="URL (optional)"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-destructive"
-              onClick={() => removeItem(section, i)}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-        ))}
-        {value[section].length === 0 && (
-          <p className="text-sm text-muted-foreground">No {label.toLowerCase()} added yet.</p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {renderSection("Documents", "documents")}
-      {renderSection("Tools", "tools")}
-      {renderSection("Next Steps", "next_steps")}
-      <div className="space-y-1.5">
-        <Label>OmniBot Handoff Prompt</Label>
-        <Textarea
-          value={value.omnibot_handoff_prompt}
-          onChange={(e) => onChange({ ...value, omnibot_handoff_prompt: e.target.value })}
-          placeholder="System prompt passed to OmniBot after journey completion..."
-          rows={3}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ——————————————————————————————————————————————
 // Main Editor Page
 // ——————————————————————————————————————————————
 export default function JourneyMapEditor() {
@@ -653,21 +509,11 @@ export default function JourneyMapEditor() {
     slug: "",
     description: "",
     ethos_id: "",
-    sector_alignment: "",
-    role_types: "",
-    min_alignment_score: 0,
     is_active: true,
     is_default: false,
   });
 
   const [steps, setSteps] = useState<Step[]>([]);
-  const [exitPackage, setExitPackage] = useState<ExitPackage>({
-    documents: [],
-    tools: [],
-    next_steps: [],
-    omnibot_handoff_prompt: "",
-  });
-
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   // Fetch existing map when editing
@@ -688,9 +534,6 @@ export default function JourneyMapEditor() {
       slug: existingMap.slug || "",
       description: existingMap.description || "",
       ethos_id: existingMap.ethos_id || "",
-      sector_alignment: (existingMap.sector_alignment || []).join(", "),
-      role_types: (existingMap.role_types || []).join(", "),
-      min_alignment_score: existingMap.min_alignment_score || 0,
       is_active: existingMap.is_active ?? true,
       is_default: existingMap.is_default ?? false,
     });
@@ -698,14 +541,6 @@ export default function JourneyMapEditor() {
     // Load steps from content_sequence
     const seq = Array.isArray(existingMap.content_sequence) ? existingMap.content_sequence : [];
     setSteps(seq.map((s: any) => ({ ...s, id: s.id || generateId() })));
-    // Load exit package
-    const ep = existingMap.exit_package || {};
-    setExitPackage({
-      documents: ep.documents || [],
-      tools: ep.tools || [],
-      next_steps: ep.next_steps || [],
-      omnibot_handoff_prompt: ep.omnibot_handoff_prompt || "",
-    });
   }, [existingMap]);
 
   // Fetch ETHOS for select
@@ -774,17 +609,9 @@ export default function JourneyMapEditor() {
         slug: form.slug,
         description: form.description || null,
         ethos_id: form.ethos_id || null,
-        sector_alignment: form.sector_alignment
-          ? form.sector_alignment.split(",").map((s) => s.trim()).filter(Boolean)
-          : [],
-        role_types: form.role_types
-          ? form.role_types.split(",").map((s) => s.trim()).filter(Boolean)
-          : [],
-        min_alignment_score: form.min_alignment_score,
         is_active: form.is_active,
         is_default: form.is_default,
         content_sequence: steps,
-        exit_package: exitPackage,
       };
 
       // TODO: replace with dedicated Sanic endpoints when journey-maps-create/update are available
@@ -908,37 +735,6 @@ export default function JourneyMapEditor() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Min Alignment Score</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                value={form.min_alignment_score}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, min_alignment_score: parseInt(e.target.value) || 0 }))
-                }
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Sector Alignment</Label>
-              <Input
-                value={form.sector_alignment}
-                onChange={(e) => setForm((f) => ({ ...f, sector_alignment: e.target.value }))}
-                placeholder="tech, education, nonprofit (comma-separated)"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Role Types</Label>
-              <Input
-                value={form.role_types}
-                onChange={(e) => setForm((f) => ({ ...f, role_types: e.target.value }))}
-                placeholder="facilitator, member, steward (comma-separated)"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-8 pt-2">
@@ -1017,16 +813,6 @@ export default function JourneyMapEditor() {
               })}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Section 3 — Exit Package */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Exit Package</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ExitPackageEditor value={exitPackage} onChange={setExitPackage} />
         </CardContent>
       </Card>
 
