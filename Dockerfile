@@ -17,22 +17,23 @@ COPY . .
 
 # VITE_* env vars are baked at build time.
 # Pass them via --build-arg or docker-compose build args.
-ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
 
 RUN npm run build
 
-# Stage 2: Serve
-FROM node:20-alpine
+# Stage 2: Serve with nginx (reverse-proxies /api to backend)
+FROM nginx:alpine
 
-WORKDIR /app
+# Remove default config
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy only the built static files
-COPY --from=builder /app/dist/public ./dist/public
+# Copy our config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Use 'serve' to host the SPA; -s enables single-page-app fallback routing
-RUN npm install -g serve
+# Copy built static files
+COPY --from=builder /app/dist/public /usr/share/nginx/html
 
 EXPOSE 3000
 
-CMD ["serve", "-s", "dist/public", "-l", "3000"]
+CMD ["nginx", "-g", "daemon off;"]

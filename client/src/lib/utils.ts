@@ -30,6 +30,20 @@ export function prezify(url: string): string {
   }
 }
 
+/**
+ * Format a date-only string (YYYY-MM-DD) for display, avoiding timezone shift.
+ * JavaScript's `new Date("2026-04-29")` parses as UTC midnight, which shifts
+ * to the previous day in western timezones. Appending T12:00:00 prevents this.
+ */
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-';
+  // Date-only strings (YYYY-MM-DD) get noon appended to prevent timezone shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString();
+  }
+  return new Date(dateStr).toLocaleDateString();
+}
+
 export const APP_SETTINGS_KEYS = {
   ctcMap: 'ctc_map',
 } as const;

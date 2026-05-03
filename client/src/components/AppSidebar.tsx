@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -39,20 +38,27 @@ import {
   AlertTriangle,
   Building2,
   UserPlus,
-  MessageSquare,
-  Bot,
   Siren,
   DoorOpen,
   ShieldCheck,
+  Sparkles,
+  ClipboardCheck,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useEcosystem } from "@/contexts/EcosystemContext";
 
 const menuItems = [
   {
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Explore",
+    url: "/explore",
+    icon: Sparkles,
   },
   {
     title: "Discover",
@@ -89,12 +95,10 @@ const governanceItems = [
   { title: "Emergency", url: "/emergency", icon: Siren },
   { title: "Exit", url: "/exit", icon: DoorOpen },
   { title: "Safeguards", url: "/safeguards", icon: ShieldCheck },
+  { title: "Compliance", url: "/compliance", icon: ClipboardCheck },
 ];
 
-const communicationItems = [
-  { title: "Messaging", url: "/messaging", icon: MessageSquare },
-  { title: "AI Chat", url: "/chat", icon: Bot },
-];
+// Messaging + AI Chat are now in the FloatingComms overlay
 
 const facilitatorItems = [
   {
@@ -162,20 +166,8 @@ export function AppSidebar() {
   const { member, logout } = useAuth();
   const { canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
   const { state } = useSidebar();
+  const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
 
-  const { data: ethosAccessRows = [] } = useQuery({
-    queryKey: ['ethos-user-access-sidebar', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('ethos_user_access')
-        .select('ethos_id')
-        .eq('user_id', user.id);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-  const hasEthosAccess = ethosAccessRows.length > 0;
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -210,13 +202,40 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {!isCollapsed && ecosystems.length > 1 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Ecosystems</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="flex flex-col gap-1 px-1">
+                {ecosystems.map((eco) => {
+                  const isActive = selectedIds.includes(eco.id);
+                  return (
+                    <button
+                      key={eco.id}
+                      onClick={() => toggleEcosystem(eco.id)}
+                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      }`}
+                    >
+                      <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{eco.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
           <SidebarGroupLabel>Learning</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
                 // Discover is only visible to admins or users with at least one ethos_user_access row
-                if (item.url === '/discover' && !isAdmin && !hasEthosAccess) return null;
+                if (item.url === '/discover' && !canAccessDiscover) return null;
 
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';
@@ -254,22 +273,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Communication</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {communicationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <MenuItemWithTooltip
-                    item={item}
-                    isActive={location === item.url}
-                    isCollapsed={isCollapsed}
-                  />
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Communication lives in FloatingComms overlay */}
 
         {canManageContent && (
           <SidebarGroup>
@@ -322,6 +326,21 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <MenuItemWithTooltip
+                  item={{ title: "Notifications", url: "/settings/notifications", icon: Bell }}
+                  isActive={location === '/settings/notifications'}
+                  isCollapsed={isCollapsed}
+                />
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className={`border-t ${isCollapsed ? 'p-2' : 'p-4'}`}>

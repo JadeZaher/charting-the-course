@@ -3,12 +3,13 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useProposal, useCreateProposal, useUpdateProposal } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const TYPE_OPTIONS = [
@@ -37,6 +38,7 @@ export default function ProposalForm() {
   const isEdit = !!editId;
 
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const { selected: selectedEcosystem } = useEcosystem();
   const { data: existing, isLoading: loadingExisting } = useProposal(editId ?? '');
   const createMutation = useCreateProposal();
@@ -104,6 +106,7 @@ export default function ProposalForm() {
       } else {
         result = await createMutation.mutateAsync(payload);
       }
+      toast({ title: isEdit ? 'Proposal updated' : 'Proposal created', description: 'Your proposal has been saved successfully.' });
       navigate(`/proposals/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -135,7 +138,7 @@ export default function ProposalForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Proposal title" />
+              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Proposal title" required aria-required="true" />
               {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
             </div>
 
@@ -205,12 +208,28 @@ export default function ProposalForm() {
 
             <div className="space-y-2">
               <Label htmlFor="proposed_change">Proposed Change</Label>
-              <Textarea id="proposed_change" value={proposedChange} onChange={(e) => setProposedChange(e.target.value)} placeholder="Describe the proposed change..." rows={6} />
+              <AITextarea
+                id="proposed_change"
+                value={proposedChange}
+                onChange={(e) => setProposedChange(e.target.value)}
+                placeholder="Describe the proposed change..."
+                rows={6}
+                fieldLabel="Proposed Change"
+                fieldContext="A governance proposal describing a change to be made in the organization"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="rationale">Rationale</Label>
-              <Textarea id="rationale" value={rationale} onChange={(e) => setRationale(e.target.value)} placeholder="Why is this change needed?" rows={4} />
+              <AITextarea
+                id="rationale"
+                value={rationale}
+                onChange={(e) => setRationale(e.target.value)}
+                placeholder="Why is this change needed?"
+                rows={4}
+                fieldLabel="Rationale"
+                fieldContext="The reasoning and justification for why this governance proposal should be adopted"
+              />
             </div>
 
             <div className="flex gap-3 pt-4">

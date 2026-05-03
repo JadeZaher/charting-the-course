@@ -241,6 +241,38 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  /* Minimal scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  *:hover {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.25);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
 }
 
 /**

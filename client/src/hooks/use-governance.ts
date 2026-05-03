@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api-client';
 
 // Agreement hooks
-export function useAgreements(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['agreements', params], queryFn: () => api.fetchAgreements(params) });
+export function useAgreements(params?: Record<string, string> | false) {
+  return useQuery({ queryKey: ['agreements', params], queryFn: () => api.fetchAgreements(params || undefined), enabled: params !== false });
 }
 export function useAgreement(id: string) {
   return useQuery({ queryKey: ['agreements', id], queryFn: () => api.fetchAgreement(id), enabled: !!id });
@@ -21,7 +21,7 @@ export function useUpdateAgreement(id: string) {
 }
 export function useUpdateAgreementStatus(id: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (status: string) => api.updateAgreementStatus(id, status), onSuccess: () => { qc.invalidateQueries({ queryKey: ['agreements'] }); qc.invalidateQueries({ queryKey: ['agreements', id] }); } });
+  return useMutation({ mutationFn: (status: string) => api.updateAgreementStatus(id, status), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
 }
 
 // Proposal hooks
@@ -41,7 +41,7 @@ export function useUpdateProposal(id: string) {
 }
 export function useUpdateProposalStatus(id: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (status: string) => api.updateProposalStatus(id, status), onSuccess: () => { qc.invalidateQueries({ queryKey: ['proposals'] }); qc.invalidateQueries({ queryKey: ['proposals', id] }); } });
+  return useMutation({ mutationFn: (status: string) => api.updateProposalStatus(id, status), onSuccess: (data) => { qc.setQueryData(['proposals', id], data); qc.invalidateQueries({ queryKey: ['proposals'] }); } });
 }
 export function useSubmitAdvice(proposalId: string) {
   const qc = useQueryClient();
@@ -81,6 +81,10 @@ export function useDomain(id: string) {
 export function useCreateDomain() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: api.createDomain, onSuccess: () => qc.invalidateQueries({ queryKey: ['domains'] }) });
+}
+export function useUpdateDomain(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateDomain(id, data), onSuccess: (data) => { qc.setQueryData(['domains', id], data); qc.invalidateQueries({ queryKey: ['domains'] }); } });
 }
 
 // Decision hooks
@@ -129,6 +133,10 @@ export function useCreateEcosystem() {
 export function useUpdateEcosystem(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: Record<string, any>) => api.updateEcosystemRecord(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ecosystems'] }); qc.invalidateQueries({ queryKey: ['ecosystems', id] }); } });
+}
+export function useRequestJoinEcosystem(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.requestJoinEcosystem(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ecosystems'] }); qc.invalidateQueries({ queryKey: ['ecosystems', id] }); } });
 }
 
 // Emergency hooks

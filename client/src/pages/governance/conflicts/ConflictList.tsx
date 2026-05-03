@@ -70,7 +70,7 @@ export default function ConflictList() {
     if (status !== 'all') p.status = status;
     if (severity !== 'all') p.severity = severity;
     if (urgency !== 'all') p.urgency = urgency;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [status, severity, urgency, search, page]);
 

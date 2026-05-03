@@ -270,17 +270,12 @@ export default function AdminPanel() {
     enabled: !!editingEthos?.id,
   });
 
-  // ETHOS access grants query — no join to avoid profiles RLS; resolve names client-side from users list
+  // ETHOS access grants query — TODO: add ethos_user_access endpoint to Sanic API
   const { data: ethosAccessGrants = [], refetch: refetchAccessGrants } = useQuery({
     queryKey: ['admin-ethos-access', accessEthos?.id],
     queryFn: async () => {
-      if (!accessEthos?.id) return [];
-      const { data } = await supabase
-        .from('ethos_user_access')
-        .select('id, user_id, granted_at')
-        .eq('ethos_id', accessEthos.id)
-        .order('granted_at');
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when ethos_user_access endpoint is implemented
+      return [];
     },
     enabled: !!accessEthos?.id,
   });
@@ -295,17 +290,12 @@ export default function AdminPanel() {
     enabled: isAdmin,
   });
 
-  // CTC handoff ready flags query
+  // CTC handoff ready flags query — TODO: add ctc_handoff endpoint to Sanic API
   const { data: handoffData = [] } = useQuery({
     queryKey: ['admin-ctc-handoff'],
     queryFn: async () => {
-      const userIds = users.map((u: any) => u.id);
-      if (userIds.length === 0) return [];
-      const { data } = await supabase
-        .from('ctc_handoff')
-        .select('user_id, ready_for_neos_den')
-        .in('user_id', userIds);
-      return data || [];
+      // TODO: Replace with Sanic API endpoint when ctc_handoff endpoint is implemented
+      return [];
     },
     enabled: (isAdmin || canManageUsers) && users.length > 0,
   });
@@ -518,24 +508,28 @@ export default function AdminPanel() {
 
   const searchEthosUsers = async (query: string) => {
     if (!query || query.length < 2) { setEthosUserResults([]); return; }
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await supabase.functions.invoke('ethos-list-users', {
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-    });
-    // Client-side filter since invoke doesn't support query params easily
-    const all = res.data?.data?.users || [];
+    // TODO: Replace with dedicated Sanic API search endpoint when ethos-list-users is implemented
+    // Filter from already-loaded users list as a fallback
     const q = query.toLowerCase();
-    setEthosUserResults(all.filter((u: any) =>
+    setEthosUserResults((users as any[]).filter((u: any) =>
       u.username?.toLowerCase().includes(q) ||
-      u.display_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q)
+      (u.first_name + ' ' + u.last_name).toLowerCase().includes(q)
+    ).slice(0, 10));
+  };
+
+  const searchAccessUsers = async (query: string) => {
+    if (!query || query.length < 2) { setAccessUserResults([]); return; }
+    const q = query.toLowerCase();
+    setAccessUserResults((users as any[]).filter((u: any) =>
+      u.username?.toLowerCase().includes(q) ||
+      (u.first_name + ' ' + u.last_name).toLowerCase().includes(q)
     ).slice(0, 10));
   };
 
   const grantAccessMutation = useMutation({
-    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
-      const { error } = await supabase.from('ethos_user_access').insert({ ethos_id, user_id });
-      if (error) throw error;
+    mutationFn: async (_params: { ethos_id: string; user_id: string }) => {
+      // TODO: Replace with Sanic API endpoint when ethos_user_access endpoint is implemented
+      throw new Error('Feature not yet available');
     },
     onSuccess: () => {
       refetchAccessGrants();
@@ -544,21 +538,29 @@ export default function AdminPanel() {
       toast({ title: 'Access Granted' });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      if (error.message === 'Feature not yet available') {
+        toast({ title: 'Feature not yet available', description: 'Access grants are not yet migrated to the new backend.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
     },
   });
 
   const revokeAccessMutation = useMutation({
-    mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
-      const { error } = await supabase.from('ethos_user_access').delete().eq('ethos_id', ethos_id).eq('user_id', user_id);
-      if (error) throw error;
+    mutationFn: async (_params: { ethos_id: string; user_id: string }) => {
+      // TODO: Replace with Sanic API endpoint when ethos_user_access endpoint is implemented
+      throw new Error('Feature not yet available');
     },
     onSuccess: () => {
       refetchAccessGrants();
       toast({ title: 'Access Revoked' });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      if (error.message === 'Feature not yet available') {
+        toast({ title: 'Feature not yet available', description: 'Access revocation is not yet migrated to the new backend.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
     },
   });
 
@@ -688,14 +690,11 @@ export default function AdminPanel() {
     },
   });
 
-  // NEOS Den ready toggle mutation
+  // NEOS Den ready toggle mutation — TODO: add admin-set-neos-den-ready endpoint to Sanic API
   const setNeosDenReadyMutation = useMutation({
-    mutationFn: async ({ user_id, ready_for_neos_den }: { user_id: string; ready_for_neos_den: boolean }) => {
-      const res = await supabase.functions.invoke('admin-set-neos-den-ready', {
-        body: { user_id, ready_for_neos_den },
-      });
-      if (res.error) throw res.error;
-      return res.data;
+    mutationFn: async (_params: { user_id: string; ready_for_neos_den: boolean }) => {
+      // TODO: Replace with Sanic API endpoint when admin-set-neos-den-ready is implemented
+      throw new Error('Feature not yet available');
     },
     onMutate: async ({ user_id, ready_for_neos_den }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-ctc-handoff'] });
@@ -712,7 +711,7 @@ export default function AdminPanel() {
     },
     onError: (_err: any, _vars: any, context: any) => {
       queryClient.setQueryData(['admin-ctc-handoff'], context?.previous);
-      toast({ title: 'Failed to update NEOS Den status', variant: 'destructive' });
+      toast({ title: 'Feature not yet available', description: 'NEOS Den status toggle is not yet migrated to the new backend.', variant: 'destructive' });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-ctc-handoff'] });

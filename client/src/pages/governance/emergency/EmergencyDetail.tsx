@@ -46,12 +46,12 @@ export default function EmergencyDetail() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Emergency Declaration</h1>
-          <Badge variant={data.is_active ? 'destructive' : 'default'}>
-            {data.is_active ? 'Active' : 'Resolved'}
+          <Badge variant={data.state === 'open' ? 'destructive' : 'default'}>
+            {data.state === 'open' ? 'Active' : 'Resolved'}
           </Badge>
         </div>
 
-        {data.is_active && (
+        {data.state === 'open' && (
           <Button
             variant="default"
             onClick={handleResolve}
@@ -76,34 +76,28 @@ export default function EmergencyDetail() {
           <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
               <dt className="text-muted-foreground">Declared By</dt>
-              <dd className="font-medium">{data.declared_by}</dd>
+              <dd className="font-medium">{data.declared_by ?? 'Unknown'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Declared At</dt>
-              <dd className="font-medium">{new Date(data.declared_at).toLocaleString()}</dd>
+              <dd className="font-medium">{data.declared_at ? new Date(data.declared_at).toLocaleString() : 'N/A'}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Auto-Revert Days</dt>
-              <dd className="font-medium">{data.auto_revert_days}</dd>
+              <dt className="text-muted-foreground">Auto-Revert At</dt>
+              <dd className="font-medium">{data.auto_revert_at ? new Date(data.auto_revert_at).toLocaleString() : 'N/A'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Status</dt>
               <dd>
-                <Badge variant={data.is_active ? 'destructive' : 'default'}>
-                  {data.is_active ? 'Active' : 'Resolved'}
+                <Badge variant={data.state === 'open' ? 'destructive' : 'default'}>
+                  {data.state === 'open' ? 'Active' : 'Resolved'}
                 </Badge>
               </dd>
             </div>
-            {data.resolved_at && (
+            {data.closed_at && (
               <div>
-                <dt className="text-muted-foreground">Resolved At</dt>
-                <dd className="font-medium">{new Date(data.resolved_at).toLocaleString()}</dd>
-              </div>
-            )}
-            {data.resolved_by && (
-              <div>
-                <dt className="text-muted-foreground">Resolved By</dt>
-                <dd className="font-medium">{data.resolved_by}</dd>
+                <dt className="text-muted-foreground">Closed At</dt>
+                <dd className="font-medium">{new Date(data.closed_at).toLocaleString()}</dd>
               </div>
             )}
           </dl>
@@ -115,7 +109,7 @@ export default function EmergencyDetail() {
           <CardTitle className="text-lg">Reason</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">{data.reason}</div>
+          <div className="whitespace-pre-wrap text-sm leading-relaxed">{data.notes ?? 'No reason provided'}</div>
         </CardContent>
       </Card>
     </div>

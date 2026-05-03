@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { fetchMe, fetchChallenge, fetchVerify, fetchLogout } from '@/lib/api-client';
+import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword } from '@/lib/api-client';
 import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, publicKeyToDid } from '@/lib/did-auth';
 import type { MemberSummary, EcosystemSummary } from '@/types/api';
 
@@ -10,6 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (displayName?: string) => Promise<void>;
+  loginWithCredentials: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   error: string | null;
 }
@@ -78,6 +79,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loginWithCredentials = useCallback(async (username: string, password: string) => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await loginWithPassword(username, password);
+      // Session cookie is set by the response. Now fetch full member data.
+      await checkSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setIsLoading(false);
+      throw err;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetchLogout();
@@ -97,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!member,
         isLoading,
         login,
+        loginWithCredentials,
         logout,
         error,
       }}

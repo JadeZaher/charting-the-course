@@ -3,10 +3,11 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateConflict } from '@/hooks/use-governance';
+import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
 
@@ -28,6 +29,7 @@ export default function ConflictForm() {
   const [, navigate] = useLocation();
   const { selected: selectedEcosystem } = useEcosystem();
   const createMutation = useCreateConflict();
+  const { toast } = useToast();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -68,6 +70,7 @@ export default function ConflictForm() {
 
     try {
       const result = await createMutation.mutateAsync(payload);
+      toast({ title: 'Conflict reported', description: 'Your conflict report has been submitted successfully.' });
       navigate(`/conflicts/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -101,18 +104,22 @@ export default function ConflictForm() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Conflict title"
+                required
+                aria-required="true"
               />
               {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="description">Description *</Label>
-              <Textarea
+              <AITextarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the conflict..."
                 rows={6}
+                fieldLabel="Conflict Description"
+                fieldContext="A detailed description of a governance conflict or dispute within the organization"
               />
               {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
             </div>

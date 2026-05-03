@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useAgreement, useUpdateAgreementStatus } from '@/hooks/use-governance';
+import { formatDate } from '@/lib/utils';
 import { Pencil, History, ArrowLeft } from 'lucide-react';
 
 const statusVariant = (status: string) => {
@@ -88,9 +89,23 @@ export default function AgreementDetail() {
               <SelectValue placeholder="Change Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="ratified">Ratified</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
+              {data.status === 'draft' && <SelectItem value="advice">Advice</SelectItem>}
+              {data.status === 'advice' && <SelectItem value="consent">Consent</SelectItem>}
+              {data.status === 'consent' && (
+                <>
+                  <SelectItem value="test">Test</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                </>
+              )}
+              {data.status === 'test' && <SelectItem value="active">Active</SelectItem>}
+              {data.status === 'active' && <SelectItem value="under_review">Under Review</SelectItem>}
+              {data.status === 'under_review' && (
+                <>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="sunset">Sunset</SelectItem>
+                </>
+              )}
+              {data.status === 'sunset' && <SelectItem value="archived">Archived</SelectItem>}
             </SelectContent>
           </Select>
         </div>
@@ -117,15 +132,15 @@ export default function AgreementDetail() {
             </div>
             <div>
               <dt className="text-muted-foreground">Ratification Date</dt>
-              <dd className="font-medium">{data.ratification_date ? new Date(data.ratification_date).toLocaleDateString() : '-'}</dd>
+              <dd className="font-medium">{formatDate(data.ratification_date)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Review Date</dt>
-              <dd className="font-medium">{data.review_date ? new Date(data.review_date).toLocaleDateString() : '-'}</dd>
+              <dd className="font-medium">{formatDate(data.review_date)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Sunset Date</dt>
-              <dd className="font-medium">{data.sunset_date ? new Date(data.sunset_date).toLocaleDateString() : '-'}</dd>
+              <dd className="font-medium">{formatDate(data.sunset_date)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Created</dt>
@@ -135,13 +150,20 @@ export default function AgreementDetail() {
               <dt className="text-muted-foreground">Last Updated</dt>
               <dd className="font-medium">{new Date(data.updated_at).toLocaleDateString()}</dd>
             </div>
-            {data.affected_parties && data.affected_parties.length > 0 && (
+            {data.affected_parties && (
               <div className="sm:col-span-2 lg:col-span-3">
                 <dt className="text-muted-foreground">Affected Parties</dt>
                 <dd className="flex flex-wrap gap-1 mt-1">
-                  {data.affected_parties.map((party) => (
-                    <Badge key={party} variant="secondary">{party}</Badge>
-                  ))}
+                  {Array.isArray(data.affected_parties)
+                    ? data.affected_parties.map((party) => (
+                        <Badge key={party} variant="secondary">{party}</Badge>
+                      ))
+                    : Object.entries(data.affected_parties).map(([key, val]) => (
+                        <Badge key={key} variant="secondary">
+                          {Array.isArray(val) ? val.join(', ') : key}
+                        </Badge>
+                      ))
+                  }
                 </dd>
               </div>
             )}
@@ -183,7 +205,7 @@ export default function AgreementDetail() {
                     <TableCell className="font-medium">{r.participant}</TableCell>
                     <TableCell>{r.role || '-'}</TableCell>
                     <TableCell>{r.position || '-'}</TableCell>
-                    <TableCell>{r.date ? new Date(r.date).toLocaleDateString() : '-'}</TableCell>
+                    <TableCell>{formatDate(r.date)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

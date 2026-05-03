@@ -10,7 +10,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useDIDInit } from '@/hooks/useDID';
 import { Loader2 } from "lucide-react";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -24,6 +23,11 @@ import AdminPanel from "@/pages/AdminPanel";
 import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
 import MyQuizHistory from "@/pages/MyQuizHistory";
+import { lazy, Suspense } from "react";
+const DiscoverHub = lazy(() => import("@/pages/discover/DiscoverHub"));
+const SharesNeedsForm = lazy(() => import("@/pages/discover/SharesNeedsForm"));
+const CollaborationForm = lazy(() => import("@/pages/discover/CollaborationForm"));
+const CollaborationDetail = lazy(() => import("@/pages/discover/CollaborationDetail"));
 import NotFound from "@/pages/not-found";
 import MapPage from "@/pages/MapPage";
 import JourneyMapList from "@/pages/JourneyMapList";
@@ -49,6 +53,9 @@ import { SafeguardsDashboard, AuditList, AuditDetail } from '@/pages/governance/
 import MessagingLayout from '@/pages/messaging/MessagingLayout';
 import ChatPanel from '@/pages/chat/ChatPanel';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
+import { FloatingComms } from "@/components/FloatingComms";
+import ComplianceDashboard from '@/pages/compliance/ComplianceDashboard';
+import NotificationPreferences from '@/pages/settings/NotificationPreferences';
 
 // Loading spinner component
 function LoadingScreen() {
@@ -150,7 +157,6 @@ function PublicRoutes() {
 
 // Authenticated routes with sidebar layout
 function AuthenticatedRoutes() {
-  useDIDInit();
   return (
     <Switch>
       {/* Public accessible routes */}
@@ -197,6 +203,11 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={ProposalList} />
       </Route>
 
+      {/* Explore / Discover hub - all authenticated users */}
+      <Route path="/explore">
+        <ProtectedRoute component={DiscoverHub} />
+      </Route>
+
       {/* Quiz routes - all authenticated users can take quizzes */}
       <Route path="/quizzes">
         <ProtectedRoute component={QuizList} />
@@ -221,6 +232,20 @@ function AuthenticatedRoutes() {
       {/* My Quiz History - all authenticated users */}
       <Route path="/my-quiz-history">
         <ProtectedRoute component={MyQuizHistory} />
+      </Route>
+
+      {/* Discover Hub — cross-ecosystem collaboration */}
+      <Route path="/discover/shares-needs/new">
+        <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={SharesNeedsForm} /></Suspense>
+      </Route>
+      <Route path="/discover/collaborations/new">
+        <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={CollaborationForm} /></Suspense>
+      </Route>
+      <Route path="/discover/collaborations/:id">
+        <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={CollaborationDetail} /></Suspense>
+      </Route>
+      <Route path="/discover/hub">
+        <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={DiscoverHub} /></Suspense>
       </Route>
 
       {/* Orientation Portal - all authenticated users */}
@@ -294,6 +319,7 @@ function AuthenticatedRoutes() {
 
       {/* Conflicts */}
       <Route path="/conflicts/new"><ProtectedRoute component={ConflictForm} /></Route>
+      <Route path="/conflicts/:id/edit"><ProtectedRoute component={ConflictForm} /></Route>
       <Route path="/conflicts/:id"><ProtectedRoute component={ConflictDetail} /></Route>
       <Route path="/conflicts"><ProtectedRoute component={ConflictList} /></Route>
 
@@ -320,6 +346,16 @@ function AuthenticatedRoutes() {
       {/* Messaging + Chat */}
       <Route path="/messaging"><ProtectedRoute component={MessagingLayout} /></Route>
       <Route path="/chat"><ProtectedRoute component={ChatPanel} /></Route>
+
+      {/* Compliance */}
+      <Route path="/compliance">
+        <ProtectedRoute component={ComplianceDashboard} />
+      </Route>
+
+      {/* Settings */}
+      <Route path="/settings/notifications">
+        <ProtectedRoute component={NotificationPreferences} />
+      </Route>
 
       {/* Fallback to public routes for unmatched paths */}
       <Route>
@@ -375,6 +411,7 @@ function AppLayout() {
           </main>
         </div>
       </div>
+      <FloatingComms />
     </SidebarProvider>
   );
 }

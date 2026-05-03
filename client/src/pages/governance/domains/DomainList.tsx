@@ -36,7 +36,7 @@ export default function DomainList() {
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [status, search, page]);
 

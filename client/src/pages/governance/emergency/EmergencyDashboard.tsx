@@ -3,20 +3,24 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEmergencyState, useDeclareEmergency } from '@/hooks/use-governance';
+import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function EmergencyDashboard() {
   const [, navigate] = useLocation();
   const { selected: selectedEcosystem } = useEcosystem();
+  const { member } = useAuth();
   const { data, isLoading, error } = useEmergencyState();
   const declareMutation = useDeclareEmergency();
+  const { toast } = useToast();
 
   const [reason, setReason] = useState('');
   const [autoRevertDays, setAutoRevertDays] = useState('7');
@@ -37,6 +41,7 @@ export default function EmergencyDashboard() {
     const payload: Record<string, any> = {
       reason: reason.trim(),
       auto_revert_days: Number(autoRevertDays),
+      declared_by: member?.display_name ?? 'Unknown',
     };
     if (selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
@@ -46,6 +51,7 @@ export default function EmergencyDashboard() {
       const result = await declareMutation.mutateAsync(payload);
       setReason('');
       setAutoRevertDays('7');
+      toast({ title: 'Emergency declared', description: 'The emergency circuit breaker has been activated.' });
       navigate(`/emergency/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -63,7 +69,7 @@ export default function EmergencyDashboard() {
     );
   }
 
-  const isActive = data?.is_active ?? false;
+  const isActive = data?.current?.state === 'open';
 
   return (
     <div className="space-y-6">
@@ -86,23 +92,23 @@ export default function EmergencyDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isActive && data ? (
+          {isActive && data?.current ? (
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Declared By</dt>
-                <dd className="font-medium">{data.declared_by}</dd>
+                <dd className="font-medium">{data.current.declared_by ?? 'Unknown'}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Declared At</dt>
-                <dd className="font-medium">{new Date(data.declared_at).toLocaleString()}</dd>
+                <dd className="font-medium">{data.current.declared_at ? new Date(data.current.declared_at).toLocaleString() : 'N/A'}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Reason</dt>
-                <dd className="font-medium">{data.reason}</dd>
+                <dd className="font-medium">{data.current.notes ?? 'No reason provided'}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Auto-Revert</dt>
-                <dd className="font-medium">{data.auto_revert_days} days</dd>
+                <dt className="text-muted-foreground">Auto-Revert At</dt>
+                <dd className="font-medium">{data.current.auto_revert_at ? new Date(data.current.auto_revert_at).toLocaleString() : 'N/A'}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Status</dt>
@@ -111,7 +117,7 @@ export default function EmergencyDashboard() {
                 </dd>
               </div>
               <div>
-                <Link href={`/emergency/${data.id}`}>
+                <Link href={`/emergency/${data.current.id}`}>
                   <Button variant="outline" size="sm">View Details</Button>
                 </Link>
               </div>
@@ -138,12 +144,14 @@ export default function EmergencyDashboard() {
             <form onSubmit={handleDeclare} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="reason">Reason *</Label>
-                <Textarea
+                <AITextarea
                   id="reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Describe the emergency situation..."
                   rows={4}
+                  fieldLabel="Emergency Reason"
+                  fieldContext="The reason for declaring an emergency circuit breaker in the governance system"
                 />
                 {errors.reason && <p className="text-sm text-destructive">{errors.reason}</p>}
               </div>
@@ -156,6 +164,8 @@ export default function EmergencyDashboard() {
                   min="1"
                   value={autoRevertDays}
                   onChange={(e) => setAutoRevertDays(e.target.value)}
+                  required
+                  aria-required="true"
                 />
                 {errors.autoRevertDays && <p className="text-sm text-destructive">{errors.autoRevertDays}</p>}
               </div>

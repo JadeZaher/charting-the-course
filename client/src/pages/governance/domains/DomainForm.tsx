@@ -3,12 +3,13 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useDomain, useCreateDomain } from '@/hooks/use-governance';
+import { useDomain, useCreateDomain, useUpdateDomain } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -23,9 +24,11 @@ export default function DomainForm() {
   const isEdit = !!editId;
 
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const { selected: selectedEcosystem } = useEcosystem();
   const { data: existing, isLoading: loadingExisting } = useDomain(editId ?? '');
   const createMutation = useCreateDomain();
+  const updateMutation = useUpdateDomain(editId ?? '');
 
   const [purpose, setPurpose] = useState('');
   const [currentSteward, setCurrentSteward] = useState('');
@@ -67,15 +70,21 @@ export default function DomainForm() {
     }
 
     try {
-      const result = await createMutation.mutateAsync(payload);
+      let result;
+      if (isEdit) {
+        result = await updateMutation.mutateAsync(payload);
+      } else {
+        result = await createMutation.mutateAsync(payload);
+      }
+      toast({ title: isEdit ? 'Domain updated' : 'Domain created', description: 'Domain has been saved successfully.' });
       navigate(`/domains/${result.id}`);
     } catch {
       // Error handled by mutation state
     }
   };
 
-  const isPending = createMutation.isPending;
-  const mutationError = createMutation.error;
+  const isPending = createMutation.isPending || updateMutation.isPending;
+  const mutationError = createMutation.error || updateMutation.error;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -99,12 +108,14 @@ export default function DomainForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="purpose">Purpose *</Label>
-              <Textarea
+              <AITextarea
                 id="purpose"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="Domain purpose..."
                 rows={5}
+                fieldLabel="Purpose"
+                fieldContext="The purpose and scope of a governance domain within the organization"
               />
               {errors.purpose && <p className="text-sm text-destructive">{errors.purpose}</p>}
             </div>
@@ -135,12 +146,14 @@ export default function DomainForm() {
 
             <div className="space-y-2">
               <Label htmlFor="metric_definitions">Metric Definitions</Label>
-              <Textarea
+              <AITextarea
                 id="metric_definitions"
                 value={metricDefinitions}
                 onChange={(e) => setMetricDefinitions(e.target.value)}
                 placeholder="Define metrics for this domain..."
                 rows={4}
+                fieldLabel="Metric Definitions"
+                fieldContext="Measurable metrics that define success for this governance domain"
               />
             </div>
 

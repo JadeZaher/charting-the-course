@@ -47,7 +47,7 @@ export default function ExitList() {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
     if (exitType !== 'all') p.exit_type = exitType;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [status, exitType, search, page]);
 

@@ -53,7 +53,7 @@ export default function MemberDetail() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.display_name}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+            <Badge variant={statusVariant(data.current_status)}>{data.current_status}</Badge>
             <Badge variant="outline">{data.profile}</Badge>
             <span className="text-sm text-muted-foreground">{data.member_id}</span>
           </div>

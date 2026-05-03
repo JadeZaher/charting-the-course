@@ -5,12 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useProposal, useUpdateProposalStatus, useSubmitAdvice, useSubmitConsent } from '@/hooks/use-governance';
+import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
 import { Pencil, ArrowLeft, Check, X } from 'lucide-react';
 import type { AdviceLog, ConsentRecord, TestReport } from '@/types/api';
 
@@ -69,26 +71,38 @@ function OverviewTab({ data }: { data: any }) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {data.co_sponsors && data.co_sponsors.length > 0 && (
+        {data.co_sponsors && (Array.isArray(data.co_sponsors) ? data.co_sponsors.length > 0 : true) && (
           <Card>
             <CardHeader><CardTitle className="text-lg">Co-Sponsors</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1">
-                {data.co_sponsors.map((s: string) => (
-                  <Badge key={s} variant="secondary">{s}</Badge>
-                ))}
+                {Array.isArray(data.co_sponsors)
+                  ? data.co_sponsors.map((s: string) => (
+                      <Badge key={s} variant="secondary">{s}</Badge>
+                    ))
+                  : Object.keys(data.co_sponsors).map((k) => (
+                      <Badge key={k} variant="secondary">{k}</Badge>
+                    ))
+                }
               </div>
             </CardContent>
           </Card>
         )}
-        {data.impacted_parties && data.impacted_parties.length > 0 && (
+        {data.impacted_parties && (
           <Card>
             <CardHeader><CardTitle className="text-lg">Impacted Parties</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1">
-                {data.impacted_parties.map((p: string) => (
-                  <Badge key={p} variant="outline">{p}</Badge>
-                ))}
+                {Array.isArray(data.impacted_parties)
+                  ? data.impacted_parties.map((p: string) => (
+                      <Badge key={p} variant="outline">{p}</Badge>
+                    ))
+                  : Object.entries(data.impacted_parties).map(([key, val]) => (
+                      <Badge key={key} variant="outline">
+                        {Array.isArray(val) ? (val as string[]).join(', ') : String(key)}
+                      </Badge>
+                    ))
+                }
               </div>
             </CardContent>
           </Card>
@@ -100,6 +114,7 @@ function OverviewTab({ data }: { data: any }) {
 
 function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; proposalId: string }) {
   const submitAdvice = useSubmitAdvice(proposalId);
+  const { toast } = useToast();
   const [advisor, setAdvisor] = useState('');
   const [content, setContent] = useState('');
   const [concerns, setConcerns] = useState('');
@@ -107,10 +122,15 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!advisor.trim() || !content.trim()) return;
-    await submitAdvice.mutateAsync({ advisor: advisor.trim(), content: content.trim(), concerns: concerns.trim() || null });
-    setAdvisor('');
-    setContent('');
-    setConcerns('');
+    try {
+      await submitAdvice.mutateAsync({ advisor: advisor.trim(), content: content.trim(), concerns: concerns.trim() || null });
+      setAdvisor('');
+      setContent('');
+      setConcerns('');
+      toast({ title: 'Advice submitted', description: 'Your advice has been recorded.' });
+    } catch {
+      // Error handled by mutation state
+    }
   };
 
   return (
@@ -122,15 +142,15 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
               <Label htmlFor="advisor">Advisor *</Label>
-              <Input id="advisor" value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Your name" />
+              <Input id="advisor" value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Your name" required aria-required="true" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="advice-content">Advice *</Label>
-              <Textarea id="advice-content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Your advice..." rows={4} />
+              <AITextarea id="advice-content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Your advice..." rows={4} fieldLabel="Advice" fieldContext="Governance advice on a proposal being considered by the organization" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="advice-concerns">Concerns</Label>
-              <Textarea id="advice-concerns" value={concerns} onChange={(e) => setConcerns(e.target.value)} placeholder="Any concerns..." rows={2} />
+              <AITextarea id="advice-concerns" value={concerns} onChange={(e) => setConcerns(e.target.value)} placeholder="Any concerns..." rows={2} fieldLabel="Concerns" fieldContext="Concerns or potential issues with a governance proposal" />
             </div>
             <Button type="submit" disabled={submitAdvice.isPending}>
               {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
@@ -152,7 +172,7 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
             </div>
             {log.advice_window_start && log.advice_window_end && (
               <p className="text-xs text-muted-foreground">
-                Window: {new Date(log.advice_window_start).toLocaleDateString()} - {new Date(log.advice_window_end).toLocaleDateString()}
+                Window: {formatDate(log.advice_window_start)} - {formatDate(log.advice_window_end)}
               </p>
             )}
           </CardHeader>
@@ -178,7 +198,7 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
                       <span className="font-medium text-sm">{entry.advisor}</span>
                       {entry.role && <Badge variant="outline" className="text-xs">{entry.role}</Badge>}
                       {entry.advice_type && <Badge variant="secondary" className="text-xs">{entry.advice_type}</Badge>}
-                      {entry.date && <span className="text-xs text-muted-foreground ml-auto">{new Date(entry.date).toLocaleDateString()}</span>}
+                      {entry.date && <span className="text-xs text-muted-foreground ml-auto">{formatDate(entry.date)}</span>}
                     </div>
                     {entry.content && <p className="text-sm">{entry.content}</p>}
                     {entry.concerns && <p className="text-sm text-muted-foreground">Concerns: {entry.concerns}</p>}
@@ -199,6 +219,7 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
 
 function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRecord[]; proposalId: string }) {
   const submitConsent = useSubmitConsent(proposalId);
+  const { toast } = useToast();
   const [memberName, setMemberName] = useState('');
   const [position, setPosition] = useState('consent');
   const [objection, setObjection] = useState('');
@@ -206,14 +227,19 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!memberName.trim()) return;
-    await submitConsent.mutateAsync({
-      member_name: memberName.trim(),
-      position,
-      objection_text: position === 'object' ? objection.trim() || null : null,
-    });
-    setMemberName('');
-    setPosition('consent');
-    setObjection('');
+    try {
+      await submitConsent.mutateAsync({
+        member_name: memberName.trim(),
+        position,
+        objection_text: position === 'object' ? objection.trim() || null : null,
+      });
+      setMemberName('');
+      setPosition('consent');
+      setObjection('');
+      toast({ title: 'Consent submitted', description: 'Your consent response has been recorded.' });
+    } catch {
+      // Error handled by mutation state
+    }
   };
 
   return (
@@ -225,7 +251,7 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
               <Label htmlFor="member-name">Member Name *</Label>
-              <Input id="member-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Your name" />
+              <Input id="member-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Your name" required aria-required="true" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="consent-position">Position</Label>
@@ -243,7 +269,7 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
             {position === 'object' && (
               <div className="space-y-1">
                 <Label htmlFor="objection">Objection</Label>
-                <Textarea id="objection" value={objection} onChange={(e) => setObjection(e.target.value)} placeholder="Explain your objection..." rows={3} />
+                <AITextarea id="objection" value={objection} onChange={(e) => setObjection(e.target.value)} placeholder="Explain your objection..." rows={3} fieldLabel="Objection" fieldContext="An objection to a governance proposal explaining why it should not be adopted" />
               </div>
             )}
             <Button type="submit" disabled={submitConsent.isPending}>
@@ -272,7 +298,7 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
             <div className="text-xs text-muted-foreground space-x-3">
               {record.consent_mode && <span>Mode: {record.consent_mode}</span>}
               {record.facilitator && <span>Facilitator: {record.facilitator}</span>}
-              {record.date && <span>{new Date(record.date).toLocaleDateString()}</span>}
+              {record.date && <span>{formatDate(record.date)}</span>}
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -304,7 +330,7 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">{p.date ? new Date(p.date).toLocaleDateString() : '-'}</TableCell>
+                    <TableCell className="text-sm">{formatDate(p.date)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -331,8 +357,8 @@ function TestTab({ testReports }: { testReports: TestReport[] }) {
               {report.outcome && <Badge variant={report.outcome === 'pass' ? 'default' : 'destructive'}>{report.outcome}</Badge>}
             </div>
             <div className="text-xs text-muted-foreground space-x-3">
-              {report.test_start_date && <span>Start: {new Date(report.test_start_date).toLocaleDateString()}</span>}
-              {report.test_end_date && <span>End: {new Date(report.test_end_date).toLocaleDateString()}</span>}
+              {report.test_start_date && <span>Start: {formatDate(report.test_start_date)}</span>}
+              {report.test_end_date && <span>End: {formatDate(report.test_end_date)}</span>}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -487,11 +513,11 @@ export default function ProposalDetail() {
             </div>
             <div>
               <dt className="text-muted-foreground">Advice Deadline</dt>
-              <dd className="font-medium">{data.advice_deadline ? new Date(data.advice_deadline).toLocaleDateString() : '-'}</dd>
+              <dd className="font-medium">{formatDate(data.advice_deadline)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Consent Deadline</dt>
-              <dd className="font-medium">{data.consent_deadline ? new Date(data.consent_deadline).toLocaleDateString() : '-'}</dd>
+              <dd className="font-medium">{formatDate(data.consent_deadline)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Test Duration</dt>

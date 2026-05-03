@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Clock, ArrowRight } from "lucide-react";
+import { Search, Clock, ArrowRight, Globe2, Building2, ShieldCheck } from "lucide-react";
 import { fetchQuizzes } from "@/lib/api-client";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -15,7 +15,10 @@ interface Quiz {
   description: string | null;
   visibility: string;
   is_published: boolean;
+  is_entry_quiz: boolean;
   time_limit: number | null;
+  ecosystem_id: string | null;
+  domain_id: string | null;
   created_at: string;
 }
 
@@ -39,7 +42,10 @@ export default function QuizList() {
         description: q.description ?? null,
         visibility: q.visibility ?? 'public',
         is_published: q.is_published ?? false,
+        is_entry_quiz: q.is_entry_quiz ?? false,
         time_limit: q.time_limit ?? null,
+        ecosystem_id: q.ecosystem_id ?? null,
+        domain_id: q.domain_id ?? null,
         created_at: q.created_at,
       })) as Quiz[];
     },
@@ -89,7 +95,7 @@ export default function QuizList() {
                   <div className="flex-1">
                     <CardTitle>{quiz.title}</CardTitle>
                     <CardDescription>{quiz.description}</CardDescription>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2">
                       <Badge variant="secondary">{quiz.visibility}</Badge>
                       {!quiz.is_published && (
                         <Badge variant="outline">Draft</Badge>
@@ -98,6 +104,24 @@ export default function QuizList() {
                         <Badge variant="outline">
                           <Clock className="h-3 w-3 mr-1" />
                           {quiz.time_limit} min
+                        </Badge>
+                      )}
+                      {quiz.ecosystem_id && (
+                        <Badge variant="outline" className="text-xs">
+                          <Globe2 className="h-3 w-3 mr-1" />
+                          Ecosystem
+                        </Badge>
+                      )}
+                      {quiz.domain_id && (
+                        <Badge variant="outline" className="text-xs">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          Domain
+                        </Badge>
+                      )}
+                      {quiz.is_entry_quiz && (
+                        <Badge variant="default" className="text-xs">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Entry Quiz
                         </Badge>
                       )}
                     </div>

@@ -135,18 +135,23 @@ export default function ConflictDetail() {
         </CardContent>
       </Card>
 
-      {data.parties && data.parties.length > 0 && (
+      {data.parties && (Array.isArray(data.parties) ? data.parties.length > 0 : Object.keys(data.parties).length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Parties</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {data.parties.map((party: any) => (
-                <Badge key={party.id || party.name || party} variant="secondary">
-                  {party.name || party}
-                </Badge>
-              ))}
+              {Array.isArray(data.parties)
+                ? data.parties.map((party: any) => (
+                    <Badge key={party.id || party.name || party} variant="secondary">
+                      {party.name || party}
+                    </Badge>
+                  ))
+                : Object.entries(data.parties).map(([key, val]) => (
+                    <Badge key={key} variant="secondary">{key}: {String(val)}</Badge>
+                  ))
+              }
             </div>
           </CardContent>
         </Card>

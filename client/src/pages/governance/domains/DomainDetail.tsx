@@ -1,11 +1,49 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useDomain } from '@/hooks/use-governance';
-import { Pencil, ArrowLeft } from 'lucide-react';
+import { Pencil, ArrowLeft, Users, ClipboardCheck, Eye, Check } from 'lucide-react';
+
+interface DomainQuiz {
+  id: string;
+  title: string;
+  description: string | null;
+  mode: string;
+  is_published: boolean;
+  is_entry_quiz: boolean;
+  time_limit: number | null;
+  passing_score: number | null;
+  created_at: string | null;
+}
+
+async function fetchDomainQuizzes(domainId: string): Promise<{ items: DomainQuiz[] }> {
+  const res = await fetch(`/api/v1/domains/${domainId}/quizzes`, { credentials: 'include' });
+  if (!res.ok) return { items: [] };
+  return res.json();
+}
+
+async function assignQuizToDomain(domainId: string, quizId: string, isEntry: boolean): Promise<boolean> {
+  const res = await fetch(`/api/v1/domains/${domainId}/quizzes/assign`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quiz_id: quizId, is_entry_quiz: isEntry }),
+  });
+  return res.ok;
+}
+
+const roleVariant = (role: string) => {
+  switch (role) {
+    case 'steward': return 'default' as const;
+    case 'delegate': return 'secondary' as const;
+    default: return 'outline' as const;
+  }
+};
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -21,6 +59,27 @@ export default function DomainDetail() {
   const id = params?.id ?? '';
   const [, navigate] = useLocation();
   const { data, isLoading, error } = useDomain(id);
+  const [domainQuizzes, setDomainQuizzes] = useState<DomainQuiz[]>([]);
+  const [assignQuizId, setAssignQuizId] = useState('');
+  const [assignAsEntry, setAssignAsEntry] = useState(false);
+
+  const loadQuizzes = useCallback(async () => {
+    if (!id) return;
+    const result = await fetchDomainQuizzes(id);
+    setDomainQuizzes(result.items);
+  }, [id]);
+
+  useEffect(() => { loadQuizzes(); }, [loadQuizzes]);
+
+  const handleAssignQuiz = async () => {
+    if (!assignQuizId.trim()) return;
+    const ok = await assignQuizToDomain(id, assignQuizId.trim(), assignAsEntry);
+    if (ok) {
+      setAssignQuizId('');
+      setAssignAsEntry(false);
+      loadQuizzes();
+    }
+  };
 
   if (isLoading) return <LoadingState message="Loading domain..." />;
 
@@ -95,6 +154,29 @@ export default function DomainDetail() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Circle Members
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.circle_memberships && data.circle_memberships.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {data.circle_memberships.map((cm: any) => (
+                <div key={cm.id || cm.member_id} className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm">
+                  <span className="font-medium">{cm.display_name || cm.member_id}</span>
+                  <Badge variant={roleVariant(cm.role)} className="text-xs">{cm.role}</Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No circle members assigned</p>
+          )}
+        </CardContent>
+      </Card>
+
       {data.elements && data.elements.length > 0 && (
         <Card>
           <CardHeader>
@@ -156,6 +238,92 @@ export default function DomainDetail() {
           </CardContent>
         </Card>
       )}
+
+      {/* Quiz Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Domain Quizzes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {domainQuizzes.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quiz</TableHead>
+                  <TableHead>Mode</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Entry Quiz</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {domainQuizzes.map(q => (
+                  <TableRow key={q.id}>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{q.title}</span>
+                        {q.description && <p className="text-xs text-muted-foreground line-clamp-1">{q.description}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs">{q.mode}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant={q.is_published ? 'default' : 'secondary'}>
+                        {q.is_published ? 'Published' : 'Draft'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {q.is_entry_quiz && (
+                        <Badge variant="outline" className="text-xs">
+                          <Check className="h-3 w-3 mr-1" />
+                          Entry Quiz
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Link href={`/quiz/take/${q.id}`}>
+                          <Button variant="ghost" size="sm">Take</Button>
+                        </Link>
+                        <Link href={`/quiz/results/${q.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">No quizzes assigned to this domain</p>
+          )}
+
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Input
+              placeholder="Quiz ID to assign..."
+              value={assignQuizId}
+              onChange={(e) => setAssignQuizId(e.target.value)}
+              className="max-w-[280px]"
+            />
+            <label className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={assignAsEntry}
+                onChange={(e) => setAssignAsEntry(e.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              Entry quiz
+            </label>
+            <Button size="sm" onClick={handleAssignQuiz} disabled={!assignQuizId.trim()}>
+              Assign
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

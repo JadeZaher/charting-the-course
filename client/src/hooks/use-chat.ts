@@ -79,7 +79,7 @@ export function useSSEChat() {
     abortRef.current = abort;
 
     try {
-      const response = await fetch('/chat/send', {
+      const response = await fetch('/api/v1/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

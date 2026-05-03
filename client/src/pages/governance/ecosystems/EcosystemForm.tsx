@@ -3,11 +3,12 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useCreateEcosystem, useUpdateEcosystem } from '@/hooks/use-governance';
+import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -28,13 +29,14 @@ export default function EcosystemForm() {
   const isEdit = !!editId;
 
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const { data: existing, isLoading: loadingExisting } = useEcosystemDetail(editId ?? '');
   const createMutation = useCreateEcosystem();
   const updateMutation = useUpdateEcosystem(editId ?? '');
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [location, setLocation_] = useState('');
+  const [ecoLocation, setEcoLocation] = useState('');
   const [website, setWebsite] = useState('');
   const [foundedDate, setFoundedDate] = useState('');
   const [status, setStatus] = useState('forming');
@@ -48,7 +50,7 @@ export default function EcosystemForm() {
     if (existing && isEdit) {
       setName(existing.name || '');
       setDescription(existing.description || '');
-      setLocation_(existing.location || '');
+      setEcoLocation(existing.location || '');
       setWebsite(existing.website || '');
       setFoundedDate(existing.founded_date || '');
       setStatus(existing.status || 'forming');
@@ -78,7 +80,7 @@ export default function EcosystemForm() {
     const payload: Record<string, any> = {
       name: name.trim(),
       description: description || null,
-      location: location || null,
+      location: ecoLocation || null,
       website: website || null,
       founded_date: foundedDate || null,
       status,
@@ -95,6 +97,7 @@ export default function EcosystemForm() {
       } else {
         result = await createMutation.mutateAsync(payload);
       }
+      toast({ title: isEdit ? 'Ecosystem updated' : 'Ecosystem created', description: 'Ecosystem has been saved successfully.' });
       navigate(`/ecosystems/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -131,18 +134,22 @@ export default function EcosystemForm() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ecosystem name"
+                required
+                aria-required="true"
               />
               {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
+              <AITextarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the ecosystem..."
                 rows={4}
+                fieldLabel="Description"
+                fieldContext="A description of a governance ecosystem - a community or organization using decentralized governance"
               />
             </div>
 
@@ -151,8 +158,8 @@ export default function EcosystemForm() {
                 <Label htmlFor="location">Location</Label>
                 <Input
                   id="location"
-                  value={location}
-                  onChange={(e) => setLocation_(e.target.value)}
+                  value={ecoLocation}
+                  onChange={(e) => setEcoLocation(e.target.value)}
                   placeholder="Location"
                 />
               </div>
@@ -233,12 +240,14 @@ export default function EcosystemForm() {
 
             <div className="space-y-2">
               <Label htmlFor="governance_summary">Governance Summary</Label>
-              <Textarea
+              <AITextarea
                 id="governance_summary"
                 value={governanceSummary}
                 onChange={(e) => setGovernanceSummary(e.target.value)}
                 placeholder="Summary of governance structure..."
                 rows={4}
+                fieldLabel="Governance Summary"
+                fieldContext="A summary of the governance structure, decision-making processes, and organizational framework"
               />
             </div>
 

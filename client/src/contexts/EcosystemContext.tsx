@@ -6,7 +6,9 @@ interface EcosystemContextType {
   ecosystems: EcosystemSummary[];
   selected: EcosystemSummary | null;
   selectedIds: string[];
-  selectEcosystem: (id: string) => void;
+  selectEcosystem: (id: string) => void;        // Single select (replaces all)
+  toggleEcosystem: (id: string) => void;         // Add/remove from multi-select
+  selectMultiple: (ids: string[]) => void;       // Batch select
   isMulti: boolean;
 }
 
@@ -56,6 +58,26 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     setSelectedCookie([id]);
   }, []);
 
+  const toggleEcosystem = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = prev.includes(id)
+        ? prev.filter(x => x !== id)
+        : [...prev, id];
+      // Ensure at least one is selected
+      const result = next.length > 0 ? next : prev;
+      setSelectedCookie(result);
+      return result;
+    });
+  }, []);
+
+  const selectMultiple = useCallback((ids: string[]) => {
+    const validIds = ids.filter(id => ecosystems.some(e => e.id === id));
+    if (validIds.length > 0) {
+      setSelectedIds(validIds);
+      setSelectedCookie(validIds);
+    }
+  }, [ecosystems]);
+
   const selected = ecosystems.find(e => selectedIds.includes(e.id)) || null;
 
   return (
@@ -65,6 +87,8 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         selected,
         selectedIds,
         selectEcosystem,
+        toggleEcosystem,
+        selectMultiple,
         isMulti: selectedIds.length > 1,
       }}
     >

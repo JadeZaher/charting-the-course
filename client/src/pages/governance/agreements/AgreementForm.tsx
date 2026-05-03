@@ -3,12 +3,13 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useAgreement, useCreateAgreement, useUpdateAgreement } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const TYPE_OPTIONS = [
@@ -33,6 +34,7 @@ export default function AgreementForm() {
   const isEdit = !!editId;
 
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const { selected: selectedEcosystem } = useEcosystem();
   const { data: existing, isLoading: loadingExisting } = useAgreement(editId ?? '');
   const createMutation = useCreateAgreement();
@@ -97,6 +99,7 @@ export default function AgreementForm() {
       } else {
         result = await createMutation.mutateAsync(payload);
       }
+      toast({ title: isEdit ? 'Agreement updated' : 'Agreement created', description: 'Your agreement has been saved successfully.' });
       navigate(`/agreements/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -133,6 +136,8 @@ export default function AgreementForm() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Agreement title"
+                required
+                aria-required="true"
               />
               {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
             </div>
@@ -154,12 +159,14 @@ export default function AgreementForm() {
 
             <div className="space-y-2">
               <Label htmlFor="text">Agreement Text</Label>
-              <Textarea
+              <AITextarea
                 id="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Full agreement text..."
                 rows={10}
+                fieldLabel="Agreement Text"
+                fieldContext="The full text of a governance agreement that defines rules, policies, or commitments for the organization"
               />
             </div>
 

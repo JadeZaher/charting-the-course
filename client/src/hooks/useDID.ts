@@ -1,24 +1,20 @@
 import { useEffect } from 'react';
-import { useSupabaseAuth } from './useSupabaseAuth';
-import { supabase } from '../lib/supabase';
-import { generateAndStoreDID, hasExistingDID } from '../lib/did';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasExistingDID, generateAndStoreDID } from '../lib/did';
 
 export function useDIDInit() {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!member) return;
     initDID();
-  }, [user?.id]);
+  }, [member?.id]);
 
   async function initDID() {
     try {
       if (await hasExistingDID()) return;
-      const { did, publicKey } = await generateAndStoreDID();
-      const { error } = await supabase.functions.invoke('did-generate', {
-        body: { did, public_key: publicKey }
-      });
-      if (error) console.error('[DID] Server write failed:', error);
+      await generateAndStoreDID();
+      // DID is registered with the backend during the auth verify flow
     } catch (err) {
       console.error('[DID] Init failed:', err);
     }

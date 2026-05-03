@@ -1,10 +1,48 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useEcosystemDetail } from '@/hooks/use-governance';
-import { Pencil, ArrowLeft } from 'lucide-react';
+import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements } from '@/hooks/use-governance';
+import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useToast } from '@/hooks/use-toast';
+import { Pencil, ArrowLeft, UserPlus, Lock, FileText, Check, Clock, ClipboardList, Eye } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+interface EcoQuiz {
+  id: string;
+  title: string;
+  description: string | null;
+  mode: string;
+  is_published: boolean;
+  is_entry_quiz: boolean;
+  passing_score: number | null;
+  allow_retakes: boolean;
+  visibility: string;
+}
+
+async function fetchEcoQuizzes(ecoId: string): Promise<EcoQuiz[]> {
+  const res = await fetch(`${API_BASE}/api/v1/ecosystems/${ecoId}/quizzes`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to fetch ecosystem quizzes');
+  const data = await res.json();
+  return data.quizzes ?? [];
+}
+
+async function assignQuizToEcosystem(ecoId: string, quizId: string, isEntryQuiz: boolean): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/ecosystems/${ecoId}/quizzes/assign`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quiz_id: quizId, is_entry_quiz: isEntryQuiz }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Failed to assign quiz' }));
+    throw new Error(body.error || 'Failed to assign quiz');
+  }
+}
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -19,6 +57,64 @@ export default function EcosystemDetail() {
   const [, params] = useRoute('/ecosystems/:id');
   const id = params?.id ?? '';
   const { data, isLoading, error } = useEcosystemDetail(id);
+  const { ecosystems } = useEcosystem();
+  const { toast } = useToast();
+  const joinMutation = useRequestJoinEcosystem(id);
+  const [joinRequested, setJoinRequested] = useState(false);
+
+  const isMember = ecosystems.some(e => e.id === id);
+
+  // Quiz management state
+  const [ecoQuizzes, setEcoQuizzes] = useState<EcoQuiz[]>([]);
+  const [quizzesLoading, setQuizzesLoading] = useState(false);
+  const [assignQuizId, setAssignQuizId] = useState('');
+  const [assignAsEntry, setAssignAsEntry] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+
+  const loadQuizzes = useCallback(async () => {
+    if (!id || !isMember) return;
+    setQuizzesLoading(true);
+    try {
+      const quizzes = await fetchEcoQuizzes(id);
+      setEcoQuizzes(quizzes);
+    } catch {
+      // silently fail, section just shows empty
+    } finally {
+      setQuizzesLoading(false);
+    }
+  }, [id, isMember]);
+
+  useEffect(() => {
+    loadQuizzes();
+  }, [loadQuizzes]);
+
+  const handleAssignQuiz = async () => {
+    if (!assignQuizId.trim()) return;
+    setAssigning(true);
+    try {
+      await assignQuizToEcosystem(id, assignQuizId.trim(), assignAsEntry);
+      toast({ title: 'Quiz assigned', description: 'Quiz has been assigned to this ecosystem.' });
+      setAssignQuizId('');
+      setAssignAsEntry(false);
+      await loadQuizzes();
+    } catch (err) {
+      toast({ title: 'Failed to assign quiz', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  // Fetch agreements only when user is a member (backend scopes by cookie)
+  const { data: agreementsData } = useAgreements(isMember ? {} : false);
+
+  // Filter to this ecosystem's agreements, then apply visibility rules
+  const allEcoAgreements = (agreementsData?.items ?? []).filter(
+    (a: any) => a.ecosystem_id === id
+  );
+  // Members see all; non-members see only ecosystem-level
+  const visibleAgreements = isMember
+    ? allEcoAgreements
+    : allEcoAgreements.filter((a: any) => a.hierarchy_level === 'ecosystem');
 
   if (isLoading) return <LoadingState message="Loading ecosystem..." />;
 
@@ -33,6 +129,22 @@ export default function EcosystemDetail() {
       </div>
     );
   }
+
+  const handleJoin = async () => {
+    try {
+      const result = await joinMutation.mutateAsync();
+      setJoinRequested(true);
+      toast({ title: 'Join request sent', description: result.message || 'Your request to join has been submitted.' });
+    } catch (err) {
+      const message = (err as Error).message;
+      if (message.includes('Already a member')) {
+        setJoinRequested(true);
+        toast({ title: 'Already a member', description: 'You are already a member of this ecosystem.' });
+      } else {
+        toast({ title: 'Failed to join', description: message, variant: 'destructive' });
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -49,16 +161,33 @@ export default function EcosystemDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
             {data.visibility && <Badge variant="outline">{data.visibility}</Badge>}
+            {isMember && <Badge variant="default">Member</Badge>}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link href={`/ecosystems/${id}/edit`}>
-            <Button variant="outline" size="sm">
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
+          {isMember ? (
+            <Link href={`/ecosystems/${id}/edit`}>
+              <Button variant="outline" size="sm">
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            </Link>
+          ) : joinRequested || joinMutation.isSuccess ? (
+            <Button variant="outline" size="sm" disabled>
+              <Clock className="h-4 w-4 mr-1" />
+              Join Requested
             </Button>
-          </Link>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleJoin}
+              disabled={joinMutation.isPending}
+            >
+              <UserPlus className="h-4 w-4 mr-1" />
+              {joinMutation.isPending ? 'Requesting...' : 'Request to Join'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -141,6 +270,144 @@ export default function EcosystemDetail() {
           </CardHeader>
           <CardContent>
             <div className="whitespace-pre-wrap text-sm leading-relaxed">{data.governance_summary}</div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Agreements Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Agreements
+            {!isMember && (
+              <Badge variant="outline" className="text-xs font-normal ml-2">
+                <Lock className="h-3 w-3 mr-1" />
+                Ecosystem-level only
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!isMember ? (
+            <p className="text-sm text-muted-foreground">
+              Join this ecosystem and complete onboarding to view agreements.
+            </p>
+          ) : visibleAgreements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No agreements yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {visibleAgreements.map((agreement: any) => (
+                <Link
+                  key={agreement.id}
+                  href={`/agreements/${agreement.id}`}
+                  className="block rounded-md border p-3 hover:bg-accent transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{agreement.title}</span>
+                    <Badge variant={agreement.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                      {agreement.status}
+                    </Badge>
+                  </div>
+                  {agreement.hierarchy_level && (
+                    <span className="text-xs text-muted-foreground">{agreement.hierarchy_level}</span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quiz Management Section (members only) */}
+      {isMember && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Quiz Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {quizzesLoading ? (
+              <p className="text-sm text-muted-foreground">Loading quizzes...</p>
+            ) : ecoQuizzes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No quizzes assigned to this ecosystem yet.</p>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-2 font-medium">Title</th>
+                      <th className="text-left p-2 font-medium">Mode</th>
+                      <th className="text-left p-2 font-medium">Status</th>
+                      <th className="text-left p-2 font-medium">Role</th>
+                      <th className="text-right p-2 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ecoQuizzes.map((q) => (
+                      <tr key={q.id} className="border-b last:border-b-0">
+                        <td className="p-2 font-medium">{q.title}</td>
+                        <td className="p-2">{q.mode}</td>
+                        <td className="p-2">
+                          <Badge variant={q.is_published ? 'default' : 'secondary'}>
+                            {q.is_published ? 'Published' : 'Draft'}
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          {q.is_entry_quiz && (
+                            <Badge variant="outline" className="text-xs">
+                              <Check className="h-3 w-3 mr-1" />
+                              Entry Quiz
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-2 text-right">
+                          <Link href={`/quiz/results/${q.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Results
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Assign Quiz Form */}
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-2">Assign a Quiz</p>
+              <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">Quiz ID</label>
+                  <Input
+                    placeholder="Enter quiz UUID..."
+                    value={assignQuizId}
+                    onChange={(e) => setAssignQuizId(e.target.value)}
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignAsEntry}
+                    onChange={(e) => setAssignAsEntry(e.target.checked)}
+                    className="rounded"
+                  />
+                  Entry Quiz
+                </label>
+                <Button
+                  size="sm"
+                  onClick={handleAssignQuiz}
+                  disabled={assigning || !assignQuizId.trim()}
+                >
+                  {assigning ? 'Assigning...' : 'Assign'}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

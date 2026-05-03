@@ -98,6 +98,7 @@ export interface DashboardSummary {
 export interface AgreementListItem {
   id: string;
   agreement_id: string;
+  ecosystem_id: string;
   type: string;
   title: string;
   version: string;
@@ -119,7 +120,6 @@ export interface RatificationRecord {
 }
 
 export interface AgreementDetail extends AgreementListItem {
-  ecosystem_id: string;
   text: string | null;
   affected_parties: string[] | null;
   parent_agreement_id: string | null;
@@ -443,17 +443,120 @@ export interface UserTagItem {
   id: string; tag_key: string; tag_value: string | null; tag_category: string | null; numeric_value: number | null;
 }
 
-// Emergency types
-export interface EmergencyState {
+// Discover types
+export interface DiscoverQuiz {
+  id: string;
+  title: string;
+  description: string | null;
+  mode: string;
+  time_limit: number | null;
+  passing_score: number | null;
+  allow_retakes: boolean;
+  completions: number;
+  course_name: string | null;
+  created_at: string | null;
+}
+export interface DiscoverEcosystem {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  logo_url: string | null;
+  location: string | null;
+  tags: string[];
+  member_count: number;
+  founded_date: string | null;
+  website: string | null;
+}
+export interface DiscoverSection<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+export interface DiscoverResponse {
+  quizzes?: DiscoverSection<DiscoverQuiz>;
+  ecosystems?: DiscoverSection<DiscoverEcosystem>;
+}
+
+// Shares & Needs types
+export interface SharesNeeds {
   id: string;
   ecosystem_id: string;
-  is_active: boolean;
-  declared_by: string;
-  reason: string;
-  auto_revert_days: number;
-  declared_at: string;
-  resolved_at: string | null;
-  resolved_by: string | null;
+  domain_id: string;
+  type: 'share' | 'need';
+  title: string;
+  description: string | null;
+  category: string | null;
+  capacity: string | null;
+  tags: string[];
+  visibility: string;
+  status: string;
+  domain_name?: string;
+  ecosystem_name?: string;
+  created_at: string | null;
+}
+
+export interface Collaboration {
+  id: string;
+  source_domain_id: string;
+  target_domain_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  engagement_tier: string;
+  terms: Record<string, any> | null;
+  linked_shares_needs: Record<string, any> | null;
+  started_date: string | null;
+  review_date: string | null;
+  version_fingerprint: string | null;
+  source_domain_name?: string;
+  target_domain_name?: string;
+  source_ecosystem_name?: string;
+  target_ecosystem_name?: string;
+  created_at: string | null;
+}
+
+export interface ComplianceSummary {
+  id: string;
+  ecosystem_id: string;
+  generated_at: string;
+  summary: string | null;
+  score_data: Record<string, any> | null;
+  agreement_coverage: Record<string, any> | null;
+  domain_health: Record<string, any> | null;
+  flagged_issues: Record<string, any> | null;
+  version_fingerprint: string | null;
+}
+
+// Emergency types
+export interface EmergencyStateItem {
+  id: string;
+  state: string;
+  declared_at: string | null;
+  declared_by: string | null;
+  auto_revert_at: string | null;
+  closed_at: string | null;
+  post_review_status: string | null;
+  created_at: string;
+}
+
+export interface EmergencyStateDetail extends EmergencyStateItem {
+  ecosystem_id: string;
+  criteria_met: any;
+  recovery_entered_at: string | null;
+  pre_authorized_roles: any;
+  actions_log: any;
+  notes: string | null;
+  updated_at: string;
+}
+
+export interface EmergencyListResponse {
+  current: EmergencyStateDetail | null;
+  items: EmergencyStateItem[];
+  total: number;
+  page: number;
+  per_page: number;
 }
 
 // Exit types

@@ -46,7 +46,7 @@ export default function DecisionList() {
     if (status !== 'all') p.status = status;
     if (domain) p.domain = domain;
     if (sourceLayer !== 'all') p.source_layer = sourceLayer;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [status, domain, sourceLayer, search, page]);
 

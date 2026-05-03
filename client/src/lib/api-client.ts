@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyState, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -51,6 +51,22 @@ export function fetchMe(): Promise<AuthMeResponse> {
 
 export function fetchLogout(): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>('/api/v1/auth/logout', { method: 'POST' });
+}
+
+export function loginWithPassword(username: string, password: string): Promise<AuthVerifyResponse> {
+  return apiFetch<AuthVerifyResponse>('/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function setCredentials(username: string, password: string): Promise<{ success: boolean; username: string }> {
+  return apiFetch<{ success: boolean; username: string }>('/api/v1/auth/set-credentials', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
 }
 
 // Ecosystem API
@@ -106,19 +122,19 @@ export function updateProposalStatus(id: string, status: string): Promise<Propos
   return apiFetch<ProposalDetail>(`/api/v1/proposals/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
 }
 export function fetchProposalAdvice(id: string): Promise<AdviceLog[]> {
-  return apiFetch<AdviceLog[]>(`/api/v1/proposals/${id}/advice`);
+  return apiFetch<{ advice_logs: AdviceLog[] }>(`/api/v1/proposals/${id}/advice`).then(r => r.advice_logs);
 }
 export function submitAdvice(id: string, data: Record<string, any>): Promise<AdviceLog> {
   return apiFetch<AdviceLog>(`/api/v1/proposals/${id}/advice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export function fetchProposalConsent(id: string): Promise<ConsentRecord[]> {
-  return apiFetch<ConsentRecord[]>(`/api/v1/proposals/${id}/consent`);
+  return apiFetch<{ consent_records: ConsentRecord[] }>(`/api/v1/proposals/${id}/consent`).then(r => r.consent_records);
 }
 export function submitConsent(id: string, data: Record<string, any>): Promise<ConsentRecord> {
   return apiFetch<ConsentRecord>(`/api/v1/proposals/${id}/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export function fetchProposalTest(id: string): Promise<TestReport[]> {
-  return apiFetch<TestReport[]>(`/api/v1/proposals/${id}/test`);
+  return apiFetch<{ test_reports: TestReport[] }>(`/api/v1/proposals/${id}/test`).then(r => r.test_reports);
 }
 
 // Members API
@@ -149,6 +165,9 @@ export function fetchDomain(id: string): Promise<DomainDetail> {
 }
 export function createDomain(data: Record<string, any>): Promise<DomainDetail> {
   return apiFetch<DomainDetail>('/api/v1/domains', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateDomain(id: string, data: Record<string, any>): Promise<DomainDetail> {
+  return apiFetch<DomainDetail>(`/api/v1/domains/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
 // Decisions API
@@ -199,6 +218,9 @@ export function createEcosystemRecord(data: Record<string, any>): Promise<Ecosys
 }
 export function updateEcosystemRecord(id: string, data: Record<string, any>): Promise<EcosystemDetail> {
   return apiFetch<EcosystemDetail>(`/api/v1/ecosystems/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function requestJoinEcosystem(id: string): Promise<{ status: string; message: string }> {
+  return apiFetch<{ status: string; message: string }>(`/api/v1/ecosystems/${id}/join`, { method: 'POST' });
 }
 
 // Messaging API
@@ -255,18 +277,24 @@ export function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[]
   return apiFetch(`/api/v1/members/${memberId}/tags`);
 }
 
+// Discover API
+export function fetchDiscover(params?: Record<string, string>): Promise<DiscoverResponse> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<DiscoverResponse>(`/api/v1/discover${qs}`);
+}
+
 // Emergency API
-export function fetchEmergencyState(): Promise<EmergencyState> {
-  return apiFetch<EmergencyState>('/api/v1/emergency');
+export function fetchEmergencyState(): Promise<EmergencyListResponse> {
+  return apiFetch<EmergencyListResponse>('/api/v1/emergency');
 }
-export function fetchEmergencyDetail(id: string): Promise<EmergencyState> {
-  return apiFetch<EmergencyState>(`/api/v1/emergency/${id}`);
+export function fetchEmergencyDetail(id: string): Promise<EmergencyStateDetail> {
+  return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}`);
 }
-export function declareEmergency(data: Record<string, any>): Promise<EmergencyState> {
-  return apiFetch<EmergencyState>('/api/v1/emergency', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+export function declareEmergency(data: Record<string, any>): Promise<EmergencyStateDetail> {
+  return apiFetch<EmergencyStateDetail>('/api/v1/emergency/declare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
-export function resolveEmergency(id: string): Promise<EmergencyState> {
-  return apiFetch<EmergencyState>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
+export function resolveEmergency(id: string): Promise<EmergencyStateDetail> {
+  return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
 }
 
 // Exit API
@@ -297,4 +325,42 @@ export function fetchAudit(id: string): Promise<GovernanceAudit> {
 }
 export function requestAudit(data: Record<string, any>): Promise<GovernanceAudit> {
   return apiFetch<GovernanceAudit>('/api/v1/safeguards/audits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// Shares & Needs API
+export function fetchSharesNeeds(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeeds>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<SharesNeeds>>(`/api/v1/discover/shares-needs${qs}`);
+}
+export function createSharesNeeds(data: Record<string, any>): Promise<SharesNeeds> {
+  return apiFetch<SharesNeeds>('/api/v1/discover/shares-needs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// Collaborations API
+export function fetchCollaborations(params?: Record<string, string>): Promise<PaginatedResponse<Collaboration>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<Collaboration>>(`/api/v1/discover/collaborations${qs}`);
+}
+export function fetchCollaboration(id: string): Promise<Collaboration> {
+  return apiFetch<Collaboration>(`/api/v1/discover/collaborations/${id}`);
+}
+export function createCollaboration(data: Record<string, any>): Promise<Collaboration> {
+  return apiFetch<Collaboration>('/api/v1/discover/collaborations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// Compliance API
+export function fetchComplianceLatest(): Promise<ComplianceSummary> {
+  return apiFetch<ComplianceSummary>('/api/v1/compliance/latest');
+}
+export function fetchComplianceHistory(params?: Record<string, string>): Promise<PaginatedResponse<ComplianceSummary>> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<PaginatedResponse<ComplianceSummary>>(`/api/v1/compliance${qs}`);
+}
+export function generateCompliance(): Promise<ComplianceSummary> {
+  return apiFetch<ComplianceSummary>('/api/v1/compliance/generate', { method: 'POST' });
+}
+
+// AI Assist API
+export function aiAssist(data: { field_label: string; field_context: string; current_text: string; action: 'generate' | 'improve' }): Promise<{ text: string }> {
+  return apiFetch<{ text: string }>('/api/v1/ai/assist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }

@@ -1,0 +1,16 @@
+{
+  "name": "NEOS Governance",
+  "short_name": "NEOS",
+  "description": "Collaborative governance platform",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#10b981",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

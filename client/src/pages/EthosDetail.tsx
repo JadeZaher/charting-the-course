@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, ArrowRight, ExternalLink, Users, Map } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { ConsentGate } from '@/components/discovery/ConsentGate';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -17,6 +18,15 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return res.json();
 }
+
+const PHASE_LABELS: Record<string, string> = {
+  discovery: 'Discovery',
+  formation: 'Formation',
+  growth: 'Growth',
+  maturity: 'Maturity',
+  renewal: 'Renewal',
+  sunset: 'Sunset',
+};
 
 export default function EthosDetail() {
   const [, paramsBase] = useRoute('/ethos/:slug');

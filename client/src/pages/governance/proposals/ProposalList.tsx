@@ -68,10 +68,10 @@ export default function ProposalList() {
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
-    if (phase !== 'all') p.status = phase;
+    if (phase !== 'all') p.phase = phase;
     if (type !== 'all') p.type = type;
     if (urgency !== 'all') p.urgency = urgency;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [phase, type, urgency, search, page]);
 

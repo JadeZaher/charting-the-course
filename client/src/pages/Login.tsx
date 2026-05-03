@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, Users, BarChart3, MapPin, Loader2, KeyRound, UserPlus } from "lucide-react";
+import { BookOpen, Users, BarChart3, MapPin, Loader2, KeyRound, UserPlus, LogIn } from "lucide-react";
 import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_illustration_547be2cb.png";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -15,8 +15,11 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const [displayName, setDisplayName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginMode, setLoginMode] = useState<"did" | "password">("did");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
-  const { login, isLoading: isAuthLoading, isAuthenticated, error: authError } = useAuth();
+  const { login, loginWithCredentials, isLoading: isAuthLoading, isAuthenticated, error: authError } = useAuth();
 
   const hasIdentity = hasSavedIdentity();
   const savedDid = getSavedDid();
@@ -33,6 +36,29 @@ export default function Login() {
 
     try {
       await login(displayName || undefined);
+      toast({
+        title: "Login Successful",
+        description: "Welcome to Charting the Course!",
+      });
+      setLocation('/dashboard');
+    } catch (err) {
+      toast({
+        title: "Authentication Failed",
+        description: err instanceof Error ? err.message : "Could not authenticate",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) return;
+    setIsSubmitting(true);
+
+    try {
+      await loginWithCredentials(username, password);
       toast({
         title: "Login Successful",
         description: "Welcome to Charting the Course!",
@@ -72,27 +98,124 @@ export default function Login() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle>
-                {hasIdentity ? 'Welcome Back' : 'Create Your Identity'}
+                {loginMode === "password"
+                  ? 'Sign In'
+                  : hasIdentity ? 'Welcome Back' : 'Create Your Identity'}
               </CardTitle>
               <CardDescription>
-                {hasIdentity
-                  ? 'Sign in with your existing decentralized identity'
-                  : 'Generate a self-sovereign identity to get started'}
+                {loginMode === "password"
+                  ? 'Enter your username and password'
+                  : hasIdentity
+                    ? 'Sign in with your existing decentralized identity'
+                    : 'Generate a self-sovereign identity to get started'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <form onSubmit={handleLogin} className="space-y-4">
-                {hasIdentity && savedDid ? (
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-md bg-muted">
-                      <Label className="text-xs text-muted-foreground">Your DID</Label>
-                      <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
+              {loginMode === "did" ? (
+                <>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    {hasIdentity && savedDid ? (
+                      <div className="space-y-3">
+                        <div className="p-3 rounded-md bg-muted">
+                          <Label className="text-xs text-muted-foreground">Your DID</Label>
+                          <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isSubmitting}
+                          data-testid="button-login"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Signing in...
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="w-4 h-4 mr-2" />
+                              Sign In
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="displayName">Display Name (optional)</Label>
+                          <Input
+                            id="displayName"
+                            type="text"
+                            placeholder="How should we call you?"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            disabled={isSubmitting}
+                            data-testid="input-display-name"
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isSubmitting}
+                          data-testid="button-login"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Creating identity...
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Create & Sign In
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </form>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode("password")}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Or sign in with username &amp; password
+                  </button>
+                </>
+              ) : (
+                <>
+                  <form onSubmit={handlePasswordLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Enter your username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        disabled={isSubmitting}
+                        autoComplete="username"
+                        data-testid="input-username"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={isSubmitting}
+                        autoComplete="current-password"
+                        data-testid="input-password"
+                      />
                     </div>
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={isSubmitting}
-                      data-testid="button-login"
+                      disabled={isSubmitting || !username.trim() || !password.trim()}
+                      data-testid="button-password-login"
                     >
                       {isSubmitting ? (
                         <>
@@ -101,47 +224,21 @@ export default function Login() {
                         </>
                       ) : (
                         <>
-                          <KeyRound className="w-4 h-4 mr-2" />
+                          <LogIn className="w-4 h-4 mr-2" />
                           Sign In
                         </>
                       )}
                     </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="displayName">Display Name (optional)</Label>
-                      <Input
-                        id="displayName"
-                        type="text"
-                        placeholder="How should we call you?"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        disabled={isSubmitting}
-                        data-testid="input-display-name"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={isSubmitting}
-                      data-testid="button-login"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating identity...
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Create & Sign In
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </form>
+                  </form>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode("did")}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Or sign in with your DID
+                  </button>
+                </>
+              )}
 
               {authError && (
                 <p className="text-sm text-destructive text-center">{authError}</p>

@@ -50,7 +50,7 @@ export default function AgreementList() {
     if (type !== 'all') p.type = type;
     if (status !== 'all') p.status = status;
     if (domain) p.domain = domain;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [type, status, domain, search, page]);
 

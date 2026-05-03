@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateExit, useMembers } from '@/hooks/use-governance';
+import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
 
@@ -17,6 +18,7 @@ const EXIT_TYPE_OPTIONS = [
 
 export default function ExitForm() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const { selected: selectedEcosystem } = useEcosystem();
   const createMutation = useCreateExit();
   const { data: membersData } = useMembers();
@@ -50,6 +52,7 @@ export default function ExitForm() {
 
     try {
       const result = await createMutation.mutateAsync(payload);
+      toast({ title: 'Exit initiated', description: 'The exit process has been initiated successfully.' });
       navigate(`/exit/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -108,12 +111,14 @@ export default function ExitForm() {
 
             <div className="space-y-2">
               <Label htmlFor="reason">Reason</Label>
-              <Textarea
+              <AITextarea
                 id="reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Reason for exit..."
                 rows={4}
+                fieldLabel="Reason"
+                fieldContext="The reason for a member's exit from the governance ecosystem"
               />
             </div>
 

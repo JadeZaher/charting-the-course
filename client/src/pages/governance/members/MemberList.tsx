@@ -46,7 +46,7 @@ export default function MemberList() {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
     if (profile !== 'all') p.profile = profile;
-    if (search) p.search = search;
+    if (search) p.q = search;
     return p;
   }, [status, profile, search, page]);
 
@@ -141,10 +141,10 @@ export default function MemberList() {
                     <TableCell className="font-medium">{m.display_name}</TableCell>
                     <TableCell>{m.member_id}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(m.status)}>{m.status}</Badge>
+                      <Badge variant={statusVariant(m.current_status)}>{m.current_status}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{m.profile}</Badge>
+                      <Badge variant="outline">{m.profile || '-'}</Badge>
                     </TableCell>
                     <TableCell>{new Date(m.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>

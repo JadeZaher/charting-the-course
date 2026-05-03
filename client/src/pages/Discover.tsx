@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEthosList } from '@/hooks/useEthos';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { AlignedParticipants } from '@/components/discovery/AlignedParticipants';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,22 +27,13 @@ interface AccessRow {
 }
 
 export default function Discover() {
-  const { user } = useSupabaseAuth();
+  const { member } = useAuth();
   const { isAdmin, isLoading: permLoading } = usePermissions();
   const [adminSelectedEthosId, setAdminSelectedEthosId] = useState<string>('');
 
-  const { data: accessRows = [], isLoading: accessLoading } = useQuery<AccessRow[]>({
-    queryKey: ['ethos-user-access', user?.id],
-    queryFn: async (): Promise<AccessRow[]> => {
-      if (!user?.id) return [];
-      const { data } = await supabase
-        .from('ethos_user_access')
-        .select('ethos_id, ethos(id, name, slug, tagline)')
-        .eq('user_id', user.id);
-      return (data as unknown as AccessRow[]) || [];
-    },
-    enabled: !!user?.id,
-  });
+  // No backend endpoint for ethos_user_access yet — return empty
+  const accessRows: AccessRow[] = [];
+  const accessLoading = false;
 
   // Admin: fetch all ETHOS for dropdown selector
   const { data: allEthosData } = useEthosList(undefined, 100, 0);

@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useMember, useCreateMember, useUpdateMember } from '@/hooks/use-governance';
+import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export default function MemberForm() {
   const isEdit = !!editId;
 
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const { selected: selectedEcosystem } = useEcosystem();
   const { data: existing, isLoading: loadingExisting } = useMember(editId ?? '');
   const createMutation = useCreateMember();
@@ -85,6 +87,7 @@ export default function MemberForm() {
       } else {
         result = await createMutation.mutateAsync(payload);
       }
+      toast({ title: isEdit ? 'Member updated' : 'Member created', description: 'Member record has been saved successfully.' });
       navigate(`/members/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -121,6 +124,8 @@ export default function MemberForm() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Member display name"
+                required
+                aria-required="true"
               />
               {errors.displayName && <p className="text-sm text-destructive">{errors.displayName}</p>}
             </div>
