@@ -360,6 +360,31 @@ export function generateCompliance(): Promise<ComplianceSummary> {
   return apiFetch<ComplianceSummary>('/api/v1/compliance/generate', { method: 'POST' });
 }
 
+// Orientation API
+export function fetchEthosJourneyMaps(ethos_id: string): Promise<any[]> {
+  return apiFetch<any[]>(`/api/v1/orientation/ethos/${ethos_id}/journey-maps`);
+}
+
+export function fetchOrientationProgress(ethos_id: string): Promise<UserJourneyProgress> {
+  return apiFetch<UserJourneyProgress>(`/api/v1/orientation/ethos/${ethos_id}/progress`);
+}
+
+export function saveOrientationProgress(ethos_id: string, data: any): Promise<UserJourneyProgress> {
+  return apiFetch<UserJourneyProgress>(`/api/v1/orientation/ethos/${ethos_id}/progress`, { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify(data) 
+  });
+}
+
+export function saveGenplanInput(data: any): Promise<any> {
+  return apiFetch<any>('/api/v1/orientation/genplan-input', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify(data) 
+  });
+}
+
 // AI Assist API
 export function aiAssist(data: { field_label: string; field_context: string; current_text: string; action: 'generate' | 'improve' }): Promise<{ text: string }> {
   return apiFetch<{ text: string }>('/api/v1/ai/assist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
