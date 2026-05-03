@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasExistingDID, generateAndStoreDID } from '../lib/did';
+import { hasSavedIdentity, generateKeyPair, saveKeyPair } from '../lib/did-auth';
 
 export function useDIDInit() {
   const { member } = useAuth();
@@ -12,8 +12,9 @@ export function useDIDInit() {
 
   async function initDID() {
     try {
-      if (await hasExistingDID()) return;
-      await generateAndStoreDID();
+      if (hasSavedIdentity()) return;
+      const keyPair = await generateKeyPair();
+      saveKeyPair(keyPair.publicKey, keyPair.privateKey);
       // DID is registered with the backend during the auth verify flow
     } catch (err) {
       console.error('[DID] Init failed:', err);
