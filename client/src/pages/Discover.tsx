@@ -39,7 +39,6 @@ export default function Discover() {
         ethos: (allEthosData?.ethos ?? []).find(e => e.id === member.ecosystem_id) as unknown as EthosRef ?? null
       }]
     : [];
-  const accessLoading = false;
   // Admin: fetch all ETHOS for dropdown selector
   const { data: allEthosData } = useEthosList(undefined, 100, 0);
 
