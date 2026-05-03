@@ -38,4 +38,4 @@ COPY --from=builder /app/dist/public /usr/share/nginx/html
 EXPOSE 3000
 
 # Substitute $PORT in nginx config and start nginx
-CMD ["/bin/sh", "-c", "envsubst '\$PORT' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+CMD envsubst '\$PORT' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
