@@ -81,6 +81,7 @@ async function fetchUsers() {
     roleName: m.role_name ?? 'Viewer',
     permissions: (m.permissions as Permission[]) || [],
     isArchived: m.is_archived ?? false,
+    did: m.did ?? null,
   }));
 }
 
@@ -1160,7 +1161,7 @@ export default function AdminPanel() {
                           <Switch
                             checked={handoffMap[user.id] ?? false}
                             onCheckedChange={(checked) =>
-                              setNeosDenReadyMutation.mutate({ user_id: user.id, ready_for_neos_den: checked })
+                              setNeosDenReadyMutation.mutate({ user_id: user.id, did: (user as any).did || '', ready_for_neos_den: checked })
                             }
                           />
                           <span className="text-sm text-muted-foreground whitespace-nowrap">NEOS Den</span>
@@ -2169,30 +2170,6 @@ export default function AdminPanel() {
                 <div className="space-y-2">
                   <Label>Tagline</Label>
                   <Input value={ethosForm.tagline} onChange={(e) => setEthosForm({ ...ethosForm, tagline: e.target.value })} placeholder="Short tagline" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Sector</Label>
-                    <Select value={ethosForm.sector} onValueChange={(v) => setEthosForm({ ...ethosForm, sector: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select sector" /></SelectTrigger>
-                      <SelectContent>
-                        {["ecology","technology","economics","culture","governance","other"].map(s => (
-                          <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>ETHOS Type</Label>
-                    <Select value={ethosForm.ethos_type} onValueChange={(v) => setEthosForm({ ...ethosForm, ethos_type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["team","project","ecosystem","hub"].map(t => (
-                          <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>

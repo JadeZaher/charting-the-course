@@ -31,12 +31,27 @@ export default function Discover() {
   const { isAdmin, isLoading: permLoading } = usePermissions();
   const [adminSelectedEthosId, setAdminSelectedEthosId] = useState<string>('');
 
-  // No backend endpoint for ethos_user_access yet — return empty
-  const accessRows: AccessRow[] = [];
+  // Derive the user's ethos access from their NEOS Den ecosystem membership
+  // TODO: Replace with /api/v1/members/:id/ethos-access when dedicated endpoint exists
+  const accessRows: AccessRow[] = member?.ecosystem_id
+    ? [{
+        ethos_id: member.ecosystem_id,
+        ethos: (allEthosData?.ethos ?? []).find(e => e.id === member.ecosystem_id) as unknown as EthosRef ?? null
+      }]
+    : [];
   const accessLoading = false;
-
   // Admin: fetch all ETHOS for dropdown selector
   const { data: allEthosData } = useEthosList(undefined, 100, 0);
+
+  // Derive the user's ethos access from their NEOS Den ecosystem membership
+  // TODO: Replace with /api/v1/members/:id/ethos-access when dedicated endpoint exists
+  const accessRows: AccessRow[] = member?.ecosystem_id
+    ? [{
+        ethos_id: member.ecosystem_id,
+        ethos: (allEthosData?.ethos ?? []).find(e => e.id === member.ecosystem_id) as unknown as EthosRef ?? null
+      }]
+    : [];
+  const accessLoading = false;
 
   if (accessLoading || permLoading) {
     return (

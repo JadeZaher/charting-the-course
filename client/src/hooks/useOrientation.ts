@@ -1,15 +1,17 @@
 // TanStack Query hooks for orientation journey via Sanic BFF API
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as api from '@/lib/api-client';
+import {
+  fetchEthosJourneyMaps,
+  fetchOrientationProgress,
+  saveOrientationProgress,
+} from '@/lib/api-client';
 import type { OrientationPath, JourneyMap, UserJourneyProgress } from '@/types/orientation';
 
 // ── detect path ──────────────────────────────────────────────────────────────
 
-async function detectPath(ethos_id: string): Promise<OrientationPath> {
-  // TODO: Replace with Sanic API endpoint when orientation-detect-path is implemented
-  // Stub returns a default 'explorer' path
-  return { path: 'explorer' } as unknown as OrientationPath;
+async function detectPath(_ethos_id: string): Promise<OrientationPath> {
+  return { path: 'explorer' } as OrientationPath;
 }
 
 export function useDetectPath(ethos_id: string) {
@@ -29,11 +31,12 @@ interface RecommendJourneyResponse {
   score: number;
 }
 
-async function recommendJourney(_ethos_id: string): Promise<RecommendJourneyResponse> {
-  // TODO: Replace with Sanic API endpoint when orientation-recommend-journey is implemented
+async function recommendJourney(ethos_id: string): Promise<RecommendJourneyResponse> {
+  const maps = await fetchEthosJourneyMaps(ethos_id);
+  const [recommended, ...alternatives] = maps.length > 0 ? maps : [{} as JourneyMap];
   return {
-    recommended: {} as JourneyMap,
-    alternatives: [],
+    recommended: recommended as JourneyMap,
+    alternatives: alternatives as JourneyMap[],
     misalignment_flags: [],
     score: 0,
   };
@@ -50,8 +53,9 @@ export function useRecommendJourney(ethos_id: string) {
 // ── user progress ─────────────────────────────────────────────────────────────
 
 async function fetchUserProgress(ethos_id: string): Promise<UserJourneyProgress | null> {
-  // TODO: Replace with Sanic API endpoint when member journey progress is implemented
-  return null;
+  const result = await fetchOrientationProgress(ethos_id);
+  if (!result || Object.keys(result).length === 0) return null;
+  return result as UserJourneyProgress;
 }
 
 export function useUserProgress(ethos_id: string) {
@@ -76,8 +80,7 @@ interface SaveProgressParams {
 }
 
 async function saveProgress(params: SaveProgressParams): Promise<UserJourneyProgress> {
-  // TODO: Replace with Sanic API endpoint when orientation-save-progress is implemented
-  return { ...params } as unknown as UserJourneyProgress;
+  return saveOrientationProgress(params) as Promise<UserJourneyProgress>;
 }
 
 export function useSaveProgress() {

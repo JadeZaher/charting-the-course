@@ -70,6 +70,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         display_name: displayName,
       });
 
+      // Non-fatal: write DID + public key to NEOS Den profiles table
+      try {
+        const publicKeyHex = Array.from(keys.publicKey)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/ctc/did/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ did: keys.did, public_key: publicKeyHex }),
+        });
+      } catch {
+        // Non-fatal — DID write failure does not block login
+      }
+
       // Session cookie is set by the response. Now fetch full member data.
       await checkSession();
     } catch (err) {

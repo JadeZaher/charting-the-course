@@ -56,11 +56,6 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Explore",
-    url: "/explore",
-    icon: Sparkles,
-  },
-  {
     title: "Discover",
     url: "/discover",
     icon: Compass,
@@ -99,6 +94,7 @@ const governanceItems = [
 ];
 
 // Messaging + AI Chat are now in the FloatingComms overlay
+
 
 const facilitatorItems = [
   {
@@ -194,8 +190,8 @@ export function AppSidebar() {
           </div>
           {!isCollapsed && (
             <div className="overflow-hidden">
-              <h2 className="font-bold text-lg truncate">NEOS</h2>
-              <p className="text-xs text-muted-foreground">Governance Platform</p>
+              <h2 className="font-bold text-lg truncate">Charting the Course</h2>
+              <p className="text-xs text-muted-foreground">Orientation Platform</p>
             </div>
           )}
         </div>
@@ -274,6 +270,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Communication lives in FloatingComms overlay */}
+
 
         {canManageContent && (
           <SidebarGroup>

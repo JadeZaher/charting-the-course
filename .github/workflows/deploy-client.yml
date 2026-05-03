@@ -17,7 +17,7 @@ jobs:
   web-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: 🚚 Get latest code
       uses: actions/checkout@v4
@@ -31,32 +31,12 @@ jobs:
     - name: 📦 Install Dependencies
       run: npm ci
 
-    - name: 🔍 Check Secrets
-      env:
-        # We map the secret to a shell variable just for this step
-        CHECK_URL: ${{ secrets.VITE_SUPABASE_URL }}
-        CHECK_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      run: |
-        if [ -z "$CHECK_URL" ]; then
-          echo "🔴 ERROR: VITE_SUPABASE_URL is empty or missing from GitHub Secrets!"
-          exit 1
-        fi
-        
-        if [ -z "$CHECK_KEY" ]; then
-          echo "🔴 ERROR: VITE_SUPABASE_ANON_KEY is empty or missing from GitHub Secrets!"
-          exit 1
-        fi
-        
-        echo "🟢 Success: Supabase secrets are present."
-
     - name: 🛠️ Build Project
       # This runs "vite build:client"
       # vite.config.ts sets output to ./dist/public
       run: npm run build:client
       env:
-        # ⚠️ Vite needs these available during the build
-        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
     - name: 📂 Sync files via SFTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -68,4 +48,3 @@ jobs:
         port: 21
         local-dir: ./dist/public/
         dangerous-clean-slate: true
-        
