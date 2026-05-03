@@ -3,4 +3,4 @@ builder = "NIXPACKS"
 buildCommand = "npm install && npm run build"
 
 [deploy]
-startCommand = "npx serve dist/public -s -l $PORT"
+startCommand = "./node_modules/.bin/serve dist/public -s -l $PORT"
