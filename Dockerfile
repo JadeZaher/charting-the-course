@@ -34,6 +34,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built static files
 COPY --from=builder /app/dist/public /usr/share/nginx/html
 
+# Railway provides PORT env var dynamically
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+# Substitute $PORT in nginx config and start nginx
+CMD ["/bin/sh", "-c", "envsubst '\$PORT' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
