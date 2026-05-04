@@ -26,13 +26,21 @@ export interface ApiError {
 }
 
 // Auth types
+export interface OAuthProvider {
+  id: string;
+  name: string;
+}
+
 export interface MemberSummary {
   id: string;
   display_name: string;
-  did: string;
+  did: string | null;
   profile: string | null;
   ecosystem_id: string;
   current_status: string;
+  has_password: boolean;
+  has_did: boolean;
+  oauth_provider: string | null;
 }
 
 export interface AuthChallengeResponse {

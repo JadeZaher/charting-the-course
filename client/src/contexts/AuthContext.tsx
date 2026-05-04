@@ -1,16 +1,20 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword } from '@/lib/api-client';
-import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, publicKeyToDid } from '@/lib/did-auth';
-import type { MemberSummary, EcosystemSummary } from '@/types/api';
+import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword, registerWithPassword, resetDid, linkDid, getOAuthUrl, fetchOAuthProviders } from '@/lib/api-client';
+import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, clearKeyPair, publicKeyToDid } from '@/lib/did-auth';
+import type { MemberSummary, EcosystemSummary, OAuthProvider } from '@/types/api';
 
 interface AuthContextType {
   member: MemberSummary | null;
   ecosystems: EcosystemSummary[];
+  oauthProviders: OAuthProvider[];
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (displayName?: string) => Promise<void>;
   loginWithCredentials: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, displayName?: string) => Promise<void>;
+  loginWithOAuth: (provider: string) => Promise<void>;
+  regenerateDid: () => Promise<void>;
   logout: () => Promise<void>;
   error: string | null;
 }
@@ -21,12 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [member, setMember] = useState<MemberSummary | null>(null);
   const [ecosystems, setEcosystems] = useState<EcosystemSummary[]>([]);
+  const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Check existing session on mount
   useEffect(() => {
     checkSession();
+    loadOAuthProviders();
   }, []);
 
   async function checkSession() {
@@ -40,6 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setEcosystems([]);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadOAuthProviders() {
+    try {
+      const data = await fetchOAuthProviders();
+      setOauthProviders(data.providers);
+    } catch {
+      // OAuth not available — that's fine
     }
   }
 
@@ -108,6 +123,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const register = useCallback(async (username: string, password: string, displayName?: string) => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await registerWithPassword(username, password, displayName);
+      await checkSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
+      setIsLoading(false);
+      throw err;
+    }
+  }, []);
+
+  const loginWithOAuth = useCallback(async (provider: string) => {
+    setError(null);
+    try {
+      const { url } = await getOAuthUrl(provider);
+      // Redirect to OAuth provider — callback will set cookie and redirect back
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'OAuth failed');
+      throw err;
+    }
+  }, []);
+
+  const regenerateDid = useCallback(async () => {
+    setError(null);
+    try {
+      // Clear server-side DID
+      await resetDid();
+      // Clear local keypair
+      clearKeyPair();
+
+      // Generate new keypair
+      const { publicKey, privateKey } = await generateKeyPair();
+      saveKeyPair(publicKey, privateKey);
+      const did = publicKeyToDid(publicKey);
+
+      // Request challenge for the new DID
+      const { challenge } = await fetchChallenge(did);
+      const signature = await signChallenge(privateKey, challenge);
+
+      // Link new DID to account
+      await linkDid({ did, challenge, signature });
+
+      // Refresh session data
+      await checkSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'DID regeneration failed');
+      throw err;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetchLogout();
@@ -124,10 +193,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         member,
         ecosystems,
+        oauthProviders,
         isAuthenticated: !!member,
         isLoading,
         login,
         loginWithCredentials,
+        register,
+        loginWithOAuth,
+        regenerateDid,
         logout,
         error,
       }}
