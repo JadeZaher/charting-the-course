@@ -1,13 +1,23 @@
+import { useState, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useOnboardings } from '@/hooks/use-governance';
 
 export default function OnboardingList() {
   const [, navigate] = useLocation();
-  const { data, isLoading, error } = useOnboardings();
+  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
+
+  const params = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
+    return p;
+  }, [ecosystemIds]);
+
+  const { data, isLoading, error } = useOnboardings(params);
 
   if (isLoading) return <LoadingState message="Loading onboardings..." />;
 
@@ -26,6 +36,7 @@ export default function OnboardingList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Onboarding</h1>
+        <EcosystemFilter value={ecosystemIds} onChange={setEcosystemIds} />
       </div>
 
       <Card>

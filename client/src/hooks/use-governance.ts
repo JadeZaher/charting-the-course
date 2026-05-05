@@ -96,8 +96,8 @@ export function useDecision(id: string) {
 }
 
 // Onboarding hooks
-export function useOnboardings() {
-  return useQuery({ queryKey: ['onboarding'], queryFn: api.fetchOnboardings, staleTime: 30_000 });
+export function useOnboardings(params?: Record<string, string>) {
+  return useQuery({ queryKey: ['onboarding', params], queryFn: () => api.fetchOnboardings(params), staleTime: 30_000 });
 }
 export function useOnboardingCeremony(memberId: string) {
   return useQuery({ queryKey: ['onboarding', memberId, 'ceremony'], queryFn: () => api.fetchOnboardingCeremony(memberId), enabled: !!memberId, staleTime: 30_000 });

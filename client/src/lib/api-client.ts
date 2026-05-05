@@ -208,8 +208,9 @@ export function fetchDecision(id: string): Promise<DecisionDetail> {
 }
 
 // Onboarding API
-export function fetchOnboardings(): Promise<{ items: OnboardingState[]; total: number }> {
-  return apiFetch<{ items: OnboardingState[]; total: number }>('/api/v1/onboarding');
+export function fetchOnboardings(params?: Record<string, string>): Promise<{ items: OnboardingState[]; total: number }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<{ items: OnboardingState[]; total: number }>(`/api/v1/onboarding${qs}`);
 }
 export function fetchOnboardingCeremony(memberId: string): Promise<OnboardingState> {
   return apiFetch<OnboardingState>(`/api/v1/onboarding/${memberId}/ceremony`);
