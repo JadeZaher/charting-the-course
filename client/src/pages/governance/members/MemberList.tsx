@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useMembers } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -39,6 +40,7 @@ export default function MemberList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
   const [profile, setProfile] = useState('all');
+  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -46,9 +48,10 @@ export default function MemberList() {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
     if (profile !== 'all') p.profile = profile;
+    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, profile, search, page]);
+  }, [status, profile, ecosystemIds, search, page]);
 
   const { data, isLoading, error } = useMembers(params);
 
@@ -101,6 +104,8 @@ export default function MemberList() {
                 ))}
               </SelectContent>
             </Select>
+
+            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
 
             <Input
               placeholder="Search..."

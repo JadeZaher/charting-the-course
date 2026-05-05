@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useDomains } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -30,15 +31,17 @@ const statusVariant = (status: string) => {
 export default function DomainList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
+  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
+    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, search, page]);
+  }, [status, ecosystemIds, search, page]);
 
   const { data, isLoading, error } = useDomains(params);
 
@@ -80,6 +83,8 @@ export default function DomainList() {
                 ))}
               </SelectContent>
             </Select>
+
+            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
 
             <Input
               placeholder="Search..."

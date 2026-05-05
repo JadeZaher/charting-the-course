@@ -12,7 +12,7 @@ import { Building2, ChevronDown, Search, ExternalLink } from 'lucide-react';
 import type { EcosystemSummary } from '@/types/api';
 
 export function EcosystemPicker() {
-  const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
+  const { ecosystems, selectedIds, toggleMulti } = useEcosystem();
   const [open, setOpen] = useState(false);
   const [discoverSearch, setDiscoverSearch] = useState('');
 
@@ -55,7 +55,7 @@ export function EcosystemPicker() {
               >
                 <Checkbox
                   checked={selectedIds.includes(eco.id)}
-                  onCheckedChange={() => toggleEcosystem(eco.id)}
+                  onCheckedChange={() => toggleMulti(eco.id)}
                 />
                 <span className="truncate flex-1">{eco.name}</span>
                 <Badge variant="outline" className="text-xs shrink-0">

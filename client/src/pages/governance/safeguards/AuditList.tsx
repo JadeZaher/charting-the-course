@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useAudits } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
 
@@ -29,13 +30,15 @@ const statusVariant = (status: string) => {
 export default function AuditList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
+  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
+    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     return p;
-  }, [status, page]);
+  }, [status, ecosystemIds, page]);
 
   const { data, isLoading, error } = useAudits(params);
 
@@ -76,6 +79,8 @@ export default function AuditList() {
                 ))}
               </SelectContent>
             </Select>
+
+            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
           </div>
         </CardContent>
       </Card>

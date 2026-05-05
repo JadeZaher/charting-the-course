@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useConflicts } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -62,6 +63,7 @@ export default function ConflictList() {
   const [status, setStatus] = useState('all');
   const [severity, setSeverity] = useState('all');
   const [urgency, setUrgency] = useState('all');
+  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -70,9 +72,10 @@ export default function ConflictList() {
     if (status !== 'all') p.status = status;
     if (severity !== 'all') p.severity = severity;
     if (urgency !== 'all') p.urgency = urgency;
+    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, severity, urgency, search, page]);
+  }, [status, severity, urgency, ecosystemIds, search, page]);
 
   const { data, isLoading, error } = useConflicts(params);
 
@@ -136,6 +139,8 @@ export default function ConflictList() {
                 ))}
               </SelectContent>
             </Select>
+
+            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
 
             <Input
               placeholder="Search..."

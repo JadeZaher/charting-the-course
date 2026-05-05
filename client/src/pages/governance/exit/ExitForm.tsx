@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useCreateExit, useMembers } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
@@ -26,6 +27,7 @@ export default function ExitForm() {
   const [memberId, setMemberId] = useState('');
   const [exitType, setExitType] = useState('');
   const [reason, setReason] = useState('');
+  const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
@@ -48,6 +50,10 @@ export default function ExitForm() {
 
     if (selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
+    }
+
+    if (sharedEcosystemIds.length > 0) {
+      payload.shared_ecosystem_ids = sharedEcosystemIds;
     }
 
     try {
@@ -121,6 +127,15 @@ export default function ExitForm() {
                 fieldContext="The reason for a member's exit from the governance ecosystem"
               />
             </div>
+
+            <EcosystemMultiSelect
+              label="Cross-Ecosystem Sharing"
+              description="Select additional ecosystems this applies to."
+              primaryId={selectedEcosystem?.id ?? ''}
+              sharedIds={sharedEcosystemIds}
+              onPrimaryChange={() => {}}
+              onSharedChange={setSharedEcosystemIds}
+            />
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={createMutation.isPending}>

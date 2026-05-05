@@ -100,6 +100,7 @@ export function useSSEChat() {
       const decoder = new TextDecoder();
       let buffer = '';
       let currentEventType = 'message';
+      let dataBuffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -113,11 +114,14 @@ export function useSSEChat() {
           if (line.startsWith('event: ')) {
             currentEventType = line.slice(7).trim();
           } else if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            handleEvent(currentEventType, data);
-            // Reset event type after handling (SSE spec: event type resets per message block)
+            // Accumulate data lines (SSE multi-line data support)
+            dataBuffer += (dataBuffer ? '\n' : '') + line.slice(6);
           } else if (line === '') {
-            // Empty line signals end of SSE message block — reset event type
+            // Empty line = end of SSE message block — dispatch event
+            if (dataBuffer !== '') {
+              handleEvent(currentEventType, dataBuffer);
+              dataBuffer = '';
+            }
             currentEventType = 'message';
           }
         }

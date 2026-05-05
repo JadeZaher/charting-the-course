@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useCreateConflict } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
@@ -38,6 +39,7 @@ export default function ConflictForm() {
   const [domain, setDomain] = useState('');
   const [scope, setScope] = useState('');
   const [safetyFlag, setSafetyFlag] = useState(false);
+  const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
@@ -66,6 +68,10 @@ export default function ConflictForm() {
 
     if (selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
+    }
+
+    if (sharedEcosystemIds.length > 0) {
+      payload.shared_ecosystem_ids = sharedEcosystemIds;
     }
 
     try {
@@ -214,6 +220,15 @@ export default function ConflictForm() {
                 <li>The goal is a repair agreement that strengthens the community</li>
               </ol>
             </div>
+
+            <EcosystemMultiSelect
+              label="Cross-Ecosystem Sharing"
+              description="Select additional ecosystems this applies to."
+              primaryId={selectedEcosystem?.id ?? ''}
+              sharedIds={sharedEcosystemIds}
+              onPrimaryChange={() => {}}
+              onSharedChange={setSharedEcosystemIds}
+            />
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={createMutation.isPending}>

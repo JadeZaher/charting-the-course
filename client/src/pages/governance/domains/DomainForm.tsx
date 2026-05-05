@@ -7,6 +7,7 @@ import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useDomain, useCreateDomain, useUpdateDomain } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +35,7 @@ export default function DomainForm() {
   const [currentSteward, setCurrentSteward] = useState('');
   const [status, setStatus] = useState('draft');
   const [metricDefinitions, setMetricDefinitions] = useState('');
+  const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function DomainForm() {
       setCurrentSteward(existing.current_steward || '');
       setStatus(existing.status || 'draft');
       setMetricDefinitions(existing.metric_definitions || '');
+      setSharedEcosystemIds(existing.shared_ecosystem_ids || []);
     }
   }, [existing, isEdit]);
 
@@ -67,6 +70,10 @@ export default function DomainForm() {
 
     if (!isEdit && selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
+    }
+
+    if (sharedEcosystemIds.length > 0) {
+      payload.shared_ecosystem_ids = sharedEcosystemIds;
     }
 
     try {
@@ -156,6 +163,15 @@ export default function DomainForm() {
                 fieldContext="Measurable metrics that define success for this governance domain"
               />
             </div>
+
+            <EcosystemMultiSelect
+              label="Cross-Ecosystem Sharing"
+              description="Select additional ecosystems this applies to."
+              primaryId={selectedEcosystem?.id ?? ''}
+              sharedIds={sharedEcosystemIds}
+              onPrimaryChange={() => {}}
+              onSharedChange={setSharedEcosystemIds}
+            />
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isPending}>

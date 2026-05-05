@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useDecisions } from '@/hooks/use-governance';
 
 const STATUS_OPTIONS = [
@@ -38,6 +39,7 @@ export default function DecisionList() {
   const [status, setStatus] = useState('all');
   const [domain, setDomain] = useState('');
   const [sourceLayer, setSourceLayer] = useState('all');
+  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -46,9 +48,10 @@ export default function DecisionList() {
     if (status !== 'all') p.status = status;
     if (domain) p.domain = domain;
     if (sourceLayer !== 'all') p.source_layer = sourceLayer;
+    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, domain, sourceLayer, search, page]);
+  }, [status, domain, sourceLayer, ecosystemIds, search, page]);
 
   const { data, isLoading, error } = useDecisions(params);
 
@@ -102,6 +105,8 @@ export default function DecisionList() {
                 ))}
               </SelectContent>
             </Select>
+
+            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
 
             <Input
               placeholder="Search..."

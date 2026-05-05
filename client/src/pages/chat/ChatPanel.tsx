@@ -155,7 +155,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
 
         {/* Input */}
         <div className="p-3 border-t">
-          <div className="flex gap-2">
+          <div className="flex items-end gap-2">
             <Textarea
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -166,15 +166,15 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                 }
               }}
               placeholder="Ask the governance agent..."
-              className="min-h-[48px] resize-none"
+              className="min-h-[48px] max-h-[160px] resize-none flex-1"
               disabled={isStreaming}
             />
             {isStreaming ? (
-              <Button variant="destructive" size="sm" onClick={stopStreaming} className="self-end">
+              <Button variant="destructive" size="icon" onClick={stopStreaming} className="h-10 w-10 shrink-0">
                 <Square className="h-4 w-4" />
               </Button>
             ) : (
-              <Button size="sm" onClick={handleSend} disabled={!input.trim()} className="self-end">
+              <Button size="icon" onClick={handleSend} disabled={!input.trim()} className="h-10 w-10 shrink-0">
                 <Send className="h-4 w-4" />
               </Button>
             )}
