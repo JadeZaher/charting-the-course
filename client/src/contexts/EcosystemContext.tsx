@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import type { EcosystemSummary } from '@/types/api';
 
@@ -35,7 +36,33 @@ const EcosystemContext = createContext<EcosystemContextType | null>(null);
 
 export function EcosystemProvider({ children }: { children: ReactNode }) {
   const { ecosystems } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const prevIdsRef = useRef<string[]>([]);
+
+  // Invalidate all governance queries when ecosystem selection changes
+  useEffect(() => {
+    const prev = prevIdsRef.current;
+    const changed = prev.length > 0 && (
+      prev.length !== selectedIds.length ||
+      prev.some((id, i) => id !== selectedIds[i])
+    );
+    prevIdsRef.current = selectedIds;
+
+    if (changed) {
+      queryClient.invalidateQueries({ queryKey: ['proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['domains'] });
+      queryClient.invalidateQueries({ queryKey: ['decisions'] });
+      queryClient.invalidateQueries({ queryKey: ['conflicts'] });
+      queryClient.invalidateQueries({ queryKey: ['exits'] });
+      queryClient.invalidateQueries({ queryKey: ['audits'] });
+      queryClient.invalidateQueries({ queryKey: ['emergency'] });
+      queryClient.invalidateQueries({ queryKey: ['safeguards'] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+    }
+  }, [selectedIds, queryClient]);
 
   // Initialize from cookie or first ecosystem
   useEffect(() => {
