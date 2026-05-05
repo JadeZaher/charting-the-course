@@ -17,6 +17,7 @@ import About from "@/pages/About";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import QuizList from "@/pages/QuizList";
+import QuizzesOnboardingHub from "@/pages/QuizzesOnboardingHub";
 import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
 import QuizResults from "@/pages/QuizResults";
@@ -215,9 +216,9 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={DiscoverHub} />
       </Route>
 
-      {/* Quiz routes - all authenticated users can take quizzes */}
+      {/* Quiz & Onboarding hub */}
       <Route path="/quizzes">
-        <ProtectedRoute component={QuizList} />
+        <ProtectedRoute component={QuizzesOnboardingHub} />
       </Route>
       <Route path="/quiz/take/:id">
         <ProtectedRoute component={TakeQuiz} />

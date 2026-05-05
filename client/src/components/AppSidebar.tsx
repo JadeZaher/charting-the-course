@@ -62,7 +62,7 @@ const menuItems = [
     icon: Compass,
   },
   {
-    title: "Quizzes",
+    title: "Quizzes & Onboarding",
     url: "/quizzes",
     icon: BookOpen,
   },

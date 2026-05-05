@@ -3,7 +3,13 @@ import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
@@ -29,6 +35,20 @@ async function fetchEcoQuizzes(ecoId: string): Promise<EcoQuiz[]> {
   if (!res.ok) throw new Error('Failed to fetch ecosystem quizzes');
   const data = await res.json();
   return data.quizzes ?? [];
+}
+
+interface AvailableQuiz {
+  id: string;
+  title: string;
+  is_published: boolean;
+}
+
+async function fetchAllQuizzes(): Promise<AvailableQuiz[]> {
+  const res = await fetch(`${API_BASE}/api/v1/quizzes`, { credentials: 'include' });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const items = data.items || data.quizzes || [];
+  return items.map((q: any) => ({ id: q.id, title: q.title, is_published: q.is_published ?? false }));
 }
 
 async function assignQuizToEcosystem(ecoId: string, quizId: string, isEntryQuiz: boolean): Promise<void> {
@@ -66,6 +86,7 @@ export default function EcosystemDetail() {
 
   // Quiz management state
   const [ecoQuizzes, setEcoQuizzes] = useState<EcoQuiz[]>([]);
+  const [allQuizzes, setAllQuizzes] = useState<AvailableQuiz[]>([]);
   const [quizzesLoading, setQuizzesLoading] = useState(false);
   const [assignQuizId, setAssignQuizId] = useState('');
   const [assignAsEntry, setAssignAsEntry] = useState(false);
@@ -75,8 +96,9 @@ export default function EcosystemDetail() {
     if (!id || !isMember) return;
     setQuizzesLoading(true);
     try {
-      const quizzes = await fetchEcoQuizzes(id);
-      setEcoQuizzes(quizzes);
+      const [ecoQ, allQ] = await Promise.all([fetchEcoQuizzes(id), fetchAllQuizzes()]);
+      setEcoQuizzes(ecoQ);
+      setAllQuizzes(allQ);
     } catch {
       // silently fail, section just shows empty
     } finally {
@@ -383,12 +405,30 @@ export default function EcosystemDetail() {
               <p className="text-sm font-medium mb-2">Assign a Quiz</p>
               <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1 block">Quiz ID</label>
-                  <Input
-                    placeholder="Enter quiz UUID..."
-                    value={assignQuizId}
-                    onChange={(e) => setAssignQuizId(e.target.value)}
-                  />
+                  <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
+                  <Select value={assignQuizId} onValueChange={setAssignQuizId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a quiz..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const assignedIds = new Set(ecoQuizzes.map(q => q.id));
+                        const unassigned = allQuizzes.filter(q => !assignedIds.has(q.id));
+                        if (unassigned.length === 0) {
+                          return (
+                            <SelectItem value="_none" disabled>
+                              No available quizzes
+                            </SelectItem>
+                          );
+                        }
+                        return unassigned.map(q => (
+                          <SelectItem key={q.id} value={q.id}>
+                            {q.title}{!q.is_published ? ' (Draft)' : ''}
+                          </SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
@@ -402,7 +442,7 @@ export default function EcosystemDetail() {
                 <Button
                   size="sm"
                   onClick={handleAssignQuiz}
-                  disabled={assigning || !assignQuizId.trim()}
+                  disabled={assigning || !assignQuizId}
                 >
                   {assigning ? 'Assigning...' : 'Assign'}
                 </Button>

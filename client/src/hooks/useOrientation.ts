@@ -99,7 +99,8 @@ interface SaveProgressParams {
 }
 
 async function saveProgress(params: SaveProgressParams): Promise<UserJourneyProgress> {
-  return saveOrientationProgress(params) as Promise<UserJourneyProgress>;
+  const { ethos_id, ...data } = params;
+  return saveOrientationProgress(ethos_id, data) as Promise<UserJourneyProgress>;
 }
 
 export function useSaveProgress() {
