@@ -8,6 +8,7 @@ import { useConversations, useConversation, useWebSocket } from '@/hooks/use-mes
 import { useSSEChat } from '@/hooks/use-chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
   MessageSquare,
@@ -34,21 +35,22 @@ export function FloatingComms() {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('messaging');
+  const isMobile = useIsMobile();
 
   // Messaging unread count for badge on FAB
   const { data: convData } = useConversations();
   const totalUnread = (convData?.conversations || []).reduce((sum, c) => sum + c.unread_count, 0);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className={cn('fixed z-50 flex flex-col items-end gap-3', isMobile ? 'bottom-4 right-4' : 'bottom-6 right-6')}>
       {/* Panel */}
       {open && (
         <div
           className={cn(
             'rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden transition-all duration-300',
             expanded
-              ? 'w-[85vw] h-[85vh] max-w-[1200px]'
-              : 'w-[420px] h-[560px]'
+              ? isMobile ? 'w-screen h-[85vh]' : 'w-[85vw] h-[85vh] max-w-[1200px]'
+              : isMobile ? 'w-[calc(100vw-1.5rem)] h-[70vh]' : 'w-[420px] h-[560px]'
           )}
         >
           {/* Header */}
@@ -113,7 +115,7 @@ export function FloatingComms() {
       {/* Floating Action Button */}
       <Button
         size="icon"
-        className="h-14 w-14 rounded-full shadow-lg"
+        className="h-14 w-14 min-h-[48px] min-w-[48px] rounded-full shadow-lg"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close communications' : 'Open communications'}
       >
@@ -446,7 +448,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                     variant="outline"
                     size="sm"
                     onClick={() => setInput(s)}
-                    className="text-[10px] h-6 px-2"
+                    className="text-xs h-9 px-3"
                   >
                     {s}
                   </Button>

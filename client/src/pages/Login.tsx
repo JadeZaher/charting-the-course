@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, Users, BarChart3, MapPin, Loader2, KeyRound, UserPlus, LogIn, RefreshCw } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Vote, Users, Globe, Sparkles, Loader2, KeyRound, UserPlus, LogIn, RefreshCw, ChevronDown } from "lucide-react";
 import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_illustration_547be2cb.png";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -18,11 +19,12 @@ export default function Login() {
   const search = useSearch();
   const [displayName, setDisplayName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("did");
+  const [authMode, setAuthMode] = useState<AuthMode>("password");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [regDisplayName, setRegDisplayName] = useState("");
+  const [didOpen, setDidOpen] = useState(false);
 
   const {
     login,
@@ -71,7 +73,7 @@ export default function Login() {
       await login(displayName || undefined);
       toast({
         title: "Login Successful",
-        description: "Welcome to Charting the Course!",
+        description: "Welcome to NEOS!",
       });
       setLocation('/dashboard');
     } catch (err) {
@@ -94,7 +96,7 @@ export default function Login() {
       await loginWithCredentials(username, password);
       toast({
         title: "Login Successful",
-        description: "Welcome to Charting the Course!",
+        description: "Welcome to NEOS!",
       });
       setLocation('/dashboard');
     } catch (err) {
@@ -136,7 +138,7 @@ export default function Login() {
       await register(username, password, regDisplayName || undefined);
       toast({
         title: "Account Created",
-        description: "Welcome to Charting the Course!",
+        description: "Welcome to NEOS!",
       });
       setLocation('/dashboard');
     } catch (err) {
@@ -176,9 +178,9 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-lg space-y-8">
           <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold">Welcome to Charting the Course</h1>
+            <h1 className="text-4xl font-bold">Welcome to NEOS</h1>
             <p className="text-xl text-muted-foreground">
-              Interactive Learning & Team Management Platform
+              New Earth Operating System
             </p>
           </div>
 
@@ -187,22 +189,16 @@ export default function Login() {
               <CardTitle>
                 {authMode === "register"
                   ? 'Create Account'
-                  : authMode === "password"
-                    ? 'Sign In'
-                    : hasIdentity ? 'Welcome Back' : 'Create Your Identity'}
+                  : 'Sign In'}
               </CardTitle>
               <CardDescription>
                 {authMode === "register"
                   ? 'Create a new account with username and password'
-                  : authMode === "password"
-                    ? 'Enter your username and password'
-                    : hasIdentity
-                      ? 'Sign in with your existing decentralized identity'
-                      : 'Generate a self-sovereign identity to get started'}
+                  : 'Enter your credentials to access your ecosystem'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* OAuth Buttons */}
+              {/* OAuth Buttons - shown first for least friction */}
               {oauthProviders.length > 0 && authMode !== "did" && (
                 <div className="space-y-2">
                   {oauthProviders.map((provider) => (
@@ -241,107 +237,7 @@ export default function Login() {
                 </div>
               )}
 
-              {/* DID Login */}
-              {authMode === "did" && (
-                <>
-                  <form onSubmit={handleDIDLogin} className="space-y-4">
-                    {hasIdentity && savedDid ? (
-                      <div className="space-y-3">
-                        <div className="p-3 rounded-md bg-muted">
-                          <Label className="text-xs text-muted-foreground">Your DID</Label>
-                          <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
-                        </div>
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isSubmitting}
-                          data-testid="button-login"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Signing in...
-                            </>
-                          ) : (
-                            <>
-                              <KeyRound className="w-4 h-4 mr-2" />
-                              Sign In
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="displayName">Display Name (optional)</Label>
-                          <Input
-                            id="displayName"
-                            type="text"
-                            placeholder="How should we call you?"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            disabled={isSubmitting}
-                            data-testid="input-display-name"
-                          />
-                        </div>
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isSubmitting}
-                          data-testid="button-login"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Creating identity...
-                            </>
-                          ) : (
-                            <>
-                              <UserPlus className="w-4 h-4 mr-2" />
-                              Create & Sign In
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </form>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode("password")}
-                      className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Sign in with username & password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode("register")}
-                      className="w-full text-sm text-primary hover:text-primary/80 transition-colors font-medium"
-                    >
-                      Create a new account
-                    </button>
-                    {hasIdentity && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm("This will clear your saved identity. You can regenerate a new one after signing in with username/password. Continue?")) {
-                            import("@/lib/did-auth").then(({ clearKeyPair }) => {
-                              clearKeyPair();
-                              window.location.reload();
-                            });
-                          }
-                        }}
-                        className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center gap-1"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Reset saved identity
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Password Login */}
+              {/* Password Login (default) */}
               {authMode === "password" && (
                 <>
                   <form onSubmit={handlePasswordLogin} className="space-y-4">
@@ -398,14 +294,100 @@ export default function Login() {
                     >
                       Don't have an account? Sign up
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode("did")}
-                      className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Or sign in with your DID
-                    </button>
                   </div>
+
+                  {/* Advanced: DID login in collapsible */}
+                  <Collapsible open={didOpen} onOpenChange={setDidOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronDown className={`w-3 h-3 transition-transform ${didOpen ? "rotate-180" : ""}`} />
+                        Advanced: Sign in with DID
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-4 space-y-4">
+                      <form onSubmit={handleDIDLogin} className="space-y-4">
+                        {hasIdentity && savedDid ? (
+                          <div className="space-y-3">
+                            <div className="p-3 rounded-md bg-muted">
+                              <Label className="text-xs text-muted-foreground">Your DID</Label>
+                              <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
+                            </div>
+                            <Button
+                              type="submit"
+                              className="w-full"
+                              disabled={isSubmitting}
+                              data-testid="button-login"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Signing in...
+                                </>
+                              ) : (
+                                <>
+                                  <KeyRound className="w-4 h-4 mr-2" />
+                                  Sign In with DID
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="displayName">Display Name (optional)</Label>
+                              <Input
+                                id="displayName"
+                                type="text"
+                                placeholder="How should we call you?"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                disabled={isSubmitting}
+                                data-testid="input-display-name"
+                              />
+                            </div>
+                            <Button
+                              type="submit"
+                              className="w-full"
+                              disabled={isSubmitting}
+                              data-testid="button-login"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Creating identity...
+                                </>
+                              ) : (
+                                <>
+                                  <UserPlus className="w-4 h-4 mr-2" />
+                                  Create DID & Sign In
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </form>
+                      {hasIdentity && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm("This will clear your saved identity. You can regenerate a new one after signing in with username/password. Continue?")) {
+                              import("@/lib/did-auth").then(({ clearKeyPair }) => {
+                                clearKeyPair();
+                                window.location.reload();
+                              });
+                            }
+                          }}
+                          className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Reset saved identity
+                        </button>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </>
               )}
 
@@ -488,13 +470,106 @@ export default function Login() {
                     >
                       Already have an account? Sign in
                     </button>
+                  </div>
+                </>
+              )}
+
+              {/* DID-only mode (kept for backward compat if navigated to directly) */}
+              {authMode === "did" && (
+                <>
+                  <form onSubmit={handleDIDLogin} className="space-y-4">
+                    {hasIdentity && savedDid ? (
+                      <div className="space-y-3">
+                        <div className="p-3 rounded-md bg-muted">
+                          <Label className="text-xs text-muted-foreground">Your DID</Label>
+                          <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isSubmitting}
+                          data-testid="button-login"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Signing in...
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="w-4 h-4 mr-2" />
+                              Sign In
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="displayName-did">Display Name (optional)</Label>
+                          <Input
+                            id="displayName-did"
+                            type="text"
+                            placeholder="How should we call you?"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            disabled={isSubmitting}
+                            data-testid="input-display-name"
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isSubmitting}
+                          data-testid="button-login"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Creating identity...
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Create & Sign In
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </form>
+                  <div className="flex flex-col gap-2">
                     <button
                       type="button"
-                      onClick={() => setAuthMode("did")}
+                      onClick={() => setAuthMode("password")}
                       className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Or sign in with your DID
+                      Sign in with username & password
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode("register")}
+                      className="w-full text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+                    >
+                      Create a new account
+                    </button>
+                    {hasIdentity && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("This will clear your saved identity. You can regenerate a new one after signing in with username/password. Continue?")) {
+                            import("@/lib/did-auth").then(({ clearKeyPair }) => {
+                              clearKeyPair();
+                              window.location.reload();
+                            });
+                          }
+                        }}
+                        className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Reset saved identity
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -507,38 +582,38 @@ export default function Login() {
                 <h3 className="font-semibold text-center">What You Can Do</h3>
                 <div className="grid gap-4">
                   <div className="flex gap-3 items-start">
-                    <BookOpen className="w-5 h-5 text-primary mt-0.5" />
+                    <Vote className="w-5 h-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Take Interactive Quizzes</p>
+                      <p className="font-medium">Participate in Governance</p>
                       <p className="text-sm text-muted-foreground">
-                        Assess your collaboration styles and preferences
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <BarChart3 className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Track Your Progress</p>
-                      <p className="text-sm text-muted-foreground">
-                        View completed quizzes and learning history
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <MapPin className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Explore Team Networks</p>
-                      <p className="text-sm text-muted-foreground">
-                        View collaborative mindmaps from webinar sessions
+                        Shape decisions using the Advice-Consent-Test process
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-3 items-start">
                     <Users className="w-5 h-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Collaborate with Teams</p>
+                      <p className="font-medium">Join Your Community</p>
                       <p className="text-sm text-muted-foreground">
-                        Join courses and work together on learning goals
+                        Connect with your ecosystem and find your role
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <Globe className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">Cross-Ecosystem Discovery</p>
+                      <p className="text-sm text-muted-foreground">
+                        Find collaborations across the NEOS network
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <Sparkles className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium">AI-Powered Guidance</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get help from governance-aware AI assistants
                       </p>
                     </div>
                   </div>
@@ -559,9 +634,9 @@ export default function Login() {
         }}
       >
         <div className="text-center text-white z-10 p-8">
-          <h2 className="text-3xl font-bold mb-4">Learn Together, Grow Together</h2>
+          <h2 className="text-3xl font-bold mb-4">Govern Together, Thrive Together</h2>
           <p className="text-lg opacity-90">
-            Collaborative learning platform for teams and individuals
+            Consent-based governance for self-organizing communities
           </p>
         </div>
       </div>

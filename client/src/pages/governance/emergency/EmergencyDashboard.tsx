@@ -12,7 +12,8 @@ import { useEmergencyState, useDeclareEmergency } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertTriangle, ShieldCheck, Siren } from 'lucide-react';
 
 export default function EmergencyDashboard() {
   const [, navigate] = useLocation();
@@ -73,7 +74,41 @@ export default function EmergencyDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Emergency Circuit Breaker</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Emergency Circuit Breaker</h1>
+        {!isActive && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="lg">
+                <Siren className="h-4 w-4 mr-2" />
+                Declare Emergency
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Declare an Emergency?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will activate emergency governance protocols for your ecosystem.
+                  Pre-authorized actions may be triggered automatically.
+                  This should only be used for genuine emergencies.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    const formEl = document.getElementById('emergency-declare-form');
+                    if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Proceed to Declaration
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
@@ -141,7 +176,7 @@ export default function EmergencyDashboard() {
                 {(declareMutation.error as Error).message}
               </div>
             )}
-            <form onSubmit={handleDeclare} className="space-y-4">
+            <form id="emergency-declare-form" onSubmit={handleDeclare} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="reason">Reason *</Label>
                 <AITextarea

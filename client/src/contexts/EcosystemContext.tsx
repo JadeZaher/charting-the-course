@@ -7,7 +7,8 @@ interface EcosystemContextType {
   selected: EcosystemSummary | null;
   selectedIds: string[];
   selectEcosystem: (id: string) => void;        // Single select (replaces all)
-  toggleEcosystem: (id: string) => void;         // Add/remove from multi-select
+  toggleEcosystem: (id: string) => void;         // Single-select by default
+  toggleMulti: (id: string) => void;             // Add/remove from multi-select
   selectMultiple: (ids: string[]) => void;       // Batch select
   isMulti: boolean;
 }
@@ -59,11 +60,16 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleEcosystem = useCallback((id: string) => {
+    // Single-select by default: clicking an ecosystem selects only that one
+    setSelectedIds([id]);
+    setSelectedCookie([id]);
+  }, []);
+
+  const toggleMulti = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = prev.includes(id)
         ? prev.filter(x => x !== id)
         : [...prev, id];
-      // Ensure at least one is selected
       const result = next.length > 0 ? next : prev;
       setSelectedCookie(result);
       return result;
@@ -88,6 +94,7 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         selectedIds,
         selectEcosystem,
         toggleEcosystem,
+        toggleMulti,
         selectMultiple,
         isMulti: selectedIds.length > 1,
       }}

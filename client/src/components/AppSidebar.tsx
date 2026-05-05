@@ -41,9 +41,10 @@ import {
   Siren,
   DoorOpen,
   ShieldCheck,
-  Sparkles,
   ClipboardCheck,
+  ChevronDown,
   Bell,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -77,23 +78,44 @@ const menuItems = [
   },
 ];
 
-const governanceItems = [
-  { title: "Governance", url: "/governance", icon: LayoutDashboard },
-  { title: "Agreements", url: "/agreements", icon: FileText },
-  { title: "Proposals", url: "/proposals", icon: Vote },
-  { title: "Members", url: "/members", icon: Users },
-  { title: "Domains", url: "/domains", icon: Globe2 },
-  { title: "Decisions", url: "/decisions", icon: Scale },
-  { title: "Conflicts", url: "/conflicts", icon: AlertTriangle },
-  { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
-  { title: "Onboarding", url: "/onboarding", icon: UserPlus },
-  { title: "Emergency", url: "/emergency", icon: Siren },
-  { title: "Exit", url: "/exit", icon: DoorOpen },
-  { title: "Safeguards", url: "/safeguards", icon: ShieldCheck },
-  { title: "Compliance", url: "/compliance", icon: ClipboardCheck },
+const governanceGroups = [
+  {
+    label: "Active Governance",
+    defaultOpen: true,
+    items: [
+      { title: "Dashboard", url: "/governance", icon: LayoutDashboard },
+      { title: "Agreements", url: "/agreements", icon: FileText },
+      { title: "Proposals", url: "/proposals", icon: Vote },
+      { title: "Decisions", url: "/decisions", icon: Scale },
+    ],
+  },
+  {
+    label: "Community",
+    defaultOpen: false,
+    items: [
+      { title: "Members", url: "/members", icon: Users },
+      { title: "Domains", url: "/domains", icon: Globe2 },
+      { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
+      { title: "Onboarding", url: "/onboarding", icon: UserPlus },
+    ],
+  },
+  {
+    label: "Safety & Integrity",
+    defaultOpen: false,
+    items: [
+      { title: "Conflicts", url: "/conflicts", icon: AlertTriangle },
+      { title: "Emergency", url: "/emergency", icon: Siren },
+      { title: "Exit", url: "/exit", icon: DoorOpen },
+      { title: "Safeguards", url: "/safeguards", icon: ShieldCheck },
+      { title: "Compliance", url: "/compliance", icon: ClipboardCheck },
+    ],
+  },
 ];
 
-// Messaging + AI Chat are now in the FloatingComms overlay
+// Communications — split view with AI chat + messaging
+const commsItems = [
+  { title: "Communications", url: "/comms", icon: MessageSquare },
+];
 
 
 const facilitatorItems = [
@@ -157,6 +179,54 @@ function MenuItemWithTooltip({
   return button;
 }
 
+function CollapsibleGovernanceGroup({
+  group,
+  location,
+  isCollapsed,
+}: {
+  group: (typeof governanceGroups)[number];
+  location: string;
+  isCollapsed: boolean;
+}) {
+  const [open, setOpen] = useState(group.defaultOpen);
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel
+        className="cursor-pointer select-none flex items-center justify-between"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span>{group.label}</span>
+        {!isCollapsed && (
+          <ChevronDown
+            className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+              open ? "" : "-rotate-90"
+            }`}
+          />
+        )}
+      </SidebarGroupLabel>
+      {(open || isCollapsed) && (
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {group.items.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <MenuItemWithTooltip
+                  item={item}
+                  isActive={
+                    location === item.url ||
+                    location.startsWith(item.url + "/")
+                  }
+                  isCollapsed={isCollapsed}
+                />
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      )}
+    </SidebarGroup>
+  );
+}
+
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { member, logout } = useAuth();
@@ -190,8 +260,8 @@ export function AppSidebar() {
           </div>
           {!isCollapsed && (
             <div className="overflow-hidden">
-              <h2 className="font-bold text-lg truncate">Charting the Course</h2>
-              <p className="text-xs text-muted-foreground">Orientation Platform</p>
+              <h2 className="font-bold text-lg truncate">NEOS</h2>
+              <p className="text-xs text-muted-foreground">Governance OS</p>
             </div>
           )}
         </div>
@@ -252,25 +322,32 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {governanceGroups.map((group) => (
+          <CollapsibleGovernanceGroup
+            key={group.label}
+            group={group}
+            location={location}
+            isCollapsed={isCollapsed}
+          />
+        ))}
+
         <SidebarGroup>
-          <SidebarGroupLabel>Governance</SidebarGroupLabel>
+          <SidebarGroupLabel>Communication</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {governanceItems.map((item) => (
+              {commsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <MenuItemWithTooltip
-                    item={item}
-                    isActive={location === item.url || location.startsWith(item.url + '/')}
-                    isCollapsed={isCollapsed}
-                  />
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Communication lives in FloatingComms overlay */}
-
 
         {canManageContent && (
           <SidebarGroup>

@@ -4,12 +4,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
 import "survey-core/survey-core.css";
-import { ThreeDimensionalDarkPanelless } from "survey-core/themes";
+import { FlatLightPanelless, FlatDarkPanelless } from "survey-core/themes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/ThemeProvider";
 import { useQuiz, useSubmitQuizResult } from "@/hooks/use-courses";
 
 interface Quiz {
@@ -30,6 +31,7 @@ export default function TakeQuiz() {
   const [survey, setSurvey] = useState<Model | null>(null);
   const [startTime] = useState(Date.now());
 
+  const { theme } = useTheme();
   const quizId = params?.id;
 
   const { data: quizData, isLoading, error } = useQuiz(quizId || '');
@@ -108,8 +110,8 @@ export default function TakeQuiz() {
       try {
         const surveyModel = new Model(quiz.survey_json);
         
-        // Apply theme to match the app's design
-        surveyModel.applyTheme(ThreeDimensionalDarkPanelless);
+        // Apply theme matching the app's current light/dark mode
+        surveyModel.applyTheme(theme === 'dark' ? FlatDarkPanelless : FlatLightPanelless);
 
         surveyModel.onComplete.add((sender) => {
           const timeSpent = Math.floor((Date.now() - startTime) / 1000);
@@ -136,6 +138,13 @@ export default function TakeQuiz() {
       }
     }
   }, [quiz, startTime]);
+
+  // Re-apply theme when light/dark mode changes without recreating the model
+  useEffect(() => {
+    if (survey) {
+      survey.applyTheme(theme === 'dark' ? FlatDarkPanelless : FlatLightPanelless);
+    }
+  }, [survey, theme]);
 
   if (isLoading) {
     return (

@@ -70,7 +70,10 @@ export default function ConflictForm() {
 
     try {
       const result = await createMutation.mutateAsync(payload);
-      toast({ title: 'Conflict reported', description: 'Your conflict report has been submitted successfully.' });
+      toast({
+        title: 'Thank you for coming forward',
+        description: 'A conflict steward will be assigned within 48 hours. You\'ll be notified when the process begins. Take care of yourself.',
+      });
       navigate(`/conflicts/${result.id}`);
     } catch {
       // Error handled by mutation state
@@ -97,6 +100,17 @@ export default function ConflictForm() {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Naming conflict takes courage
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Conflict is a natural part of community life. This process exists to help repair relationships
+                and strengthen agreements, not to assign blame. Everything shared here is treated with care
+                and confidentiality.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
               <Input
@@ -189,6 +203,16 @@ export default function ConflictForm() {
               <Label htmlFor="safety_flag" className="font-normal">
                 Safety concern (requires immediate attention)
               </Label>
+            </div>
+
+            <div className="text-sm text-muted-foreground space-y-1 border-t pt-4 mt-4">
+              <p className="font-medium text-foreground">What happens after you submit:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>A conflict steward will be assigned within 48 hours</li>
+                <li>Both parties will be contacted for initial perspectives</li>
+                <li>A facilitated dialogue process will be designed</li>
+                <li>The goal is a repair agreement that strengthens the community</li>
+              </ol>
             </div>
 
             <div className="flex gap-3 pt-4">

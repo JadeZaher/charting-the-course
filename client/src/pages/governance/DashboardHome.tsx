@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useDashboardSummary } from '@/hooks/use-api';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FileText, Vote, Users, Globe2, Scale, Clock } from 'lucide-react';
 import type { SummaryCard as SummaryCardType, ActivityItem } from '@/types/api';
+
+type ActivityFilter = 'all' | 'needs_input' | 'watching';
 
 const iconMap: Record<string, React.ElementType> = {
   Agreements: FileText,
@@ -67,6 +71,7 @@ function ActivityFeedItem({ item }: { item: ActivityItem }) {
 export default function GovernanceDashboard() {
   const { data, isLoading, error } = useDashboardSummary();
   const { selected } = useEcosystem();
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
 
   if (isLoading) return <LoadingState message="Loading dashboard..." />;
 
@@ -98,20 +103,53 @@ export default function GovernanceDashboard() {
       {/* Activity Feed */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {data?.activity.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No recent governance activity
-            </p>
-          ) : (
-            <div className="divide-y">
-              {data?.activity.map((item) => (
-                <ActivityFeedItem key={item.id} item={item} />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle>Recent Activity</CardTitle>
+            <div className="flex gap-1 rounded-lg bg-muted p-1">
+              {([
+                { key: 'all' as const, label: 'All Activity' },
+                { key: 'needs_input' as const, label: 'Needs My Input' },
+                { key: 'watching' as const, label: 'Watching' },
+              ]).map((tab) => (
+                <Button
+                  key={tab.key}
+                  variant={activityFilter === tab.key ? 'default' : 'ghost'}
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => setActivityFilter(tab.key)}
+                >
+                  {tab.label}
+                </Button>
               ))}
             </div>
-          )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const filtered = (data?.activity || []).filter((item) => {
+              if (activityFilter === 'all') return true;
+              if (activityFilter === 'needs_input') {
+                return item.status === 'advice' || item.status === 'consent' || item.status === 'pending';
+              }
+              // 'watching' - show items that are in progress but not needing direct input
+              return item.status === 'active' || item.status === 'approved' || item.status === 'ratified';
+            });
+            return filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                {activityFilter === 'all'
+                  ? 'No recent governance activity'
+                  : activityFilter === 'needs_input'
+                    ? 'Nothing needs your input right now'
+                    : 'No watched items'}
+              </p>
+            ) : (
+              <div className="divide-y">
+                {filtered.map((item) => (
+                  <ActivityFeedItem key={item.id} item={item} />
+                ))}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

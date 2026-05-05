@@ -3,7 +3,6 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,7 +12,11 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useProposal, useUpdateProposalStatus, useSubmitAdvice, useSubmitConsent } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { Pencil, ArrowLeft, Check, X } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ACTStepper } from '@/components/governance/ACTStepper';
+import { useAuth } from '@/contexts/AuthContext';
+import { Pencil, ArrowLeft, Check, X, Award } from 'lucide-react';
 import type { AdviceLog, ConsentRecord, TestReport } from '@/types/api';
 
 const statusVariant = (status: string) => {
@@ -115,16 +118,16 @@ function OverviewTab({ data }: { data: any }) {
 function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; proposalId: string }) {
   const submitAdvice = useSubmitAdvice(proposalId);
   const { toast } = useToast();
-  const [advisor, setAdvisor] = useState('');
+  const { member } = useAuth();
   const [content, setContent] = useState('');
   const [concerns, setConcerns] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!advisor.trim() || !content.trim()) return;
+    const displayName = member?.display_name ?? 'Unknown';
+    if (!content.trim()) return;
     try {
-      await submitAdvice.mutateAsync({ advisor: advisor.trim(), content: content.trim(), concerns: concerns.trim() || null });
-      setAdvisor('');
+      await submitAdvice.mutateAsync({ advisor: displayName, content: content.trim(), concerns: concerns.trim() || null });
       setContent('');
       setConcerns('');
       toast({ title: 'Advice submitted', description: 'Your advice has been recorded.' });
@@ -141,8 +144,8 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="advisor">Advisor *</Label>
-              <Input id="advisor" value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Your name" required aria-required="true" />
+              <Label>Submitting as:</Label>
+              <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
             </div>
             <div className="space-y-1">
               <Label htmlFor="advice-content">Advice *</Label>
@@ -220,20 +223,19 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
 function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRecord[]; proposalId: string }) {
   const submitConsent = useSubmitConsent(proposalId);
   const { toast } = useToast();
-  const [memberName, setMemberName] = useState('');
+  const { member } = useAuth();
   const [position, setPosition] = useState('consent');
   const [objection, setObjection] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberName.trim()) return;
+    const displayName = member?.display_name ?? 'Unknown';
     try {
       await submitConsent.mutateAsync({
-        member_name: memberName.trim(),
+        member_name: displayName,
         position,
         objection_text: position === 'object' ? objection.trim() || null : null,
       });
-      setMemberName('');
       setPosition('consent');
       setObjection('');
       toast({ title: 'Consent submitted', description: 'Your consent response has been recorded.' });
@@ -250,8 +252,8 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="member-name">Member Name *</Label>
-              <Input id="member-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Your name" required aria-required="true" />
+              <Label>Submitting as:</Label>
+              <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
             </div>
             <div className="space-y-1">
               <Label htmlFor="consent-position">Position</Label>
@@ -424,6 +426,7 @@ export default function ProposalDetail() {
   const { data, isLoading, error } = useProposal(id);
   const statusMutation = useUpdateProposalStatus(id);
   const [statusChanging, setStatusChanging] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   if (isLoading) return <LoadingState message="Loading proposal..." />;
 
@@ -442,11 +445,26 @@ export default function ProposalDetail() {
   const validNextStatuses = VALID_TRANSITIONS[data.status] ?? [];
 
   const handleStatusChange = async (newStatus: string) => {
+    if (['withdrawn', 'archived'].includes(newStatus)) {
+      setPendingStatus(newStatus);
+      return;
+    }
     setStatusChanging(true);
     try {
       await statusMutation.mutateAsync(newStatus);
     } finally {
       setStatusChanging(false);
+    }
+  };
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatus) return;
+    setStatusChanging(true);
+    try {
+      await statusMutation.mutateAsync(pendingStatus);
+    } finally {
+      setStatusChanging(false);
+      setPendingStatus(null);
     }
   };
 
@@ -459,6 +477,17 @@ export default function ProposalDetail() {
           Back to Proposals
         </Button>
       </Link>
+
+      {/* Ratification banner */}
+      {data.status === 'ratified' && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 flex items-center gap-3">
+          <Award className="h-5 w-5 text-emerald-600" />
+          <div>
+            <p className="font-medium text-emerald-800 dark:text-emerald-200">This proposal has been ratified</p>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">It passed through the full Advice-Consent-Test process and is now active.</p>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -493,6 +522,31 @@ export default function ProposalDetail() {
           )}
         </div>
       </div>
+
+      {/* Confirmation dialog for destructive status changes */}
+      <AlertDialog open={!!pendingStatus} onOpenChange={(open) => { if (!open) setPendingStatus(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingStatus === 'withdrawn' ? 'Withdraw this proposal?' : 'Archive this proposal?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingStatus === 'withdrawn'
+                ? 'This action cannot be undone. All advice and consent collected will be preserved in the record, but the proposal will no longer be active.'
+                : 'This will archive the proposal. It will remain accessible for reference but will no longer be active.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStatusChange} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {pendingStatus === 'withdrawn' ? 'Yes, withdraw' : 'Yes, archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ACT Process Stepper */}
+      <ACTStepper currentStatus={data.status} />
 
       {/* Metadata */}
       <Card>
@@ -538,16 +592,44 @@ export default function ProposalDetail() {
       {/* Tabs */}
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="advice">
-            Advice {data.advice_logs.length > 0 && `(${data.advice_logs.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="consent">
-            Consent {data.consent_records.length > 0 && `(${data.consent_records.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="test">
-            Test {data.test_reports.length > 0 && `(${data.test_reports.length})`}
-          </TabsTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">Full proposal details including rationale, co-sponsors, and affected domains.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="advice">
+                Advice {data.advice_logs.length > 0 && `(${data.advice_logs.length})`}
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">Gather perspectives from people affected. All input shapes the final decision.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="consent">
+                Consent {data.consent_records.length > 0 && `(${data.consent_records.length})`}
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">Members indicate if they can live with this proposal. 'Stand Aside' means no objection but not participating. 'Object' means a paramount concern must be addressed.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="test">
+                Test {data.test_reports.length > 0 && `(${data.test_reports.length})`}
+              </TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">The proposal is tried in practice with defined success criteria and a review date.</p>
+            </TooltipContent>
+          </Tooltip>
         </TabsList>
 
         <TabsContent value="overview">

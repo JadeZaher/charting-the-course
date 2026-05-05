@@ -3,13 +3,13 @@ import * as api from '@/lib/api-client';
 
 // Agreement hooks
 export function useAgreements(params?: Record<string, string> | false) {
-  return useQuery({ queryKey: ['agreements', params], queryFn: () => api.fetchAgreements(params || undefined), enabled: params !== false });
+  return useQuery({ queryKey: ['agreements', params], queryFn: () => api.fetchAgreements(params || undefined), enabled: params !== false, staleTime: 30_000 });
 }
 export function useAgreement(id: string) {
-  return useQuery({ queryKey: ['agreements', id], queryFn: () => api.fetchAgreement(id), enabled: !!id });
+  return useQuery({ queryKey: ['agreements', id], queryFn: () => api.fetchAgreement(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });
 }
 export function useAgreementHistory(id: string) {
-  return useQuery({ queryKey: ['agreements', id, 'history'], queryFn: () => api.fetchAgreementHistory(id), enabled: !!id });
+  return useQuery({ queryKey: ['agreements', id, 'history'], queryFn: () => api.fetchAgreementHistory(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateAgreement() {
   const qc = useQueryClient();
@@ -26,10 +26,10 @@ export function useUpdateAgreementStatus(id: string) {
 
 // Proposal hooks
 export function useProposals(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['proposals', params], queryFn: () => api.fetchProposals(params) });
+  return useQuery({ queryKey: ['proposals', params], queryFn: () => api.fetchProposals(params), staleTime: 30_000 });
 }
 export function useProposal(id: string) {
-  return useQuery({ queryKey: ['proposals', id], queryFn: () => api.fetchProposal(id), enabled: !!id });
+  return useQuery({ queryKey: ['proposals', id], queryFn: () => api.fetchProposal(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });
 }
 export function useCreateProposal() {
   const qc = useQueryClient();
@@ -54,10 +54,10 @@ export function useSubmitConsent(proposalId: string) {
 
 // Member hooks
 export function useMembers(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['members', params], queryFn: () => api.fetchMembers(params) });
+  return useQuery({ queryKey: ['members', params], queryFn: () => api.fetchMembers(params), staleTime: 30_000 });
 }
 export function useMember(id: string) {
-  return useQuery({ queryKey: ['members', id], queryFn: () => api.fetchMember(id), enabled: !!id });
+  return useQuery({ queryKey: ['members', id], queryFn: () => api.fetchMember(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateMember() {
   const qc = useQueryClient();
@@ -68,15 +68,15 @@ export function useUpdateMember(id: string) {
   return useMutation({ mutationFn: (data: Record<string, any>) => api.updateMember(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['members', id] }); } });
 }
 export function useMemberOnboarding(memberId: string) {
-  return useQuery({ queryKey: ['members', memberId, 'onboarding'], queryFn: () => api.fetchMemberOnboarding(memberId), enabled: !!memberId });
+  return useQuery({ queryKey: ['members', memberId, 'onboarding'], queryFn: () => api.fetchMemberOnboarding(memberId), enabled: !!memberId, staleTime: 30_000 });
 }
 
 // Domain hooks
 export function useDomains(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['domains', params], queryFn: () => api.fetchDomains(params) });
+  return useQuery({ queryKey: ['domains', params], queryFn: () => api.fetchDomains(params), staleTime: 30_000 });
 }
 export function useDomain(id: string) {
-  return useQuery({ queryKey: ['domains', id], queryFn: () => api.fetchDomain(id), enabled: !!id });
+  return useQuery({ queryKey: ['domains', id], queryFn: () => api.fetchDomain(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateDomain() {
   const qc = useQueryClient();
@@ -89,18 +89,18 @@ export function useUpdateDomain(id: string) {
 
 // Decision hooks
 export function useDecisions(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['decisions', params], queryFn: () => api.fetchDecisions(params) });
+  return useQuery({ queryKey: ['decisions', params], queryFn: () => api.fetchDecisions(params), staleTime: 30_000 });
 }
 export function useDecision(id: string) {
-  return useQuery({ queryKey: ['decisions', id], queryFn: () => api.fetchDecision(id), enabled: !!id });
+  return useQuery({ queryKey: ['decisions', id], queryFn: () => api.fetchDecision(id), enabled: !!id, staleTime: 30_000 });
 }
 
 // Onboarding hooks
 export function useOnboardings() {
-  return useQuery({ queryKey: ['onboarding'], queryFn: api.fetchOnboardings });
+  return useQuery({ queryKey: ['onboarding'], queryFn: api.fetchOnboardings, staleTime: 30_000 });
 }
 export function useOnboardingCeremony(memberId: string) {
-  return useQuery({ queryKey: ['onboarding', memberId, 'ceremony'], queryFn: () => api.fetchOnboardingCeremony(memberId), enabled: !!memberId });
+  return useQuery({ queryKey: ['onboarding', memberId, 'ceremony'], queryFn: () => api.fetchOnboardingCeremony(memberId), enabled: !!memberId, staleTime: 30_000 });
 }
 export function useSubmitCeremonyConsent(memberId: string) {
   const qc = useQueryClient();
@@ -109,10 +109,10 @@ export function useSubmitCeremonyConsent(memberId: string) {
 
 // Conflict hooks
 export function useConflicts(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['conflicts', params], queryFn: () => api.fetchConflicts(params) });
+  return useQuery({ queryKey: ['conflicts', params], queryFn: () => api.fetchConflicts(params), staleTime: 30_000 });
 }
 export function useConflict(id: string) {
-  return useQuery({ queryKey: ['conflicts', id], queryFn: () => api.fetchConflict(id), enabled: !!id });
+  return useQuery({ queryKey: ['conflicts', id], queryFn: () => api.fetchConflict(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateConflict() {
   const qc = useQueryClient();
@@ -121,10 +121,10 @@ export function useCreateConflict() {
 
 // Ecosystem hooks
 export function useEcosystems(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['ecosystems', params], queryFn: () => api.fetchEcosystemsList(params) });
+  return useQuery({ queryKey: ['ecosystems', params], queryFn: () => api.fetchEcosystemsList(params), staleTime: 30_000 });
 }
 export function useEcosystemDetail(id: string) {
-  return useQuery({ queryKey: ['ecosystems', id], queryFn: () => api.fetchEcosystem(id), enabled: !!id });
+  return useQuery({ queryKey: ['ecosystems', id], queryFn: () => api.fetchEcosystem(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateEcosystem() {
   const qc = useQueryClient();
@@ -141,10 +141,10 @@ export function useRequestJoinEcosystem(id: string) {
 
 // Emergency hooks
 export function useEmergencyState() {
-  return useQuery({ queryKey: ['emergency'], queryFn: () => api.fetchEmergencyState() });
+  return useQuery({ queryKey: ['emergency'], queryFn: () => api.fetchEmergencyState(), staleTime: 30_000 });
 }
 export function useEmergency(id: string) {
-  return useQuery({ queryKey: ['emergency', id], queryFn: () => api.fetchEmergencyDetail(id), enabled: !!id });
+  return useQuery({ queryKey: ['emergency', id], queryFn: () => api.fetchEmergencyDetail(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useDeclareEmergency() {
   const qc = useQueryClient();
@@ -157,10 +157,10 @@ export function useResolveEmergency() {
 
 // Exit hooks
 export function useExits(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['exits', params], queryFn: () => api.fetchExits(params) });
+  return useQuery({ queryKey: ['exits', params], queryFn: () => api.fetchExits(params), staleTime: 30_000 });
 }
 export function useExit(id: string) {
-  return useQuery({ queryKey: ['exits', id], queryFn: () => api.fetchExit(id), enabled: !!id });
+  return useQuery({ queryKey: ['exits', id], queryFn: () => api.fetchExit(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateExit() {
   const qc = useQueryClient();
@@ -173,13 +173,13 @@ export function useUpdateExitStatus(id: string) {
 
 // Safeguards hooks
 export function useSafeguards() {
-  return useQuery({ queryKey: ['safeguards'], queryFn: () => api.fetchSafeguards() });
+  return useQuery({ queryKey: ['safeguards'], queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
 }
 export function useAudits(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['audits', params], queryFn: () => api.fetchAudits(params) });
+  return useQuery({ queryKey: ['audits', params], queryFn: () => api.fetchAudits(params), staleTime: 30_000 });
 }
 export function useAudit(id: string) {
-  return useQuery({ queryKey: ['audits', id], queryFn: () => api.fetchAudit(id), enabled: !!id });
+  return useQuery({ queryKey: ['audits', id], queryFn: () => api.fetchAudit(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useRequestAudit() {
   const qc = useQueryClient();

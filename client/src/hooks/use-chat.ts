@@ -83,7 +83,13 @@ export function useSSEChat() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({
+          message: content,
+          page_context: {
+            path: window.location.pathname,
+            hash: window.location.hash,
+          }
+        }),
         signal: abort.signal,
       });
 

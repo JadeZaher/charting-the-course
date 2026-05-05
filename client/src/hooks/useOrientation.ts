@@ -11,7 +11,7 @@ import type { OrientationPath, JourneyMap, UserJourneyProgress } from '@/types/o
 // ── detect path ──────────────────────────────────────────────────────────────
 
 async function detectPath(_ethos_id: string): Promise<OrientationPath> {
-  return { path: 'explorer' } as OrientationPath;
+  return { path: 'explorer', signals: [] } as OrientationPath;
 }
 
 export function useDetectPath(ethos_id: string) {
@@ -32,8 +32,22 @@ interface RecommendJourneyResponse {
 }
 
 async function recommendJourney(ethos_id: string): Promise<RecommendJourneyResponse> {
-  const maps = await fetchEthosJourneyMaps(ethos_id);
-  const [recommended, ...alternatives] = maps.length > 0 ? maps : [{} as JourneyMap];
+  let maps: any[] = [];
+  try {
+    maps = await fetchEthosJourneyMaps(ethos_id);
+  } catch {
+    // API may 404 if no journey maps exist yet
+    maps = [];
+  }
+  if (!Array.isArray(maps) || maps.length === 0) {
+    return {
+      recommended: {} as JourneyMap,
+      alternatives: [],
+      misalignment_flags: [],
+      score: 0,
+    };
+  }
+  const [recommended, ...alternatives] = maps;
   return {
     recommended: recommended as JourneyMap,
     alternatives: alternatives as JourneyMap[],
@@ -53,9 +67,14 @@ export function useRecommendJourney(ethos_id: string) {
 // ── user progress ─────────────────────────────────────────────────────────────
 
 async function fetchUserProgress(ethos_id: string): Promise<UserJourneyProgress | null> {
-  const result = await fetchOrientationProgress(ethos_id);
-  if (!result || Object.keys(result).length === 0) return null;
-  return result as UserJourneyProgress;
+  try {
+    const result = await fetchOrientationProgress(ethos_id);
+    if (!result || Object.keys(result).length === 0) return null;
+    return result as UserJourneyProgress;
+  } catch {
+    // API may 404 if no progress exists yet
+    return null;
+  }
 }
 
 export function useUserProgress(ethos_id: string) {

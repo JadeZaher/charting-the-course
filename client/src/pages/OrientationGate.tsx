@@ -29,9 +29,9 @@ export default function OrientationGate() {
   // Include progressLoading so skeletons stay up until we know if already completed
   const isLoading = ethosLoading || pathLoading || recLoading || progressLoading;
   const allMaps: JourneyMap[] = recData
-    ? [recData.recommended, ...recData.alternatives]
+    ? [recData.recommended, ...recData.alternatives].filter(m => m && m.id)
     : [];
-  const chosen = selectedMap ?? recData?.recommended ?? null;
+  const chosen = selectedMap ?? (allMaps.length > 0 ? allMaps[0] : null);
 
   async function handleStart() {
     if (!chosen || !ethosId) return;
@@ -104,7 +104,7 @@ export default function OrientationGate() {
                 {pathData.path === 'ready' ? '⚡ Ready to Join' : '🔭 Explorer'}
               </Badge>
             </div>
-            {pathData.signals.length > 0 && (
+            {pathData.signals && pathData.signals.length > 0 && (
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 {pathData.signals.map((s, i) => (
                   <li key={i}>• {s}</li>

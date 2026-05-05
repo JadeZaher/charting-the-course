@@ -1,180 +1,213 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { BookOpen, User, Shield, Video, ArrowRight, FileEdit, Scale } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEcosystem } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
-// TODO: Enable when Edge Functions are deployed
-// import { useUserProgress } from "@/hooks/useAchievements";
+import { useDashboardSummary } from "@/hooks/use-api";
+import { useProposals } from "@/hooks/use-governance";
+import {
+  FileText,
+  Vote,
+  Users,
+  Scale,
+  AlertTriangle,
+  Plus,
+  ArrowRight,
+  Compass,
+  User,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  BarChart3,
+  Building2,
+} from "lucide-react";
 
 export default function Dashboard() {
   const { member } = useAuth();
-  const { canManageContent, canManageUsers, isAdmin, legacyRole } = usePermissions();
-  const roleName = ((legacyRole || 'viewer').charAt(0).toUpperCase() + (legacyRole || 'viewer').slice(1));
+  const { selected } = useEcosystem();
+  const { canManageContent } = usePermissions();
 
-  // Get display name
-  const displayName = member?.display_name || 'User';
+  const displayName = member?.display_name || "User";
 
-  // Base navigation cards for all users
-  const navigationCards = [
-    {
-      title: "Quizzes",
-      description: "Take quizzes about collaboration styles and view your results",
-      icon: BookOpen,
-      href: "/quizzes",
-      testId: "card-nav-quizzes",
-    },
-    {
-      title: "Profile",
-      description: "View your progress, badges, achievements, and personal stats",
-      icon: User,
-      href: "/profile",
-      testId: "card-nav-profile",
-    },
-    {
-      title: "Governance",
-      description: "View governance summary, agreements, proposals, and decisions",
-      icon: Scale,
-      href: "/governance",
-      testId: "card-nav-governance",
-    },
+  // Fetch proposals needing attention
+  const { data: adviceProposals } = useProposals({ status: "advice" });
+  const { data: consentProposals } = useProposals({ status: "consent" });
+  const { data: summary } = useDashboardSummary();
+
+  // Combine pending governance actions (proposals are paginated)
+  const pendingActions = [
+    ...(adviceProposals?.items || []).map((p: any) => ({ ...p, phase: "Advice" })),
+    ...(consentProposals?.items || []).map((p: any) => ({ ...p, phase: "Consent" })),
   ];
 
-  // Add quiz management for content managers
-  if (canManageContent) {
-    navigationCards.push({
-      title: "Manage Quizzes",
-      description: "Create, edit, and manage your quizzes",
-      icon: FileEdit,
-      href: "/quiz/manage",
-      testId: "card-nav-quiz-manage",
-    });
-  }
+  // Stat cards from summary data
+  const statCards = summary?.cards || [];
 
-  // Add admin panel for admins/user managers
-  if (isAdmin || canManageUsers) {
-    navigationCards.push({
-      title: "Admin Panel",
-      description: "Manage users, roles, badges, and platform settings",
-      icon: Shield,
-      href: "/admin",
-      testId: "card-nav-admin",
-    });
-  }
+  const statIconMap: Record<string, React.ElementType> = {
+    Agreements: FileText,
+    Proposals: Vote,
+    Members: Users,
+    Domains: Building2,
+    Decisions: Scale,
+  };
+
+  const quickActions = [
+    { label: "New Proposal", href: "/proposals/new", icon: Plus },
+    { label: "View Agreements", href: "/agreements", icon: FileText },
+    { label: "Explore Ecosystems", href: "/discover/hub", icon: Compass },
+    { label: "My Profile", href: "/profile", icon: User },
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12">
-      {/* Welcome Section */}
-      <div className="space-y-4">
-        <h1 className="text-4xl font-bold" data-testid="text-welcome-title">
-          Welcome back, {displayName}!
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-3xl" data-testid="text-welcome-description">
-          You're logged in as <span className="font-medium text-foreground">{roleName}</span>.
-          {canManageContent 
-            ? " You have access to quiz creation and management tools."
-            : " Explore quizzes and track your progress."
-          }
-        </p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Welcome Header */}
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Welcome back, {displayName}</h1>
+        {selected && (
+          <Badge variant="secondary" className="text-sm">
+            <Building2 className="h-3 w-3 mr-1" />
+            {selected.name}
+          </Badge>
+        )}
       </div>
 
-      {/* Video Section */}
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            Featured Webinar
-          </CardTitle>
-          <CardDescription>
-            Watch our latest collaborative webinar session
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div 
-            className="aspect-video bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border"
-            data-testid="placeholder-video"
-          >
-            <div className="text-center space-y-2">
-              <Video className="h-12 w-12 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Video content will be embedded here
-              </p>
-              <p className="text-xs text-muted-foreground">
-                iframe or video player placeholder
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Action Queue */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <h2 className="text-xl font-semibold">Needs Your Attention</h2>
+          {pendingActions.length > 0 && (
+            <Badge variant="destructive" className="ml-1">
+              {pendingActions.length}
+            </Badge>
+          )}
+        </div>
 
-      {/* Navigation Cards */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-6">Quick Navigation</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {navigationCards.map((card) => (
-            <Link 
-              key={card.href} 
-              href={card.href}
-              data-testid={`link-nav-${card.title.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              <Card 
-                className="hover:shadow-lg cursor-pointer h-full transition-all hover:border-primary/50"
-                data-testid={card.testId}
-              >
-                <CardHeader className="space-y-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <card.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="space-y-2">
-                    <CardTitle className="text-lg">{card.title}</CardTitle>
-                    <CardDescription className="text-sm">
-                      {card.description}
-                    </CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center text-sm text-muted-foreground group">
-                    <span>Go to {card.title}</span>
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </div>
-                </CardContent>
-              </Card>
+        {pendingActions.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-10">
+              <CheckCircle2 className="h-10 w-10 text-green-500 mb-3" />
+              <p className="text-lg font-medium">You're all caught up!</p>
+              <p className="text-sm text-muted-foreground">
+                No pending governance actions.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingActions.map((action: any) => (
+              <Link key={action.id} href={`/proposals/${action.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer hover:border-primary/50">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base line-clamp-2">
+                        {action.title}
+                      </CardTitle>
+                      <Badge
+                        variant={action.phase === "Consent" ? "destructive" : "default"}
+                        className="ml-2 flex-shrink-0"
+                      >
+                        {action.phase}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {action.deadline && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          Due {new Date(action.deadline).toLocaleDateString()}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <ArrowRight className="h-3.5 w-3.5" />
+                        Review &amp; respond
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Governance Pulse */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold">Governance Pulse</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {statCards.map((card: any) => {
+            const Icon = statIconMap[card.label] || Scale;
+            return (
+              <Link key={card.label} href={card.href}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer hover:border-primary/50">
+                  <CardHeader className="flex flex-row items-center justify-between pb-1">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {card.label}
+                    </CardTitle>
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{card.value}</div>
+                    {card.breakdown && Object.keys(card.breakdown).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {Object.entries(card.breakdown).map(([status, count]) => (
+                          <Badge key={status} variant="secondary" className="text-xs px-1.5">
+                            {status}: {String(count)}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Quick Actions */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+        <div className="flex flex-wrap gap-3">
+          {quickActions.map((action) => (
+            <Link key={action.href} href={action.href}>
+              <Button variant="outline" className="rounded-full gap-2">
+                <action.icon className="h-4 w-4" />
+                {action.label}
+              </Button>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Platform Info */}
-      <Card>
+      {/* Orientation CTA */}
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
         <CardHeader>
-          <CardTitle>About Charting the Course</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Charting the Course is designed for participants who have attended our collaborative webinars. 
-            Here you can deepen your understanding of collaboration styles through interactive quizzes, 
-            explore global mindmaps created during sessions, and track your learning journey.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-            <div className="space-y-1">
-              <h4 className="font-medium text-sm">Interactive Quizzes</h4>
-              <p className="text-xs text-muted-foreground">
-                Take quizzes or upload your results to track your collaboration style
-              </p>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
-            <div className="space-y-1">
-              <h4 className="font-medium text-sm">Badges & Achievements</h4>
-              <p className="text-xs text-muted-foreground">
-                Earn badges and level up as you complete quizzes and activities
-              </p>
-            </div>
-            <div className="space-y-1">
-              <h4 className="font-medium text-sm">Role-Based Access</h4>
-              <p className="text-xs text-muted-foreground">
-                Different features available for Admins, Facilitators, Contributors, and Viewers
-              </p>
+            <div>
+              <CardTitle className="text-lg">Continue Your Orientation Journey</CardTitle>
+              <CardDescription>
+                Explore ecosystems, take quizzes, and deepen your governance practice.
+              </CardDescription>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          <Link href="/discover">
+            <Button className="gap-2">
+              Continue Orientation
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>

@@ -11,6 +11,9 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Loader2 } from "lucide-react";
+import { NotificationCenter } from "@/components/NotificationCenter";
+import LandingPage from "@/pages/LandingPage";
+import About from "@/pages/About";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import QuizList from "@/pages/QuizList";
@@ -52,6 +55,7 @@ import { ExitList, ExitDetail, ExitForm } from '@/pages/governance/exit';
 import { SafeguardsDashboard, AuditList, AuditDetail } from '@/pages/governance/safeguards';
 import MessagingLayout from '@/pages/messaging/MessagingLayout';
 import ChatPanel from '@/pages/chat/ChatPanel';
+import CommsPage from '@/pages/communications/CommsPage';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 import { FloatingComms } from "@/components/FloatingComms";
 import ComplianceDashboard from '@/pages/compliance/ComplianceDashboard';
@@ -159,13 +163,16 @@ function PublicRoutes() {
 function AuthenticatedRoutes() {
   return (
     <Switch>
-      {/* Public accessible routes */}
+      {/* Dashboard - authenticated home */}
       <Route path="/">
         <ProtectedRoute component={Dashboard} />
       </Route>
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
+
+      {/* About page (also accessible when authenticated) */}
+      <Route path="/about" component={About} />
 
       {/* Governance dashboard */}
       <Route path="/governance">
@@ -343,7 +350,8 @@ function AuthenticatedRoutes() {
       <Route path="/safeguards/audits"><ProtectedRoute component={AuditList} /></Route>
       <Route path="/safeguards"><ProtectedRoute component={SafeguardsDashboard} /></Route>
 
-      {/* Messaging + Chat */}
+      {/* Communications — split view with AI chat + messaging */}
+      <Route path="/comms"><ProtectedRoute component={CommsPage} /></Route>
       <Route path="/messaging"><ProtectedRoute component={MessagingLayout} /></Route>
       <Route path="/chat"><ProtectedRoute component={ChatPanel} /></Route>
 
@@ -371,11 +379,17 @@ function AppLayout() {
   const [location] = useLocation();
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/users/'];
+  const publicPaths = ['/login', '/about', '/users/'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
+  const isLandingPage = location === '/';
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  // Show landing page for unauthenticated users at root
+  if (!isAuthenticated && isLandingPage) {
+    return <LandingPage />;
   }
 
   // Show public routes without sidebar
@@ -383,9 +397,10 @@ function AppLayout() {
     return (
       <Switch>
         <Route path="/login" component={Login} />
+        <Route path="/about" component={About} />
         <Route path="/users/:username" component={PublicProfile} />
-        {!isAuthenticated && <Route><Redirect to="/login" /></Route>}
-        {isAuthenticated && <Route><Redirect to="/" /></Route>}
+        {!isAuthenticated && <Route><Redirect to="/" /></Route>}
+        {isAuthenticated && <Route><Redirect to="/dashboard" /></Route>}
       </Switch>
     );
   }
@@ -404,7 +419,10 @@ function AppLayout() {
           <header className="flex items-center justify-between p-3 sm:p-4 border-b bg-background">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <EcosystemPicker />
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <NotificationCenter />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 min-w-0">
             <AuthenticatedRoutes />

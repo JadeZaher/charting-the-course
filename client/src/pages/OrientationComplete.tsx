@@ -17,8 +17,9 @@ import type { JourneyMap } from '@/types/orientation';
 import { OmniBotPanel } from '@/components/omnibot/OmniBotPanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, ExternalLink, Wrench, ArrowRight, Home } from 'lucide-react';
+import { CheckCircle, ExternalLink, Wrench, ArrowRight, Home, Scale, Vote, User } from 'lucide-react';
 
 function useJourneyMap(journeyMapId?: string) {
   return useQuery({
@@ -50,19 +51,64 @@ export default function OrientationComplete() {
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-16">
       {/* Celebration hero */}
-      <div className="text-center py-10 space-y-4">
-        <div className="text-5xl select-none">🎉</div>
-        <h1 className="text-3xl font-bold">Orientation Complete!</h1>
-        {ethos && (
-          <p className="text-muted-foreground">
-            You've completed orientation for{' '}
-            <span className="font-semibold text-foreground">{ethos.name}</span>.
-          </p>
-        )}
-        <Badge variant="default" className="text-sm px-3 py-1">
-          <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-          Journey Complete
-        </Badge>
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-2xl blur-xl" />
+        <div className="relative bg-card border rounded-2xl p-8 text-center space-y-4">
+          <div className="text-6xl select-none animate-bounce">
+            <span role="img" aria-label="celebration">&#x1F389;</span>
+          </div>
+          <h1 className="text-3xl font-bold">Journey Complete!</h1>
+          {ethos ? (
+            <p className="text-lg text-muted-foreground max-w-md mx-auto">
+              You've completed orientation for{' '}
+              <span className="font-semibold text-foreground">{ethos.name}</span> and are ready to participate in governance.
+              Your community is stronger with you in it.
+            </p>
+          ) : (
+            <p className="text-lg text-muted-foreground max-w-md mx-auto">
+              You've completed your orientation and are ready to participate in governance.
+              Your community is stronger with you in it.
+            </p>
+          )}
+          <Badge variant="default" className="text-sm px-3 py-1">
+            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+            Journey Complete
+          </Badge>
+        </div>
+      </div>
+
+      {/* What's Next */}
+      <div className="space-y-4 mt-8">
+        <h2 className="text-xl font-semibold">What's Next?</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link href="/governance">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardContent className="p-6 text-center space-y-2">
+                <Scale className="h-8 w-8 mx-auto text-primary" />
+                <h3 className="font-medium">Explore Governance</h3>
+                <p className="text-sm text-muted-foreground">See active proposals and agreements</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/proposals/new">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardContent className="p-6 text-center space-y-2">
+                <Vote className="h-8 w-8 mx-auto text-primary" />
+                <h3 className="font-medium">Make a Proposal</h3>
+                <p className="text-sm text-muted-foreground">Start the ACT process for an idea</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/profile">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardContent className="p-6 text-center space-y-2">
+                <User className="h-8 w-8 mx-auto text-primary" />
+                <h3 className="font-medium">Set Up Your Profile</h3>
+                <p className="text-sm text-muted-foreground">Tell the community about yourself</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
 
       {/* Loading state */}
