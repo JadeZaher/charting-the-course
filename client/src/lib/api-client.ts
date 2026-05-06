@@ -131,6 +131,9 @@ export function updateAgreementStatus(id: string, status: string): Promise<Agree
 export function fetchAgreementHistory(id: string): Promise<AgreementHistory> {
   return apiFetch<AgreementHistory>(`/api/v1/agreements/${id}/history`);
 }
+export function rollbackAgreement(id: string, versionId: string): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/rollback/${versionId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+}
 
 // Proposals API
 export function fetchProposals(params?: Record<string, string>): Promise<PaginatedResponse<ProposalListItem>> {

@@ -23,6 +23,10 @@ export function useUpdateAgreementStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (status: string) => api.updateAgreementStatus(id, status), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
 }
+export function useRollbackAgreement(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (versionId: string) => api.rollbackAgreement(id, versionId), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); qc.invalidateQueries({ queryKey: ['agreements', id, 'history'] }); } });
+}
 
 // Proposal hooks
 export function useProposals(params?: Record<string, string>) {

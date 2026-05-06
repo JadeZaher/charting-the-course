@@ -37,5 +37,7 @@ COPY --from=builder /app/dist/public /usr/share/nginx/html
 # Railway provides PORT env var dynamically
 EXPOSE 3000
 
-# Substitute $PORT in nginx config and start nginx
-CMD envsubst '\$PORT' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
+# Substitute env vars in nginx config and start nginx
+ENV BACKEND_URL=https://neos-operating-system-production.up.railway.app
+ENV BACKEND_HOST=neos-operating-system-production.up.railway.app
+CMD envsubst '\$PORT \$BACKEND_URL \$BACKEND_HOST' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'

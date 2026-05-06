@@ -161,9 +161,31 @@ export interface ReviewRecord {
   created_at: string;
 }
 
+export interface AgreementVersionRecord {
+  id: string;
+  agreement_id: string;
+  version: string;
+  status: string;
+  title: string;
+  text: string | null;
+  type: string;
+  proposer: string | null;
+  domain: string | null;
+  hierarchy_level: string;
+  affected_parties: any | null;
+  review_date: string | null;
+  sunset_date: string | null;
+  ratification_date: string | null;
+  version_fingerprint: string | null;
+  change_reason: string | null;
+  changed_by: string | null;
+  created_at: string;
+}
+
 export interface AgreementHistory {
   amendments: AmendmentRecord[];
   reviews: ReviewRecord[];
+  versions: AgreementVersionRecord[];
 }
 
 // Proposal types
