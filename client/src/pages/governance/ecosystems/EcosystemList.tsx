@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useEcosystems } from '@/hooks/use-governance';
+import { useEcosystems, useRequestJoinEcosystem } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { fetchDiscover } from '@/lib/api-client';
-import { Plus, Check } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Check, UserPlus } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
@@ -37,6 +39,48 @@ const statusVariant = (status: string) => {
     default: return 'secondary' as const;
   }
 };
+
+function JoinButton({ ecosystemId, isMember }: { ecosystemId: string; isMember: boolean }) {
+  const joinMutation = useRequestJoinEcosystem(ecosystemId);
+  const { refreshSession } = useAuth();
+  const { toast } = useToast();
+
+  if (isMember) {
+    return (
+      <Button variant="outline" size="sm" disabled className="gap-1 opacity-50">
+        <Check className="h-3 w-3" />
+        Joined
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      className="gap-1"
+      disabled={joinMutation.isPending || joinMutation.isSuccess}
+      onClick={async (e) => {
+        e.stopPropagation();
+        try {
+          await joinMutation.mutateAsync();
+          toast({ title: 'Joined!', description: 'You have joined this ecosystem.' });
+          await refreshSession();
+        } catch (err) {
+          toast({ title: 'Failed to join', description: (err as Error).message, variant: 'destructive' });
+        }
+      }}
+    >
+      {joinMutation.isSuccess ? (
+        <><Check className="h-3 w-3" /> Joined</>
+      ) : joinMutation.isPending ? (
+        'Joining...'
+      ) : (
+        <><UserPlus className="h-3 w-3" /> Join</>
+      )}
+    </Button>
+  );
+}
 
 export default function EcosystemList() {
   const [, navigate] = useLocation();
@@ -261,14 +305,7 @@ export default function EcosystemList() {
                           </TableCell>
                           <TableCell>{e.member_count ?? '-'}</TableCell>
                           <TableCell>
-                            {memberEcoIds.has(e.id) ? (
-                              <Badge variant="default" className="gap-1">
-                                <Check className="h-3 w-3" />
-                                Member
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">Open</Badge>
-                            )}
+                            <JoinButton ecosystemId={e.id} isMember={memberEcoIds.has(e.id)} />
                           </TableCell>
                         </TableRow>
                       ))

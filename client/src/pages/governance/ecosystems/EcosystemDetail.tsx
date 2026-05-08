@@ -13,6 +13,7 @@ import {
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, ArrowLeft, UserPlus, Lock, FileText, Check, Clock, ClipboardList, Eye } from 'lucide-react';
 
@@ -78,6 +79,7 @@ export default function EcosystemDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error } = useEcosystemDetail(id);
   const { ecosystems } = useEcosystem();
+  const { refreshSession } = useAuth();
   const { toast } = useToast();
   const joinMutation = useRequestJoinEcosystem(id);
   const [joinRequested, setJoinRequested] = useState(false);
@@ -157,11 +159,13 @@ export default function EcosystemDetail() {
       const result = await joinMutation.mutateAsync();
       setJoinRequested(true);
       toast({ title: 'Join request sent', description: result.message || 'Your request to join has been submitted.' });
+      await refreshSession();
     } catch (err) {
       const message = (err as Error).message;
       if (message.includes('Already a member')) {
         setJoinRequested(true);
         toast({ title: 'Already a member', description: 'You are already a member of this ecosystem.' });
+        await refreshSession();
       } else {
         toast({ title: 'Failed to join', description: message, variant: 'destructive' });
       }

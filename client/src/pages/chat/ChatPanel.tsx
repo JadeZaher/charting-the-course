@@ -4,18 +4,37 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSSEChat } from '@/hooks/use-chat';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSSEChat, type ChatMessage } from '@/hooks/use-chat';
 import { useEcosystem } from '@/contexts/EcosystemContext';
-import { Bot, User, Send, Square, Trash2, Loader2, Wrench, ArrowRight, Building2 } from 'lucide-react';
+import {
+  Bot, User, Send, Square, Trash2, Loader2, Wrench, ArrowRight,
+  Building2, Coins, Copy, Check, Share2, Globe, Lock, Users,
+} from 'lucide-react';
+import { marked } from 'marked';
+
+marked.setOptions({ breaks: true, gfm: true });
 
 interface ChatPanelProps {
   embedded?: boolean;
 }
 
+type Privacy = 'private' | 'ecosystem' | 'public';
+
+const privacyConfig: Record<Privacy, { icon: typeof Lock; label: string }> = {
+  private: { icon: Lock, label: 'Private' },
+  ecosystem: { icon: Users, label: 'Ecosystem' },
+  public: { icon: Globe, label: 'Public' },
+};
+
+const privacyCycle: Privacy[] = ['private', 'ecosystem', 'public'];
+
 export default function ChatPanel({ embedded }: ChatPanelProps) {
   const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages } = useSSEChat();
   const { selected: ecosystem } = useEcosystem();
   const [input, setInput] = useState('');
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [privacy, setPrivacy] = useState<Privacy>('private');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,6 +46,30 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
     sendMessage(input);
     setInput('');
   };
+
+  const handleCopy = async (content: string, index: number) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedIdx(index);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
+  const handleShare = async () => {
+    const text = messages
+      .map(m => `${m.role === 'user' ? 'You' : 'Agent'}: ${m.content}`)
+      .join('\n\n');
+    if (navigator.share) {
+      await navigator.share({ title: 'NEOS Chat', text });
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+  };
+
+  const cyclePrivacy = () => {
+    const idx = privacyCycle.indexOf(privacy);
+    setPrivacy(privacyCycle[(idx + 1) % privacyCycle.length]);
+  };
+
+  const PrivacyIcon = privacyConfig[privacy].icon;
 
   return (
     <div className={embedded ? 'h-full flex flex-col' : 'max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col'}>
@@ -51,9 +94,33 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
             </div>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={cyclePrivacy}>
+                  <PrivacyIcon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{privacyConfig[privacy].label}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {messages.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={handleShare}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Share conversation</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -94,7 +161,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                   </div>
                 )}
 
-                <div className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`group flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'assistant' && (
                     <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                       <Bot className="h-3.5 w-3.5 text-primary-foreground" />
@@ -128,11 +195,38 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                           : 'bg-muted'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">
-                        {msg.content || (msg.isStreaming ? '...' : '')}
-                      </p>
+                      {msg.role === 'assistant' && msg.content ? (
+                        <div
+                          className="text-sm prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                          dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
+                        />
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">
+                          {msg.content || (msg.isStreaming ? '...' : '')}
+                        </p>
+                      )}
                       {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin mt-1" />}
                     </div>
+
+                    {/* Actions row: tokens + copy */}
+                    {msg.role === 'assistant' && msg.content && !msg.isStreaming && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => handleCopy(msg.content, i)}
+                          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {copiedIdx === i ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          {copiedIdx === i ? 'Copied' : 'Copy'}
+                        </button>
+                        {msg.usage && msg.usage.total_tokens > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Coins className="h-3 w-3" />
+                            {msg.usage.total_tokens} tokens
+                            <span className="opacity-50">({msg.usage.prompt_tokens} in / {msg.usage.completion_tokens} out)</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {msg.role === 'user' && (

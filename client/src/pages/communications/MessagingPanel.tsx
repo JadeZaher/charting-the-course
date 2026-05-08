@@ -53,7 +53,7 @@ export default function MessagingPanel() {
 
   const handleSend = () => {
     if (!messageInput.trim() || !activeId) return;
-    send({ type: 'message', conversation_id: activeId, content: messageInput });
+    send({ type: 'message', data: { conversation_id: activeId, content: messageInput } });
     setMessageInput('');
   };
 

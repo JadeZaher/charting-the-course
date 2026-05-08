@@ -3,8 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useConversations, useConversation, useWebSocket } from '@/hooks/use-messaging';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
@@ -25,6 +34,7 @@ import {
   Wrench,
   ArrowRight,
   User,
+  Users,
   Building2,
   ArrowLeft,
 } from 'lucide-react';
@@ -142,11 +152,18 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [newConvType, setNewConvType] = useState<'direct' | 'group'>('direct');
+  const [newConvTitle, setNewConvTitle] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
 
   const { data: convData, isLoading } = useConversations();
   const { data: activeConv } = useConversation(activeId || '');
   const { send, isConnected } = useWebSocket();
   const { member } = useAuth();
+  const { data: membersData } = useMemberPicker();
+  const createConversation = useCreateConversation();
 
   const conversations = convData?.conversations || [];
   const filtered = searchQuery
@@ -156,10 +173,54 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
       )
     : conversations;
 
+  const availableMembers = (membersData?.members || []).filter(
+    m => m.id !== member?.id && !selectedMembers.includes(m.id)
+  );
+  const filteredMembers = memberSearch
+    ? availableMembers.filter(m =>
+        m.display_name.toLowerCase().includes(memberSearch.toLowerCase())
+      )
+    : availableMembers;
+
   const handleSend = () => {
     if (!messageInput.trim() || !activeId) return;
-    send({ type: 'message', conversation_id: activeId, content: messageInput });
+    send({ type: 'message', data: { conversation_id: activeId, content: messageInput } });
     setMessageInput('');
+  };
+
+  const resetDialog = () => {
+    setShowNewDialog(false);
+    setNewConvType('direct');
+    setNewConvTitle('');
+    setSelectedMembers([]);
+    setMemberSearch('');
+  };
+
+  const handleCreateConversation = () => {
+    if (selectedMembers.length === 0) return;
+    createConversation.mutate(
+      {
+        type: newConvType,
+        title: newConvType === 'group' ? newConvTitle || undefined : undefined,
+        participant_ids: selectedMembers,
+      },
+      {
+        onSuccess: (conv) => {
+          setActiveId(conv.id);
+          resetDialog();
+        },
+      }
+    );
+  };
+
+  const toggleMember = (id: string) => {
+    if (newConvType === 'direct') {
+      setSelectedMembers([id]);
+    } else {
+      setSelectedMembers(prev =>
+        prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+      );
+    }
   };
 
   // On mobile-ish (non-expanded), show either list or conversation
@@ -173,10 +234,104 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
     );
   }
 
+  const newConvDialog = (
+    <Dialog open={showNewDialog} onOpenChange={(open) => { if (!open) resetDialog(); else setShowNewDialog(true); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Conversation</DialogTitle>
+          <DialogDescription>Start a direct message or create a group chat.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Button
+              variant={newConvType === 'direct' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setNewConvType('direct'); setSelectedMembers([]); }}
+            >
+              <User className="h-4 w-4 mr-1.5" />
+              Direct
+            </Button>
+            <Button
+              variant={newConvType === 'group' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setNewConvType('group'); setSelectedMembers([]); }}
+            >
+              <Users className="h-4 w-4 mr-1.5" />
+              Group
+            </Button>
+          </div>
+          {newConvType === 'group' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="floating-group-name" className="text-sm">Group Name</Label>
+              <Input
+                id="floating-group-name"
+                placeholder="e.g. Domain Stewards"
+                value={newConvTitle}
+                onChange={e => setNewConvTitle(e.target.value)}
+              />
+            </div>
+          )}
+          {selectedMembers.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedMembers.map(id => {
+                const m = membersData?.members.find(mb => mb.id === id);
+                return (
+                  <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                    {m?.display_name || id}
+                    <button onClick={() => toggleMember(id)} className="hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-sm">
+              {newConvType === 'direct' ? 'Select a member' : 'Add members'}
+            </Label>
+            <Input
+              placeholder="Search members..."
+              value={memberSearch}
+              onChange={e => setMemberSearch(e.target.value)}
+            />
+            <ScrollArea className="h-40 border rounded-md">
+              {filteredMembers.map(m => (
+                <button
+                  key={m.id}
+                  className={cn(
+                    'w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b last:border-0',
+                    selectedMembers.includes(m.id) && 'bg-primary/10'
+                  )}
+                  onClick={() => toggleMember(m.id)}
+                >
+                  {m.display_name}
+                </button>
+              ))}
+              {filteredMembers.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">No members found</p>
+              )}
+            </ScrollArea>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={resetDialog}>Cancel</Button>
+          <Button
+            onClick={handleCreateConversation}
+            disabled={selectedMembers.length === 0 || createConversation.isPending}
+          >
+            {createConversation.isPending ? 'Creating...' : 'Start Chat'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // Expanded: side-by-side layout
   if (expanded) {
     return (
       <div className="flex h-full">
+        {newConvDialog}
         {/* Conversation list */}
         <div className="w-72 border-r flex flex-col">
           <ConversationList
@@ -185,6 +340,7 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
             onSelect={setActiveId}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            onNewConversation={() => setShowNewDialog(true)}
           />
         </div>
         {/* Active conversation */}
@@ -210,6 +366,7 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
   if (showConversation) {
     return (
       <div className="flex flex-col h-full">
+        {newConvDialog}
         <button
           onClick={() => setActiveId(null)}
           className="flex items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground border-b"
@@ -230,13 +387,17 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
   }
 
   return (
-    <ConversationList
-      conversations={filtered}
-      activeId={activeId}
-      onSelect={setActiveId}
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-    />
+    <>
+      {newConvDialog}
+      <ConversationList
+        conversations={filtered}
+        activeId={activeId}
+        onSelect={setActiveId}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewConversation={() => setShowNewDialog(true)}
+      />
+    </>
   );
 }
 
@@ -246,16 +407,26 @@ function ConversationList({
   onSelect,
   searchQuery,
   onSearchChange,
+  onNewConversation,
 }: {
   conversations: any[];
   activeId: string | null;
   onSelect: (id: string) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onNewConversation?: () => void;
 }) {
   return (
     <div className="flex flex-col h-full">
       <div className="p-2.5 border-b space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Messages</h3>
+          {onNewConversation && (
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={onNewConversation}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -277,16 +448,23 @@ function ConversationList({
             onClick={() => onSelect(conv.id)}
           >
             <div className="flex justify-between items-start">
-              <p className="font-medium text-xs truncate">
-                {conv.title || conv.participants.map((p: any) => p.display_name).join(', ')}
-              </p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                {conv.type === 'group' ? (
+                  <Users className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                )}
+                <p className="font-medium text-xs truncate">
+                  {conv.title || conv.participants.map((p: any) => p.display_name).join(', ')}
+                </p>
+              </div>
               {conv.unread_count > 0 && (
-                <Badge variant="default" className="text-[10px] h-4 min-w-4 px-1 ml-1">
+                <Badge variant="default" className="text-[10px] h-4 min-w-4 px-1 ml-1 flex-shrink-0">
                   {conv.unread_count}
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            <p className="text-[11px] text-muted-foreground truncate mt-0.5 pl-5">
               {conv.last_message || 'No messages yet'}
             </p>
           </button>

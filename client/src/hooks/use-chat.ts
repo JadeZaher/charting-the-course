@@ -6,12 +6,19 @@ export interface ToolExecution {
   result?: string;
 }
 
+export interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
   tools?: ToolExecution[];
   skill?: string;
+  usage?: TokenUsage;
 }
 
 function stripHtml(html: string): string {
@@ -185,15 +192,14 @@ export function useSSEChat() {
             }
           }
 
-          const text = data.includes('<') ? stripHtml(data) : data;
-          if (text.trim()) {
+          if (data.trim()) {
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
                 updated[updated.length - 1] = {
                   ...last,
-                  content: last.content + text,
+                  content: last.content + data,
                 };
               }
               return updated;
@@ -245,6 +251,21 @@ export function useSSEChat() {
               return updated;
             });
           }
+          break;
+        }
+
+        case 'usage': {
+          try {
+            const usage = JSON.parse(data) as TokenUsage;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, usage };
+              }
+              return updated;
+            });
+          } catch { /* ignore parse errors */ }
           break;
         }
 

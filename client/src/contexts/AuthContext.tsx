@@ -16,6 +16,7 @@ interface AuthContextType {
   loginWithOAuth: (provider: string) => Promise<void>;
   regenerateDid: () => Promise<void>;
   logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
   error: string | null;
 }
 
@@ -185,6 +186,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshSession = useCallback(async () => {
+    try {
+      const data = await fetchMe();
+      setMember(data.member);
+      setEcosystems(data.ecosystems);
+    } catch {
+      // Silent — session still valid, just couldn't refresh
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetchLogout();
@@ -211,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithOAuth,
         regenerateDid,
         logout,
+        refreshSession,
         error,
       }}
     >
