@@ -4,6 +4,7 @@ export interface ToolExecution {
   name: string;
   status: 'running' | 'success' | 'error';
   result?: string;
+  error?: string;
 }
 
 export interface TokenUsage {
@@ -21,51 +22,6 @@ export interface ChatMessage {
   usage?: TokenUsage;
 }
 
-function stripHtml(html: string): string {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || div.innerText || '';
-}
-
-function parseToolIndicator(html: string): ToolExecution | null {
-  // Tool indicators have class "font-mono font-medium" for tool name
-  const nameMatch = html.match(/font-mono[^>]*>([^<]+)/);
-  const statusMatch = html.match(/bg-neos-surface[^>]*>([^<]+)/);
-  if (nameMatch) {
-    const rawStatus = (statusMatch?.[1] || 'running').trim().toLowerCase();
-    const status: 'running' | 'success' | 'error' =
-      rawStatus === 'success' ? 'success' : rawStatus === 'error' ? 'error' : 'running';
-    return {
-      name: nameMatch[1].trim(),
-      status,
-    };
-  }
-  return null;
-}
-
-function parseSkillTransition(html: string): string | null {
-  // Skill transitions contain "Skill transition:" text or text-neos-primary class
-  const skillTransitionMatch = html.match(/Skill transition:\s*([^\s<]+)/i);
-  if (skillTransitionMatch) return skillTransitionMatch[1].trim();
-
-  const primaryMatch = html.match(/text-neos-primary[^>]*>([^<]+)/);
-  return primaryMatch ? primaryMatch[1].trim() : null;
-}
-
-function isToolIndicatorHtml(html: string): boolean {
-  return html.includes('font-mono') && (
-    html.includes('font-medium') ||
-    html.includes('bg-neos-surface') ||
-    html.includes('tool')
-  );
-}
-
-function isSkillTransitionHtml(html: string): boolean {
-  return html.includes('Skill transition:') || (
-    html.includes('text-neos-primary') && html.includes('skill')
-  );
-}
-
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function useSSEChat() {
@@ -77,10 +33,7 @@ export function useSSEChat() {
   const sendMessage = useCallback(async (content: string) => {
     setError(null);
 
-    // Add user message
     setMessages(prev => [...prev, { role: 'user', content }]);
-
-    // Add empty assistant message for streaming
     setMessages(prev => [...prev, { role: 'assistant', content: '', isStreaming: true, tools: [] }]);
     setIsStreaming(true);
 
@@ -123,10 +76,8 @@ export function useSSEChat() {
           if (line.startsWith('event: ')) {
             currentEventType = line.slice(7).trim();
           } else if (line.startsWith('data: ')) {
-            // Accumulate data lines (SSE multi-line data support)
             dataBuffer += (dataBuffer ? '\n' : '') + line.slice(6);
           } else if (line === '') {
-            // Empty line = end of SSE message block — dispatch event
             if (dataBuffer !== '') {
               handleEvent(currentEventType, dataBuffer);
               dataBuffer = '';
@@ -138,13 +89,11 @@ export function useSSEChat() {
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         setError((err as Error).message);
-        // Remove the empty streaming message on error
         setMessages(prev => prev.filter(m => !(m.role === 'assistant' && m.isStreaming && !m.content)));
       }
     } finally {
       setIsStreaming(false);
       abortRef.current = null;
-      // Ensure last assistant message is no longer marked as streaming
       setMessages(prev => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
@@ -158,40 +107,6 @@ export function useSSEChat() {
     function handleEvent(eventType: string, data: string) {
       switch (eventType) {
         case 'append': {
-          if (isToolIndicatorHtml(data)) {
-            const tool = parseToolIndicator(data);
-            if (tool) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  const existingTools = last.tools || [];
-                  updated[updated.length - 1] = {
-                    ...last,
-                    tools: [...existingTools, tool],
-                  };
-                }
-                return updated;
-              });
-              return;
-            }
-          }
-
-          if (isSkillTransitionHtml(data)) {
-            const skill = parseSkillTransition(data);
-            if (skill) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, skill };
-                }
-                return updated;
-              });
-              return;
-            }
-          }
-
           if (data.trim()) {
             setMessages(prev => {
               const updated = [...prev];
@@ -208,39 +123,44 @@ export function useSSEChat() {
           break;
         }
 
-        case 'morph': {
-          if (isSkillTransitionHtml(data)) {
-            const skill = parseSkillTransition(data);
-            if (skill) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, skill };
-                }
-                return updated;
-              });
-              return;
-            }
-          }
+        case 'tool_start': {
+          try {
+            const { name } = JSON.parse(data);
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                const tools = [...(last.tools || []), { name, status: 'running' as const }];
+                updated[updated.length - 1] = { ...last, tools };
+              }
+              return updated;
+            });
+          } catch { /* ignore */ }
+          break;
+        }
 
-          const text = data.includes('<') ? stripHtml(data) : data;
-          setMessages(prev => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last?.role === 'assistant') {
-              updated[updated.length - 1] = {
-                ...last,
-                content: text,
-              };
-            }
-            return updated;
-          });
+        case 'tool_result': {
+          try {
+            const { name, success, error: toolError } = JSON.parse(data);
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant' && last.tools) {
+                const tools = last.tools.map(t =>
+                  t.name === name && t.status === 'running'
+                    ? { ...t, status: (success ? 'success' : 'error') as 'success' | 'error', error: toolError }
+                    : t
+                );
+                updated[updated.length - 1] = { ...last, tools };
+              }
+              return updated;
+            });
+          } catch { /* ignore */ }
           break;
         }
 
         case 'skill': {
-          const skill = parseSkillTransition(data) || stripHtml(data).trim();
+          const skill = data.trim();
           if (skill) {
             setMessages(prev => {
               const updated = [...prev];
@@ -265,7 +185,7 @@ export function useSSEChat() {
               }
               return updated;
             });
-          } catch { /* ignore parse errors */ }
+          } catch { /* ignore */ }
           break;
         }
 
@@ -281,16 +201,14 @@ export function useSSEChat() {
         }
 
         default: {
-          // Fallback: treat unknown events like append if they contain text
-          const text = data.includes('<') ? stripHtml(data) : data;
-          if (text.trim()) {
+          if (data.trim()) {
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
                 updated[updated.length - 1] = {
                   ...last,
-                  content: last.content + text,
+                  content: last.content + data,
                 };
               }
               return updated;
@@ -305,7 +223,6 @@ export function useSSEChat() {
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
     setIsStreaming(false);
-    // Mark streaming message as no longer streaming
     setMessages(prev => {
       const updated = [...prev];
       const last = updated[updated.length - 1];
