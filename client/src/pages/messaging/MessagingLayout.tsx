@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useConversations, useConversation, useWebSocket } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,8 +17,9 @@ export default function MessagingLayout() {
 
   const { data: convData, isLoading } = useConversations();
   const { data: activeConv } = useConversation(activeId || '');
-  const { send, isConnected } = useWebSocket();
+  const { isConnected } = useWebSocket();
   const { member } = useAuth();
+  const sendMessageMutation = useSendMessage(activeId || '');
 
   const conversations = convData?.conversations || [];
   const filtered = searchQuery
@@ -30,8 +31,9 @@ export default function MessagingLayout() {
 
   const handleSend = () => {
     if (!messageInput.trim() || !activeId) return;
-    send({ type: 'message', data: { conversation_id: activeId, content: messageInput } });
+    const content = messageInput;
     setMessageInput('');
+    sendMessageMutation.mutate(content);
   };
 
   if (isLoading) return <LoadingState message="Loading conversations..." />;

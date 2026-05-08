@@ -13,7 +13,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
 import { MessageSquare, Plus, Send, Search, Users, User, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -29,10 +29,11 @@ export default function MessagingPanel() {
 
   const { data: convData, isLoading } = useConversations();
   const { data: activeConv } = useConversation(activeId || '');
-  const { send, isConnected } = useWebSocket();
+  const { isConnected } = useWebSocket();
   const { member } = useAuth();
   const { data: membersData } = useMemberPicker();
   const createConversation = useCreateConversation();
+  const sendMessageMutation = useSendMessage(activeId || '');
 
   const conversations = convData?.conversations || [];
   const availableMembers = (membersData?.members || []).filter(
@@ -53,8 +54,9 @@ export default function MessagingPanel() {
 
   const handleSend = () => {
     if (!messageInput.trim() || !activeId) return;
-    send({ type: 'message', data: { conversation_id: activeId, content: messageInput } });
+    const content = messageInput;
     setMessageInput('');
+    sendMessageMutation.mutate(content);
   };
 
   const handleCreateConversation = () => {
@@ -205,7 +207,7 @@ export default function MessagingPanel() {
                 placeholder="Type a message..."
                 className="h-9 text-sm"
               />
-              <Button size="sm" onClick={handleSend} disabled={!messageInput.trim()}>
+              <Button size="sm" onClick={handleSend} disabled={!messageInput.trim() || sendMessageMutation.isPending}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>

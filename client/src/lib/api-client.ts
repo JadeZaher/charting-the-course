@@ -265,6 +265,13 @@ export function fetchConversation(id: string): Promise<ConversationDetail> {
 export function createConversation(data: { type: string; title?: string; participant_ids: string[] }): Promise<ConversationDetail> {
   return apiFetch<ConversationDetail>('/api/v1/messaging/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
+export function sendConversationMessage(conversationId: string, content: string): Promise<MessageItem> {
+  return apiFetch<MessageItem>(`/api/v1/messaging/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+}
 export function fetchConversationMessages(id: string, page?: number): Promise<{ messages: MessageItem[]; total: number }> {
   const qs = page ? `?page=${page}` : '';
   return apiFetch<{ messages: MessageItem[]; total: number }>(`/api/v1/messaging/conversations/${id}/messages${qs}`);
@@ -307,6 +314,16 @@ export function fetchMemberBadges(memberId: string): Promise<{ badges: UserBadge
 }
 export function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[] }> {
   return apiFetch(`/api/v1/members/${memberId}/tags`);
+}
+
+// Chat Sessions API
+export interface ChatSessionItem {
+  id: string;
+  title: string | null;
+  created_at: string | null;
+}
+export function fetchChatSessions(): Promise<{ sessions: ChatSessionItem[] }> {
+  return apiFetch<{ sessions: ChatSessionItem[] }>('/api/v1/chat/sessions');
 }
 
 // Discover API

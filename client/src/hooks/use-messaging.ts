@@ -27,6 +27,17 @@ export function useConversationMessages(id: string, page?: number) {
   });
 }
 
+export function useSendMessage(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (content: string) => api.sendConversationMessage(conversationId, content),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversations', conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
 export function useMessageSearch(q: string) {
   return useQuery({
     queryKey: ['messages', 'search', q],

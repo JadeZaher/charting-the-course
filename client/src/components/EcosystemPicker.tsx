@@ -12,7 +12,7 @@ import { Building2, ChevronDown, Search, ExternalLink } from 'lucide-react';
 import type { EcosystemSummary } from '@/types/api';
 
 export function EcosystemPicker() {
-  const { ecosystems, selectedIds, toggleMulti } = useEcosystem();
+  const { ecosystems, selectedIds, toggleMulti, selectAll, isAll } = useEcosystem();
   const [open, setOpen] = useState(false);
   const [discoverSearch, setDiscoverSearch] = useState('');
 
@@ -30,9 +30,11 @@ export function EcosystemPicker() {
   if (ecosystems.length === 0) return null;
 
   const selectedCount = selectedIds.length;
-  const label = selectedCount === 1
-    ? ecosystems.find(e => selectedIds.includes(e.id))?.name ?? 'Ecosystem'
-    : `${selectedCount} ecosystems`;
+  const label = isAll
+    ? 'All Ecosystems'
+    : selectedCount === 1
+      ? ecosystems.find(e => selectedIds.includes(e.id))?.name ?? 'Ecosystem'
+      : `${selectedCount} ecosystems`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,6 +50,20 @@ export function EcosystemPicker() {
         <div className="p-3 border-b">
           <p className="text-xs font-medium text-muted-foreground mb-2">Your Ecosystems</p>
           <div className="space-y-1">
+            {ecosystems.length > 1 && (
+              <label
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer font-medium"
+              >
+                <Checkbox
+                  checked={isAll}
+                  onCheckedChange={() => selectAll()}
+                />
+                <span className="flex-1">All Ecosystems</span>
+                <Badge variant="outline" className="text-xs shrink-0">
+                  {ecosystems.reduce((sum, e) => sum + e.member_count, 0)}
+                </Badge>
+              </label>
+            )}
             {ecosystems.map((eco) => (
               <label
                 key={eco.id}

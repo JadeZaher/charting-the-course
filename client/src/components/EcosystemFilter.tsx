@@ -17,14 +17,21 @@ export function EcosystemFilter({ value, onChange }: EcosystemFilterProps) {
 
   if (ecosystems.length <= 1) return null;
 
+  const isAll = value.length === 0 || value.length === ecosystems.length;
+
   const toggle = (id: string) => {
     const next = value.includes(id)
       ? value.filter(x => x !== id)
       : [...value, id];
-    onChange(next);
+    // If all are now selected, treat as "All" (empty)
+    if (next.length === ecosystems.length) {
+      onChange([]);
+    } else {
+      onChange(next);
+    }
   };
 
-  const label = value.length === 0
+  const label = isAll
     ? 'All Ecosystems'
     : value.length === 1
       ? ecosystems.find(e => e.id === value[0])?.name ?? '1 ecosystem'
@@ -48,7 +55,7 @@ export function EcosystemFilter({ value, onChange }: EcosystemFilterProps) {
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
             >
               <Checkbox
-                checked={value.includes(eco.id)}
+                checked={isAll || value.includes(eco.id)}
                 onCheckedChange={() => toggle(eco.id)}
               />
               <span className="truncate flex-1">{eco.name}</span>
@@ -58,14 +65,14 @@ export function EcosystemFilter({ value, onChange }: EcosystemFilterProps) {
             </label>
           ))}
         </div>
-        {value.length > 0 && (
+        {!isAll && (
           <Button
             variant="ghost"
             size="sm"
             className="w-full mt-2 text-xs"
             onClick={() => onChange([])}
           >
-            Clear filter
+            Show all ecosystems
           </Button>
         )}
       </PopoverContent>

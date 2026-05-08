@@ -13,11 +13,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useQuery } from '@tanstack/react-query';
+import { fetchChatSessions } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import {
   MessageSquare,
@@ -37,6 +39,7 @@ import {
   Users,
   Building2,
   ArrowLeft,
+  History,
 } from 'lucide-react';
 
 type Tab = 'messaging' | 'chat';
@@ -160,10 +163,11 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
 
   const { data: convData, isLoading } = useConversations();
   const { data: activeConv } = useConversation(activeId || '');
-  const { send, isConnected } = useWebSocket();
+  const { isConnected } = useWebSocket();
   const { member } = useAuth();
   const { data: membersData } = useMemberPicker();
   const createConversation = useCreateConversation();
+  const sendMessageMutation = useSendMessage(activeId || '');
 
   const conversations = convData?.conversations || [];
   const filtered = searchQuery
@@ -184,8 +188,9 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
 
   const handleSend = () => {
     if (!messageInput.trim() || !activeId) return;
-    send({ type: 'message', data: { conversation_id: activeId, content: messageInput } });
+    const content = messageInput;
     setMessageInput('');
+    sendMessageMutation.mutate(content);
   };
 
   const resetDialog = () => {
@@ -575,9 +580,17 @@ function EmptyConversation() {
 
 function ChatTab({ expanded }: { expanded: boolean }) {
   const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages } = useSSEChat();
-  const { selected: ecosystem } = useEcosystem();
+  const { selected: ecosystem, isAll, isMulti, selectedIds, ecosystems } = useEcosystem();
   const [input, setInput] = useState('');
+  const [showSessions, setShowSessions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { data: sessionsData } = useQuery({
+    queryKey: ['chat', 'sessions'],
+    queryFn: fetchChatSessions,
+    staleTime: 30_000,
+    enabled: showSessions,
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -589,6 +602,58 @@ function ChatTab({ expanded }: { expanded: boolean }) {
     setInput('');
   };
 
+  // Session list view
+  if (showSessions) {
+    const sessions = sessionsData?.sessions ?? [];
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-3 py-2 border-b">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSessions(false)}
+              className="p-1 rounded hover:bg-muted transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </button>
+            <span className="text-sm font-semibold">Chat History</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { clearMessages(); setShowSessions(false); }}
+            className="h-7 px-2 text-xs"
+          >
+            <Plus className="h-3 w-3 mr-1" /> New
+          </Button>
+        </div>
+        <ScrollArea className="flex-1">
+          {sessions.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">No past sessions</p>
+          ) : (
+            sessions.map((s) => (
+              <button
+                key={s.id}
+                className="w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors"
+                onClick={() => setShowSessions(false)}
+              >
+                <p className="text-xs font-medium truncate">
+                  {s.title || 'Untitled session'}
+                </p>
+                {s.created_at && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {new Date(s.created_at).toLocaleDateString(undefined, {
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </button>
+            ))
+          )}
+        </ScrollArea>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Sub-header */}
@@ -596,16 +661,19 @@ function ChatTab({ expanded }: { expanded: boolean }) {
         <div className="flex items-center gap-2">
           <Bot className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Governance Agent</span>
-          {ecosystem && (
-            <Badge variant="outline" className="text-[10px] h-5">
-              <Building2 className="h-2.5 w-2.5 mr-0.5" />
-              {ecosystem.name}
-            </Badge>
-          )}
+          <Badge variant="outline" className="text-[10px] h-5">
+            <Building2 className="h-2.5 w-2.5 mr-0.5" />
+            {isAll ? 'All' : isMulti ? `${selectedIds.length} ecosystems` : ecosystem?.name ?? 'Ecosystem'}
+          </Badge>
         </div>
-        <Button variant="ghost" size="sm" onClick={clearMessages} disabled={messages.length === 0} className="h-7 px-2 text-xs">
-          <Trash2 className="h-3 w-3 mr-1" /> Clear
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="sm" onClick={() => setShowSessions(true)} className="h-7 px-2 text-xs" title="Chat history">
+            <History className="h-3 w-3" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearMessages} disabled={messages.length === 0} className="h-7 px-2 text-xs">
+            <Trash2 className="h-3 w-3 mr-1" /> Clear
+          </Button>
+        </div>
       </div>
 
       {/* Messages */}

@@ -11,7 +11,9 @@ interface EcosystemContextType {
   toggleEcosystem: (id: string) => void;         // Single-select by default
   toggleMulti: (id: string) => void;             // Add/remove from multi-select
   selectMultiple: (ids: string[]) => void;       // Batch select
+  selectAll: () => void;                         // Select all ecosystems
   isMulti: boolean;
+  isAll: boolean;                                // True when all ecosystems selected
 }
 
 const COOKIE_KEY = 'neos_selected_ecosystems';
@@ -61,10 +63,11 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['emergency'] });
       queryClient.invalidateQueries({ queryKey: ['safeguards'] });
       queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
   }, [selectedIds, queryClient]);
 
-  // Initialize from cookie or first ecosystem
+  // Initialize from cookie or all ecosystems
   useEffect(() => {
     if (ecosystems.length === 0) return;
 
@@ -74,10 +77,10 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     if (validIds.length > 0) {
       setSelectedIds(validIds);
     } else {
-      // Default to first ecosystem
-      const defaultId = ecosystems[0].id;
-      setSelectedIds([defaultId]);
-      setSelectedCookie([defaultId]);
+      // Default to all ecosystems
+      const allIds = ecosystems.map(e => e.id);
+      setSelectedIds(allIds);
+      setSelectedCookie(allIds);
     }
   }, [ecosystems]);
 
@@ -111,7 +114,14 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     }
   }, [ecosystems]);
 
+  const selectAll = useCallback(() => {
+    const allIds = ecosystems.map(e => e.id);
+    setSelectedIds(allIds);
+    setSelectedCookie(allIds);
+  }, [ecosystems]);
+
   const selected = ecosystems.find(e => selectedIds.includes(e.id)) || null;
+  const isAll = ecosystems.length > 0 && selectedIds.length === ecosystems.length;
 
   return (
     <EcosystemContext.Provider
@@ -123,7 +133,9 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         toggleEcosystem,
         toggleMulti,
         selectMultiple,
+        selectAll,
         isMulti: selectedIds.length > 1,
+        isAll,
       }}
     >
       {children}
