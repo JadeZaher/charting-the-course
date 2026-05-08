@@ -59,6 +59,8 @@ function isSkillTransitionHtml(html: string): boolean {
   );
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export function useSSEChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -79,7 +81,7 @@ export function useSSEChat() {
     abortRef.current = abort;
 
     try {
-      const response = await fetch('/api/v1/chat/send', {
+      const response = await fetch(`${BASE_URL}/api/v1/chat/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
