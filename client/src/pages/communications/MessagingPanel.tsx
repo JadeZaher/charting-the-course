@@ -61,7 +61,7 @@ export default function MessagingPanel() {
     if (selectedMembers.length === 0) return;
     createConversation.mutate(
       {
-        type: newConvType,
+        type: newConvType === 'direct' ? 'dm' : 'group',
         title: newConvType === 'group' ? newConvTitle || undefined : undefined,
         participant_ids: selectedMembers,
       },

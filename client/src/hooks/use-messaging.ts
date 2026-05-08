@@ -83,6 +83,9 @@ export function useWebSocket(path: string = '/messaging/ws') {
         setLastMessage(msg);
         if (msg.type === 'message') {
           qc.invalidateQueries({ queryKey: ['conversations'] });
+          if (msg.data?.conversation_id) {
+            qc.invalidateQueries({ queryKey: ['conversations', msg.data.conversation_id] });
+          }
         }
       } catch { /* ignore non-JSON */ }
     };

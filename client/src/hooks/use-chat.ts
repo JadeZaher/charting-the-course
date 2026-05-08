@@ -24,6 +24,19 @@ export interface ChatMessage {
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
+function getSelectedEcosystemIds(): string[] {
+  const raw = document.cookie
+    .split('; ')
+    .find(c => c.startsWith('neos_selected_ecosystems='));
+  if (!raw) return [];
+  try {
+    const ids = JSON.parse(decodeURIComponent(raw.split('=')[1]));
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
 export function useSSEChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -50,7 +63,8 @@ export function useSSEChat() {
           page_context: {
             path: window.location.pathname,
             hash: window.location.hash,
-          }
+          },
+          selected_ecosystem_ids: getSelectedEcosystemIds(),
         }),
         signal: abort.signal,
       });
