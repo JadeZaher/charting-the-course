@@ -35,13 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadOAuthProviders();
   }, []);
 
+  function clearAuthCookies() {
+    // Clear stale session cookies to prevent duplicates across domains
+    document.cookie = 'neos_session=; Max-Age=0; path=/;';
+    document.cookie = 'neos_selected_ecosystems=; Max-Age=0; path=/;';
+  }
+
   async function checkSession() {
     try {
       const data = await fetchMe();
       setMember(data.member);
       setEcosystems(data.ecosystems);
     } catch {
-      // No valid session — that's fine
+      // No valid session — clear any stale cookies
+      clearAuthCookies();
       setMember(null);
       setEcosystems([]);
     } finally {
@@ -117,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Session cookie is set by the response. Now fetch full member data.
       await checkSession();
     } catch (err) {
+      clearAuthCookies();
       setError(err instanceof Error ? err.message : 'Authentication failed');
       setIsLoading(false);
       throw err;
@@ -183,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Proceed with local cleanup even if server call fails
     }
+    clearAuthCookies();
     setMember(null);
     setEcosystems([]);
     queryClient.clear();

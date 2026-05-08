@@ -40,11 +40,14 @@ export default function Login() {
   const hasIdentity = hasSavedIdentity();
   const savedDid = getSavedDid();
 
-  // Handle OAuth error from redirect
+  // Handle OAuth error from redirect — clear stale cookies
   useEffect(() => {
     const params = new URLSearchParams(search);
     const oauthError = params.get("error");
     if (oauthError) {
+      // Clear any stale session cookies from failed OAuth attempts
+      document.cookie = 'neos_session=; Max-Age=0; path=/;';
+      document.cookie = 'neos_selected_ecosystems=; Max-Age=0; path=/;';
       const messages: Record<string, string> = {
         oauth_denied: "OAuth sign-in was cancelled.",
         oauth_failed: "OAuth sign-in failed. Please try again.",

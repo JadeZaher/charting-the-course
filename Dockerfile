@@ -22,7 +22,7 @@ ENV VITE_API_URL=${VITE_API_URL}
 
 RUN npm run build
 
-# Stage 2: Serve with nginx (reverse-proxies /api to backend)
+# Stage 2: Serve static files with nginx
 FROM nginx:alpine
 
 # Remove default config
@@ -37,7 +37,5 @@ COPY --from=builder /app/dist/public /usr/share/nginx/html
 # Railway provides PORT env var dynamically
 EXPOSE 3000
 
-# Substitute env vars in nginx config and start nginx
-ENV BACKEND_URL=https://neos-operating-system-production.up.railway.app
-ENV BACKEND_HOST=neos-operating-system-production.up.railway.app
-CMD envsubst '\$PORT \$BACKEND_URL \$BACKEND_HOST' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
+# Only PORT needs substitution now (no more backend proxy vars)
+CMD envsubst '\$PORT' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf && mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
