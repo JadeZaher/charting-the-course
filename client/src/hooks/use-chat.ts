@@ -24,6 +24,9 @@ export interface ChatMessage {
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
+/** Hard cap on user messages per conversation (matches server-side limit). */
+const MAX_CONVERSATION_MESSAGES = 20;
+
 function getSelectedEcosystemIds(): string[] {
   const raw = document.cookie
     .split('; ')
@@ -37,14 +40,37 @@ function getSelectedEcosystemIds(): string[] {
   }
 }
 
+function buildHistory(messages: ChatMessage[]): { role: string; content: string }[] {
+  return messages
+    .filter(m => m.content && !m.isStreaming)
+    .map(m => ({ role: m.role, content: m.content }));
+}
+
 export function useSSEChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeSkill, setActiveSkill] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  const userMessageCount = messages.filter(m => m.role === 'user').length;
 
   const sendMessage = useCallback(async (content: string) => {
     setError(null);
+
+    const currentUserCount = messages.filter(m => m.role === 'user').length + 1;
+    if (currentUserCount > MAX_CONVERSATION_MESSAGES) {
+      setLimitReached(true);
+      setError(`Conversation limit reached (${MAX_CONVERSATION_MESSAGES} messages). Please start a new conversation.`);
+      return;
+    }
+    if (currentUserCount === MAX_CONVERSATION_MESSAGES) {
+      setLimitReached(true);
+    }
+
+    const history = buildHistory(messages);
 
     setMessages(prev => [...prev, { role: 'user', content }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', isStreaming: true, tools: [] }]);
@@ -60,6 +86,9 @@ export function useSSEChat() {
         credentials: 'include',
         body: JSON.stringify({
           message: content,
+          history,
+          active_skill: activeSkill,
+          session_id: sessionId,
           page_context: {
             path: window.location.pathname,
             hash: window.location.hash,
@@ -69,7 +98,10 @@ export function useSSEChat() {
         signal: abort.signal,
       });
 
-      if (!response.ok) throw new Error('Chat request failed');
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => null);
+        throw new Error(errBody?.error || 'Chat request failed');
+      }
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
@@ -126,10 +158,7 @@ export function useSSEChat() {
               const updated = [...prev];
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: last.content + data,
-                };
+                updated[updated.length - 1] = { ...last, content: last.content + data };
               }
               return updated;
             });
@@ -176,6 +205,7 @@ export function useSSEChat() {
         case 'skill': {
           const skill = data.trim();
           if (skill) {
+            setActiveSkill(skill);
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
@@ -185,6 +215,32 @@ export function useSSEChat() {
               return updated;
             });
           }
+          break;
+        }
+
+        case 'skill_transition': {
+          try {
+            const { to } = JSON.parse(data);
+            if (to) {
+              setActiveSkill(to);
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, skill: to };
+                }
+                return updated;
+              });
+            }
+          } catch { /* ignore */ }
+          break;
+        }
+
+        case 'session': {
+          try {
+            const { session_id: sid } = JSON.parse(data);
+            if (sid) setSessionId(sid);
+          } catch { /* ignore */ }
           break;
         }
 
@@ -220,10 +276,7 @@ export function useSSEChat() {
               const updated = [...prev];
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: last.content + data,
-                };
+                updated[updated.length - 1] = { ...last, content: last.content + data };
               }
               return updated;
             });
@@ -232,7 +285,7 @@ export function useSSEChat() {
         }
       }
     }
-  }, []);
+  }, [messages, activeSkill, sessionId]);
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
@@ -250,7 +303,32 @@ export function useSSEChat() {
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
+    setActiveSkill(null);
+    setSessionId(null);
+    setLimitReached(false);
   }, []);
 
-  return { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages };
+  /** Load a previously saved session by restoring its messages. */
+  const loadSession = useCallback((id: string, savedMessages: ChatMessage[], skill?: string | null) => {
+    setSessionId(id);
+    setMessages(savedMessages);
+    setActiveSkill(skill ?? null);
+    setError(null);
+    setLimitReached(savedMessages.filter(m => m.role === 'user').length >= MAX_CONVERSATION_MESSAGES);
+  }, []);
+
+  return {
+    messages,
+    isStreaming,
+    error,
+    sendMessage,
+    stopStreaming,
+    clearMessages,
+    loadSession,
+    activeSkill,
+    sessionId,
+    limitReached,
+    userMessageCount,
+    maxMessages: MAX_CONVERSATION_MESSAGES,
+  };
 }

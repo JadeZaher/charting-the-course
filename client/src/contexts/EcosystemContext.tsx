@@ -64,6 +64,8 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['safeguards'] });
       queryClient.invalidateQueries({ queryKey: ['onboarding'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['discover'] });
+      queryClient.invalidateQueries({ queryKey: ['ethos-list'] });
     }
   }, [selectedIds, queryClient]);
 

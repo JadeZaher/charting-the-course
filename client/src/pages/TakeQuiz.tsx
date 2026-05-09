@@ -251,13 +251,14 @@ function QuestionField({
         </div>
       );
 
+    case "text":
     case "comment":
       return (
         <Textarea
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Type your answer here..."
-          rows={4}
+          rows={element.type === "text" ? 2 : 4}
         />
       );
 

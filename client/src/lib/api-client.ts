@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -185,6 +185,9 @@ export function updateMember(id: string, data: Record<string, any>): Promise<Mem
 export function fetchMemberOnboarding(memberId: string): Promise<OnboardingState> {
   return apiFetch<OnboardingState>(`/api/v1/members/${memberId}/onboarding`);
 }
+export function fetchMemberProfile(memberId: string): Promise<MemberProfileResponse> {
+  return apiFetch<MemberProfileResponse>(`/api/v1/members/${memberId}/profile`);
+}
 
 // Domains API
 export function fetchDomains(params?: Record<string, string>): Promise<PaginatedResponse<DomainListItem>> {
@@ -320,10 +323,38 @@ export function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[]
 export interface ChatSessionItem {
   id: string;
   title: string | null;
+  skill: string | null;
+  message_count: number;
   created_at: string | null;
+  updated_at: string | null;
 }
-export function fetchChatSessions(): Promise<{ sessions: ChatSessionItem[] }> {
-  return apiFetch<{ sessions: ChatSessionItem[] }>('/api/v1/chat/sessions');
+
+export interface ChatSessionDetail {
+  id: string;
+  title: string | null;
+  skill: string | null;
+  privacy: string;
+  share_token: string | null;
+  messages: { role: string; content: string }[];
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export function fetchChatSessions(params?: { q?: string; limit?: number; offset?: number }): Promise<{ sessions: ChatSessionItem[] }> {
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set('q', params.q);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.offset) qs.set('offset', String(params.offset));
+  const query = qs.toString();
+  return apiFetch<{ sessions: ChatSessionItem[] }>(`/api/v1/chat/sessions${query ? '?' + query : ''}`);
+}
+
+export function fetchChatSession(id: string): Promise<ChatSessionDetail> {
+  return apiFetch<ChatSessionDetail>(`/api/v1/chat/sessions/${id}`);
+}
+
+export function deleteChatSession(id: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/v1/chat/sessions/${id}`, { method: 'DELETE' });
 }
 
 // Discover API

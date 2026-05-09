@@ -26,7 +26,7 @@ import {
 
 export default function Dashboard() {
   const { member } = useAuth();
-  const { selected } = useEcosystem();
+  const { selected, selectedIds, ecosystems: ecoList, isAll, isMulti } = useEcosystem();
   const { canManageContent } = usePermissions();
 
   const displayName = member?.display_name || "User";
@@ -65,10 +65,14 @@ export default function Dashboard() {
       {/* Welcome Header */}
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Welcome back, {displayName}</h1>
-        {selected && (
+        {selectedIds.length > 0 && (
           <Badge variant="secondary" className="text-sm">
             <Building2 className="h-3 w-3 mr-1" />
-            {selected.name}
+            {isAll
+              ? 'All Ecosystems'
+              : isMulti
+                ? `${selectedIds.length} ecosystems`
+                : selected?.name}
           </Badge>
         )}
       </div>

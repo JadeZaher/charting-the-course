@@ -307,6 +307,33 @@ export interface MemberDetail extends MemberListItem {
   onboarding: OnboardingState | null;
 }
 
+export interface QuizStatusItem {
+  quiz_id: string;
+  quiz_title: string;
+  status: 'completed' | 'in_progress' | 'not_started';
+  score: number | null;
+  is_passed: boolean | null;
+  completed_at: string | null;
+}
+
+export interface QuizSummary {
+  total_available: number;
+  completed: number;
+  passed: number;
+  in_progress: number;
+  not_started: number;
+  quizzes: QuizStatusItem[];
+}
+
+export interface MemberProfileResponse extends MemberDetail {
+  user_id: string;
+  username: string | null;
+  user_display_name: string | null;
+  quiz_summary: QuizSummary;
+  badges: UserBadgeItem[];
+  tags: UserTagItem[];
+}
+
 export interface OnboardingState {
   id: string;
   facilitator: string | null;

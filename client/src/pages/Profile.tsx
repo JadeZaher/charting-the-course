@@ -18,7 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { fetchMember, updateMember, fetchMemberBadges, fetchMemberTags, fetchMemberQuizHistory } from "@/lib/api-client";
+import { fetchMemberProfile, updateMember } from "@/lib/api-client";
 import jsPDF from "jspdf";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
 import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
@@ -36,35 +36,6 @@ interface UserPrivacySettings {
   sharedDimensions?: string[];
 }
 
-interface QuizResult {
-  id: string;
-  quiz_id: string;
-  user_id: string;
-  score: number | null;
-  is_passed: boolean | null;
-  completed_at: string;
-}
-
-interface UserBadge {
-  id: string;
-  badge_key: string;
-  badge_name: string;
-  badge_description: string | null;
-  badge_category: string | null;
-}
-
-interface UserTag {
-  id: string;
-  tag_key: string;
-  tag_value: string;
-}
-
-interface ProfileData {
-  profile: any | null;
-  badges: UserBadge[];
-  tags: UserTag[];
-  privacy: UserPrivacySettings | null;
-}
 
 export default function Profile() {
   const { member } = useAuth();
@@ -100,23 +71,6 @@ export default function Profile() {
     privacyLevel: "",
   });
 
-  const { data: quizResults = [], isLoading: isLoadingQuizzes } = useQuery<QuizResult[]>({
-    queryKey: ['my-quiz-results'],
-    queryFn: async () => {
-      if (!member?.id) return [];
-      const result = await fetchMemberQuizHistory(member.id);
-      const items = (result as any).results || (result as any).items || [];
-      return items.map((item: any) => ({
-        id: item.id,
-        quiz_id: item.quiz_id,
-        user_id: item.member_id || member.id,
-        score: item.score ?? null,
-        is_passed: item.is_passed ?? null,
-        completed_at: item.completed_at,
-      })) as QuizResult[];
-    },
-    enabled: !!member?.id,
-  });
 
   // Fetch profile tiles — TODO: add /api/v1/members/:id/tiles endpoint to Sanic API
   const { data: profileTiles = [], isLoading: isLoadingTiles } = useQuery<ProfileTile[]>({
@@ -142,53 +96,26 @@ export default function Profile() {
     toggleTileVisibilityMutation.mutate({ tileId, isVisible });
   };
 
-  const { data: profileData, isLoading: isLoadingProfile } = useQuery<ProfileData>({
-    queryKey: ['my-profile-data'],
-    queryFn: async () => {
-      if (!member?.id) return { profile: null, badges: [], tags: [], privacy: null };
-
-      const [memberData, badgesResult, tagsResult] = await Promise.all([
-        fetchMember(member.id),
-        fetchMemberBadges(member.id),
-        fetchMemberTags(member.id),
-      ]);
-
-      const badges: UserBadge[] = ((badgesResult as any).badges || []).map((b: any) => ({
-        id: b.id,
-        badge_key: b.badge_key || b.key,
-        badge_name: b.badge_name || b.name,
-        badge_description: b.badge_description || b.description || null,
-        badge_category: b.badge_category || b.category || null,
-      }));
-
-      const tags: UserTag[] = ((tagsResult as any).tags || []).map((t: any) => ({
-        id: t.id,
-        tag_key: t.tag_key || t.key,
-        tag_value: t.tag_value || t.value,
-      }));
-
-      // Privacy settings from member data (if available)
-      const privacyRaw = (memberData as any).privacy ?? null;
-      const privacy: UserPrivacySettings | null = privacyRaw
-        ? {
-            isProfilePublic: privacyRaw.is_profile_public ?? privacyRaw.isProfilePublic,
-            showBadges: privacyRaw.show_badges ?? privacyRaw.showBadges,
-            showTags: privacyRaw.show_tags ?? privacyRaw.showTags,
-            showQuizResults: privacyRaw.show_quiz_results ?? privacyRaw.showQuizResults,
-            allowDiscovery: privacyRaw.allow_discovery ?? privacyRaw.allowDiscovery,
-            sharedDimensions: privacyRaw.shared_dimensions ?? privacyRaw.sharedDimensions ?? [],
-          }
-        : null;
-
-      return {
-        profile: memberData as any,
-        badges,
-        tags,
-        privacy,
-      };
-    },
+  const { data: profileData, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ['my-profile-data', member?.id],
+    queryFn: () => fetchMemberProfile(member!.id),
     enabled: !!member?.id,
   });
+
+  const quizSummary = profileData?.quiz_summary;
+  const badges = profileData?.badges ?? [];
+  const tags = profileData?.tags ?? [];
+  const privacyRaw = (profileData as any)?.privacy ?? null;
+  const privacy: UserPrivacySettings | null = privacyRaw
+    ? {
+        isProfilePublic: privacyRaw.is_profile_public ?? privacyRaw.isProfilePublic,
+        showBadges: privacyRaw.show_badges ?? privacyRaw.showBadges,
+        showTags: privacyRaw.show_tags ?? privacyRaw.showTags,
+        showQuizResults: privacyRaw.show_quiz_results ?? privacyRaw.showQuizResults,
+        allowDiscovery: privacyRaw.allow_discovery ?? privacyRaw.allowDiscovery,
+        sharedDimensions: privacyRaw.shared_dimensions ?? privacyRaw.sharedDimensions ?? [],
+      }
+    : null;
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (updates: Partial<UserPrivacySettings>) => {
@@ -271,7 +198,7 @@ export default function Profile() {
   };
 
   const handleDimensionToggle = (dimension: string, checked: boolean) => {
-    const currentDimensions = profileData?.privacy?.sharedDimensions || [];
+    const currentDimensions = privacy?.sharedDimensions || [];
     const updatedDimensions = checked
       ? [...currentDimensions, dimension]
       : currentDimensions.filter(d => d !== dimension);
@@ -332,17 +259,16 @@ export default function Profile() {
     setIsEditingContact(false);
   };
 
-  const completedQuizzes = quizResults.filter(r => r.score !== null);
+  const completedQuizzes = quizSummary?.quizzes.filter(q => q.status === 'completed') ?? [];
 
   // Get profile data for display
-  const profile = profileData?.profile;
-  const firstName = profile?.first_name || '';
-  const lastName = profile?.last_name || '';
+  const firstName = (profileData as any)?.first_name || '';
+  const lastName = (profileData as any)?.last_name || '';
   const userEmail = member?.display_name || '';
-  const userBio = profile?.bio || '';
-  const avatarUrl = profile?.avatar_url || '';
-  const username = profile?.username || '';
-  const userCreatedAt = profile?.created_at;
+  const userBio = (profileData as any)?.bio || '';
+  const avatarUrl = (profileData as any)?.avatar_url || '';
+  const username = profileData?.username || '';
+  const userCreatedAt = profileData?.created_at;
 
   const handleSave = async () => {
     if (!member?.id) return;
@@ -464,7 +390,7 @@ export default function Profile() {
       pdf.text(displayNamePDF, margin + 48, yPos + 18);
 
       // Headline
-      const headline = profileData?.profile?.headline;
+      const headline = (profileData as any)?.headline;
       if (headline) {
         pdf.setFontSize(9);
         pdf.setTextColor(...primaryColor);
@@ -489,7 +415,7 @@ export default function Profile() {
       yPos += 62;
 
       // Bio Section
-      const bio = profileData?.profile?.bio || userBio;
+      const bio = (profileData as any)?.bio || userBio;
       if (bio && bio.trim()) {
         pdf.setFillColor(...cardColor);
         pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 22, 3, 3, 'F');
@@ -503,7 +429,6 @@ export default function Profile() {
       }
 
       // Badges Section
-      const badges = profileData?.badges || [];
       if (badges.length > 0) {
         pdf.setFillColor(...cardColor);
         pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 40, 3, 3, 'F');
@@ -532,7 +457,6 @@ export default function Profile() {
       }
 
       // Tags Section
-      const tags = profileData?.tags || [];
       if (tags.length > 0) {
         pdf.setFillColor(...cardColor);
         pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 30, 3, 3, 'F');
@@ -577,9 +501,12 @@ export default function Profile() {
           pdf.setFontSize(8);
           pdf.setTextColor(...mutedColor);
           pdf.setFont('helvetica', 'normal');
-          const completedDate = quiz.completed_at ? new Date(quiz.completed_at).toLocaleDateString() : 'Unknown date';
-          pdf.text(`Completed ${completedDate}`, margin + 22, quizY);
-          quizY += 8;
+          pdf.text(safeText(quiz.quiz_title || 'Quiz', 30), margin + 22, quizY);
+          const completedDate = quiz.completed_at ? new Date(quiz.completed_at).toLocaleDateString() : '';
+          if (completedDate) {
+            pdf.text(`Completed ${completedDate}`, margin + 22, quizY + 4);
+          }
+          quizY += 12;
         });
         yPos += 50;
       }
@@ -619,7 +546,7 @@ export default function Profile() {
     return (roleKey.charAt(0).toUpperCase() + roleKey.slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
   };
 
-  const profileDimensions = profileData?.profile?.profile_dimensions as ProfileDimensions | undefined;
+  const profileDimensions = (profileData as any)?.profile_dimensions as ProfileDimensions | undefined;
 
   const getTagsForDimension = (dimension: keyof ProfileDimensions) => {
     if (!profileDimensions || !profileDimensions[dimension]) return [];
@@ -652,8 +579,8 @@ export default function Profile() {
     const timestamp = new Date().toISOString();
 
     // Convert legacy badges to tiles
-    if (profileData?.badges) {
-      profileData.badges.forEach(badge => {
+    if (badges.length > 0) {
+      badges.forEach(badge => {
         legacyTiles.push({
           id: `legacy-badge-${badge.id}`,
           user_id: member?.id || '',
@@ -675,7 +602,7 @@ export default function Profile() {
     }
 
     // Convert legacy tags to list tiles (grouped by dimension)
-    if (profileData?.tags && profileData.tags.length > 0) {
+    if (tags.length > 0) {
       // Simple grouping - in reality tags might not have dimension column in this interface
       // so we'll put them in 'general' or try to infer
       legacyTiles.push({
@@ -686,7 +613,7 @@ export default function Profile() {
         dimension: 'general',
         title: 'Profile Tags',
         content: {
-          items: profileData.tags.map(t => ({ label: t.tag_key, value: t.tag_value }))
+          items: tags.map(t => ({ label: t.tag_key, value: t.tag_value }))
         },
         display_order: 999,
         is_visible: true,
@@ -696,7 +623,7 @@ export default function Profile() {
     }
 
     return [...(profileTiles || []), ...legacyTiles];
-  }, [profileTiles, profileData?.badges, profileData?.tags, member?.id]);
+  }, [profileTiles, badges, tags, member?.id]);
 
   const tilesByDimension = mergedTiles.reduce((acc, tile) => {
     const dim = tile.dimension || 'general';
@@ -912,12 +839,15 @@ export default function Profile() {
             })}
           </div>
 
+          {/* Quiz Progress & Results */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle>Recent Quiz Results</CardTitle>
-                  <CardDescription>Your most recent completed quizzes</CardDescription>
+                  <CardTitle>Quiz Progress</CardTitle>
+                  <CardDescription>
+                    {quizSummary ? `${quizSummary.completed} of ${quizSummary.total_available} completed (${quizSummary.passed} passed)` : 'Track your learning journey'}
+                  </CardDescription>
                 </div>
                 {completedQuizzes.length > 5 && (
                   <Link href="/my-quiz-history">
@@ -929,30 +859,45 @@ export default function Profile() {
               </div>
             </CardHeader>
             <CardContent>
-              {isLoadingQuizzes ? (
-                <p className="text-muted-foreground text-center py-8">Loading quiz results...</p>
-              ) : completedQuizzes.length > 0 ? (
+              {isLoadingProfile ? (
+                <p className="text-muted-foreground text-center py-8">Loading quiz progress...</p>
+              ) : quizSummary && quizSummary.quizzes.length > 0 ? (
                 <div className="space-y-3">
-                  {completedQuizzes.slice(0, 5).map((result) => (
-                    <Link key={result.id} href={`/quiz/results/${result.id}`}>
-                      <div
-                        className="flex items-center justify-between p-4 rounded-lg border hover-elevate active-elevate-2 cursor-pointer"
-                        data-testid={`completed-quiz-${result.id}`}
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <CheckCircle className="h-5 w-5 text-chart-3 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">Quiz Result</p>
+                  {quizSummary.quizzes.map((q) => (
+                    <div
+                      key={q.quiz_id}
+                      className="flex items-center justify-between p-4 rounded-lg border"
+                      data-testid={`quiz-status-${q.quiz_id}`}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {q.status === 'completed' ? (
+                          <CheckCircle className={`h-5 w-5 flex-shrink-0 ${q.is_passed ? 'text-chart-3' : 'text-destructive'}`} />
+                        ) : q.status === 'in_progress' ? (
+                          <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                        ) : (
+                          <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{q.quiz_title}</p>
+                          {q.completed_at && (
                             <p className="text-sm text-muted-foreground">
-                              {new Date(result.completed_at).toLocaleDateString()}
+                              Completed {new Date(q.completed_at).toLocaleDateString()}
                             </p>
-                          </div>
+                          )}
+                          {q.status === 'in_progress' && (
+                            <p className="text-sm text-yellow-600">In progress</p>
+                          )}
+                          {q.status === 'not_started' && (
+                            <p className="text-sm text-muted-foreground">Not started</p>
+                          )}
                         </div>
-                        <Badge variant={result.is_passed ? "default" : "destructive"}>
-                          {result.score}%
-                        </Badge>
                       </div>
-                    </Link>
+                      {q.score !== null && (
+                        <Badge variant={q.is_passed ? "default" : "destructive"}>
+                          {q.score}%
+                        </Badge>
+                      )}
+                    </div>
                   ))}
                   <Link href="/my-quiz-history">
                     <div className="text-center pt-2">
@@ -965,7 +910,7 @@ export default function Profile() {
               ) : (
                 <div className="text-center py-8 space-y-2">
                   <p className="text-muted-foreground">
-                    No completed quizzes yet
+                    No quizzes available yet
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Start taking quizzes to build your profile!
@@ -995,7 +940,7 @@ export default function Profile() {
                   </p>
                 </div>
                 <Switch
-                  checked={profileData?.privacy?.isProfilePublic || false}
+                  checked={privacy?.isProfilePublic || false}
                   onCheckedChange={(checked) => handlePrivacyToggle('isProfilePublic', checked)}
                   data-testid="switch-profile-public"
                 />
@@ -1009,7 +954,7 @@ export default function Profile() {
                   </p>
                 </div>
                 <Switch
-                  checked={profileData?.privacy?.showBadges || false}
+                  checked={privacy?.showBadges || false}
                   onCheckedChange={(checked) => handlePrivacyToggle('showBadges', checked)}
                   data-testid="switch-show-badges"
                 />
@@ -1023,7 +968,7 @@ export default function Profile() {
                   </p>
                 </div>
                 <Switch
-                  checked={profileData?.privacy?.showTags || false}
+                  checked={privacy?.showTags || false}
                   onCheckedChange={(checked) => handlePrivacyToggle('showTags', checked)}
                   data-testid="switch-show-tags"
                 />
@@ -1037,7 +982,7 @@ export default function Profile() {
                   </p>
                 </div>
                 <Switch
-                  checked={profileData?.privacy?.showQuizResults || false}
+                  checked={privacy?.showQuizResults || false}
                   onCheckedChange={(checked) => handlePrivacyToggle('showQuizResults', checked)}
                   data-testid="switch-show-quiz-results"
                 />
@@ -1051,7 +996,7 @@ export default function Profile() {
                   </p>
                 </div>
                 <Switch
-                  checked={profileData?.privacy?.allowDiscovery || false}
+                  checked={privacy?.allowDiscovery || false}
                   onCheckedChange={(checked) => handlePrivacyToggle('allowDiscovery', checked)}
                   data-testid="switch-allow-discovery"
                 />
@@ -1080,7 +1025,7 @@ export default function Profile() {
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Public Profile
               </Button>
-              {!profileData?.privacy?.isProfilePublic && (
+              {!privacy?.isProfilePublic && (
                 <p className="text-xs text-amber-500 text-center">
                   Your profile is currently private. Enable "Make Profile Public" above to allow others to view it.
                 </p>
