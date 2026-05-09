@@ -6,36 +6,46 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
-interface EcosystemFilterProps {
-  value: string[];
-  onChange: (ids: string[]) => void;
-}
-
-export function EcosystemFilter({ value, onChange }: EcosystemFilterProps) {
-  const { ecosystems } = useEcosystem();
+/**
+ * Ecosystem filter that reads/writes directly from EcosystemContext.
+ * No props needed - it's a global filter that persists across pages.
+ */
+export function EcosystemFilter() {
+  const { ecosystems, selectedIds, selectMultiple, selectAll, isAll } = useEcosystem();
   const [open, setOpen] = useState(false);
 
   if (ecosystems.length <= 1) return null;
 
-  const isAll = value.length === 0 || value.length === ecosystems.length;
-
   const toggle = (id: string) => {
-    const next = value.includes(id)
-      ? value.filter(x => x !== id)
-      : [...value, id];
-    // If all are now selected, treat as "All" (empty)
-    if (next.length === ecosystems.length) {
-      onChange([]);
+    if (isAll) {
+      // "All" is selected: unchecking one means "all except this one"
+      selectMultiple(ecosystems.filter(e => e.id !== id).map(e => e.id));
+    } else if (selectedIds.includes(id)) {
+      // Already selected: remove it (but keep at least one)
+      const next = selectedIds.filter(x => x !== id);
+      if (next.length === 0) return;
+      // If removing makes it all-but-zero, keep as explicit list
+      if (next.length === ecosystems.length) {
+        selectAll();
+      } else {
+        selectMultiple(next);
+      }
     } else {
-      onChange(next);
+      // Not selected: add it
+      const next = [...selectedIds, id];
+      if (next.length === ecosystems.length) {
+        selectAll();
+      } else {
+        selectMultiple(next);
+      }
     }
   };
 
   const label = isAll
     ? 'All Ecosystems'
-    : value.length === 1
-      ? ecosystems.find(e => e.id === value[0])?.name ?? '1 ecosystem'
-      : `${value.length} ecosystems`;
+    : selectedIds.length === 1
+      ? ecosystems.find(e => e.id === selectedIds[0])?.name ?? '1 ecosystem'
+      : `${selectedIds.length} ecosystems`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -55,7 +65,7 @@ export function EcosystemFilter({ value, onChange }: EcosystemFilterProps) {
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
             >
               <Checkbox
-                checked={isAll || value.includes(eco.id)}
+                checked={isAll || selectedIds.includes(eco.id)}
                 onCheckedChange={() => toggle(eco.id)}
               />
               <span className="truncate flex-1">{eco.name}</span>
@@ -70,7 +80,7 @@ export function EcosystemFilter({ value, onChange }: EcosystemFilterProps) {
             variant="ghost"
             size="sm"
             className="w-full mt-2 text-xs"
-            onClick={() => onChange([])}
+            onClick={() => selectAll()}
           >
             Show all ecosystems
           </Button>

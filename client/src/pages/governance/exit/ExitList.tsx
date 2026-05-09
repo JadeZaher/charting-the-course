@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useExits } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -41,18 +42,19 @@ export default function ExitList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
   const [exitType, setExitType] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
+
   const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
+    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
     if (status !== 'all') p.status = status;
     if (exitType !== 'all') p.exit_type = exitType;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, exitType, ecosystemIds, search, page]);
+  }, [status, exitType, ecosystemParams, search, page]);
 
   const { data, isLoading, error } = useExits(params);
 
@@ -106,7 +108,7 @@ export default function ExitList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -127,13 +129,14 @@ export default function ExitList() {
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Reason</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No exits found
                   </TableCell>
                 </TableRow>
@@ -150,6 +153,7 @@ export default function ExitList() {
                       <Badge variant={statusVariant(item.status)}>{item.status}</Badge>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">{item.reason || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(item.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))

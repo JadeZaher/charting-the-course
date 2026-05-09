@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useDomains } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -31,17 +32,18 @@ const statusVariant = (status: string) => {
 export default function DomainList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
+
   const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
+    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
     if (status !== 'all') p.status = status;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, ecosystemIds, search, page]);
+  }, [status, ecosystemParams, search, page]);
 
   const { data, isLoading, error } = useDomains(params);
 
@@ -84,7 +86,7 @@ export default function DomainList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -105,13 +107,14 @@ export default function DomainList() {
                 <TableHead>Purpose</TableHead>
                 <TableHead>Steward</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Version</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No domains found
                   </TableCell>
                 </TableRow>
@@ -128,6 +131,7 @@ export default function DomainList() {
                     <TableCell>
                       <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(d.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{d.version}</TableCell>
                   </TableRow>
                 ))

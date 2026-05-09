@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useAudits } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
 
@@ -30,15 +31,15 @@ const statusVariant = (status: string) => {
 export default function AuditList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
 
   const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
+    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
     if (status !== 'all') p.status = status;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     return p;
-  }, [status, ecosystemIds, page]);
+  }, [status, ecosystemParams, page]);
 
   const { data, isLoading, error } = useAudits(params);
 
@@ -80,7 +81,7 @@ export default function AuditList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
           </div>
         </CardContent>
       </Card>
@@ -92,6 +93,7 @@ export default function AuditList() {
               <TableRow>
                 <TableHead>Auditor</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Completed</TableHead>
               </TableRow>
@@ -99,7 +101,7 @@ export default function AuditList() {
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     No audits found
                   </TableCell>
                 </TableRow>
@@ -114,6 +116,7 @@ export default function AuditList() {
                     <TableCell>
                       <Badge variant={statusVariant(audit.status)}>{audit.status}</Badge>
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(audit.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{new Date(audit.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>{audit.completed_at ? new Date(audit.completed_at).toLocaleDateString() : '-'}</TableCell>
                   </TableRow>

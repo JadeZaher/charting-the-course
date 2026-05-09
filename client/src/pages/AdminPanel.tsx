@@ -11,14 +11,15 @@ import {
   Shield, Loader2, Plus, Edit, Trash2, Eye, Upload, X, Image,
   UserPlus, UsersRound, ClipboardList, Mail, Send, CheckCircle,
   Globe, Building2, Network, UserMinus, Bot, MessageSquare, ToggleLeft, ToggleRight,
-  Settings, Map as MapIcon
+  Settings, Map as MapIcon, Package, ArrowUpCircle, ArrowDownCircle, TrendingUp, CheckCircle2, XCircle
 } from "lucide-react";
 import { APP_SETTINGS_KEYS } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord } from "@/lib/api-client";
+import { fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord, fetchQuizResultsAdmin } from "@/lib/api-client";
+import { useSharesNeedsAdmin, useUpdateSharesNeeds, useUpdateSharesNeedsStatus, useDeleteSharesNeeds } from "@/hooks/use-discover";
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -138,7 +139,7 @@ export default function AdminPanel() {
   const { isAdmin, canManageUsers, canManageContent, isLoading: roleLoading } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   
   // State hooks
   const [searchQuery, setSearchQuery] = useState("");
@@ -218,6 +219,28 @@ export default function AdminPanel() {
   const [ctcMapForm, setCtcMapForm] = useState({ prezi_url: "", description: "" });
   const [ctcMapLoaded, setCtcMapLoaded] = useState(false);
   const [savingCtcMap, setSavingCtcMap] = useState(false);
+
+  // Shares & Needs admin state
+  const [snSearch, setSnSearch] = useState("");
+  const [snTypeFilter, setSnTypeFilter] = useState("all");
+  const [snCategoryFilter, setSnCategoryFilter] = useState("all");
+  const [snStatusFilter, setSnStatusFilter] = useState("all");
+  const [editingSn, setEditingSn] = useState<any>(null);
+  const [snForm, setSnForm] = useState({ title: "", description: "", category: "", capacity: "", visibility: "public", domain_id: "" });
+  const [isSnEditOpen, setIsSnEditOpen] = useState(false);
+
+  // Active tab from URL hash
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+    return ['users', 'teams', 'quizzes', 'assignments', 'shares-needs', 'badges', 'ethos', 'omnibot', 'settings'].includes(hash) ? hash : 'users';
+  });
+
+  useEffect(() => {
+    const hash = location.split('#')[1];
+    if (hash && ['users', 'teams', 'quizzes', 'assignments', 'shares-needs', 'badges', 'ethos', 'omnibot', 'settings'].includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, [location]);
 
   // Query hooks - must be called before any conditional returns
   const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
@@ -343,6 +366,72 @@ export default function AdminPanel() {
       setSavingCtcMap(false);
     }
   };
+
+  // Shares & Needs admin query
+  const snAdminParams = useMemo(() => {
+    const p: Record<string, string> = { per_page: '100' };
+    if (snTypeFilter !== 'all') p.type = snTypeFilter;
+    if (snCategoryFilter !== 'all') p.category = snCategoryFilter;
+    if (snStatusFilter !== 'all') p.status = snStatusFilter;
+    if (snSearch) p.q = snSearch;
+    return p;
+  }, [snTypeFilter, snCategoryFilter, snStatusFilter, snSearch]);
+
+  const { data: snAdminData, isLoading: snAdminLoading, refetch: refetchSnAdmin } = useSharesNeedsAdmin(snAdminParams);
+  const snAdminItems = (snAdminData as any)?.items ?? [];
+  const snAdminStats = (snAdminData as any)?.stats ?? { total: 0, shares: 0, needs: 0, active: 0, fulfilled: 0, withdrawn: 0 };
+
+  // Shares & Needs mutations
+  const updateSnMutation = useUpdateSharesNeeds();
+  const updateSnStatusMutation = useUpdateSharesNeedsStatus();
+  const deleteSnMutation = useDeleteSharesNeeds();
+
+  // Quiz results admin query (for completion counts)
+  const { data: quizResultsMap = {} } = useQuery({
+    queryKey: ['admin-quiz-results-counts'],
+    queryFn: async () => {
+      const counts: Record<string, number> = {};
+      for (const q of (quizzes as any[])) {
+        try {
+          const res = await fetchQuizResultsAdmin(q.id, { page: '1', per_page: '1' });
+          counts[q.id] = res.total || 0;
+        } catch {
+          counts[q.id] = 0;
+        }
+      }
+      return counts;
+    },
+    enabled: quizzes.length > 0,
+  });
+
+  const toggleQuizPublish = async (quizId: string, currentPublished: boolean) => {
+    try {
+      await apiFetch(`/api/v1/quizzes/${quizId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_published: !currentPublished }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-quizzes'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-quiz-results-counts'] });
+      toast({ title: currentPublished ? "Quiz Unpublished" : "Quiz Published" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const deleteQuizMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiFetch<any>(`/api/v1/quizzes/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-quizzes'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-quiz-results-counts'] });
+      toast({ title: "Quiz Deleted" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
 
   // Badge mutations — TODO: add badge endpoints to Sanic API
   const createBadgeMutation = useMutation({
@@ -982,7 +1071,7 @@ export default function AdminPanel() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="users">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setLocation(`/admin#${v}`); }}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="users" data-testid="tab-users">
             <Users className="h-4 w-4 mr-2" />
@@ -999,6 +1088,10 @@ export default function AdminPanel() {
           <TabsTrigger value="assignments" data-testid="tab-assignments">
             <ClipboardList className="h-4 w-4 mr-2" />
             Assignments
+          </TabsTrigger>
+          <TabsTrigger value="shares-needs" data-testid="tab-shares-needs">
+            <Package className="h-4 w-4 mr-2" />
+            Shares & Needs
           </TabsTrigger>
           <TabsTrigger value="badges" data-testid="tab-badges">
             <Award className="h-4 w-4 mr-2" />
@@ -1380,7 +1473,7 @@ export default function AdminPanel() {
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <CardTitle>Quiz Management</CardTitle>
-                  <CardDescription>View and manage all quizzes</CardDescription>
+                  <CardDescription>View and manage all quizzes ({quizzes.length} total, {activeQuizzes.length} published)</CardDescription>
                 </div>
                 <Link href="/quiz/manage">
                   <Button data-testid="button-manage-quizzes">
@@ -1397,7 +1490,9 @@ export default function AdminPanel() {
                 </div>
               ) : quizzes.length > 0 ? (
                 <div className="space-y-3">
-                  {quizzes.map((quiz: any) => (
+                  {quizzes.map((quiz: any) => {
+                    const completionCount = (quizResultsMap as Record<string, number>)[quiz.id] ?? 0;
+                    return (
                     <div
                       key={quiz.id}
                       className="flex items-center justify-between p-4 rounded-lg border"
@@ -1410,39 +1505,80 @@ export default function AdminPanel() {
                             {quiz.is_published ? "Published" : "Draft"}
                           </Badge>
                           <Badge variant="secondary">{quiz.visibility}</Badge>
+                          {quiz.is_entry_quiz && (
+                            <Badge variant="outline" className="text-xs">Entry Quiz</Badge>
+                          )}
+                          {quiz.mode && quiz.mode !== 'standard' && (
+                            <Badge variant="secondary" className="text-xs capitalize">{quiz.mode}</Badge>
+                          )}
                         </div>
                         {quiz.description && (
                           <p className="text-sm text-muted-foreground truncate">
                             {quiz.description}
                           </p>
                         )}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          {completionCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              {completionCount} completion{completionCount !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {quiz.passing_score && <span>Passing: {quiz.passing_score}%</span>}
+                          {quiz.time_limit && <span>Time: {quiz.time_limit}s</span>}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="ghost" 
+                      <div className="flex gap-1 items-center">
+                        <Button
+                          variant={quiz.is_published ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => toggleQuizPublish(quiz.id, quiz.is_published)}
+                          title={quiz.is_published ? "Unpublish" : "Publish"}
+                          className="h-8 w-8 p-0"
+                        >
+                          {quiz.is_published ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => {
                             console.log('Viewing quiz from admin panel:', quiz.id);
                             setLocation(`/quiz/take/${quiz.id}`);
                           }}
                           title="View/Preview Quiz"
+                          className="h-8 w-8 p-0"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => {
                             console.log('Editing quiz from admin panel:', quiz.id);
                             setLocation(`/quiz/manage?edit=${quiz.id}`);
                           }}
                           title="Edit Quiz"
+                          className="h-8 w-8 p-0"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Delete quiz "${quiz.title}"?`)) {
+                              deleteQuizMutation.mutate(quiz.id);
+                            }
+                          }}
+                          title="Delete Quiz"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-center py-8">
@@ -1611,6 +1747,294 @@ export default function AdminPanel() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Shares & Needs Tab */}
+        <TabsContent value="shares-needs" className="mt-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <Package className="h-8 w-8 text-muted-foreground/50" />
+                <div>
+                  <div className="text-xl font-bold">{snAdminStats.total}</div>
+                  <div className="text-xs text-muted-foreground">Total</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <ArrowUpCircle className="h-8 w-8 text-primary/50" />
+                <div>
+                  <div className="text-xl font-bold">{snAdminStats.shares}</div>
+                  <div className="text-xs text-muted-foreground">Shares</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <ArrowDownCircle className="h-8 w-8 text-orange-500/50" />
+                <div>
+                  <div className="text-xl font-bold">{snAdminStats.needs}</div>
+                  <div className="text-xs text-muted-foreground">Needs</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <CheckCircle2 className="h-8 w-8 text-green-500/50" />
+                <div>
+                  <div className="text-xl font-bold">{snAdminStats.active}</div>
+                  <div className="text-xs text-muted-foreground">Active</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <CheckCircle className="h-8 w-8 text-blue-500/50" />
+                <div>
+                  <div className="text-xl font-bold">{snAdminStats.fulfilled}</div>
+                  <div className="text-xs text-muted-foreground">Fulfilled</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <XCircle className="h-8 w-8 text-gray-500/50" />
+                <div>
+                  <div className="text-xl font-bold">{snAdminStats.withdrawn}</div>
+                  <div className="text-xs text-muted-foreground">Withdrawn</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle>Shares & Needs Management</CardTitle>
+                  <CardDescription>Manage cross-ecosystem resource sharing and requests</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Filter bar */}
+              <div className="flex flex-wrap gap-3 mb-4">
+                <Input
+                  placeholder="Search..."
+                  value={snSearch}
+                  onChange={(e) => setSnSearch(e.target.value)}
+                  className="w-[200px]"
+                />
+                <Select value={snTypeFilter} onValueChange={setSnTypeFilter}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="share">Shares</SelectItem>
+                    <SelectItem value="need">Needs</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={snCategoryFilter} onValueChange={setSnCategoryFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="skill">Skill</SelectItem>
+                    <SelectItem value="resource">Resource</SelectItem>
+                    <SelectItem value="knowledge">Knowledge</SelectItem>
+                    <SelectItem value="technology">Technology</SelectItem>
+                    <SelectItem value="infrastructure">Infrastructure</SelectItem>
+                    <SelectItem value="funding">Funding</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={snStatusFilter} onValueChange={setSnStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {snAdminLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : snAdminItems.length > 0 ? (
+                <div className="space-y-3">
+                  {snAdminItems.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start justify-between p-4 rounded-lg border"
+                      data-testid={`sn-row-${item.id}`}
+                    >
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {item.type === 'share' ? (
+                            <ArrowUpCircle className="h-4 w-4 text-primary shrink-0" />
+                          ) : (
+                            <ArrowDownCircle className="h-4 w-4 text-orange-500 shrink-0" />
+                          )}
+                          <p className="font-medium truncate">{item.title}</p>
+                          <Badge variant={item.type === 'share' ? 'default' : 'secondary'} className="capitalize text-xs">{item.type}</Badge>
+                          <Badge variant={item.status === 'active' ? 'default' : item.status === 'fulfilled' ? 'outline' : 'secondary'} className="capitalize text-xs">{item.status}</Badge>
+                          <Badge variant="outline" className="capitalize text-xs">{item.category || 'uncategorized'}</Badge>
+                          {item.visibility !== 'public' && (
+                            <Badge variant="outline" className="text-xs">{item.visibility}</Badge>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {item.ecosystem_name && <span>{item.ecosystem_name}</span>}
+                          {item.domain_name && <span>{item.domain_name}</span>}
+                          {item.capacity && <span>Capacity: {item.capacity}</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0 ml-4">
+                        {/* Status quick-toggle */}
+                        {item.status === 'active' && (
+                          <Button
+                            variant="ghost" size="sm" className="h-8 px-2 text-xs"
+                            onClick={() => updateSnStatusMutation.mutate({ id: item.id, status: 'fulfilled' })}
+                            title="Mark as Fulfilled"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> Fulfill
+                          </Button>
+                        )}
+                        {item.status !== 'withdrawn' && (
+                          <Button
+                            variant="ghost" size="sm" className="h-8 px-2 text-xs"
+                            onClick={() => updateSnStatusMutation.mutate({ id: item.id, status: 'withdrawn' })}
+                            title="Withdraw"
+                          >
+                            <X className="h-3.5 w-3.5 mr-1" /> Withdraw
+                          </Button>
+                        )}
+                        {item.status === 'withdrawn' && (
+                          <Button
+                            variant="ghost" size="sm" className="h-8 px-2 text-xs"
+                            onClick={() => updateSnStatusMutation.mutate({ id: item.id, status: 'active' })}
+                            title="Reactivate"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Activate
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost" size="sm" className="h-8 w-8 p-0"
+                          onClick={() => {
+                            setEditingSn(item);
+                            setSnForm({
+                              title: item.title,
+                              description: item.description || "",
+                              category: item.category || "",
+                              capacity: item.capacity || "",
+                              visibility: item.visibility,
+                              domain_id: item.domain_id,
+                            });
+                            setIsSnEditOpen(true);
+                          }}
+                          title="Edit"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm" className="h-8 w-8 p-0"
+                          onClick={() => {
+                            if (confirm(`Delete "${item.title}"?`)) {
+                              deleteSnMutation.mutate(item.id);
+                            }
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  {snSearch || snTypeFilter !== 'all' || snStatusFilter !== 'all' ? "No items match your filters" : "No shares or needs found"}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Edit Dialog */}
+          <Dialog open={isSnEditOpen} onOpenChange={(open) => { if (!open) { setIsSnEditOpen(false); setEditingSn(null); } }}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Share / Need</DialogTitle>
+                <DialogDescription>Update details for this item</DialogDescription>
+              </DialogHeader>
+              {editingSn && (
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <Label>Title</Label>
+                    <Input value={snForm.title} onChange={(e) => setSnForm(f => ({ ...f, title: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea value={snForm.description} onChange={(e) => setSnForm(f => ({ ...f, description: e.target.value }))} rows={3} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Category</Label>
+                      <Select value={snForm.category} onValueChange={(v) => setSnForm(f => ({ ...f, category: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="skill">Skill</SelectItem>
+                          <SelectItem value="resource">Resource</SelectItem>
+                          <SelectItem value="knowledge">Knowledge</SelectItem>
+                          <SelectItem value="technology">Technology</SelectItem>
+                          <SelectItem value="infrastructure">Infrastructure</SelectItem>
+                          <SelectItem value="funding">Funding</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Capacity</Label>
+                      <Input value={snForm.capacity} onChange={(e) => setSnForm(f => ({ ...f, capacity: e.target.value }))} placeholder="e.g. ongoing, high" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Visibility</Label>
+                    <Select value={snForm.visibility} onValueChange={(v) => setSnForm(f => ({ ...f, visibility: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="public">Public</SelectItem>
+                        <SelectItem value="ecosystem">Ecosystem</SelectItem>
+                        <SelectItem value="domain">Domain</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button onClick={() => {
+                      updateSnMutation.mutate({ id: editingSn.id, data: snForm }, {
+                        onSuccess: () => { setIsSnEditOpen(false); setEditingSn(null); refetchSnAdmin(); toast({ title: 'Updated' }); }
+                      });
+                    }} disabled={updateSnMutation.isPending}>
+                      {updateSnMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setIsSnEditOpen(false); setEditingSn(null); }}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Badges Tab */}

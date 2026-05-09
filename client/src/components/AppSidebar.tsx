@@ -45,6 +45,7 @@ import {
   ChevronDown,
   Bell,
   MessageSquare,
+  Package,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -123,6 +124,11 @@ const facilitatorItems = [
     title: "Manage Quizzes",
     url: "/quiz/manage",
     icon: FileEdit,
+  },
+  {
+    title: "Manage Shares & Needs",
+    url: "/admin#shares-needs",
+    icon: Package,
   },
 ];
 
@@ -351,14 +357,14 @@ export function AppSidebar() {
 
         {canManageContent && (
           <SidebarGroup>
-            <SidebarGroupLabel>Quiz Management</SidebarGroupLabel>
+            <SidebarGroupLabel>Content Management</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {facilitatorItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <MenuItemWithTooltip
                       item={item}
-                      isActive={location === item.url}
+                      isActive={location === item.url || (item.url === '/admin#shares-needs' && location === '/admin')}
                       isCollapsed={isCollapsed}
                     />
                   </SidebarMenuItem>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,16 +6,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useOnboardings } from '@/hooks/use-governance';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 
 export default function OnboardingList() {
   const [, navigate] = useLocation();
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
 
   const params = useMemo(() => {
-    const p: Record<string, string> = {};
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
+    const p: Record<string, string> = { ...ecosystemParams };
     return p;
-  }, [ecosystemIds]);
+  }, [ecosystemParams]);
 
   const { data, isLoading, error } = useOnboardings(params);
 
@@ -30,13 +31,13 @@ export default function OnboardingList() {
     );
   }
 
-  const items = data?.items ?? data ?? [];
+  const items: any[] = Array.isArray(data) ? data : (data?.items ?? []);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Onboarding</h1>
-        <EcosystemFilter value={ecosystemIds} onChange={setEcosystemIds} />
+        <EcosystemFilter />
       </div>
 
       <Card>
@@ -47,13 +48,14 @@ export default function OnboardingList() {
                 <TableHead>Member</TableHead>
                 <TableHead>Completion</TableHead>
                 <TableHead>Facilitator</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     No pending onboardings
                   </TableCell>
                 </TableRow>
@@ -82,6 +84,7 @@ export default function OnboardingList() {
                         </div>
                       </TableCell>
                       <TableCell>{o.facilitator || '-'}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{getEcosystemName(o.ecosystem_id) || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={completionPct === 100 ? 'default' : 'secondary'}>
                           {completionPct === 100 ? 'Complete' : 'In Progress'}

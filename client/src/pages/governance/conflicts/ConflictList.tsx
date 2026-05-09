@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useConflicts } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -63,19 +64,20 @@ export default function ConflictList() {
   const [status, setStatus] = useState('all');
   const [severity, setSeverity] = useState('all');
   const [urgency, setUrgency] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
+
   const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
+    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
     if (status !== 'all') p.status = status;
     if (severity !== 'all') p.severity = severity;
     if (urgency !== 'all') p.urgency = urgency;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [status, severity, urgency, ecosystemIds, search, page]);
+  }, [status, severity, urgency, ecosystemParams, search, page]);
 
   const { data, isLoading, error } = useConflicts(params);
 
@@ -140,7 +142,7 @@ export default function ConflictList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -162,13 +164,14 @@ export default function ConflictList() {
                 <TableHead>Status</TableHead>
                 <TableHead>Severity</TableHead>
                 <TableHead>Urgency</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No conflicts found
                   </TableCell>
                 </TableRow>
@@ -185,9 +188,10 @@ export default function ConflictList() {
                       <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={severityVariant(c.severity)}>{c.severity}</Badge>
+                      {c.severity ? <Badge variant={severityVariant(c.severity)}>{c.severity}</Badge> : '-'}
                     </TableCell>
                     <TableCell>{c.urgency}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(c.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{new Date(c.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))

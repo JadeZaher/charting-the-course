@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useProposals } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -64,19 +65,20 @@ export default function ProposalList() {
   const [phase, setPhase] = useState('all');
   const [type, setType] = useState('all');
   const [urgency, setUrgency] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (phase !== 'all') p.phase = phase;
     if (type !== 'all') p.type = type;
     if (urgency !== 'all') p.urgency = urgency;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
-    return p;
-  }, [phase, type, urgency, ecosystemIds, search, page]);
+    return { ...p, ...ecosystemParams };
+  }, [phase, type, urgency, search, page, ecosystemParams]);
 
   const { data, isLoading, error } = useProposals(params);
 
@@ -142,7 +144,7 @@ export default function ProposalList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -165,13 +167,14 @@ export default function ProposalList() {
                 <TableHead>Status</TableHead>
                 <TableHead>Urgency</TableHead>
                 <TableHead>Domain</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No proposals found
                   </TableCell>
                 </TableRow>
@@ -191,6 +194,7 @@ export default function ProposalList() {
                       {p.urgency ? <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge> : '-'}
                     </TableCell>
                     <TableCell>{p.affected_domain || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(p.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))

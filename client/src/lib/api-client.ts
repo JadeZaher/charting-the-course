@@ -309,6 +309,10 @@ export function submitQuizResult(quizId: string, data: Record<string, any>): Pro
 export function fetchQuizResults(quizId: string): Promise<{ results: QuizResultItem[] }> {
   return apiFetch(`/api/v1/quizzes/${quizId}/results`);
 }
+export function fetchQuizResultsAdmin(quizId: string, params?: Record<string, string>): Promise<{ items: (QuizResultItem & { member_name: string })[]; quiz_title: string; total: number; page: number; per_page: number }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/quizzes/${quizId}/results/all${qs}`);
+}
 export function fetchMemberQuizHistory(memberId: string): Promise<{ results: QuizResultItem[] }> {
   return apiFetch(`/api/v1/members/${memberId}/quiz-history`);
 }
@@ -412,8 +416,21 @@ export function fetchSharesNeeds(params?: Record<string, string>): Promise<Pagin
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch<PaginatedResponse<SharesNeeds>>(`/api/v1/discover/shares-needs${qs}`);
 }
+export function fetchSharesNeedsAdmin(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeeds> & { stats: { total: number; shares: number; needs: number; active: number; fulfilled: number; withdrawn: number } }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/discover/shares-needs/admin${qs}`);
+}
 export function createSharesNeeds(data: Record<string, any>): Promise<SharesNeeds> {
   return apiFetch<SharesNeeds>('/api/v1/discover/shares-needs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateSharesNeeds(id: string, data: Record<string, any>): Promise<SharesNeeds> {
+  return apiFetch<SharesNeeds>(`/api/v1/discover/shares-needs/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateSharesNeedsStatus(id: string, status: string): Promise<SharesNeeds> {
+  return apiFetch<SharesNeeds>(`/api/v1/discover/shares-needs/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+}
+export function deleteSharesNeeds(id: string): Promise<{ ok: boolean; message: string }> {
+  return apiFetch<{ ok: boolean; message: string }>(`/api/v1/discover/shares-needs/${id}`, { method: 'DELETE' });
 }
 
 // Collaborations API

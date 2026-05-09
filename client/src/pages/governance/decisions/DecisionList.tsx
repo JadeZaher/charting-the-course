@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useDecisions } from '@/hooks/use-governance';
 
 const STATUS_OPTIONS = [
@@ -39,19 +40,20 @@ export default function DecisionList() {
   const [status, setStatus] = useState('all');
   const [domain, setDomain] = useState('');
   const [sourceLayer, setSourceLayer] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
     if (domain) p.domain = domain;
     if (sourceLayer !== 'all') p.source_layer = sourceLayer;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
-    return p;
-  }, [status, domain, sourceLayer, ecosystemIds, search, page]);
+    return { ...p, ...ecosystemParams };
+  }, [status, domain, sourceLayer, search, page, ecosystemParams]);
 
   const { data, isLoading, error } = useDecisions(params);
 
@@ -106,7 +108,7 @@ export default function DecisionList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -127,13 +129,14 @@ export default function DecisionList() {
                 <TableHead>Holding</TableHead>
                 <TableHead>Domain</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No decisions found
                   </TableCell>
                 </TableRow>
@@ -150,6 +153,7 @@ export default function DecisionList() {
                     <TableCell>
                       <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(d.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{d.date ? new Date(d.date).toLocaleDateString() : '-'}</TableCell>
                   </TableRow>
                 ))

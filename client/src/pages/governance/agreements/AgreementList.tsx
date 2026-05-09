@@ -10,6 +10,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useAgreements } from '@/hooks/use-governance';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Plus } from 'lucide-react';
 
 const TYPE_OPTIONS = [
@@ -43,19 +44,19 @@ export default function AgreementList() {
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('all');
   const [domain, setDomain] = useState('');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
 
   const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
+    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
     if (type !== 'all') p.type = type;
     if (status !== 'all') p.status = status;
     if (domain) p.domain = domain;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
     return p;
-  }, [type, status, domain, ecosystemIds, search, page]);
+  }, [type, status, domain, search, page, ecosystemParams]);
 
   const { data, isLoading, error } = useAgreements(params);
 
@@ -117,7 +118,7 @@ export default function AgreementList() {
               className="w-[160px]"
             />
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -138,6 +139,7 @@ export default function AgreementList() {
                 <TableHead>Title</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Domain</TableHead>
                 <TableHead>Version</TableHead>
                 <TableHead>Created</TableHead>
@@ -146,7 +148,7 @@ export default function AgreementList() {
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No agreements found
                   </TableCell>
                 </TableRow>
@@ -163,6 +165,9 @@ export default function AgreementList() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(a.status)}>{a.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {getEcosystemName(a.ecosystem_id) || '-'}
                     </TableCell>
                     <TableCell>{a.domain || '-'}</TableCell>
                     <TableCell>{a.version}</TableCell>

@@ -192,6 +192,7 @@ export interface AgreementHistory {
 export interface ProposalListItem {
   id: string;
   proposal_id: string;
+  ecosystem_id: string;
   type: string;
   decision_type: string | null;
   title: string;
@@ -289,6 +290,7 @@ export interface PaginatedResponse<T> {
 export interface MemberListItem {
   id: string;
   member_id: string;
+  ecosystem_id: string;
   display_name: string;
   current_status: string;
   profile: string | null;
@@ -348,6 +350,7 @@ export interface OnboardingState {
 export interface DomainListItem {
   id: string;
   domain_id: string;
+  ecosystem_id: string;
   version: string;
   status: string;
   purpose: string | null;
@@ -381,6 +384,7 @@ export interface DomainDetail extends DomainListItem {
 export interface DecisionListItem {
   id: string;
   record_id: string;
+  ecosystem_id: string;
   date: string | null;
   holding: string | null;
   domain: string | null;
@@ -407,6 +411,7 @@ export interface DecisionDetail extends DecisionListItem {
 export interface ConflictListItem {
   id: string;
   case_id: string;
+  ecosystem_id: string;
   title: string;
   status: string;
   severity: string | null;
@@ -620,6 +625,7 @@ export interface EmergencyListResponse {
 export interface ExitListItem {
   id: string;
   member_id: string;
+  ecosystem_id: string;
   member_name: string;
   exit_type: string;
   status: string;

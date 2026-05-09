@@ -5,9 +5,24 @@ import * as api from '@/lib/api-client';
 export function useSharesNeeds(params?: Record<string, string>) {
   return useQuery({ queryKey: ['shares-needs', params], queryFn: () => api.fetchSharesNeeds(params) });
 }
+export function useSharesNeedsAdmin(params?: Record<string, string>) {
+  return useQuery({ queryKey: ['shares-needs-admin', params], queryFn: () => api.fetchSharesNeedsAdmin(params) });
+}
 export function useCreateSharesNeeds() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createSharesNeeds, onSuccess: () => qc.invalidateQueries({ queryKey: ['shares-needs'] }) });
+  return useMutation({ mutationFn: api.createSharesNeeds, onSuccess: () => { qc.invalidateQueries({ queryKey: ['shares-needs'] }); qc.invalidateQueries({ queryKey: ['shares-needs-admin'] }); } });
+}
+export function useUpdateSharesNeeds() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) => api.updateSharesNeeds(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['shares-needs'] }); qc.invalidateQueries({ queryKey: ['shares-needs-admin'] }); } });
+}
+export function useUpdateSharesNeedsStatus() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => api.updateSharesNeedsStatus(id, status), onSuccess: () => { qc.invalidateQueries({ queryKey: ['shares-needs'] }); qc.invalidateQueries({ queryKey: ['shares-needs-admin'] }); } });
+}
+export function useDeleteSharesNeeds() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.deleteSharesNeeds, onSuccess: () => { qc.invalidateQueries({ queryKey: ['shares-needs'] }); qc.invalidateQueries({ queryKey: ['shares-needs-admin'] }); } });
 }
 
 // Collaboration hooks

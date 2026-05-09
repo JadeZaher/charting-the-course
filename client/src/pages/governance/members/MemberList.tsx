@@ -10,6 +10,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemFilter } from '@/components/EcosystemFilter';
 import { useMembers } from '@/hooks/use-governance';
+import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Plus } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -40,18 +41,19 @@ export default function MemberList() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState('all');
   const [profile, setProfile] = useState('all');
-  const [ecosystemIds, setEcosystemIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  const ecosystemParams = useEcosystemFilterParams();
+  const getEcosystemName = useEcosystemName();
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
     if (profile !== 'all') p.profile = profile;
-    if (ecosystemIds.length > 0) p.ecosystem_ids = ecosystemIds.join(',');
     if (search) p.q = search;
-    return p;
-  }, [status, profile, ecosystemIds, search, page]);
+    return { ...p, ...ecosystemParams };
+  }, [status, profile, search, page, ecosystemParams]);
 
   const { data, isLoading, error } = useMembers(params);
 
@@ -105,7 +107,7 @@ export default function MemberList() {
               </SelectContent>
             </Select>
 
-            <EcosystemFilter value={ecosystemIds} onChange={(ids) => { setEcosystemIds(ids); setPage(1); }} />
+            <EcosystemFilter />
 
             <Input
               placeholder="Search..."
@@ -126,13 +128,14 @@ export default function MemberList() {
                 <TableHead>Member ID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Profile</TableHead>
+                <TableHead>Ecosystem</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No members found
                   </TableCell>
                 </TableRow>
@@ -151,6 +154,7 @@ export default function MemberList() {
                     <TableCell>
                       <Badge variant="outline">{m.profile || '-'}</Badge>
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(m.ecosystem_id) || '-'}</TableCell>
                     <TableCell>{new Date(m.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))
