@@ -1,15 +1,13 @@
-import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { EcosystemFilter } from '@/components/EcosystemFilter';
-import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { FilterBar } from '@/components/governance/shared/FilterBar';
+import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useExits } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
@@ -28,6 +26,11 @@ const TYPE_OPTIONS = [
   { value: 'timeout', label: 'Timeout' },
 ];
 
+const FILTERS: FilterDef[] = [
+  { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS },
+  { key: 'exit_type', label: 'Type', type: 'select', options: TYPE_OPTIONS },
+];
+
 const statusVariant = (status: string) => {
   switch (status) {
     case 'completed': return 'default' as const;
@@ -40,23 +43,11 @@ const statusVariant = (status: string) => {
 
 export default function ExitList() {
   const [, navigate] = useLocation();
-  const [status, setStatus] = useState('all');
-  const [exitType, setExitType] = useState('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
 
-  const ecosystemParams = useEcosystemFilterParams();
+  const list = useGovernanceList({ entity: 'exits', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
-    if (status !== 'all') p.status = status;
-    if (exitType !== 'all') p.exit_type = exitType;
-    if (search) p.q = search;
-    return p;
-  }, [status, exitType, ecosystemParams, search, page]);
-
-  const { data, isLoading, error } = useExits(params);
+  const { data, isLoading, error } = useExits(list.params);
 
   if (isLoading) return <LoadingState message="Loading exits..." />;
 
@@ -83,42 +74,13 @@ export default function ExitList() {
         </Link>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-3">
-            <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={exitType} onValueChange={(v) => { setExitType(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {TYPE_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <EcosystemFilter />
-
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-[200px]"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        filters={list.filters}
+        filterValues={list.filterValues}
+        onFilterChange={list.setFilter}
+        search={list.search}
+        onSearchChange={list.setSearch}
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -168,17 +130,17 @@ export default function ExitList() {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.max(1, p - 1))}
+                className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
               .map((p) => (
                 <PaginationItem key={p}>
                   <PaginationLink
-                    isActive={p === page}
-                    onClick={() => setPage(p)}
+                    isActive={p === list.page}
+                    onClick={() => list.setPage(p)}
                     className="cursor-pointer"
                   >
                     {p}
@@ -187,8 +149,8 @@ export default function ExitList() {
               ))}
             <PaginationItem>
               <PaginationNext
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
+                className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
           </PaginationContent>

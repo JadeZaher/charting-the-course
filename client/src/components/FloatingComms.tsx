@@ -17,6 +17,7 @@ import { useConversations, useConversation, useWebSocket, useMemberPicker, useCr
 import { useSSEChat } from '@/hooks/use-chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { usePageContext } from '@/contexts/PageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQuery } from '@tanstack/react-query';
 import { fetchChatSessions } from '@/lib/api-client';
@@ -581,6 +582,7 @@ function EmptyConversation() {
 function ChatTab({ expanded }: { expanded: boolean }) {
   const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages } = useSSEChat();
   const { selected: ecosystem, isAll, isMulti, selectedIds, ecosystems } = useEcosystem();
+  const { getAISummary } = usePageContext();
   const [input, setInput] = useState('');
   const [showSessions, setShowSessions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -598,7 +600,10 @@ function ChatTab({ expanded }: { expanded: boolean }) {
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
-    sendMessage(input);
+    sendMessage(input, {
+      selectedEcosystemIds: selectedIds,
+      pageContextSummary: getAISummary(),
+    });
     setInput('');
   };
 

@@ -1,42 +1,55 @@
-import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { EcosystemFilter } from '@/components/EcosystemFilter';
-import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { FilterBar } from '@/components/governance/shared/FilterBar';
+import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useProposals } from '@/hooks/use-governance';
 import { Plus } from 'lucide-react';
 
-const PHASE_OPTIONS = [
-  { value: 'all', label: 'All Phases' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'advice', label: 'Advice' },
-  { value: 'consent', label: 'Consent' },
-  { value: 'test', label: 'Test' },
-  { value: 'ratified', label: 'Ratified' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-];
-
-const TYPE_OPTIONS = [
-  { value: 'all', label: 'All Types' },
-  { value: 'policy', label: 'Policy' },
-  { value: 'operational', label: 'Operational' },
-  { value: 'structural', label: 'Structural' },
-  { value: 'resource', label: 'Resource' },
-];
-
-const URGENCY_OPTIONS = [
-  { value: 'all', label: 'All Urgency' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
+const FILTERS: FilterDef[] = [
+  {
+    key: 'phase',
+    label: 'Phase',
+    type: 'select',
+    options: [
+      { value: 'all', label: 'All Phases' },
+      { value: 'draft', label: 'Draft' },
+      { value: 'advice', label: 'Advice' },
+      { value: 'consent', label: 'Consent' },
+      { value: 'test', label: 'Test' },
+      { value: 'ratified', label: 'Ratified' },
+      { value: 'withdrawn', label: 'Withdrawn' },
+    ],
+  },
+  {
+    key: 'type',
+    label: 'Type',
+    type: 'select',
+    options: [
+      { value: 'all', label: 'All Types' },
+      { value: 'policy', label: 'Policy' },
+      { value: 'operational', label: 'Operational' },
+      { value: 'structural', label: 'Structural' },
+      { value: 'resource', label: 'Resource' },
+    ],
+  },
+  {
+    key: 'urgency',
+    label: 'Urgency',
+    type: 'select',
+    options: [
+      { value: 'all', label: 'All Urgency' },
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+      { value: 'critical', label: 'Critical' },
+    ],
+  },
 ];
 
 const statusVariant = (status: string) => {
@@ -62,25 +75,10 @@ const urgencyVariant = (urgency: string | null) => {
 
 export default function ProposalList() {
   const [, navigate] = useLocation();
-  const [phase, setPhase] = useState('all');
-  const [type, setType] = useState('all');
-  const [urgency, setUrgency] = useState('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-
-  const ecosystemParams = useEcosystemFilterParams();
+  const list = useGovernanceList({ entity: 'proposals', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
-    if (phase !== 'all') p.phase = phase;
-    if (type !== 'all') p.type = type;
-    if (urgency !== 'all') p.urgency = urgency;
-    if (search) p.q = search;
-    return { ...p, ...ecosystemParams };
-  }, [phase, type, urgency, search, page, ecosystemParams]);
-
-  const { data, isLoading, error } = useProposals(params);
+  const { data, isLoading, error } = useProposals(list.params);
 
   if (isLoading) return <LoadingState message="Loading proposals..." />;
 
@@ -107,56 +105,14 @@ export default function ProposalList() {
         </Link>
       </div>
 
-      {/* Filter bar */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-3">
-            <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1); }}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Phase" />
-              </SelectTrigger>
-              <SelectContent>
-                {PHASE_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <FilterBar
+        filters={list.filters}
+        filterValues={list.filterValues}
+        onFilterChange={list.setFilter}
+        search={list.search}
+        onSearchChange={list.setSearch}
+      />
 
-            <Select value={type} onValueChange={(v) => { setType(v); setPage(1); }}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {TYPE_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={urgency} onValueChange={(v) => { setUrgency(v); setPage(1); }}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Urgency" />
-              </SelectTrigger>
-              <SelectContent>
-                {URGENCY_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <EcosystemFilter />
-
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-[200px]"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Data table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -204,23 +160,22 @@ export default function ProposalList() {
         </CardContent>
       </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <Pagination>
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.max(1, p - 1))}
+                className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
               .map((p) => (
                 <PaginationItem key={p}>
                   <PaginationLink
-                    isActive={p === page}
-                    onClick={() => setPage(p)}
+                    isActive={p === list.page}
+                    onClick={() => list.setPage(p)}
                     className="cursor-pointer"
                   >
                     {p}
@@ -229,8 +184,8 @@ export default function ProposalList() {
               ))}
             <PaginationItem>
               <PaginationNext
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
+                className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
           </PaginationContent>

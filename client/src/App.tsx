@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
+import { PageContextProvider } from "@/contexts/PageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Loader2 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -440,12 +441,14 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <EcosystemProvider>
-          <ThemeProvider>
-            <TooltipProvider>
-              <AppLayout />
-              <Toaster />
-            </TooltipProvider>
-          </ThemeProvider>
+          <PageContextProvider>
+            <ThemeProvider>
+              <TooltipProvider>
+                <AppLayout />
+                <Toaster />
+              </TooltipProvider>
+            </ThemeProvider>
+          </PageContextProvider>
         </EcosystemProvider>
       </AuthProvider>
     </QueryClientProvider>

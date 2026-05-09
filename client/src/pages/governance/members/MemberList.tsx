@@ -1,31 +1,31 @@
-import { useState, useMemo } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useMembers } from '@/hooks/use-governance';
-import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Plus } from 'lucide-react';
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'prospective', label: 'Prospective' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-];
-
-const PROFILE_OPTIONS = [
-  { value: 'all', label: 'All Profiles' },
-  { value: 'co_creator', label: 'Co-Creator' },
-  { value: 'builder', label: 'Builder' },
-  { value: 'collaborator', label: 'Collaborator' },
-  { value: 'townhall', label: 'Townhall' },
+const FILTERS: FilterDef[] = [
+  { key: 'status', label: 'Status', type: 'select', options: [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'prospective', label: 'Prospective' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ]},
+  { key: 'profile', label: 'Profile', type: 'select', options: [
+    { value: 'all', label: 'All Profiles' },
+    { value: 'co_creator', label: 'Co-Creator' },
+    { value: 'builder', label: 'Builder' },
+    { value: 'collaborator', label: 'Collaborator' },
+    { value: 'townhall', label: 'Townhall' },
+  ]},
 ];
 
 const statusVariant = (status: string) => {
@@ -39,23 +39,10 @@ const statusVariant = (status: string) => {
 
 export default function MemberList() {
   const [, navigate] = useLocation();
-  const [status, setStatus] = useState('all');
-  const [profile, setProfile] = useState('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-
-  const ecosystemParams = useEcosystemFilterParams();
+  const list = useGovernanceList({ entity: 'members', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20' };
-    if (status !== 'all') p.status = status;
-    if (profile !== 'all') p.profile = profile;
-    if (search) p.q = search;
-    return { ...p, ...ecosystemParams };
-  }, [status, profile, search, page, ecosystemParams]);
-
-  const { data, isLoading, error } = useMembers(params);
+  const { data, isLoading, error } = useMembers(list.params);
 
   if (isLoading) return <LoadingState message="Loading members..." />;
 
@@ -82,42 +69,13 @@ export default function MemberList() {
         </Link>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-3">
-            <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={profile} onValueChange={(v) => { setProfile(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Profile" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROFILE_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <EcosystemFilter />
-
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-[200px]"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        filters={list.filters}
+        filterValues={list.filterValues}
+        onFilterChange={list.setFilter}
+        search={list.search}
+        onSearchChange={list.setSearch}
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -169,17 +127,17 @@ export default function MemberList() {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.max(1, p - 1))}
+                className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
               .map((p) => (
                 <PaginationItem key={p}>
                   <PaginationLink
-                    isActive={p === page}
-                    onClick={() => setPage(p)}
+                    isActive={p === list.page}
+                    onClick={() => list.setPage(p)}
                     className="cursor-pointer"
                   >
                     {p}
@@ -188,8 +146,8 @@ export default function MemberList() {
               ))}
             <PaginationItem>
               <PaginationNext
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
+                className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
           </PaginationContent>

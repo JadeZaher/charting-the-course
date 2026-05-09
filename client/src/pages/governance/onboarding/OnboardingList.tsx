@@ -1,24 +1,21 @@
-import { useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { EcosystemFilter } from '@/components/EcosystemFilter';
+import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useOnboardings } from '@/hooks/use-governance';
-import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
+
+const FILTERS: FilterDef[] = [];
 
 export default function OnboardingList() {
   const [, navigate] = useLocation();
-  const ecosystemParams = useEcosystemFilterParams();
+  const list = useGovernanceList({ entity: 'onboarding', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const params = useMemo(() => {
-    const p: Record<string, string> = { ...ecosystemParams };
-    return p;
-  }, [ecosystemParams]);
-
-  const { data, isLoading, error } = useOnboardings(params);
+  const { data, isLoading, error } = useOnboardings(list.params);
 
   if (isLoading) return <LoadingState message="Loading onboardings..." />;
 
@@ -37,8 +34,15 @@ export default function OnboardingList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Onboarding</h1>
-        <EcosystemFilter />
       </div>
+
+      <FilterBar
+        filters={list.filters}
+        filterValues={list.filterValues}
+        onFilterChange={list.setFilter}
+        search={list.search}
+        onSearchChange={list.setSearch}
+      />
 
       <Card>
         <CardContent className="p-0">

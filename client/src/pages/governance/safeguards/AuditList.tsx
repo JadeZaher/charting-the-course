@@ -1,22 +1,23 @@
-import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { EcosystemFilter } from '@/components/EcosystemFilter';
-import { useEcosystemFilterParams, useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { FilterBar } from '@/components/governance/shared/FilterBar';
+import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useAudits } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
+const FILTERS: FilterDef[] = [
+  { key: 'status', label: 'Status', type: 'select', options: [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+  ]},
 ];
 
 const statusVariant = (status: string) => {
@@ -30,18 +31,10 @@ const statusVariant = (status: string) => {
 
 export default function AuditList() {
   const [, navigate] = useLocation();
-  const [status, setStatus] = useState('all');
-  const [page, setPage] = useState(1);
-  const ecosystemParams = useEcosystemFilterParams();
+  const list = useGovernanceList({ entity: 'audits', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const params = useMemo(() => {
-    const p: Record<string, string> = { page: String(page), per_page: '20', ...ecosystemParams };
-    if (status !== 'all') p.status = status;
-    return p;
-  }, [status, ecosystemParams, page]);
-
-  const { data, isLoading, error } = useAudits(params);
+  const { data, isLoading, error } = useAudits(list.params);
 
   if (isLoading) return <LoadingState message="Loading audits..." />;
 
@@ -67,24 +60,13 @@ export default function AuditList() {
 
       <h1 className="text-3xl font-bold">Audit History</h1>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-3">
-            <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <EcosystemFilter />
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        filters={list.filters}
+        filterValues={list.filterValues}
+        onFilterChange={list.setFilter}
+        search={list.search}
+        onSearchChange={list.setSearch}
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -132,17 +114,17 @@ export default function AuditList() {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.max(1, p - 1))}
+                className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
               .map((p) => (
                 <PaginationItem key={p}>
                   <PaginationLink
-                    isActive={p === page}
-                    onClick={() => setPage(p)}
+                    isActive={p === list.page}
+                    onClick={() => list.setPage(p)}
                     className="cursor-pointer"
                   >
                     {p}
@@ -151,8 +133,8 @@ export default function AuditList() {
               ))}
             <PaginationItem>
               <PaginationNext
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
+                className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
             </PaginationItem>
           </PaginationContent>

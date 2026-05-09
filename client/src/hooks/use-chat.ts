@@ -27,17 +27,11 @@ const BASE_URL = import.meta.env.VITE_API_URL || '';
 /** Hard cap on user messages per conversation (matches server-side limit). */
 const MAX_CONVERSATION_MESSAGES = 20;
 
-function getSelectedEcosystemIds(): string[] {
-  const raw = document.cookie
-    .split('; ')
-    .find(c => c.startsWith('neos_selected_ecosystems='));
-  if (!raw) return [];
-  try {
-    const ids = JSON.parse(decodeURIComponent(raw.split('=')[1]));
-    return Array.isArray(ids) ? ids : [];
-  } catch {
-    return [];
-  }
+export interface ChatContext {
+  /** Selected ecosystem IDs from context */
+  selectedEcosystemIds?: string[];
+  /** Summary of active page context (entity, filters, etc.) */
+  pageContextSummary?: string;
 }
 
 function buildHistory(messages: ChatMessage[]): { role: string; content: string }[] {
@@ -57,7 +51,7 @@ export function useSSEChat() {
 
   const userMessageCount = messages.filter(m => m.role === 'user').length;
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, ctx?: ChatContext) => {
     setError(null);
 
     const currentUserCount = messages.filter(m => m.role === 'user').length + 1;
@@ -92,8 +86,9 @@ export function useSSEChat() {
           page_context: {
             path: window.location.pathname,
             hash: window.location.hash,
+            ...(ctx?.pageContextSummary ? { active_view: ctx.pageContextSummary } : {}),
           },
-          selected_ecosystem_ids: getSelectedEcosystemIds(),
+          selected_ecosystem_ids: ctx?.selectedEcosystemIds ?? [],
         }),
         signal: abort.signal,
       });
