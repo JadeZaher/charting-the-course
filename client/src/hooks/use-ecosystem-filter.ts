@@ -3,16 +3,16 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 
 /**
  * Returns ecosystem filter params ready to merge into any list query.
- * When all ecosystems are selected (or only one exists), returns empty object.
+ * When no ecosystems are selected, returns empty object.
  * Otherwise returns { ecosystem_ids: "id1,id2" }.
  */
 export function useEcosystemFilterParams(): Record<string, string> {
-  const { selectedIds, isAll } = useEcosystem();
+  const { selectedIds } = useEcosystem();
 
   return useMemo(() => {
-    if (isAll || selectedIds.length === 0) return {} as Record<string, string>;
+    if (selectedIds.length === 0) return {} as Record<string, string>;
     return { ecosystem_ids: selectedIds.join(',') } as Record<string, string>;
-  }, [selectedIds, isAll]);
+  }, [selectedIds]);
 }
 
 /**

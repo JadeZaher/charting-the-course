@@ -2,7 +2,6 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Building2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
@@ -69,9 +68,6 @@ export function EcosystemFilter() {
                 onCheckedChange={() => toggle(eco.id)}
               />
               <span className="truncate flex-1">{eco.name}</span>
-              <Badge variant="outline" className="text-xs shrink-0">
-                {eco.member_count}
-              </Badge>
             </label>
           ))}
         </div>
