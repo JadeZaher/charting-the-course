@@ -28,6 +28,8 @@ function derivePermissions(profile: string | null | undefined): Permission[] {
       return ['manage_users', 'manage_content', 'proxy_quiz', 'view_analytics'];
     case 'collaborator':
       return ['manage_content', 'proxy_quiz', 'view_analytics'];
+    case 'townhall':
+      return ['manage_content', 'view_analytics'];
     default:
       return [];
   }
@@ -40,6 +42,8 @@ function deriveRole(profile: string | null | undefined): string {
       return 'admin';
     case 'collaborator':
       return 'facilitator';
+    case 'townhall':
+      return 'contributor';
     default:
       return 'viewer';
   }

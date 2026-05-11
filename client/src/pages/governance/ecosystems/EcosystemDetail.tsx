@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {
   Pencil, ArrowLeft, UserPlus, Lock, FileText, Check, Clock, ClipboardList, Eye,
@@ -93,6 +94,7 @@ export default function EcosystemDetail() {
   const joinMutation = useRequestJoinEcosystem(id);
   const [joinRequested, setJoinRequested] = useState(false);
 
+  const { permissions } = useRoleAccess();
   const isMember = ecosystems.some(e => e.id === id);
 
   // --- Quiz management state ---
@@ -399,9 +401,11 @@ export default function EcosystemDetail() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2"><Map className="h-5 w-5" />Orientation Journey Maps</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => setShowJmForm(!showJmForm)}>
-                {showJmForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />New Journey Map</>}
-              </Button>
+              {permissions.canManageJourneyMaps && (
+                <Button size="sm" variant="outline" onClick={() => setShowJmForm(!showJmForm)}>
+                  {showJmForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />New Journey Map</>}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -452,14 +456,16 @@ export default function EcosystemDetail() {
                       {jm.description && <p className="text-xs text-muted-foreground mt-0.5">{jm.description}</p>}
                       <p className="text-xs text-muted-foreground">{jm.step_count} step{jm.step_count !== 1 ? 's' : ''}</p>
                     </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleToggleJmActive(jm)} title={jm.is_active ? 'Deactivate' : 'Activate'}>
-                        <ArrowUpDown className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteJourneyMap(jm.id)} title="Delete">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {permissions.canManageJourneyMaps && (
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleToggleJmActive(jm)} title={jm.is_active ? 'Deactivate' : 'Activate'}>
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteJourneyMap(jm.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -497,7 +503,9 @@ export default function EcosystemDetail() {
                         <td className="p-2 text-right">
                           <div className="flex gap-1 justify-end">
                             <Link href={`/quiz/results/${q.id}`}><Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" />Results</Button></Link>
-                            <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
+                            {permissions.canAssignQuizzes && (
+                              <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -506,24 +514,26 @@ export default function EcosystemDetail() {
                 </table>
               </div>
             )}
-            <div className="border-t pt-4">
-              <p className="text-sm font-medium mb-2">Assign a Quiz</p>
-              <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
-                <div className="flex-1">
-                  <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
-                  <Select value={assignQuizId} onValueChange={setAssignQuizId}>
-                    <SelectTrigger><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
-                    <SelectContent>
-                      {unassignedQuizzes.length === 0 ? <SelectItem value="_none" disabled>No available quizzes</SelectItem> : unassignedQuizzes.map(q => <SelectItem key={q.id} value={q.id}>{q.title}{!q.is_published ? ' (Draft)' : ''}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+            {permissions.canAssignQuizzes && (
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-2">Assign a Quiz</p>
+                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
+                    <Select value={assignQuizId} onValueChange={setAssignQuizId}>
+                      <SelectTrigger><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
+                      <SelectContent>
+                        {unassignedQuizzes.length === 0 ? <SelectItem value="_none" disabled>No available quizzes</SelectItem> : unassignedQuizzes.map(q => <SelectItem key={q.id} value={q.id}>{q.title}{!q.is_published ? ' (Draft)' : ''}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="rounded" />Entry Quiz
+                  </label>
+                  <Button size="sm" onClick={handleAssignQuiz} disabled={assigning || !assignQuizId}>{assigning ? 'Assigning...' : 'Assign'}</Button>
                 </div>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="rounded" />Entry Quiz
-                </label>
-                <Button size="sm" onClick={handleAssignQuiz} disabled={assigning || !assignQuizId}>{assigning ? 'Assigning...' : 'Assign'}</Button>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -534,9 +544,11 @@ export default function EcosystemDetail() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2"><Handshake className="h-5 w-5" />Shares & Needs</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => setShowSnForm(!showSnForm)}>
-                {showSnForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add</>}
-              </Button>
+              {permissions.canCreateSharesNeeds && (
+                <Button size="sm" variant="outline" onClick={() => setShowSnForm(!showSnForm)}>
+                  {showSnForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add</>}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -631,19 +643,21 @@ export default function EcosystemDetail() {
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      {sn.status === 'active' && (
+                      {sn.status === 'active' && permissions.canEditSharesNeeds && (
                         <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'fulfilled')} title="Mark fulfilled">
                           <Check className="h-4 w-4" />
                         </Button>
                       )}
-                      {sn.status !== 'withdrawn' && (
+                      {sn.status !== 'withdrawn' && permissions.canEditSharesNeeds && (
                         <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'withdrawn')} title="Withdraw">
                           <X className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteShareNeed(sn.id)} title="Delete">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {permissions.canDeleteSharesNeeds && (
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteShareNeed(sn.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

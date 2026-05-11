@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useDomain } from '@/hooks/use-governance';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {
   Pencil, ArrowLeft, Users, ClipboardCheck, Eye, Check, Link2Off, Plus, X, Trash2, Handshake,
@@ -76,6 +77,7 @@ export default function DomainDetail() {
   const id = params?.id ?? '';
   const [, navigate] = useLocation();
   const { data, isLoading, error } = useDomain(id);
+  const { permissions } = useRoleAccess();
   const { toast } = useToast();
 
   // --- Quiz management state ---
@@ -306,7 +308,9 @@ export default function DomainDetail() {
                       <div className="flex gap-1 justify-end">
                         <Link href={`/quiz/take/${q.id}`}><Button variant="ghost" size="sm">Take</Button></Link>
                         <Link href={`/quiz/results/${q.id}`}><Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button></Link>
-                        <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
+                        {permissions.canAssignQuizzes && (
+                          <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -317,21 +321,23 @@ export default function DomainDetail() {
             <p className="text-sm text-muted-foreground">No quizzes assigned to this domain</p>
           )}
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-2 pt-2 border-t">
-            <div className="flex-1 w-full sm:max-w-[320px]">
-              <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
-              <Select value={assignQuizId} onValueChange={setAssignQuizId}>
-                <SelectTrigger><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
-                <SelectContent>
-                  {unassignedQuizzes.length === 0 ? <SelectItem value="_none" disabled>No available quizzes</SelectItem> : unassignedQuizzes.map(q => <SelectItem key={q.id} value={q.id}>{q.title}{!q.is_published ? ' (Draft)' : ''}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          {permissions.canAssignQuizzes && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-2 pt-2 border-t">
+              <div className="flex-1 w-full sm:max-w-[320px]">
+                <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
+                <Select value={assignQuizId} onValueChange={setAssignQuizId}>
+                  <SelectTrigger><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
+                  <SelectContent>
+                    {unassignedQuizzes.length === 0 ? <SelectItem value="_none" disabled>No available quizzes</SelectItem> : unassignedQuizzes.map(q => <SelectItem key={q.id} value={q.id}>{q.title}{!q.is_published ? ' (Draft)' : ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-1.5 text-sm whitespace-nowrap cursor-pointer">
+                <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="h-4 w-4 rounded" />Entry quiz
+              </label>
+              <Button size="sm" onClick={handleAssignQuiz} disabled={assigning || !assignQuizId}>{assigning ? 'Assigning...' : 'Assign'}</Button>
             </div>
-            <label className="flex items-center gap-1.5 text-sm whitespace-nowrap cursor-pointer">
-              <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="h-4 w-4 rounded" />Entry quiz
-            </label>
-            <Button size="sm" onClick={handleAssignQuiz} disabled={assigning || !assignQuizId}>{assigning ? 'Assigning...' : 'Assign'}</Button>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -340,9 +346,11 @@ export default function DomainDetail() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2"><Handshake className="h-5 w-5" />Shares & Needs</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowSnForm(!showSnForm)}>
-              {showSnForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add</>}
-            </Button>
+            {permissions.canCreateSharesNeeds && (
+              <Button size="sm" variant="outline" onClick={() => setShowSnForm(!showSnForm)}>
+                {showSnForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add</>}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -425,19 +433,21 @@ export default function DomainDetail() {
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    {sn.status === 'active' && (
+                    {sn.status === 'active' && permissions.canEditSharesNeeds && (
                       <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'fulfilled')} title="Mark fulfilled">
                         <Check className="h-4 w-4" />
                       </Button>
                     )}
-                    {sn.status !== 'withdrawn' && (
+                    {sn.status !== 'withdrawn' && permissions.canEditSharesNeeds && (
                       <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'withdrawn')} title="Withdraw">
                         <X className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteShareNeed(sn.id)} title="Delete">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {permissions.canDeleteSharesNeeds && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteShareNeed(sn.id)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

@@ -7,6 +7,8 @@ import { useEcosystem } from "@/contexts/EcosystemContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSummary } from "@/hooks/use-api";
 import { useProposals } from "@/hooks/use-governance";
+import { useQuery } from "@tanstack/react-query";
+import { fetchEcosystemSharesNeeds, fetchEcosystemQuizzes } from "@/lib/api-client";
 import {
   FileText,
   Vote,
@@ -22,6 +24,9 @@ import {
   Sparkles,
   BarChart3,
   Building2,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  BookOpen,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -35,6 +40,23 @@ export default function Dashboard() {
   const { data: adviceProposals } = useProposals({ status: "advice" });
   const { data: consentProposals } = useProposals({ status: "consent" });
   const { data: summary } = useDashboardSummary();
+
+  // Ecosystem-scoped shares/needs and quizzes
+  const { data: sharesNeedsData } = useQuery({
+    queryKey: ['ecosystem-shares-needs', selected?.id],
+    queryFn: () => fetchEcosystemSharesNeeds(selected!.id),
+    enabled: !!selected?.id,
+  });
+  const { data: quizzesData } = useQuery({
+    queryKey: ['ecosystem-quizzes', selected?.id],
+    queryFn: () => fetchEcosystemQuizzes(selected!.id),
+    enabled: !!selected?.id,
+  });
+
+  const snItems = sharesNeedsData?.items ?? [];
+  const sharesCount = snItems.filter((i: any) => i.type === 'share').length;
+  const needsCount = snItems.filter((i: any) => i.type === 'need').length;
+  const quizzesList = quizzesData?.quizzes ?? [];
 
   // Combine pending governance actions (proposals are paginated)
   const pendingActions = [
@@ -174,6 +196,71 @@ export default function Dashboard() {
           })}
         </div>
       </section>
+
+      {/* Ecosystem Activity: Shares/Needs + Quizzes */}
+      {selected && (
+        <section>
+          <h2 className="text-xl font-semibold mb-4">Ecosystem Activity</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Shares & Needs card */}
+            <Link href="/discover/hub">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer hover:border-primary/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Shares & Needs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpCircle className="h-5 w-5 text-green-500" />
+                      <div>
+                        <div className="text-2xl font-bold">{sharesCount}</div>
+                        <div className="text-xs text-muted-foreground">Shares</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ArrowDownCircle className="h-5 w-5 text-blue-500" />
+                      <div>
+                        <div className="text-2xl font-bold">{needsCount}</div>
+                        <div className="text-xs text-muted-foreground">Needs</div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    View all <ArrowRight className="h-3 w-3" />
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Quizzes card */}
+            <Link href="/quizzes">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer hover:border-primary/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Quizzes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <div>
+                      <div className="text-2xl font-bold">{quizzesList.length}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {quizzesList.length === 1 ? 'quiz' : 'quizzes'} in this ecosystem
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    View all <ArrowRight className="h-3 w-3" />
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Quick Actions */}
       <section>

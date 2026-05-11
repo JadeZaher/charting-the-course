@@ -32,6 +32,15 @@ interface RolePermissions {
   canViewAnalytics: boolean;
   canViewAllQuizResults: boolean;
 
+  // Shares/Needs
+  canCreateSharesNeeds: boolean;
+  canEditSharesNeeds: boolean;
+  canDeleteSharesNeeds: boolean;
+  canAssignSharesNeeds: boolean;
+
+  // Journey Maps
+  canManageJourneyMaps: boolean;
+
   // Admin
   isAdmin: boolean;
   isAdminOrFacilitator: boolean;
@@ -63,6 +72,13 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     // Analytics
     canViewAnalytics: true,
     canViewAllQuizResults: true,
+    // Shares/Needs
+    canCreateSharesNeeds: true,
+    canEditSharesNeeds: true,
+    canDeleteSharesNeeds: true,
+    canAssignSharesNeeds: true,
+    // Journey Maps
+    canManageJourneyMaps: true,
     // Admin
     isAdmin: true,
     isAdminOrFacilitator: true,
@@ -92,6 +108,13 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     // Analytics
     canViewAnalytics: true, // For own quizzes
     canViewAllQuizResults: false,
+    // Shares/Needs
+    canCreateSharesNeeds: true,
+    canEditSharesNeeds: true,
+    canDeleteSharesNeeds: false,
+    canAssignSharesNeeds: true,
+    // Journey Maps
+    canManageJourneyMaps: true,
     // Admin
     isAdmin: false,
     isAdminOrFacilitator: true,
@@ -121,6 +144,13 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     // Analytics
     canViewAnalytics: false,
     canViewAllQuizResults: false,
+    // Shares/Needs
+    canCreateSharesNeeds: true,
+    canEditSharesNeeds: true, // Own only
+    canDeleteSharesNeeds: false,
+    canAssignSharesNeeds: false,
+    // Journey Maps
+    canManageJourneyMaps: false,
     // Admin
     isAdmin: false,
     isAdminOrFacilitator: false,
@@ -150,6 +180,13 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     // Analytics
     canViewAnalytics: false,
     canViewAllQuizResults: false,
+    // Shares/Needs
+    canCreateSharesNeeds: false,
+    canEditSharesNeeds: false,
+    canDeleteSharesNeeds: false,
+    canAssignSharesNeeds: false,
+    // Journey Maps
+    canManageJourneyMaps: false,
     // Admin
     isAdmin: false,
     isAdminOrFacilitator: false,
@@ -164,6 +201,8 @@ function profileToRole(profile: string | null | undefined): UserRole {
       return 'admin';
     case 'collaborator':
       return 'facilitator';
+    case 'townhall':
+      return 'contributor';
     default:
       return 'viewer';
   }
