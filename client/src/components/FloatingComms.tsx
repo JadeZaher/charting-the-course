@@ -13,14 +13,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useQuery } from '@tanstack/react-query';
+import { fetchChatSessions, fetchChatSession } from '@/lib/api-client';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Link } from 'wouter';
+import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
 import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { usePageContext } from '@/contexts/PageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useQuery } from '@tanstack/react-query';
-import { fetchChatSessions } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import {
   MessageSquare,
@@ -580,7 +584,7 @@ function EmptyConversation() {
 /* ─── Chat Tab (AI Governance Agent) ─────────────────────────────────── */
 
 function ChatTab({ expanded }: { expanded: boolean }) {
-  const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages } = useSSEChat();
+  const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages, loadSession, sessionId } = useSSEChat();
   const { selected: ecosystem, isAll, isMulti, selectedIds, ecosystems } = useEcosystem();
   const { getAISummary } = usePageContext();
   const [input, setInput] = useState('');
@@ -589,7 +593,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
 
   const { data: sessionsData } = useQuery({
     queryKey: ['chat', 'sessions'],
-    queryFn: fetchChatSessions,
+    queryFn: () => fetchChatSessions({ limit: 20 }),
     staleTime: 30_000,
     enabled: showSessions,
   });
@@ -607,27 +611,18 @@ function ChatTab({ expanded }: { expanded: boolean }) {
     setInput('');
   };
 
-  // Session list view
   if (showSessions) {
     const sessions = sessionsData?.sessions ?? [];
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSessions(false)}
-              className="p-1 rounded hover:bg-muted transition-colors"
-            >
+            <button onClick={() => setShowSessions(false)} className="p-1 rounded hover:bg-muted transition-colors">
               <ArrowLeft className="h-3.5 w-3.5" />
             </button>
             <span className="text-sm font-semibold">Chat History</span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { clearMessages(); setShowSessions(false); }}
-            className="h-7 px-2 text-xs"
-          >
+          <Button variant="ghost" size="sm" onClick={() => { clearMessages(); setShowSessions(false); }} className="h-7 px-2 text-xs">
             <Plus className="h-3 w-3 mr-1" /> New
           </Button>
         </div>
@@ -638,19 +633,28 @@ function ChatTab({ expanded }: { expanded: boolean }) {
             sessions.map((s) => (
               <button
                 key={s.id}
-                className="w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors"
-                onClick={() => setShowSessions(false)}
+                className={`w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors ${
+                  sessionId === s.id ? 'bg-primary/10' : ''
+                }`}
+                onClick={async () => {
+                  try {
+                    const detail = await fetchChatSession(s.id);
+                    const msgs = detail.messages.map((m: any) => ({
+                      role: m.role as 'user' | 'assistant',
+                      content: m.content,
+                    }));
+                    loadSession(s.id, msgs, detail.skill);
+                    setShowSessions(false);
+                  } catch { /* ignore */ }
+                }}
               >
-                <p className="text-xs font-medium truncate">
-                  {s.title || 'Untitled session'}
-                </p>
-                {s.created_at && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {new Date(s.created_at).toLocaleDateString(undefined, {
-                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                    })}
-                  </p>
-                )}
+                <p className="text-xs font-medium truncate">{s.title || 'Untitled session'}</p>
+                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                  <span>{s.message_count} messages</span>
+                  {s.created_at && (
+                    <span>{new Date(s.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                  )}
+                </div>
               </button>
             ))
           )}
@@ -726,6 +730,11 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                   </div>
                 )}
                 <div className={cn('space-y-1', expanded ? 'max-w-[80%]' : 'max-w-[85%]')}>
+                  {/* Thinking steps */}
+                  {msg.role === 'assistant' && msg.thinkingSteps && msg.thinkingSteps.length > 0 && (
+                    <ThinkingSteps steps={msg.thinkingSteps} isStreaming={msg.isStreaming} />
+                  )}
+
                   {/* Tool executions */}
                   {msg.tools && msg.tools.length > 0 && (
                     <div className="space-y-0.5">
@@ -755,9 +764,27 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                         : 'bg-muted rounded-bl-sm'
                     )}
                   >
-                    <p className="text-xs whitespace-pre-wrap">
-                      {msg.content || (msg.isStreaming ? '...' : '')}
-                    </p>
+                    {msg.role === 'assistant' && msg.content ? (
+                      <div className="text-xs prose prose-xs dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                        <Markdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            a: ({ href, children }) => {
+                              if (href?.startsWith('/')) {
+                                return <Link href={href} className="text-primary underline hover:text-primary/80">{children}</Link>;
+                              }
+                              return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                            },
+                          }}
+                        >
+                          {msg.content}
+                        </Markdown>
+                      </div>
+                    ) : (
+                      <p className="text-xs whitespace-pre-wrap">
+                        {msg.content || (msg.isStreaming ? '...' : '')}
+                      </p>
+                    )}
                     {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin mt-1" />}
                   </div>
                 </div>

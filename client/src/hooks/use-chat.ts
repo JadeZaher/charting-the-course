@@ -13,6 +13,20 @@ export interface TokenUsage {
   total_tokens: number;
 }
 
+export interface ThinkingStep {
+  step: string;
+  tool?: string;
+  timestamp: number;
+}
+
+export interface ArtifactLink {
+  type: string;
+  id: string;
+  business_key: string | null;
+  route: string;
+  label: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -20,6 +34,8 @@ export interface ChatMessage {
   tools?: ToolExecution[];
   skill?: string;
   usage?: TokenUsage;
+  thinkingSteps?: ThinkingStep[];
+  artifacts?: ArtifactLink[];
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -179,17 +195,20 @@ export function useSSEChat() {
 
         case 'tool_result': {
           try {
-            const { name, success, error: toolError } = JSON.parse(data);
+            const { name, success, error: toolError, artifact } = JSON.parse(data);
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
-              if (last?.role === 'assistant' && last.tools) {
-                const tools = last.tools.map(t =>
+              if (last?.role === 'assistant') {
+                const tools = (last.tools || []).map(t =>
                   t.name === name && t.status === 'running'
                     ? { ...t, status: (success ? 'success' : 'error') as 'success' | 'error', error: toolError }
                     : t
                 );
-                updated[updated.length - 1] = { ...last, tools };
+                const artifacts = artifact
+                  ? [...(last.artifacts || []), artifact as ArtifactLink]
+                  : last.artifacts;
+                updated[updated.length - 1] = { ...last, tools, ...(artifacts ? { artifacts } : {}) };
               }
               return updated;
             });
@@ -247,6 +266,22 @@ export function useSSEChat() {
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
                 updated[updated.length - 1] = { ...last, usage };
+              }
+              return updated;
+            });
+          } catch { /* ignore */ }
+          break;
+        }
+
+        case 'thinking': {
+          try {
+            const { step, tool } = JSON.parse(data);
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                const thinkingSteps = [...(last.thinkingSteps || []), { step, tool, timestamp: Date.now() }];
+                updated[updated.length - 1] = { ...last, thinkingSteps };
               }
               return updated;
             });

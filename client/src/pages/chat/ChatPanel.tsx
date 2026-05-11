@@ -14,9 +14,10 @@ import {
   Building2, Coins, Copy, Check, Share2, Globe, Lock, Users, AlertTriangle,
   PanelLeftClose, PanelLeftOpen, Plus, Search, MessageSquare, Clock,
 } from 'lucide-react';
-import { marked } from 'marked';
-
-marked.setOptions({ breaks: true, gfm: true });
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Link } from 'wouter';
+import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
 
 interface ChatPanelProps {
   embedded?: boolean;
@@ -370,6 +371,9 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                       </div>
                     )}
                     <div className="max-w-[85%] space-y-1">
+                      {msg.role === 'assistant' && msg.thinkingSteps && msg.thinkingSteps.length > 0 && (
+                        <ThinkingSteps steps={msg.thinkingSteps} isStreaming={msg.isStreaming} />
+                      )}
                       {msg.tools && msg.tools.length > 0 && (
                         <div className="space-y-0.5">
                           {msg.tools.map((tool, ti) => (
@@ -398,10 +402,21 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                         }`}
                       >
                         {msg.role === 'assistant' && msg.content ? (
-                          <div
-                            className="text-sm prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                            dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
-                          />
+                          <div className="text-sm prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            <Markdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                a: ({ href, children }) => {
+                                  if (href?.startsWith('/')) {
+                                    return <Link href={href} className="text-primary underline hover:text-primary/80">{children}</Link>;
+                                  }
+                                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                                },
+                              }}
+                            >
+                              {msg.content}
+                            </Markdown>
+                          </div>
                         ) : (
                           <p className="text-sm whitespace-pre-wrap">
                             {msg.content || (msg.isStreaming ? '...' : '')}
