@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSSEChat, type ChatMessage } from '@/hooks/use-chat';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePageContext } from '@/contexts/PageContext';
 import { fetchChatSessions, fetchChatSession, deleteChatSession, type ChatSessionItem } from '@/lib/api-client';
 import {
   Bot, User, Send, Square, Trash2, Loader2, Wrench, ArrowRight,
@@ -54,7 +56,9 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
     clearMessages, loadSession, activeSkill, sessionId,
     limitReached, userMessageCount, maxMessages,
   } = useSSEChat();
-  const { selected: ecosystem } = useEcosystem();
+  const { selected: ecosystem, selectedIds } = useEcosystem();
+  const { member } = useAuth();
+  const { getAISummary } = usePageContext();
   const [input, setInput] = useState('');
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [privacy, setPrivacy] = useState<Privacy>('private');
@@ -132,7 +136,12 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
-    sendMessage(input);
+    sendMessage(input, {
+      selectedEcosystemIds: selectedIds,
+      pageContextSummary: getAISummary(),
+      member: member ? { id: member.id, display_name: member.display_name } : undefined,
+      ecosystemName: ecosystem?.name,
+    });
     setInput('');
   };
 

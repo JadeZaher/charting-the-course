@@ -70,6 +70,7 @@ export default function TakeQuiz() {
       });
 
       const result = (response as any).result ?? response;
+      const grading = (response as any).grading;
       const tilesCreated = (response as any).tiles_created || 0;
       const resultId = result?.id;
 
@@ -81,12 +82,31 @@ export default function TakeQuiz() {
         queryClient.invalidateQueries({ queryKey: ["quiz-result", resultId] });
       }
 
+      let title = "Quiz Submitted!";
       let description = "Your answers have been saved successfully";
+      let variant: "default" | "destructive" | undefined;
+
+      if (grading && grading.is_passed !== null && grading.is_passed !== undefined) {
+        const meta = grading.result_metadata || {};
+        const scoreText = meta.correctCount !== undefined && meta.gradableQuestions
+          ? `${meta.correctCount}/${meta.gradableQuestions} correct (${grading.score}%)`
+          : `${grading.score}%`;
+
+        if (grading.is_passed) {
+          title = "Passed!";
+          description = `You scored ${scoreText}. Great work!`;
+        } else {
+          title = "Not Passed";
+          description = `You scored ${scoreText}. Review your results to see what to improve.`;
+          variant = "destructive";
+        }
+      }
+
       if (tilesCreated > 0) {
         description += ` \u2022 ${tilesCreated} profile insight${tilesCreated > 1 ? "s" : ""} added!`;
       }
 
-      toast({ title: "Quiz Submitted!", description });
+      toast({ title, description, variant });
       setLocation(resultId ? `/quiz/results/${resultId}` : `/quiz/results/${quizId}`);
     } catch (err: any) {
       toast({

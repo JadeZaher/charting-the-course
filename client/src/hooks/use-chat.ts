@@ -48,6 +48,10 @@ export interface ChatContext {
   selectedEcosystemIds?: string[];
   /** Summary of active page context (entity, filters, etc.) */
   pageContextSummary?: string;
+  /** Authenticated member info */
+  member?: { id: string; display_name: string };
+  /** Current ecosystem name */
+  ecosystemName?: string;
 }
 
 function buildHistory(messages: ChatMessage[]): { role: string; content: string }[] {
@@ -102,7 +106,10 @@ export function useSSEChat() {
           page_context: {
             path: window.location.pathname,
             hash: window.location.hash,
+            search: window.location.search,
             ...(ctx?.pageContextSummary ? { active_view: ctx.pageContextSummary } : {}),
+            ...(ctx?.member ? { member_id: ctx.member.id, member_name: ctx.member.display_name } : {}),
+            ...(ctx?.ecosystemName ? { ecosystem_name: ctx.ecosystemName } : {}),
           },
           selected_ecosystem_ids: ctx?.selectedEcosystemIds ?? [],
         }),

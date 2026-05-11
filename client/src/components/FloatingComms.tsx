@@ -599,6 +599,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
   const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages, loadSession, sessionId } = useSSEChat();
   const { selected: ecosystem, isAll, isMulti, selectedIds, ecosystems } = useEcosystem();
   const { getAISummary } = usePageContext();
+  const { member } = useAuth();
   const [input, setInput] = useState('');
   const [showSessions, setShowSessions] = useState(false);
   const [privacy, setPrivacy] = useState<ChatPrivacy>('private');
@@ -622,6 +623,8 @@ function ChatTab({ expanded }: { expanded: boolean }) {
     sendMessage(input, {
       selectedEcosystemIds: selectedIds,
       pageContextSummary: getAISummary(),
+      member: member ? { id: member.id, display_name: member.display_name } : undefined,
+      ecosystemName: ecosystem?.name,
     });
     setInput('');
   };

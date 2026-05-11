@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Clock, Calendar, ChevronRight } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Clock, Calendar, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -127,8 +127,14 @@ export default function MyQuizHistory() {
                     data-testid={`quiz-result-${result.id}`}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="p-2 rounded-full bg-primary/10 flex-shrink-0">
-                        <CheckCircle className="h-5 w-5 text-primary" />
+                      <div className={`p-2 rounded-full flex-shrink-0 ${
+                        result.is_passed === false ? "bg-destructive/10" : "bg-primary/10"
+                      }`}>
+                        {result.is_passed === false ? (
+                          <XCircle className="h-5 w-5 text-destructive" />
+                        ) : (
+                          <CheckCircle className="h-5 w-5 text-primary" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
