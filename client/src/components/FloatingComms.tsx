@@ -14,7 +14,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
-import { fetchChatSessions, fetchChatSession } from '@/lib/api-client';
+import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@/lib/api-client';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'wouter';
@@ -45,6 +45,12 @@ import {
   Building2,
   ArrowLeft,
   History,
+  Coins,
+  Lock,
+  Globe,
+  Share2,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 type Tab = 'messaging' | 'chat';
@@ -54,6 +60,10 @@ export function FloatingComms() {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('messaging');
   const isMobile = useIsMobile();
+
+  // Hide on comms page where full messaging + agent are available
+  const isCommsPage = window.location.pathname.startsWith('/comms');
+  if (isCommsPage) return null;
 
   // Messaging unread count for badge on FAB
   const { data: convData } = useConversations();
@@ -583,12 +593,17 @@ function EmptyConversation() {
 
 /* ─── Chat Tab (AI Governance Agent) ─────────────────────────────────── */
 
+type ChatPrivacy = 'private' | 'ecosystem' | 'public';
+
 function ChatTab({ expanded }: { expanded: boolean }) {
   const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages, loadSession, sessionId } = useSSEChat();
   const { selected: ecosystem, isAll, isMulti, selectedIds, ecosystems } = useEcosystem();
   const { getAISummary } = usePageContext();
   const [input, setInput] = useState('');
   const [showSessions, setShowSessions] = useState(false);
+  const [privacy, setPrivacy] = useState<ChatPrivacy>('private');
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: sessionsData } = useQuery({
@@ -609,6 +624,25 @@ function ChatTab({ expanded }: { expanded: boolean }) {
       pageContextSummary: getAISummary(),
     });
     setInput('');
+  };
+
+  const cyclePrivacy = async () => {
+    if (!sessionId) return;
+    const cycle: ChatPrivacy[] = ['private', 'ecosystem', 'public'];
+    const next = cycle[(cycle.indexOf(privacy) + 1) % cycle.length];
+    try {
+      const res = await updateChatSessionPrivacy(sessionId, next);
+      setPrivacy(res.privacy as ChatPrivacy);
+      setShareToken(res.share_token);
+    } catch { /* ignore */ }
+  };
+
+  const handleShare = async () => {
+    if (!shareToken) return;
+    const url = `${window.location.origin}/chat/shared/${shareToken}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (showSessions) {
@@ -676,6 +710,18 @@ function ChatTab({ expanded }: { expanded: boolean }) {
           </Badge>
         </div>
         <div className="flex items-center gap-0.5">
+          {sessionId && (
+            <>
+              <Button variant="ghost" size="sm" onClick={cyclePrivacy} className="h-7 px-1.5 text-xs" title={`Privacy: ${privacy}`}>
+                {privacy === 'private' ? <Lock className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
+              </Button>
+              {privacy !== 'private' && shareToken && (
+                <Button variant="ghost" size="sm" onClick={handleShare} className="h-7 px-1.5 text-xs" title="Copy share link">
+                  {copied ? <Check className="h-3 w-3 text-green-500" /> : <Share2 className="h-3 w-3" />}
+                </Button>
+              )}
+            </>
+          )}
           <Button variant="ghost" size="sm" onClick={() => setShowSessions(true)} className="h-7 px-2 text-xs" title="Chat history">
             <History className="h-3 w-3" />
           </Button>
@@ -787,6 +833,28 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                     )}
                     {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin mt-1" />}
                   </div>
+
+                  {msg.role === 'assistant' && msg.artifacts && msg.artifacts.length > 0 && !msg.isStreaming && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {msg.artifacts.map((a, ai) => (
+                        <Link
+                          key={ai}
+                          href={a.route}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors"
+                        >
+                          <ArrowRight className="h-2.5 w-2.5" />
+                          {a.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {msg.role === 'assistant' && msg.usage && msg.usage.total_tokens > 0 && !msg.isStreaming && (
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                      <Coins className="h-2.5 w-2.5" />
+                      {msg.usage.total_tokens} tokens
+                    </span>
+                  )}
                 </div>
 
                 {msg.role === 'user' && (

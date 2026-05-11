@@ -58,7 +58,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [privacy, setPrivacy] = useState<Privacy>('private');
-  const [sidebarOpen, setSidebarOpen] = useState(!embedded);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -163,8 +163,8 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
   return (
     <div className={embedded ? 'h-full flex' : 'max-w-6xl mx-auto h-[calc(100vh-8rem)] flex'}>
       {/* Session Sidebar */}
-      {sidebarOpen && (
-        <div className="w-72 flex-shrink-0 border-r flex flex-col bg-muted/30 rounded-l-lg overflow-hidden">
+      {sidebarOpen ? (
+        <div className="w-72 flex-shrink-0 border-r flex flex-col bg-muted/30 rounded-l-lg overflow-hidden transition-all duration-200">
           {/* Sidebar header */}
           <div className="p-3 border-b flex items-center justify-between">
             <h3 className="text-sm font-semibold">Sessions</h3>
@@ -256,6 +256,39 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
             </div>
           </ScrollArea>
         </div>
+      ) : (
+        /* Collapsed sidebar rail */
+        <div
+          className="w-10 flex-shrink-0 border-r bg-muted/20 flex flex-col items-center py-3 gap-2 cursor-pointer hover:bg-muted/40 transition-colors"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 rounded-md hover:bg-muted transition-colors">
+                  <PanelLeftOpen className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Show sessions</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                  onClick={e => { e.stopPropagation(); handleNewConversation(); }}
+                >
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">New conversation</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {sessions.length > 0 && (
+            <span className="text-[10px] text-muted-foreground font-medium mt-1">{sessions.length}</span>
+          )}
+        </div>
       )}
 
       {/* Main chat area */}
@@ -263,11 +296,6 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
         {/* Header */}
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2 min-w-0">
-            {!sidebarOpen && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setSidebarOpen(true)}>
-                <PanelLeftOpen className="h-4 w-4" />
-              </Button>
-            )}
             <div className="min-w-0">
               <h2 className={`${embedded ? 'text-lg' : 'text-2xl'} font-bold flex items-center gap-2`}>
                 <Bot className="h-5 w-5 flex-shrink-0" />
@@ -424,6 +452,21 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                         )}
                         {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin mt-1" />}
                       </div>
+
+                      {msg.role === 'assistant' && msg.artifacts && msg.artifacts.length > 0 && !msg.isStreaming && (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {msg.artifacts.map((a, ai) => (
+                            <Link
+                              key={ai}
+                              href={a.route}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
+                            >
+                              <ArrowRight className="h-3 w-3" />
+                              {a.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
 
                       {msg.role === 'assistant' && msg.content && !msg.isStreaming && (
                         <div className="flex items-center gap-2 mt-1">

@@ -390,6 +390,13 @@ export function deleteChatSession(id: string): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(`/api/v1/chat/sessions/${id}`, { method: 'DELETE' });
 }
 
+export function updateChatSessionPrivacy(id: string, privacy: 'private' | 'ecosystem' | 'public'): Promise<{ privacy: string; share_token: string | null }> {
+  return apiFetch<{ privacy: string; share_token: string | null }>(`/api/v1/chat/sessions/${id}/privacy`, {
+    method: 'PATCH',
+    body: JSON.stringify({ privacy }),
+  });
+}
+
 // Discover API
 export function fetchDiscover(params?: Record<string, string>): Promise<DiscoverResponse> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
