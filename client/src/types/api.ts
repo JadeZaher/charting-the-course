@@ -488,9 +488,11 @@ export interface CourseListItem {
 }
 export interface CourseDetail extends CourseListItem { quizzes: QuizListItem[]; }
 export interface QuizListItem {
-  id: string; course_id: string | null; title: string; description: string | null;
+  id: string; course_id: string | null; ecosystem_id: string | null; domain_id: string | null;
+  title: string; description: string | null;
   mode: string; time_limit: number | null; passing_score: number | null;
-  allow_retakes: boolean; visibility: string; is_published: boolean; created_at: string;
+  allow_retakes: boolean; visibility: string; is_published: boolean;
+  is_entry_quiz: boolean; created_at: string;
 }
 export interface QuizDetail extends QuizListItem { survey_json: Record<string, any> | null; }
 export interface QuizResultItem {

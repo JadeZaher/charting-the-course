@@ -13,30 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Trash2, Edit, Check, X, Eye } from "lucide-react";
+import { Plus, Upload, Trash2, Edit, Check, X, Eye, Link2Off } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchQuizzes, createQuiz } from "@/lib/api-client";
-
-const BASE_URL = import.meta.env.VITE_API_URL || '';
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as any).error || res.statusText);
-  }
-  return res.json();
-}
-function updateQuiz(id: string, data: Record<string, any>) {
-  return apiFetch<any>(`/api/v1/quizzes/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-}
-function deleteQuiz(id: string) {
-  return apiFetch<any>(`/api/v1/quizzes/${id}`, { method: 'DELETE' });
-}
+import { useEcosystem } from "@/contexts/EcosystemContext";
+import { fetchQuizzes, createQuiz, updateQuiz, deleteQuiz } from "@/lib/api-client";
 
 interface Quiz {
   id: string;
@@ -44,6 +26,9 @@ interface Quiz {
   description: string | null;
   visibility: string;
   is_published: boolean;
+  is_entry_quiz: boolean;
+  ecosystem_id: string | null;
+  domain_id: string | null;
   survey_json: any;
   created_at: string;
   created_by: string;
@@ -53,6 +38,7 @@ export default function QuizManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { member } = useAuth();
+  const { selected, ecosystems } = useEcosystem();
   const [location, setLocation] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
@@ -72,10 +58,16 @@ export default function QuizManagement() {
     is_published: false,
   });
 
-  const { data: quizzes, isLoading, error: quizzesError } = useQuery<Quiz[]>({
-    queryKey: ['quizzes-manage'],
+  // Build query params scoped to selected ecosystem
+  const queryParams: Record<string, string> = {};
+  if (selected) {
+    queryParams.ecosystem_id = selected.id;
+  }
+
+  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
+    queryKey: ['quizzes-manage', queryParams],
     queryFn: async () => {
-      const result = await fetchQuizzes();
+      const result = await fetchQuizzes(Object.keys(queryParams).length > 0 ? queryParams : undefined);
       const items = (result as any).items || (result as any).quizzes || [];
       return items.map((q: any) => ({
         id: q.id,
@@ -83,6 +75,9 @@ export default function QuizManagement() {
         description: q.description ?? null,
         visibility: q.visibility ?? 'public',
         is_published: q.is_published ?? false,
+        is_entry_quiz: q.is_entry_quiz ?? false,
+        ecosystem_id: q.ecosystem_id ?? null,
+        domain_id: q.domain_id ?? null,
         survey_json: q.survey_json ?? q.config ?? null,
         created_at: q.created_at,
         created_by: q.created_by ?? q.author_id ?? '',
@@ -97,26 +92,20 @@ export default function QuizManagement() {
     if (editId && quizzes && quizzes.length > 0 && !editingQuiz) {
       const quizToEdit = quizzes.find(q => q.id === editId);
       if (quizToEdit) {
-        // Set editing quiz directly
         setEditingQuiz(quizToEdit);
         setEditQuiz({
           title: quizToEdit.title,
           description: quizToEdit.description || "",
-          visibility: quizToEdit.visibility as "public" | "private" | "team" | "assigned",
-          surveyJson: typeof quizToEdit.survey_json === 'string' 
-            ? quizToEdit.survey_json 
+          visibility: quizToEdit.visibility as any,
+          surveyJson: typeof quizToEdit.survey_json === 'string'
+            ? quizToEdit.survey_json
             : JSON.stringify(quizToEdit.survey_json, null, 2),
           is_published: quizToEdit.is_published,
         });
-        // Clean up URL
         const basePath = location.split('?')[0];
         setLocation(basePath);
-        // Scroll to edit form after a short delay
         setTimeout(() => {
-          const editForm = document.getElementById('edit-quiz-form');
-          if (editForm) {
-            editForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          document.getElementById('edit-quiz-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       }
     }
@@ -132,48 +121,28 @@ export default function QuizManagement() {
         mode: quizData.mode || 'take',
         is_published: false,
         created_by: member?.id,
+        ...(selected?.id && { ecosystem_id: selected.id }),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setIsCreating(false);
-      setNewQuiz({
-        title: "",
-        description: "",
-        visibility: "public",
-        surveyJson: "",
-      });
-      toast({
-        title: "Success",
-        description: "Quiz created successfully",
-      });
+      setNewQuiz({ title: "", description: "", visibility: "public", surveyJson: "" });
+      toast({ title: "Success", description: "Quiz created successfully" });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create quiz",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to create quiz", variant: "destructive" });
     },
   });
 
   const publishQuizMutation = useMutation({
-    mutationFn: async (quizId: string) => {
-      await updateQuiz(quizId, { is_published: true });
-    },
+    mutationFn: async (quizId: string) => { await updateQuiz(quizId, { is_published: true }); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
-      toast({
-        title: "Success",
-        description: "Quiz published successfully",
-      });
+      toast({ title: "Success", description: "Quiz published successfully" });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to publish quiz",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to publish quiz", variant: "destructive" });
     },
   });
 
@@ -190,51 +159,28 @@ export default function QuizManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setEditingQuiz(null);
-      setEditQuiz({
-        title: "",
-        description: "",
-        visibility: "public",
-        surveyJson: "",
-        is_published: false,
-      });
-      toast({
-        title: "Success",
-        description: "Quiz updated successfully",
-      });
+      setEditQuiz({ title: "", description: "", visibility: "public", surveyJson: "", is_published: false });
+      toast({ title: "Success", description: "Quiz updated successfully" });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update quiz",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to update quiz", variant: "destructive" });
     },
   });
 
   const deleteQuizMutation = useMutation({
-    mutationFn: async (quizId: string) => {
-      await deleteQuiz(quizId);
-    },
+    mutationFn: async (quizId: string) => { await deleteQuiz(quizId); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
-      toast({
-        title: "Success",
-        description: "Quiz deleted successfully",
-      });
+      toast({ title: "Success", description: "Quiz deleted successfully" });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete quiz",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to delete quiz", variant: "destructive" });
     },
   });
 
   const handleCreateQuiz = () => {
     try {
       const parsedJson = JSON.parse(newQuiz.surveyJson);
-
       createQuizMutation.mutate({
         title: newQuiz.title,
         description: newQuiz.description,
@@ -242,12 +188,8 @@ export default function QuizManagement() {
         surveyJson: parsedJson,
         mode: "take",
       });
-    } catch (error) {
-      toast({
-        title: "Invalid JSON",
-        description: "Please check your SurveyJS JSON format",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Invalid JSON", description: "Please check your SurveyJS JSON format", variant: "destructive" });
     }
   };
 
@@ -275,49 +217,34 @@ export default function QuizManagement() {
             surveyJson: JSON.stringify(parsed, null, 2),
           }));
         }
-        toast({
-          title: "File loaded",
-          description: "Quiz JSON loaded successfully",
-        });
-      } catch (error) {
-        toast({
-          title: "Invalid file",
-          description: "Could not parse JSON file",
-          variant: "destructive",
-        });
+        toast({ title: "File loaded", description: "Quiz JSON loaded successfully" });
+      } catch {
+        toast({ title: "Invalid file", description: "Could not parse JSON file", variant: "destructive" });
       }
     };
     reader.readAsText(file);
   };
 
   const handleEditQuiz = (quiz: Quiz) => {
-    console.log('Editing quiz:', quiz);
     setEditingQuiz(quiz);
     setEditQuiz({
       title: quiz.title,
       description: quiz.description || "",
-      visibility: quiz.visibility as "public" | "private" | "team" | "assigned",
-      surveyJson: typeof quiz.survey_json === 'string' 
-        ? quiz.survey_json 
+      visibility: quiz.visibility as any,
+      surveyJson: typeof quiz.survey_json === 'string'
+        ? quiz.survey_json
         : JSON.stringify(quiz.survey_json, null, 2),
       is_published: quiz.is_published,
     });
-    
-    // Scroll to edit form after a short delay to ensure it's rendered
     setTimeout(() => {
-      const editForm = document.getElementById('edit-quiz-form');
-      if (editForm) {
-        editForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      document.getElementById('edit-quiz-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
   };
 
   const handleUpdateQuiz = () => {
     if (!editingQuiz) return;
-    
     try {
       const parsedJson = JSON.parse(editQuiz.surveyJson);
-
       updateQuizMutation.mutate({
         id: editingQuiz.id,
         title: editQuiz.title,
@@ -326,13 +253,14 @@ export default function QuizManagement() {
         surveyJson: parsedJson,
         is_published: editQuiz.is_published,
       });
-    } catch (error) {
-      toast({
-        title: "Invalid JSON",
-        description: "Please check your SurveyJS JSON format",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Invalid JSON", description: "Please check your SurveyJS JSON format", variant: "destructive" });
     }
+  };
+
+  const getEcosystemName = (ecoId: string | null) => {
+    if (!ecoId) return null;
+    return ecosystems.find(e => e.id === ecoId)?.name ?? null;
   };
 
   return (
@@ -342,23 +270,11 @@ export default function QuizManagement() {
           <h1 className="text-3xl font-bold">Quiz Management</h1>
           <p className="text-muted-foreground mt-1">
             Create, upload, and manage quizzes
+            {selected && <span className="ml-1">for <strong>{selected.name}</strong></span>}
           </p>
         </div>
-        <Button
-          onClick={() => setIsCreating(!isCreating)}
-          data-testid="button-create-quiz"
-        >
-          {isCreating ? (
-            <>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Quiz
-            </>
-          )}
+        <Button onClick={() => setIsCreating(!isCreating)} data-testid="button-create-quiz">
+          {isCreating ? (<><X className="h-4 w-4 mr-2" />Cancel</>) : (<><Plus className="h-4 w-4 mr-2" />Create Quiz</>)}
         </Button>
       </div>
 
@@ -366,48 +282,21 @@ export default function QuizManagement() {
         <Card>
           <CardHeader>
             <CardTitle>Create New Quiz</CardTitle>
-            <CardDescription>
-              Upload a SurveyJS JSON file or paste the JSON directly
-            </CardDescription>
+            <CardDescription>Upload a SurveyJS JSON file or paste the JSON directly</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Quiz Title</Label>
-              <Input
-                id="title"
-                value={newQuiz.title}
-                onChange={(e) =>
-                  setNewQuiz({ ...newQuiz, title: e.target.value })
-                }
-                placeholder="Enter quiz title"
-                data-testid="input-quiz-title"
-              />
+              <Input id="title" value={newQuiz.title} onChange={(e) => setNewQuiz({ ...newQuiz, title: e.target.value })} placeholder="Enter quiz title" data-testid="input-quiz-title" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={newQuiz.description}
-                onChange={(e) =>
-                  setNewQuiz({ ...newQuiz, description: e.target.value })
-                }
-                placeholder="Enter quiz description"
-                data-testid="input-quiz-description"
-              />
+              <Textarea id="description" value={newQuiz.description} onChange={(e) => setNewQuiz({ ...newQuiz, description: e.target.value })} placeholder="Enter quiz description" data-testid="input-quiz-description" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="visibility">Visibility</Label>
-              <Select
-                value={newQuiz.visibility}
-                onValueChange={(value: any) =>
-                  setNewQuiz({ ...newQuiz, visibility: value })
-                }
-              >
-                <SelectTrigger data-testid="select-visibility">
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={newQuiz.visibility} onValueChange={(value: any) => setNewQuiz({ ...newQuiz, visibility: value })}>
+                <SelectTrigger data-testid="select-visibility"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="public">Public</SelectItem>
                   <SelectItem value="private">Private</SelectItem>
@@ -416,45 +305,18 @@ export default function QuizManagement() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="file-upload">Upload JSON File</Label>
               <div className="flex gap-2">
-                <Input
-                  id="file-upload"
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileUpload}
-                  data-testid="input-file-upload"
-                />
-                <Button variant="outline" size="icon">
-                  <Upload className="h-4 w-4" />
-                </Button>
+                <Input id="file-upload" type="file" accept=".json" onChange={handleFileUpload} data-testid="input-file-upload" />
+                <Button variant="outline" size="icon"><Upload className="h-4 w-4" /></Button>
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="survey-json">SurveyJS JSON</Label>
-              <Textarea
-                id="survey-json"
-                value={newQuiz.surveyJson}
-                onChange={(e) =>
-                  setNewQuiz({ ...newQuiz, surveyJson: e.target.value })
-                }
-                placeholder='{"title": "My Quiz", "pages": [...]}'
-                rows={10}
-                className="font-mono text-sm"
-                data-testid="textarea-survey-json"
-              />
+              <Textarea id="survey-json" value={newQuiz.surveyJson} onChange={(e) => setNewQuiz({ ...newQuiz, surveyJson: e.target.value })} placeholder='{"title": "My Quiz", "pages": [...]}' rows={10} className="font-mono text-sm" data-testid="textarea-survey-json" />
             </div>
-
-            <Button
-              onClick={handleCreateQuiz}
-              disabled={
-                !newQuiz.title || !newQuiz.surveyJson || createQuizMutation.isPending
-              }
-              data-testid="button-submit-quiz"
-            >
+            <Button onClick={handleCreateQuiz} disabled={!newQuiz.title || !newQuiz.surveyJson || createQuizMutation.isPending} data-testid="button-submit-quiz">
               {createQuizMutation.isPending ? "Creating..." : "Create Quiz"}
             </Button>
           </CardContent>
@@ -463,11 +325,7 @@ export default function QuizManagement() {
 
       <div className="grid gap-4">
         {isLoading ? (
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-muted-foreground">Loading quizzes...</p>
-            </CardContent>
-          </Card>
+          <Card><CardContent className="p-6"><p className="text-muted-foreground">Loading quizzes...</p></CardContent></Card>
         ) : quizzes && quizzes.length > 0 ? (
           quizzes.map((quiz) => (
             <Card key={quiz.id} data-testid={`card-quiz-${quiz.id}`}>
@@ -476,65 +334,36 @@ export default function QuizManagement() {
                   <div>
                     <CardTitle>{quiz.title}</CardTitle>
                     <CardDescription>{quiz.description}</CardDescription>
-                    <div className="flex gap-2 mt-2">
-                      <span className="text-xs bg-secondary px-2 py-1 rounded">
-                        {quiz.visibility}
-                      </span>
-                      <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          quiz.is_published
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                        }`}
-                      >
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge variant="secondary">{quiz.visibility}</Badge>
+                      <Badge variant={quiz.is_published ? "default" : "outline"}>
                         {quiz.is_published ? "Published" : "Draft"}
-                      </span>
+                      </Badge>
+                      {quiz.is_entry_quiz && (
+                        <Badge variant="outline" className="text-xs">
+                          <Check className="h-3 w-3 mr-1" />Entry Quiz
+                        </Badge>
+                      )}
+                      {quiz.ecosystem_id && (
+                        <Badge variant="outline" className="text-xs">
+                          {getEcosystemName(quiz.ecosystem_id) || 'Ecosystem'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        console.log('Viewing quiz:', quiz.id);
-                        setLocation(`/quiz/take/${quiz.id}`);
-                      }}
-                      data-testid={`button-view-${quiz.id}`}
-                      title="View/Preview Quiz"
-                    >
+                    <Button size="sm" variant="outline" onClick={() => setLocation(`/quiz/take/${quiz.id}`)} data-testid={`button-view-${quiz.id}`} title="View/Preview Quiz">
                       <Eye className="h-4 w-4" />
                     </Button>
                     {!quiz.is_published && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => publishQuizMutation.mutate(quiz.id)}
-                        data-testid={`button-publish-${quiz.id}`}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Publish
+                      <Button size="sm" variant="outline" onClick={() => publishQuizMutation.mutate(quiz.id)} data-testid={`button-publish-${quiz.id}`}>
+                        <Check className="h-4 w-4 mr-1" />Publish
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEditQuiz(quiz)}
-                      data-testid={`button-edit-${quiz.id}`}
-                      title="Edit Quiz"
-                    >
+                    <Button size="sm" variant="outline" onClick={() => handleEditQuiz(quiz)} data-testid={`button-edit-${quiz.id}`} title="Edit Quiz">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to delete this quiz?")) {
-                          deleteQuizMutation.mutate(quiz.id);
-                        }
-                      }}
-                      data-testid={`button-delete-${quiz.id}`}
-                      title="Delete Quiz"
-                    >
+                    <Button size="sm" variant="destructive" onClick={() => { if (confirm("Are you sure you want to delete this quiz?")) deleteQuizMutation.mutate(quiz.id); }} data-testid={`button-delete-${quiz.id}`} title="Delete Quiz">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -546,7 +375,9 @@ export default function QuizManagement() {
           <Card>
             <CardContent className="p-12 text-center">
               <p className="text-muted-foreground">
-                No quizzes yet. Create your first quiz to get started!
+                {selected
+                  ? `No quizzes found for ${selected.name}. Create your first quiz to get started!`
+                  : 'No quizzes yet. Select an ecosystem or create your first quiz to get started!'}
               </p>
             </CardContent>
           </Card>
@@ -559,24 +390,9 @@ export default function QuizManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Edit Quiz</CardTitle>
-                <CardDescription>
-                  Update quiz details and SurveyJS JSON
-                </CardDescription>
+                <CardDescription>Update quiz details and SurveyJS JSON</CardDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setEditingQuiz(null);
-                  setEditQuiz({
-                    title: "",
-                    description: "",
-                    visibility: "public",
-                    surveyJson: "",
-                    is_published: false,
-                  });
-                }}
-              >
+              <Button variant="ghost" size="icon" onClick={() => { setEditingQuiz(null); setEditQuiz({ title: "", description: "", visibility: "public", surveyJson: "", is_published: false }); }}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -584,39 +400,16 @@ export default function QuizManagement() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit-title">Quiz Title</Label>
-              <Input
-                id="edit-title"
-                value={editQuiz.title}
-                onChange={(e) =>
-                  setEditQuiz({ ...editQuiz, title: e.target.value })
-                }
-                placeholder="Enter quiz title"
-              />
+              <Input id="edit-title" value={editQuiz.title} onChange={(e) => setEditQuiz({ ...editQuiz, title: e.target.value })} placeholder="Enter quiz title" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={editQuiz.description}
-                onChange={(e) =>
-                  setEditQuiz({ ...editQuiz, description: e.target.value })
-                }
-                placeholder="Enter quiz description"
-              />
+              <Textarea id="edit-description" value={editQuiz.description} onChange={(e) => setEditQuiz({ ...editQuiz, description: e.target.value })} placeholder="Enter quiz description" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-visibility">Visibility</Label>
-              <Select
-                value={editQuiz.visibility}
-                onValueChange={(value: any) =>
-                  setEditQuiz({ ...editQuiz, visibility: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={editQuiz.visibility} onValueChange={(value: any) => setEditQuiz({ ...editQuiz, visibility: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="public">Public</SelectItem>
                   <SelectItem value="private">Private</SelectItem>
@@ -625,76 +418,32 @@ export default function QuizManagement() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-published">Published Status</Label>
-              <Select
-                value={editQuiz.is_published ? "published" : "draft"}
-                onValueChange={(value) =>
-                  setEditQuiz({ ...editQuiz, is_published: value === "published" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={editQuiz.is_published ? "published" : "draft"} onValueChange={(value) => setEditQuiz({ ...editQuiz, is_published: value === "published" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="published">Published</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-file-upload">Upload JSON File</Label>
               <div className="flex gap-2">
-                <Input
-                  id="edit-file-upload"
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => handleFileUpload(e, true)}
-                />
-                <Button variant="outline" size="icon">
-                  <Upload className="h-4 w-4" />
-                </Button>
+                <Input id="edit-file-upload" type="file" accept=".json" onChange={(e) => handleFileUpload(e, true)} />
+                <Button variant="outline" size="icon"><Upload className="h-4 w-4" /></Button>
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-survey-json">SurveyJS JSON</Label>
-              <Textarea
-                id="edit-survey-json"
-                value={editQuiz.surveyJson}
-                onChange={(e) =>
-                  setEditQuiz({ ...editQuiz, surveyJson: e.target.value })
-                }
-                placeholder='{"title": "My Quiz", "pages": [...]}'
-                rows={10}
-                className="font-mono text-sm"
-              />
+              <Textarea id="edit-survey-json" value={editQuiz.surveyJson} onChange={(e) => setEditQuiz({ ...editQuiz, surveyJson: e.target.value })} placeholder='{"title": "My Quiz", "pages": [...]}' rows={10} className="font-mono text-sm" />
             </div>
-
             <div className="flex gap-2">
-              <Button
-                onClick={handleUpdateQuiz}
-                disabled={
-                  !editQuiz.title || !editQuiz.surveyJson || updateQuizMutation.isPending
-                }
-              >
+              <Button onClick={handleUpdateQuiz} disabled={!editQuiz.title || !editQuiz.surveyJson || updateQuizMutation.isPending}>
                 {updateQuizMutation.isPending ? "Updating..." : "Update Quiz"}
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditingQuiz(null);
-                  setEditQuiz({
-                    title: "",
-                    description: "",
-                    visibility: "public",
-                    surveyJson: "",
-                    is_published: false,
-                  });
-                }}
-              >
+              <Button variant="outline" onClick={() => { setEditingQuiz(null); setEditQuiz({ title: "", description: "", visibility: "public", surveyJson: "", is_published: false }); }}>
                 Cancel
               </Button>
             </div>

@@ -46,21 +46,21 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 interface JourneyMap {
   id: string;
-  ethos_id: string | null;
+  ecosystem_id: string | null;
   slug: string;
   title: string;
   description: string | null;
   sector_alignment: string[] | null;
   role_types: string[] | null;
   min_alignment_score: number;
+  step_count: number;
   content_sequence: any[];
   exit_package: any;
   is_active: boolean;
   is_default: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   ethos?: { name: string; slug: string } | null;
-  step_count?: number;
 }
 
 interface EthosOption {
@@ -87,9 +87,8 @@ export default function JourneyMapList() {
       const params = new URLSearchParams();
       if (ethosFilter !== "all") params.set("ethos_id", ethosFilter);
       if (activeFilter !== "all") params.set("is_active", activeFilter);
-      // TODO: replace with dedicated Sanic journey-maps-list endpoint when available
       const result = await apiFetch<any>(
-        `/api/v1/journey-maps${params.toString() ? `?${params.toString()}` : ""}`
+        `/api/v1/orientation/journey-maps${params.toString() ? `?${params.toString()}` : ""}`
       );
       return (result?.maps ?? result?.items ?? []) as JourneyMap[];
     },
@@ -108,8 +107,7 @@ export default function JourneyMapList() {
   // Duplicate mutation
   const duplicateMutation = useMutation({
     mutationFn: async (id: string) => {
-      // TODO: replace with dedicated Sanic endpoint when journey-maps-duplicate is available
-      return await apiFetch<any>(`/api/v1/journey-maps/${id}/duplicate`, { method: 'POST' });
+      return await apiFetch<any>(`/api/v1/orientation/journey-maps/${id}/duplicate`, { method: 'POST' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });
@@ -123,8 +121,7 @@ export default function JourneyMapList() {
   // Soft delete mutation
   const softDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // TODO: replace with dedicated Sanic endpoint when journey-maps-delete is available
-      return await apiFetch<any>(`/api/v1/journey-maps/${id}/deactivate`, { method: 'POST' });
+      return await apiFetch<any>(`/api/v1/orientation/journey-maps/${id}/deactivate`, { method: 'POST' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });
@@ -139,8 +136,7 @@ export default function JourneyMapList() {
   // Hard delete mutation
   const hardDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // TODO: replace with dedicated Sanic endpoint when journey-maps-delete is available
-      return await apiFetch<any>(`/api/v1/journey-maps/${id}`, { method: 'DELETE' });
+      return await apiFetch<any>(`/api/v1/orientation/journey-maps/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journey-maps-list"] });

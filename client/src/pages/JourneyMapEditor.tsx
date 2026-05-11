@@ -466,8 +466,7 @@ export default function JourneyMapEditor() {
     queryKey: ["journey-map-edit", mapId],
     queryFn: async () => {
       if (!mapId) return null;
-      // TODO: replace with dedicated journey-maps-get Sanic endpoint when available
-      const result = await apiFetch<any>(`/api/v1/journey-maps/${mapId}`);
+      const result = await apiFetch<any>(`/api/v1/orientation/journey-maps/${mapId}`);
       return result?.map ?? result?.data ?? result;
     },
     enabled: !isNew,
@@ -478,7 +477,7 @@ export default function JourneyMapEditor() {
       title: existingMap.title || "",
       slug: existingMap.slug || "",
       description: existingMap.description || "",
-      ethos_id: existingMap.ethos_id || "",
+      ethos_id: existingMap.ecosystem_id || existingMap.ethos_id || "",
       is_active: existingMap.is_active ?? true,
       is_default: existingMap.is_default ?? false,
     });
@@ -548,20 +547,19 @@ export default function JourneyMapEditor() {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
-        id: mapId || undefined,
+      const payload: Record<string, unknown> = {
         title: form.title,
         slug: form.slug,
         description: form.description || null,
-        ethos_id: form.ethos_id || null,
         is_active: form.is_active,
         is_default: form.is_default,
         content_sequence: steps,
       };
 
-      // TODO: replace with dedicated Sanic endpoints when journey-maps-create/update are available
       const method = isNew ? 'POST' : 'PUT';
-      const url = isNew ? '/api/v1/journey-maps' : `/api/v1/journey-maps/${mapId}`;
+      const url = isNew
+        ? `/api/v1/orientation/ethos/${form.ethos_id}/journey-maps`
+        : `/api/v1/orientation/journey-maps/${mapId}`;
       const data = await apiFetch<any>(url, {
         method,
         headers: { 'Content-Type': 'application/json' },

@@ -11,7 +11,7 @@ import type { OrientationPath, JourneyMap, UserJourneyProgress } from '@/types/o
 // ── detect path ──────────────────────────────────────────────────────────────
 
 async function detectPath(_ethos_id: string): Promise<OrientationPath> {
-  return { path: 'explorer', signals: [] } as OrientationPath;
+  return { path: 'explorer', confidence: 0, signals: [] } as OrientationPath;
 }
 
 export function useDetectPath(ethos_id: string) {

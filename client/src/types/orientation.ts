@@ -61,10 +61,11 @@ export interface JourneyMap {
   slug: string;
   title: string;
   description?: string;
-  ethos_id?: string;
+  ecosystem_id?: string;
   sector_alignment?: string[];
   role_types?: string[];
   min_alignment_score?: number;
+  step_count: number;
   content_sequence: JourneyStep[];
   exit_package: JourneyExitPackage;
   is_default: boolean;

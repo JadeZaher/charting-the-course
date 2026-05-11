@@ -1,4 +1,5 @@
 import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse } from '@/types/api';
+import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -203,6 +204,15 @@ export function createDomain(data: Record<string, any>): Promise<DomainDetail> {
 export function updateDomain(id: string, data: Record<string, any>): Promise<DomainDetail> {
   return apiFetch<DomainDetail>(`/api/v1/domains/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
+export function fetchDomainQuizzes(domainId: string): Promise<{ items: QuizListItem[]; total: number }> {
+  return apiFetch<{ items: QuizListItem[]; total: number }>(`/api/v1/domains/${domainId}/quizzes`);
+}
+export function assignQuizToDomain(domainId: string, quizId: string, isEntryQuiz: boolean): Promise<any> {
+  return apiFetch(`/api/v1/domains/${domainId}/quizzes/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId, is_entry_quiz: isEntryQuiz }) });
+}
+export function unassignQuizFromDomain(domainId: string, quizId: string): Promise<any> {
+  return apiFetch(`/api/v1/domains/${domainId}/quizzes/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId }) });
+}
 
 // Decisions API
 export function fetchDecisions(params?: Record<string, string>): Promise<PaginatedResponse<DecisionListItem>> {
@@ -244,9 +254,9 @@ export function createRepairAgreement(conflictId: string, data: Record<string, a
 }
 
 // Ecosystems API (paginated list)
-export function fetchEcosystemsList(params?: Record<string, string>): Promise<PaginatedResponse<EcosystemSummary>> {
+export function fetchEcosystemsList(params?: Record<string, string>): Promise<{ ecosystems: EcosystemSummary[]; total: number; page: number; per_page: number }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch<PaginatedResponse<EcosystemSummary>>(`/api/v1/ecosystems${qs}`);
+  return apiFetch<{ ecosystems: EcosystemSummary[]; total: number; page: number; per_page: number }>(`/api/v1/ecosystems${qs}`);
 }
 export function createEcosystemRecord(data: Record<string, any>): Promise<EcosystemDetail> {
   return apiFetch<EcosystemDetail>('/api/v1/ecosystems', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -256,6 +266,15 @@ export function updateEcosystemRecord(id: string, data: Record<string, any>): Pr
 }
 export function requestJoinEcosystem(id: string): Promise<{ status: string; message: string }> {
   return apiFetch<{ status: string; message: string }>(`/api/v1/ecosystems/${id}/join`, { method: 'POST' });
+}
+export function fetchEcosystemQuizzes(ecosystemId: string): Promise<{ quizzes: QuizListItem[] }> {
+  return apiFetch<{ quizzes: QuizListItem[] }>(`/api/v1/ecosystems/${ecosystemId}/quizzes`);
+}
+export function assignQuizToEcosystem(ecosystemId: string, quizId: string, isEntryQuiz: boolean): Promise<any> {
+  return apiFetch(`/api/v1/ecosystems/${ecosystemId}/quizzes/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId, is_entry_quiz: isEntryQuiz }) });
+}
+export function unassignQuizFromEcosystem(ecosystemId: string, quizId: string): Promise<any> {
+  return apiFetch(`/api/v1/ecosystems/${ecosystemId}/quizzes/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId }) });
 }
 
 // Messaging API
@@ -303,11 +322,18 @@ export function fetchQuiz(id: string): Promise<QuizDetail> { return apiFetch(`/a
 export function createQuiz(data: Record<string, any>): Promise<QuizDetail> {
   return apiFetch('/api/v1/quizzes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
+export function updateQuiz(id: string, data: Record<string, any>): Promise<QuizDetail> {
+  return apiFetch(`/api/v1/quizzes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function deleteQuiz(id: string): Promise<{ ok: boolean; message: string }> {
+  return apiFetch(`/api/v1/quizzes/${id}`, { method: 'DELETE' });
+}
 export function submitQuizResult(quizId: string, data: Record<string, any>): Promise<QuizResultItem> {
   return apiFetch(`/api/v1/quizzes/${quizId}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
-export function fetchQuizResults(quizId: string): Promise<{ results: QuizResultItem[] }> {
-  return apiFetch(`/api/v1/quizzes/${quizId}/results`);
+export function fetchQuizResults(quizId: string, params?: Record<string, string>): Promise<{ items: QuizResultItem[]; total: number; page: number; per_page: number }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/quizzes/${quizId}/results${qs}`);
 }
 export function fetchQuizResultsAdmin(quizId: string, params?: Record<string, string>): Promise<{ items: (QuizResultItem & { member_name: string })[]; quiz_title: string; total: number; page: number; per_page: number }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -458,28 +484,50 @@ export function generateCompliance(): Promise<ComplianceSummary> {
 }
 
 // Orientation API
-export function fetchEthosJourneyMaps(ethos_id: string): Promise<any[]> {
-  return apiFetch<any[]>(`/api/v1/orientation/ethos/${ethos_id}/journey-maps`);
+export function fetchEthosJourneyMaps(ethos_id: string, includeInactive = false): Promise<any[]> {
+  const qs = includeInactive ? '?include_inactive=true' : '';
+  return apiFetch<any[]>(`/api/v1/orientation/ethos/${ethos_id}/journey-maps${qs}`);
 }
 
 export function fetchOrientationProgress(ethos_id: string): Promise<UserJourneyProgress> {
   return apiFetch<UserJourneyProgress>(`/api/v1/orientation/ethos/${ethos_id}/progress`);
 }
 
-export function saveOrientationProgress(ethos_id: string, data: any): Promise<UserJourneyProgress> {
-  return apiFetch<UserJourneyProgress>(`/api/v1/orientation/ethos/${ethos_id}/progress`, { 
-    method: 'POST', 
-    headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify(data) 
+export function saveOrientationProgress(ethos_id: string, data: any): Promise<Pick<UserJourneyProgress, 'id' | 'user_id' | 'ethos_id' | 'journey_map_id' | 'current_step' | 'status'>> {
+  return apiFetch<Pick<UserJourneyProgress, 'id' | 'user_id' | 'ethos_id' | 'journey_map_id' | 'current_step' | 'status'>>(`/api/v1/orientation/ethos/${ethos_id}/progress`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
   });
 }
 
 export function saveGenplanInput(data: any): Promise<any> {
-  return apiFetch<any>('/api/v1/orientation/genplan-input', { 
-    method: 'POST', 
-    headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify(data) 
+  return apiFetch<any>('/api/v1/orientation/genplan-input', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
   });
+}
+export function createJourneyMap(ecosystemId: string, data: Record<string, any>): Promise<any> {
+  return apiFetch(`/api/v1/orientation/ethos/${ecosystemId}/journey-maps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateJourneyMap(journeyMapId: string, data: Record<string, any>): Promise<any> {
+  return apiFetch(`/api/v1/orientation/journey-maps/${journeyMapId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function deleteJourneyMap(journeyMapId: string): Promise<{ ok: boolean; message: string }> {
+  return apiFetch(`/api/v1/orientation/journey-maps/${journeyMapId}`, { method: 'DELETE' });
+}
+
+// Ecosystem-scoped shares/needs
+export function fetchEcosystemSharesNeeds(ecosystemId: string, params?: Record<string, string>): Promise<{ items: SharesNeeds[] }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/ecosystems/${ecosystemId}/shares-needs${qs}`);
+}
+
+// Domain-scoped shares/needs
+export function fetchDomainSharesNeeds(domainId: string, params?: Record<string, string>): Promise<{ items: SharesNeeds[] }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch(`/api/v1/domains/${domainId}/shares-needs${qs}`);
 }
 
 // AI Assist API
