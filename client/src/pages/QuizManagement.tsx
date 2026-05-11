@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -14,8 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Trash2, Edit, Check, X, Eye, Link2Off } from "lucide-react";
+import { Plus, Upload, Trash2, Edit, Check, X, Eye, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEcosystem } from "@/contexts/EcosystemContext";
 import { fetchQuizzes, createQuiz, updateQuiz, deleteQuiz } from "@/lib/api-client";
@@ -24,14 +29,90 @@ interface Quiz {
   id: string;
   title: string;
   description: string | null;
+  mode: string;
   visibility: string;
   is_published: boolean;
   is_entry_quiz: boolean;
+  passing_score: number | null;
+  allow_retakes: boolean;
   ecosystem_id: string | null;
   domain_id: string | null;
   survey_json: any;
   created_at: string;
   created_by: string;
+}
+
+interface QuizFormState {
+  title: string;
+  description: string;
+  mode: string;
+  visibility: string;
+  surveyJson: string;
+  passing_score: string;
+  allow_retakes: boolean;
+  is_entry_quiz: boolean;
+  is_published: boolean;
+}
+
+const EMPTY_FORM: QuizFormState = {
+  title: "",
+  description: "",
+  mode: "standard",
+  visibility: "public",
+  surveyJson: "",
+  passing_score: "70",
+  allow_retakes: true,
+  is_entry_quiz: false,
+  is_published: false,
+};
+
+/**
+ * Validate survey JSON for grading support.
+ * Returns warnings (not blocking) about questions missing correctAnswer.
+ */
+function validateSurveyJson(json: any, mode: string): { valid: boolean; error?: string; warnings: string[] } {
+  if (!json || typeof json !== "object") return { valid: false, error: "Survey JSON must be a valid object", warnings: [] };
+
+  const pages = json.pages;
+  if (!Array.isArray(pages) || pages.length === 0) return { valid: false, error: "Survey JSON must have at least one page with elements", warnings: [] };
+
+  const allElements: any[] = pages.flatMap((p: any) => p.elements ?? []);
+  if (allElements.length === 0) return { valid: false, error: "Survey JSON must have at least one question element", warnings: [] };
+
+  const warnings: string[] = [];
+
+  // For standard (graded) quizzes, check that gradable questions exist
+  if (mode === "standard") {
+    const gradable = allElements.filter((el) => el.correctAnswer !== undefined);
+    const radiogroups = allElements.filter((el) => el.type === "radiogroup");
+
+    if (gradable.length === 0 && radiogroups.length > 0) {
+      warnings.push(
+        `${radiogroups.length} multiple-choice question(s) are missing "correctAnswer". ` +
+        `Without correctAnswer, the quiz cannot be auto-graded. Add a "correctAnswer" field to each radiogroup element.`
+      );
+    } else if (gradable.length > 0 && gradable.length < radiogroups.length) {
+      const missing = radiogroups.length - gradable.length;
+      warnings.push(
+        `${missing} of ${radiogroups.length} multiple-choice question(s) are missing "correctAnswer". ` +
+        `Only ${gradable.length} will be graded.`
+      );
+    }
+
+    // Check that each gradable question's correctAnswer matches one of its choices
+    for (const el of gradable) {
+      if (el.choices && Array.isArray(el.choices)) {
+        const choiceValues = el.choices.map((c: any) => typeof c === "string" ? c : c.value ?? c.text);
+        if (!choiceValues.includes(el.correctAnswer)) {
+          warnings.push(
+            `Question "${el.title || el.name}": correctAnswer "${el.correctAnswer}" does not match any choice.`
+          );
+        }
+      }
+    }
+  }
+
+  return { valid: true, warnings };
 }
 
 export default function QuizManagement() {
@@ -43,20 +124,8 @@ export default function QuizManagement() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
 
-  const [newQuiz, setNewQuiz] = useState({
-    title: "",
-    description: "",
-    visibility: "public" as "public" | "private" | "team" | "assigned",
-    surveyJson: "",
-  });
-
-  const [editQuiz, setEditQuiz] = useState({
-    title: "",
-    description: "",
-    visibility: "public" as "public" | "private" | "team" | "assigned",
-    surveyJson: "",
-    is_published: false,
-  });
+  const [newQuiz, setNewQuiz] = useState<QuizFormState>({ ...EMPTY_FORM });
+  const [editQuiz, setEditQuiz] = useState<QuizFormState>({ ...EMPTY_FORM });
 
   // Build query params scoped to selected ecosystem
   const queryParams: Record<string, string> = {};
@@ -73,9 +142,12 @@ export default function QuizManagement() {
         id: q.id,
         title: q.title,
         description: q.description ?? null,
+        mode: q.mode ?? "standard",
         visibility: q.visibility ?? 'public',
         is_published: q.is_published ?? false,
         is_entry_quiz: q.is_entry_quiz ?? false,
+        passing_score: q.passing_score ?? null,
+        allow_retakes: q.allow_retakes ?? true,
         ecosystem_id: q.ecosystem_id ?? null,
         domain_id: q.domain_id ?? null,
         survey_json: q.survey_json ?? q.config ?? null,
@@ -92,16 +164,7 @@ export default function QuizManagement() {
     if (editId && quizzes && quizzes.length > 0 && !editingQuiz) {
       const quizToEdit = quizzes.find(q => q.id === editId);
       if (quizToEdit) {
-        setEditingQuiz(quizToEdit);
-        setEditQuiz({
-          title: quizToEdit.title,
-          description: quizToEdit.description || "",
-          visibility: quizToEdit.visibility as any,
-          surveyJson: typeof quizToEdit.survey_json === 'string'
-            ? quizToEdit.survey_json
-            : JSON.stringify(quizToEdit.survey_json, null, 2),
-          is_published: quizToEdit.is_published,
-        });
+        handleEditQuiz(quizToEdit);
         const basePath = location.split('?')[0];
         setLocation(basePath);
         setTimeout(() => {
@@ -111,14 +174,39 @@ export default function QuizManagement() {
     }
   }, [quizzes, location, editingQuiz]);
 
+  // Validation for create form
+  const createValidation = useMemo(() => {
+    if (!newQuiz.surveyJson) return { valid: false, error: undefined, warnings: [] };
+    try {
+      const parsed = JSON.parse(newQuiz.surveyJson);
+      return validateSurveyJson(parsed, newQuiz.mode);
+    } catch {
+      return { valid: false, error: "Invalid JSON syntax", warnings: [] };
+    }
+  }, [newQuiz.surveyJson, newQuiz.mode]);
+
+  // Validation for edit form
+  const editValidation = useMemo(() => {
+    if (!editQuiz.surveyJson) return { valid: false, error: undefined, warnings: [] };
+    try {
+      const parsed = JSON.parse(editQuiz.surveyJson);
+      return validateSurveyJson(parsed, editQuiz.mode);
+    } catch {
+      return { valid: false, error: "Invalid JSON syntax", warnings: [] };
+    }
+  }, [editQuiz.surveyJson, editQuiz.mode]);
+
   const createQuizMutation = useMutation({
-    mutationFn: async (quizData: any) => {
+    mutationFn: async (quizData: QuizFormState) => {
+      const parsedJson = JSON.parse(quizData.surveyJson);
       return createQuiz({
         title: quizData.title,
-        description: quizData.description,
+        description: quizData.description || null,
         visibility: quizData.visibility,
-        survey_json: quizData.surveyJson,
-        mode: quizData.mode || 'take',
+        survey_json: parsedJson,
+        mode: quizData.mode,
+        passing_score: quizData.mode === "standard" ? (parseInt(quizData.passing_score) || 70) : null,
+        allow_retakes: quizData.allow_retakes,
         is_published: false,
         created_by: member?.id,
         ...(selected?.id && { ecosystem_id: selected.id }),
@@ -127,7 +215,7 @@ export default function QuizManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setIsCreating(false);
-      setNewQuiz({ title: "", description: "", visibility: "public", surveyJson: "" });
+      setNewQuiz({ ...EMPTY_FORM });
       toast({ title: "Success", description: "Quiz created successfully" });
     },
     onError: (error: any) => {
@@ -147,19 +235,23 @@ export default function QuizManagement() {
   });
 
   const updateQuizMutation = useMutation({
-    mutationFn: async (quizData: { id: string; title: string; description: string; visibility: string; surveyJson: any; is_published: boolean }) => {
-      return updateQuiz(quizData.id, {
-        title: quizData.title,
-        description: quizData.description || null,
-        visibility: quizData.visibility,
-        survey_json: quizData.surveyJson,
-        is_published: quizData.is_published,
+    mutationFn: async (data: { id: string } & QuizFormState) => {
+      const parsedJson = JSON.parse(data.surveyJson);
+      return updateQuiz(data.id, {
+        title: data.title,
+        description: data.description || null,
+        visibility: data.visibility,
+        survey_json: parsedJson,
+        mode: data.mode,
+        passing_score: data.mode === "standard" ? (parseInt(data.passing_score) || 70) : null,
+        allow_retakes: data.allow_retakes,
+        is_published: data.is_published,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setEditingQuiz(null);
-      setEditQuiz({ title: "", description: "", visibility: "public", surveyJson: "", is_published: false });
+      setEditQuiz({ ...EMPTY_FORM });
       toast({ title: "Success", description: "Quiz updated successfully" });
     },
     onError: (error: any) => {
@@ -179,18 +271,11 @@ export default function QuizManagement() {
   });
 
   const handleCreateQuiz = () => {
-    try {
-      const parsedJson = JSON.parse(newQuiz.surveyJson);
-      createQuizMutation.mutate({
-        title: newQuiz.title,
-        description: newQuiz.description,
-        visibility: newQuiz.visibility,
-        surveyJson: parsedJson,
-        mode: "take",
-      });
-    } catch {
-      toast({ title: "Invalid JSON", description: "Please check your SurveyJS JSON format", variant: "destructive" });
+    if (!createValidation.valid) {
+      toast({ title: "Invalid JSON", description: createValidation.error || "Please check your SurveyJS JSON format", variant: "destructive" });
+      return;
     }
+    createQuizMutation.mutate(newQuiz);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
@@ -202,21 +287,13 @@ export default function QuizManagement() {
       try {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
-        if (isEdit) {
-          setEditQuiz(prev => ({
-            ...prev,
-            title: parsed.title || prev.title,
-            description: parsed.description || prev.description,
-            surveyJson: JSON.stringify(parsed, null, 2),
-          }));
-        } else {
-          setNewQuiz(prev => ({
-            ...prev,
-            title: parsed.title || prev.title,
-            description: parsed.description || prev.description,
-            surveyJson: JSON.stringify(parsed, null, 2),
-          }));
-        }
+        const setter = isEdit ? setEditQuiz : setNewQuiz;
+        setter(prev => ({
+          ...prev,
+          title: parsed.title || prev.title,
+          description: parsed.description || prev.description,
+          surveyJson: JSON.stringify(parsed, null, 2),
+        }));
         toast({ title: "File loaded", description: "Quiz JSON loaded successfully" });
       } catch {
         toast({ title: "Invalid file", description: "Could not parse JSON file", variant: "destructive" });
@@ -230,10 +307,14 @@ export default function QuizManagement() {
     setEditQuiz({
       title: quiz.title,
       description: quiz.description || "",
+      mode: quiz.mode || "standard",
       visibility: quiz.visibility as any,
       surveyJson: typeof quiz.survey_json === 'string'
         ? quiz.survey_json
         : JSON.stringify(quiz.survey_json, null, 2),
+      passing_score: quiz.passing_score != null ? String(quiz.passing_score) : "70",
+      allow_retakes: quiz.allow_retakes,
+      is_entry_quiz: quiz.is_entry_quiz,
       is_published: quiz.is_published,
     });
     setTimeout(() => {
@@ -243,19 +324,11 @@ export default function QuizManagement() {
 
   const handleUpdateQuiz = () => {
     if (!editingQuiz) return;
-    try {
-      const parsedJson = JSON.parse(editQuiz.surveyJson);
-      updateQuizMutation.mutate({
-        id: editingQuiz.id,
-        title: editQuiz.title,
-        description: editQuiz.description,
-        visibility: editQuiz.visibility,
-        surveyJson: parsedJson,
-        is_published: editQuiz.is_published,
-      });
-    } catch {
-      toast({ title: "Invalid JSON", description: "Please check your SurveyJS JSON format", variant: "destructive" });
+    if (!editValidation.valid) {
+      toast({ title: "Invalid JSON", description: editValidation.error || "Please check your SurveyJS JSON format", variant: "destructive" });
+      return;
     }
+    updateQuizMutation.mutate({ id: editingQuiz.id, ...editQuiz });
   };
 
   const getEcosystemName = (ecoId: string | null) => {
@@ -285,38 +358,18 @@ export default function QuizManagement() {
             <CardDescription>Upload a SurveyJS JSON file or paste the JSON directly</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Quiz Title</Label>
-              <Input id="title" value={newQuiz.title} onChange={(e) => setNewQuiz({ ...newQuiz, title: e.target.value })} placeholder="Enter quiz title" data-testid="input-quiz-title" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" value={newQuiz.description} onChange={(e) => setNewQuiz({ ...newQuiz, description: e.target.value })} placeholder="Enter quiz description" data-testid="input-quiz-description" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="visibility">Visibility</Label>
-              <Select value={newQuiz.visibility} onValueChange={(value: any) => setNewQuiz({ ...newQuiz, visibility: value })}>
-                <SelectTrigger data-testid="select-visibility"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="team">Team</SelectItem>
-                  <SelectItem value="assigned">Assigned Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="file-upload">Upload JSON File</Label>
-              <div className="flex gap-2">
-                <Input id="file-upload" type="file" accept=".json" onChange={handleFileUpload} data-testid="input-file-upload" />
-                <Button variant="outline" size="icon"><Upload className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="survey-json">SurveyJS JSON</Label>
-              <Textarea id="survey-json" value={newQuiz.surveyJson} onChange={(e) => setNewQuiz({ ...newQuiz, surveyJson: e.target.value })} placeholder='{"title": "My Quiz", "pages": [...]}' rows={10} className="font-mono text-sm" data-testid="textarea-survey-json" />
-            </div>
-            <Button onClick={handleCreateQuiz} disabled={!newQuiz.title || !newQuiz.surveyJson || createQuizMutation.isPending} data-testid="button-submit-quiz">
+            <QuizFormFields
+              form={newQuiz}
+              setForm={setNewQuiz}
+              validation={createValidation}
+              onFileUpload={(e) => handleFileUpload(e, false)}
+              idPrefix="create"
+            />
+            <Button
+              onClick={handleCreateQuiz}
+              disabled={!newQuiz.title || !createValidation.valid || createQuizMutation.isPending}
+              data-testid="button-submit-quiz"
+            >
               {createQuizMutation.isPending ? "Creating..." : "Create Quiz"}
             </Button>
           </CardContent>
@@ -339,9 +392,22 @@ export default function QuizManagement() {
                       <Badge variant={quiz.is_published ? "default" : "outline"}>
                         {quiz.is_published ? "Published" : "Draft"}
                       </Badge>
+                      <Badge variant="outline">
+                        {quiz.mode === "assessment" ? "Assessment" : "Graded"}
+                      </Badge>
+                      {quiz.mode === "standard" && quiz.passing_score != null && (
+                        <Badge variant="outline" className="text-xs">
+                          Pass: {quiz.passing_score}%
+                        </Badge>
+                      )}
                       {quiz.is_entry_quiz && (
                         <Badge variant="outline" className="text-xs">
                           <Check className="h-3 w-3 mr-1" />Entry Quiz
+                        </Badge>
+                      )}
+                      {!quiz.allow_retakes && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          No retakes
                         </Badge>
                       )}
                       {quiz.ecosystem_id && (
@@ -392,58 +458,28 @@ export default function QuizManagement() {
                 <CardTitle>Edit Quiz</CardTitle>
                 <CardDescription>Update quiz details and SurveyJS JSON</CardDescription>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => { setEditingQuiz(null); setEditQuiz({ title: "", description: "", visibility: "public", surveyJson: "", is_published: false }); }}>
+              <Button variant="ghost" size="icon" onClick={() => { setEditingQuiz(null); setEditQuiz({ ...EMPTY_FORM }); }}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-title">Quiz Title</Label>
-              <Input id="edit-title" value={editQuiz.title} onChange={(e) => setEditQuiz({ ...editQuiz, title: e.target.value })} placeholder="Enter quiz title" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea id="edit-description" value={editQuiz.description} onChange={(e) => setEditQuiz({ ...editQuiz, description: e.target.value })} placeholder="Enter quiz description" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-visibility">Visibility</Label>
-              <Select value={editQuiz.visibility} onValueChange={(value: any) => setEditQuiz({ ...editQuiz, visibility: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="team">Team</SelectItem>
-                  <SelectItem value="assigned">Assigned Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-published">Published Status</Label>
-              <Select value={editQuiz.is_published ? "published" : "draft"} onValueChange={(value) => setEditQuiz({ ...editQuiz, is_published: value === "published" })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-file-upload">Upload JSON File</Label>
-              <div className="flex gap-2">
-                <Input id="edit-file-upload" type="file" accept=".json" onChange={(e) => handleFileUpload(e, true)} />
-                <Button variant="outline" size="icon"><Upload className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-survey-json">SurveyJS JSON</Label>
-              <Textarea id="edit-survey-json" value={editQuiz.surveyJson} onChange={(e) => setEditQuiz({ ...editQuiz, surveyJson: e.target.value })} placeholder='{"title": "My Quiz", "pages": [...]}' rows={10} className="font-mono text-sm" />
-            </div>
+            <QuizFormFields
+              form={editQuiz}
+              setForm={setEditQuiz}
+              validation={editValidation}
+              onFileUpload={(e) => handleFileUpload(e, true)}
+              idPrefix="edit"
+              showPublished
+            />
             <div className="flex gap-2">
-              <Button onClick={handleUpdateQuiz} disabled={!editQuiz.title || !editQuiz.surveyJson || updateQuizMutation.isPending}>
+              <Button
+                onClick={handleUpdateQuiz}
+                disabled={!editQuiz.title || !editValidation.valid || updateQuizMutation.isPending}
+              >
                 {updateQuizMutation.isPending ? "Updating..." : "Update Quiz"}
               </Button>
-              <Button variant="outline" onClick={() => { setEditingQuiz(null); setEditQuiz({ title: "", description: "", visibility: "public", surveyJson: "", is_published: false }); }}>
+              <Button variant="outline" onClick={() => { setEditingQuiz(null); setEditQuiz({ ...EMPTY_FORM }); }}>
                 Cancel
               </Button>
             </div>
@@ -451,5 +487,187 @@ export default function QuizManagement() {
         </Card>
       )}
     </div>
+  );
+}
+
+function QuizFormFields({
+  form,
+  setForm,
+  validation,
+  onFileUpload,
+  idPrefix,
+  showPublished = false,
+}: {
+  form: QuizFormState;
+  setForm: React.Dispatch<React.SetStateAction<QuizFormState>>;
+  validation: { valid: boolean; error?: string; warnings: string[] };
+  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  idPrefix: string;
+  showPublished?: boolean;
+}) {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-title`}>Quiz Title</Label>
+        <Input
+          id={`${idPrefix}-title`}
+          value={form.title}
+          onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+          placeholder="Enter quiz title"
+          data-testid={`input-${idPrefix}-title`}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-description`}>Description</Label>
+        <Textarea
+          id={`${idPrefix}-description`}
+          value={form.description}
+          onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+          placeholder="Enter quiz description"
+          data-testid={`input-${idPrefix}-description`}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-mode`}>Quiz Type</Label>
+          <Select value={form.mode} onValueChange={(value) => setForm(prev => ({ ...prev, mode: value }))}>
+            <SelectTrigger data-testid={`select-${idPrefix}-mode`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="standard">Graded Quiz (has correct answers)</SelectItem>
+              <SelectItem value="assessment">Assessment (no right/wrong)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-visibility`}>Visibility</Label>
+          <Select value={form.visibility} onValueChange={(value) => setForm(prev => ({ ...prev, visibility: value }))}>
+            <SelectTrigger data-testid={`select-${idPrefix}-visibility`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="public">Public</SelectItem>
+              <SelectItem value="private">Private</SelectItem>
+              <SelectItem value="team">Team</SelectItem>
+              <SelectItem value="assigned">Assigned Only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {form.mode === "standard" && (
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-passing-score`}>Passing Score (%)</Label>
+          <Input
+            id={`${idPrefix}-passing-score`}
+            type="number"
+            min={1}
+            max={100}
+            value={form.passing_score}
+            onChange={(e) => setForm(prev => ({ ...prev, passing_score: e.target.value }))}
+            placeholder="70"
+            className="w-32"
+            data-testid={`input-${idPrefix}-passing-score`}
+          />
+          <p className="text-xs text-muted-foreground">
+            Members scoring below this percentage will see "Not Passed" and can review what they got wrong.
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex items-center justify-between rounded-lg border p-3">
+          <div>
+            <Label htmlFor={`${idPrefix}-retakes`} className="cursor-pointer">Allow Retakes</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Members can retake this quiz after completing it</p>
+          </div>
+          <Switch
+            id={`${idPrefix}-retakes`}
+            checked={form.allow_retakes}
+            onCheckedChange={(checked) => setForm(prev => ({ ...prev, allow_retakes: checked }))}
+          />
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border p-3">
+          <div>
+            <Label htmlFor={`${idPrefix}-entry`} className="cursor-pointer">Entry Quiz</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Required for onboarding into the ecosystem</p>
+          </div>
+          <Switch
+            id={`${idPrefix}-entry`}
+            checked={form.is_entry_quiz}
+            onCheckedChange={(checked) => setForm(prev => ({ ...prev, is_entry_quiz: checked }))}
+          />
+        </div>
+      </div>
+
+      {showPublished && (
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-published`}>Published Status</Label>
+          <Select
+            value={form.is_published ? "published" : "draft"}
+            onValueChange={(value) => setForm(prev => ({ ...prev, is_published: value === "published" }))}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-file-upload`}>Upload JSON File</Label>
+        <div className="flex gap-2">
+          <Input
+            id={`${idPrefix}-file-upload`}
+            type="file"
+            accept=".json"
+            onChange={onFileUpload}
+            data-testid={`input-${idPrefix}-file-upload`}
+          />
+          <Button variant="outline" size="icon"><Upload className="h-4 w-4" /></Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-survey-json`}>SurveyJS JSON</Label>
+        <Textarea
+          id={`${idPrefix}-survey-json`}
+          value={form.surveyJson}
+          onChange={(e) => setForm(prev => ({ ...prev, surveyJson: e.target.value }))}
+          placeholder='{"pages": [{"name": "page1", "elements": [{"type": "radiogroup", "name": "q1", "title": "...", "choices": [...], "correctAnswer": "..."}]}]}'
+          rows={10}
+          className="font-mono text-sm"
+          data-testid={`textarea-${idPrefix}-survey-json`}
+        />
+        {form.mode === "standard" && (
+          <p className="text-xs text-muted-foreground">
+            For graded quizzes, add a <code className="bg-muted px-1 rounded">"correctAnswer"</code> field to each radiogroup element.
+          </p>
+        )}
+      </div>
+
+      {validation.error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{validation.error}</AlertDescription>
+        </Alert>
+      )}
+
+      {validation.warnings.length > 0 && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <ul className="list-disc pl-4 space-y-1">
+              {validation.warnings.map((w, i) => (
+                <li key={i} className="text-sm">{w}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
   );
 }
