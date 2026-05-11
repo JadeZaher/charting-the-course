@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useExit, useUpdateExitStatus } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
@@ -27,11 +29,27 @@ const TRANSITIONS: Record<string, { label: string; status: string; variant: 'def
   ],
 };
 
+const TRANSITION_MESSAGES: Record<string, { title: string; description: string }> = {
+  in_progress: {
+    title: 'Begin processing this exit?',
+    description: 'This will start the exit process including commitment unwinding and role reassignment. The member will be notified.',
+  },
+  cancelled: {
+    title: 'Cancel this exit?',
+    description: 'The exit process will be stopped and the member will retain their current status. This can be re-initiated later if needed.',
+  },
+  completed: {
+    title: 'Complete this exit?',
+    description: 'This will finalize the member\'s departure from the ecosystem. All roles and commitments should have been transferred before completing. This action is difficult to reverse.',
+  },
+};
+
 export default function ExitDetail() {
   const [, params] = useRoute('/exit/:id');
   const id = params?.id ?? '';
   const { data, isLoading, error } = useExit(id);
   const updateStatusMutation = useUpdateExitStatus(id);
+  const [pendingTransition, setPendingTransition] = useState<{ label: string; status: string } | null>(null);
 
   if (isLoading) return <LoadingState message="Loading exit..." />;
 
@@ -49,13 +67,18 @@ export default function ExitDetail() {
 
   const transitions = TRANSITIONS[data.status] || [];
 
-  const handleTransition = async (newStatus: string) => {
+  const handleConfirmTransition = async () => {
+    if (!pendingTransition) return;
     try {
-      await updateStatusMutation.mutateAsync({ status: newStatus });
+      await updateStatusMutation.mutateAsync({ status: pendingTransition.status });
     } catch {
       // Error handled by mutation state
+    } finally {
+      setPendingTransition(null);
     }
   };
+
+  const transitionMsg = pendingTransition ? TRANSITION_MESSAGES[pendingTransition.status] : null;
 
   return (
     <div className="space-y-6">
@@ -82,7 +105,7 @@ export default function ExitDetail() {
                 key={t.status}
                 variant={t.variant}
                 size="sm"
-                onClick={() => handleTransition(t.status)}
+                onClick={() => setPendingTransition(t)}
                 disabled={updateStatusMutation.isPending}
               >
                 {t.label}
@@ -91,6 +114,27 @@ export default function ExitDetail() {
           </div>
         )}
       </div>
+
+      {/* Transition confirmation dialog */}
+      <AlertDialog open={!!pendingTransition} onOpenChange={(open) => { if (!open) setPendingTransition(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{transitionMsg?.title ?? 'Confirm action'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {transitionMsg?.description ?? 'Are you sure you want to proceed?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmTransition}
+              className={pendingTransition?.status === 'completed' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            >
+              {pendingTransition?.label ?? 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {updateStatusMutation.error && (
         <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">

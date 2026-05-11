@@ -3,19 +3,38 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { Loader2, RefreshCw, CheckCircle2, AlertTriangle, XCircle, ClipboardList, ShieldCheck } from 'lucide-react';
 import type { ComplianceSummary } from '@/types/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function complianceFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || res.statusText);
   }
   return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getOverallScore(scoreData: Record<string, any> | null): number | null {
+  if (!scoreData) return null;
+  if (typeof scoreData.overall === 'number') return scoreData.overall;
+  if (typeof scoreData.score === 'number') return scoreData.score;
+  return null;
+}
+
+function extractIssueList(flaggedIssues: Record<string, any> | null): string[] {
+  if (!flaggedIssues) return [];
+  if (Array.isArray(flaggedIssues.items)) return flaggedIssues.items;
+  if (Array.isArray(flaggedIssues)) return flaggedIssues;
+  return Object.values(flaggedIssues).filter((v): v is string => typeof v === 'string');
 }
 
 function ScoreIndicator({ score }: { score: number | null | undefined }) {
@@ -57,6 +76,10 @@ function EmptyState({ onGenerate, isGenerating }: { onGenerate: () => void; isGe
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
+
 export default function ComplianceDashboard() {
   const { selected } = useEcosystem();
   const qc = useQueryClient();
@@ -66,21 +89,21 @@ export default function ComplianceDashboard() {
 
   const { data: latest, isLoading, error } = useQuery<ComplianceSummary>({
     queryKey: ['compliance', 'latest', ecosystemId],
-    queryFn: () => apiFetch<ComplianceSummary>(`/api/v1/compliance/latest?ecosystem_id=${ecosystemId}`),
+    queryFn: () => complianceFetch<ComplianceSummary>(`/api/v1/compliance/latest?ecosystem_id=${ecosystemId}`),
     enabled: !!ecosystemId,
     retry: false,
   });
 
   const { data: history } = useQuery<ComplianceSummary[]>({
     queryKey: ['compliance', 'history', ecosystemId],
-    queryFn: () => apiFetch<ComplianceSummary[]>(`/api/v1/compliance/history?ecosystem_id=${ecosystemId}`),
+    queryFn: () => complianceFetch<ComplianceSummary[]>(`/api/v1/compliance/history?ecosystem_id=${ecosystemId}`),
     enabled: !!ecosystemId && historyOpen,
     retry: false,
   });
 
   const generateMutation = useMutation({
     mutationFn: () =>
-      apiFetch<ComplianceSummary>('/api/v1/compliance/generate', {
+      complianceFetch<ComplianceSummary>('/api/v1/compliance/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ecosystem_id: ecosystemId }),
@@ -108,18 +131,10 @@ export default function ComplianceDashboard() {
   }
 
   const hasData = !!latest && !error;
-  const overallScore = latest?.score_data?.overall ?? latest?.score_data?.score ?? null;
+  const overallScore = getOverallScore(latest?.score_data ?? null);
   const agreementCoverage = latest?.agreement_coverage;
   const domainHealth = latest?.domain_health;
-  const flaggedIssues = latest?.flagged_issues;
-
-  const issueList: string[] = flaggedIssues
-    ? Array.isArray(flaggedIssues.items)
-      ? flaggedIssues.items
-      : typeof flaggedIssues === 'object'
-      ? Object.values(flaggedIssues).filter((v): v is string => typeof v === 'string')
-      : []
-    : [];
+  const issueList = extractIssueList(latest?.flagged_issues ?? null);
 
   if (!hasData) {
     return (
@@ -181,24 +196,27 @@ export default function ComplianceDashboard() {
           <CardTitle className="text-lg">Agreement Coverage</CardTitle>
         </CardHeader>
         <CardContent>
-          {agreementCoverage ? (
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              {Object.entries(agreementCoverage).map(([key, val]) => (
-                <div key={key}>
-                  <dt className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</dt>
-                  <dd className="font-medium flex items-center gap-1.5 mt-0.5">
-                    {typeof val === 'number' ? (
-                      <>
-                        <span>{val}</span>
-                        <ScoreBadge score={typeof val === 'number' && val <= 100 ? val : null} />
-                      </>
-                    ) : (
-                      <span>{String(val)}</span>
-                    )}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+          {agreementCoverage && Object.keys(agreementCoverage).length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Coverage</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(agreementCoverage).map(([key, val]) => (
+                  <TableRow key={key}>
+                    <TableCell className="font-medium capitalize">{key.replace(/_/g, ' ')}</TableCell>
+                    <TableCell>{typeof val === 'number' ? `${val}%` : String(val)}</TableCell>
+                    <TableCell>
+                      {typeof val === 'number' && <ScoreBadge score={val <= 100 ? val : null} />}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
             <p className="text-sm text-muted-foreground">No agreement coverage data available</p>
           )}
@@ -211,15 +229,39 @@ export default function ComplianceDashboard() {
           <CardTitle className="text-lg">Domain Health</CardTitle>
         </CardHeader>
         <CardContent>
-          {domainHealth ? (
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              {Object.entries(domainHealth).map(([key, val]) => (
-                <div key={key}>
-                  <dt className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</dt>
-                  <dd className="font-medium mt-0.5">{String(val)}</dd>
-                </div>
-              ))}
-            </dl>
+          {domainHealth && Object.keys(domainHealth).length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Domain</TableHead>
+                  <TableHead>Health</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(domainHealth).map(([key, val]) => (
+                  <TableRow key={key}>
+                    <TableCell className="font-medium capitalize">{key.replace(/_/g, ' ')}</TableCell>
+                    <TableCell>
+                      {typeof val === 'number' ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-24 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                Number(val) >= 80 ? 'bg-green-500' : Number(val) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${Math.min(100, Number(val))}%` }}
+                            />
+                          </div>
+                          <span className="text-sm">{val}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm">{String(val)}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
             <p className="text-sm text-muted-foreground">No domain health data available</p>
           )}
@@ -266,7 +308,7 @@ export default function ComplianceDashboard() {
         {historyOpen && (
           <Card className="mt-3">
             <CardHeader>
-              <CardTitle className="text-lg">Past Summaries</CardTitle>
+              <CardTitle className="text-lg">Compliance History</CardTitle>
             </CardHeader>
             <CardContent>
               {!history ? (
@@ -276,21 +318,36 @@ export default function ComplianceDashboard() {
               ) : history.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No past summaries found</p>
               ) : (
-                <div className="space-y-3">
-                  {history.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0">
-                      <span className="text-muted-foreground">
-                        {new Date(item.generated_at).toLocaleString()}
-                      </span>
-                      <ScoreBadge score={item.score_data?.overall ?? item.score_data?.score ?? null} />
-                    </div>
-                  ))}
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Summary</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {history.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="text-sm">{new Date(item.generated_at).toLocaleDateString()}</TableCell>
+                        <TableCell><ScoreBadge score={getOverallScore(item.score_data)} /></TableCell>
+                        <TableCell className="text-sm text-muted-foreground truncate max-w-xs">{item.summary || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Version fingerprint */}
+      {latest.version_fingerprint && (
+        <p className="text-xs text-muted-foreground text-center">
+          Report fingerprint: {latest.version_fingerprint}
+        </p>
+      )}
     </div>
   );
 }

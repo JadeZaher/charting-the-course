@@ -9,14 +9,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useProposal, useUpdateProposalStatus, useSubmitAdvice, useSubmitConsent } from '@/hooks/use-governance';
+import { useProposal, useUpdateProposalStatus, useSubmitAdvice, useSubmitConsent, useSubmitTestReport } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ACTStepper } from '@/components/governance/ACTStepper';
 import { useAuth } from '@/contexts/AuthContext';
-import { Pencil, ArrowLeft, Check, X, Award } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Pencil, ArrowLeft, Check, X, Award, Trash2 } from 'lucide-react';
 import type { AdviceLog, ConsentRecord, TestReport } from '@/types/api';
 
 const statusVariant = (status: string) => {
@@ -115,7 +117,7 @@ function OverviewTab({ data }: { data: any }) {
   );
 }
 
-function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; proposalId: string }) {
+function AdviceTab({ adviceLogs, proposalId, proposalStatus }: { adviceLogs: AdviceLog[]; proposalId: string; proposalStatus: string }) {
   const submitAdvice = useSubmitAdvice(proposalId);
   const { toast } = useToast();
   const { member } = useAuth();
@@ -138,32 +140,43 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
 
   return (
     <div className="space-y-6">
-      {/* Submit advice form */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Submit Advice</CardTitle></CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <Label>Submitting as:</Label>
-              <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="advice-content">Advice *</Label>
-              <AITextarea id="advice-content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Your advice..." rows={4} fieldLabel="Advice" fieldContext="Governance advice on a proposal being considered by the organization" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="advice-concerns">Concerns</Label>
-              <AITextarea id="advice-concerns" value={concerns} onChange={(e) => setConcerns(e.target.value)} placeholder="Any concerns..." rows={2} fieldLabel="Concerns" fieldContext="Concerns or potential issues with a governance proposal" />
-            </div>
-            <Button type="submit" disabled={submitAdvice.isPending}>
-              {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
-            </Button>
-            {submitAdvice.error && (
-              <p className="text-sm text-destructive">{(submitAdvice.error as Error).message}</p>
-            )}
-          </form>
-        </CardContent>
-      </Card>
+      {/* Submit advice form — only during advice phase */}
+      {proposalStatus === 'advice' && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Submit Advice</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <Label>Submitting as:</Label>
+                <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="advice-content">Advice *</Label>
+                <AITextarea id="advice-content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Your advice..." rows={4} fieldLabel="Advice" fieldContext="Governance advice on a proposal being considered by the organization" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="advice-concerns">Concerns</Label>
+                <AITextarea id="advice-concerns" value={concerns} onChange={(e) => setConcerns(e.target.value)} placeholder="Any concerns..." rows={2} fieldLabel="Concerns" fieldContext="Concerns or potential issues with a governance proposal" />
+              </div>
+              <Button type="submit" disabled={submitAdvice.isPending}>
+                {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
+              </Button>
+              {submitAdvice.error && (
+                <p className="text-sm text-destructive">{(submitAdvice.error as Error).message}</p>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      )}
+      {proposalStatus !== 'advice' && (
+        <Card className="border-muted">
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground text-center">
+              Advice can only be submitted during the advice phase. Current status: <Badge variant="secondary">{proposalStatus}</Badge>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Advice logs */}
       {adviceLogs.map((log) => (
@@ -220,7 +233,7 @@ function AdviceTab({ adviceLogs, proposalId }: { adviceLogs: AdviceLog[]; propos
   );
 }
 
-function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRecord[]; proposalId: string }) {
+function ConsentTab({ consentRecords, proposalId, proposalStatus }: { consentRecords: ConsentRecord[]; proposalId: string; proposalStatus: string }) {
   const submitConsent = useSubmitConsent(proposalId);
   const { toast } = useToast();
   const { member } = useAuth();
@@ -246,43 +259,54 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
 
   return (
     <div className="space-y-6">
-      {/* Submit consent form */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Submit Consent</CardTitle></CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <Label>Submitting as:</Label>
-              <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="consent-position">Position</Label>
-              <Select value={position} onValueChange={setPosition}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="consent">Consent</SelectItem>
-                  <SelectItem value="object">Object</SelectItem>
-                  <SelectItem value="stand_aside">Stand Aside</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {position === 'object' && (
+      {/* Submit consent form — only during consent phase */}
+      {proposalStatus === 'consent' && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Submit Consent</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="objection">Objection</Label>
-                <AITextarea id="objection" value={objection} onChange={(e) => setObjection(e.target.value)} placeholder="Explain your objection..." rows={3} fieldLabel="Objection" fieldContext="An objection to a governance proposal explaining why it should not be adopted" />
+                <Label>Submitting as:</Label>
+                <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
               </div>
-            )}
-            <Button type="submit" disabled={submitConsent.isPending}>
-              {submitConsent.isPending ? 'Submitting...' : 'Submit'}
-            </Button>
-            {submitConsent.error && (
-              <p className="text-sm text-destructive">{(submitConsent.error as Error).message}</p>
-            )}
-          </form>
-        </CardContent>
-      </Card>
+              <div className="space-y-1">
+                <Label htmlFor="consent-position">Position</Label>
+                <Select value={position} onValueChange={setPosition}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consent">Consent</SelectItem>
+                    <SelectItem value="object">Object</SelectItem>
+                    <SelectItem value="stand_aside">Stand Aside</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {position === 'object' && (
+                <div className="space-y-1">
+                  <Label htmlFor="objection">Objection</Label>
+                  <AITextarea id="objection" value={objection} onChange={(e) => setObjection(e.target.value)} placeholder="Explain your objection..." rows={3} fieldLabel="Objection" fieldContext="An objection to a governance proposal explaining why it should not be adopted" />
+                </div>
+              )}
+              <Button type="submit" disabled={submitConsent.isPending}>
+                {submitConsent.isPending ? 'Submitting...' : 'Submit'}
+              </Button>
+              {submitConsent.error && (
+                <p className="text-sm text-destructive">{(submitConsent.error as Error).message}</p>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      )}
+      {proposalStatus !== 'consent' && (
+        <Card className="border-muted">
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground text-center">
+              Consent can only be submitted during the consent phase. Current status: <Badge variant="secondary">{proposalStatus}</Badge>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Consent records */}
       {consentRecords.map((record) => (
@@ -348,9 +372,112 @@ function ConsentTab({ consentRecords, proposalId }: { consentRecords: ConsentRec
   );
 }
 
-function TestTab({ testReports }: { testReports: TestReport[] }) {
+function TestTab({ testReports, proposalId, proposalStatus }: { testReports: TestReport[]; proposalId: string; proposalStatus: string }) {
+  const submitTest = useSubmitTestReport(proposalId);
+  const { toast } = useToast();
+  const [observations, setObservations] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [criteria, setCriteria] = useState<{ criterion: string; metric: string; target: string; actual: string; met: boolean; evidence: string }[]>([]);
+
+  const addCriterion = () => {
+    setCriteria([...criteria, { criterion: '', metric: '', target: '', actual: '', met: false, evidence: '' }]);
+  };
+
+  const removeCriterion = (index: number) => {
+    setCriteria(criteria.filter((_, i) => i !== index));
+  };
+
+  const updateCriterion = (index: number, field: string, value: any) => {
+    setCriteria(criteria.map((c, i) => i === index ? { ...c, [field]: value } : c));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!observations.trim() || !outcome) return;
+    try {
+      await submitTest.mutateAsync({
+        observations: observations.trim(),
+        outcome,
+        success_criteria: criteria,
+      });
+      setObservations('');
+      setOutcome('');
+      setCriteria([]);
+      toast({ title: 'Test report submitted', description: 'Your test report has been recorded.' });
+    } catch {
+      // Error handled by mutation state
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Submit test report form — only during test phase */}
+      {proposalStatus === 'test' && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Submit Test Report</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="test-observations">Observations *</Label>
+                <AITextarea id="test-observations" value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Describe what was observed during testing..." rows={4} fieldLabel="Observations" fieldContext="Observations from testing a governance proposal in practice" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="test-outcome">Outcome *</Label>
+                <Select value={outcome} onValueChange={setOutcome}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select outcome" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="passed">Passed</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="modified">Modified</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {criteria.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Success Criteria</Label>
+                  {criteria.map((c, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto_1fr_auto] gap-2 items-center">
+                      <Input placeholder="Criterion" value={c.criterion} onChange={(e) => updateCriterion(idx, 'criterion', e.target.value)} />
+                      <Input placeholder="Metric" value={c.metric} onChange={(e) => updateCriterion(idx, 'metric', e.target.value)} />
+                      <Input placeholder="Target" value={c.target} onChange={(e) => updateCriterion(idx, 'target', e.target.value)} />
+                      <Input placeholder="Actual" value={c.actual} onChange={(e) => updateCriterion(idx, 'actual', e.target.value)} />
+                      <Checkbox checked={c.met} onCheckedChange={(checked) => updateCriterion(idx, 'met', !!checked)} />
+                      <Input placeholder="Evidence" value={c.evidence} onChange={(e) => updateCriterion(idx, 'evidence', e.target.value)} />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(idx)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button type="button" variant="outline" size="sm" onClick={addCriterion}>
+                Add Success Criterion
+              </Button>
+              <div>
+                <Button type="submit" disabled={submitTest.isPending}>
+                  {submitTest.isPending ? 'Submitting...' : 'Submit Test Report'}
+                </Button>
+              </div>
+              {submitTest.error && (
+                <p className="text-sm text-destructive">{(submitTest.error as Error).message}</p>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      )}
+      {proposalStatus !== 'test' && (
+        <Card className="border-muted">
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground text-center">
+              Test reports can only be submitted during the test phase. Current status: <Badge variant="secondary">{proposalStatus}</Badge>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Existing test reports */}
       {testReports.map((report) => (
         <Card key={report.id}>
           <CardHeader>
@@ -637,15 +764,15 @@ export default function ProposalDetail() {
         </TabsContent>
 
         <TabsContent value="advice">
-          <AdviceTab adviceLogs={data.advice_logs} proposalId={id} />
+          <AdviceTab adviceLogs={data.advice_logs} proposalId={id} proposalStatus={data.status} />
         </TabsContent>
 
         <TabsContent value="consent">
-          <ConsentTab consentRecords={data.consent_records} proposalId={id} />
+          <ConsentTab consentRecords={data.consent_records} proposalId={id} proposalStatus={data.status} />
         </TabsContent>
 
         <TabsContent value="test">
-          <TestTab testReports={data.test_reports} />
+          <TestTab testReports={data.test_reports} proposalId={id} proposalStatus={data.status} />
         </TabsContent>
       </Tabs>
     </div>

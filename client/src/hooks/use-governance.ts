@@ -55,6 +55,10 @@ export function useSubmitConsent(proposalId: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: Record<string, any>) => api.submitConsent(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', proposalId] }) });
 }
+export function useSubmitTestReport(proposalId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: Record<string, any>) => api.submitTestReport(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', proposalId] }) });
+}
 
 // Member hooks
 export function useMembers(params?: Record<string, string>) {

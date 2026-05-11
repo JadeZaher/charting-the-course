@@ -168,6 +168,9 @@ export function submitConsent(id: string, data: Record<string, any>): Promise<Co
 export function fetchProposalTest(id: string): Promise<TestReport[]> {
   return apiFetch<{ test_reports: TestReport[] }>(`/api/v1/proposals/${id}/test`).then(r => r.test_reports);
 }
+export function submitTestReport(id: string, data: Record<string, any>): Promise<TestReport> {
+  return apiFetch<TestReport>(`/api/v1/proposals/${id}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
 
 // Members API
 export function fetchMembers(params?: Record<string, string>): Promise<PaginatedResponse<MemberListItem>> {

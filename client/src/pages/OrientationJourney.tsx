@@ -26,7 +26,7 @@ import { OmniBotPanel } from '@/components/omnibot/OmniBotPanel';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function useJourneyMap(journeyMapId?: string) {
   return useQuery({
@@ -73,8 +73,14 @@ export default function OrientationJourney() {
   const steps = journeyMap?.content_sequence ?? [];
   const totalSteps = steps.length;
   const currentStep = steps[currentStepIdx];
-  const progressPct = totalSteps > 0 ? Math.round((currentStepIdx / totalSteps) * 100) : 0;
+  const progressPct = totalSteps > 0 ? Math.round(((currentStepIdx + 1) / totalSteps) * 100) : 0;
   const isLoading = progressLoading || progressFetching || mapLoading || !ethos;
+
+  function handleBack() {
+    if (currentStepIdx > 0) {
+      setCurrentStepIdx(currentStepIdx - 1);
+    }
+  }
 
   async function handleStepComplete(response?: unknown) {
     if (!progress || !journeyMap) return;
@@ -184,6 +190,25 @@ export default function OrientationJourney() {
         {currentStep.type === 'survey' && (
           <SurveyStep step={currentStep} onComplete={handleStepComplete} />
         )}
+      </div>
+
+      {/* Step navigation */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleBack}
+          disabled={currentStepIdx === 0}
+          className={currentStepIdx === 0 ? 'invisible' : ''}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Previous Step
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          Step {currentStepIdx + 1} of {totalSteps}
+        </span>
+        {/* Forward navigation is handled by step completion */}
+        <div className="w-[120px]" /> {/* Spacer to balance layout */}
       </div>
 
       {/* Floating OmniBot available on all journey pages */}

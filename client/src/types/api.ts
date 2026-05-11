@@ -642,6 +642,23 @@ export interface ExitDetail extends ExitListItem {
 }
 
 // Safeguards types
+export interface IndicatorScore {
+  indicator_id: string;
+  indicator_name: string;
+  measured_value: string | number | null;
+  status: 'healthy' | 'warning' | 'critical' | null;
+  prior_value: string | number | null;
+  trend: 'improving' | 'stable' | 'degrading' | null;
+  notes: string | null;
+}
+
+export interface TriggeredSafeguard {
+  trigger_id: string;
+  indicator_id: string;
+  threshold_crossed: string;
+  recommended_action: string;
+}
+
 export interface GovernanceAudit {
   id: string;
   ecosystem_id: string;
@@ -651,10 +668,23 @@ export interface GovernanceAudit {
   recommendations: string | null;
   created_at: string;
   completed_at: string | null;
+  // Extended fields (optional for backward compat)
+  audit_scope?: string | null;
+  audit_period_start?: string | null;
+  audit_period_end?: string | null;
+  auditor_ids?: string[] | null;
+  overall_health?: 'healthy' | 'mixed' | 'degrading' | 'critical' | null;
+  indicator_scores?: IndicatorScore[] | null;
+  triggered_safeguards?: TriggeredSafeguard[] | null;
+  structured_recommendations?: string[] | null;
+  next_audit_due?: string | null;
+  trigger_type?: string | null;
 }
 
 export interface SafeguardsOverview {
   latest_audit: GovernanceAudit | null;
   recent_audits: GovernanceAudit[];
   health_score: number;
+  indicator_scores?: IndicatorScore[] | null;
+  triggered_safeguards?: TriggeredSafeguard[] | null;
 }

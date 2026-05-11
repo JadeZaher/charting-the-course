@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEmergency, useResolveEmergency } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
@@ -11,6 +13,7 @@ export default function EmergencyDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error } = useEmergency(id);
   const resolveMutation = useResolveEmergency();
+  const [showResolveDialog, setShowResolveDialog] = useState(false);
 
   if (isLoading) return <LoadingState message="Loading emergency..." />;
 
@@ -54,13 +57,33 @@ export default function EmergencyDetail() {
         {data.state === 'open' && (
           <Button
             variant="default"
-            onClick={handleResolve}
+            onClick={() => setShowResolveDialog(true)}
             disabled={resolveMutation.isPending}
           >
             {resolveMutation.isPending ? 'Resolving...' : 'Resolve Emergency'}
           </Button>
         )}
       </div>
+
+      {/* Resolve confirmation dialog */}
+      <AlertDialog open={showResolveDialog} onOpenChange={setShowResolveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resolve this emergency?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will end all emergency authority and return governance to normal operations.
+              All emergency pre-authorizations will be deactivated. This action should only be
+              taken when the emergency criteria are no longer met.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResolve}>
+              Yes, resolve emergency
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {resolveMutation.error && (
         <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">

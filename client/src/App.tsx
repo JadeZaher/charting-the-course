@@ -51,6 +51,7 @@ import { DomainList, DomainDetail, DomainForm } from '@/pages/governance/domains
 import { DecisionList, DecisionDetail } from '@/pages/governance/decisions';
 import { OnboardingList, OnboardingCeremony } from '@/pages/governance/onboarding';
 import { ConflictList, ConflictDetail, ConflictForm } from '@/pages/governance/conflicts';
+const RepairAgreementForm = lazy(() => import('./pages/governance/conflicts/RepairAgreementForm'));
 import { EcosystemListPage, EcosystemDetailPage, EcosystemFormPage } from '@/pages/governance/ecosystems';
 import { EmergencyDashboard, EmergencyDetail } from '@/pages/governance/emergency';
 import { ExitList, ExitDetail, ExitForm } from '@/pages/governance/exit';
@@ -329,6 +330,7 @@ function AuthenticatedRoutes() {
       {/* Conflicts */}
       <Route path="/conflicts/new"><ProtectedRoute component={ConflictForm} /></Route>
       <Route path="/conflicts/:id/edit"><ProtectedRoute component={ConflictForm} /></Route>
+      <Route path="/conflicts/:conflictId/repair-agreements/new"><ProtectedRoute component={RepairAgreementForm} /></Route>
       <Route path="/conflicts/:id"><ProtectedRoute component={ConflictDetail} /></Route>
       <Route path="/conflicts"><ProtectedRoute component={ConflictList} /></Route>
 
