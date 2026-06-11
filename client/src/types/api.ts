@@ -428,6 +428,13 @@ export interface RepairAgreement {
   status: string;
   commitments: Record<string, any> | null;
   completed_date: string | null;
+  checkin_30_date: string | null;
+  checkin_30_notes: string | null;
+  checkin_60_date: string | null;
+  checkin_60_notes: string | null;
+  checkin_90_date: string | null;
+  checkin_90_notes: string | null;
+  created_at: string;
 }
 
 export interface ConflictDetail extends ConflictListItem {
@@ -633,12 +640,44 @@ export interface ExitListItem {
   status: string;
   reason: string | null;
   created_at: string;
+  declared_date: string | null;
+  target_completion_date: string | null;
+  completed_date: string | null;
 }
 
 export interface ExitDetail extends ExitListItem {
   unwinding_tracker: Record<string, any> | null;
   ecosystem_id: string;
   updated_at: string;
+  coordinator_id: string | null;
+  commitment_inventory: any;
+  unwinding_status: Record<string, any> | null;
+  data_export_requested: boolean;
+  data_export_completed: string | null;
+  departure_notice: string | null;
+  re_entry_eligible: boolean;
+  notes: string | null;
+}
+
+// Notifications types
+export interface NotificationPreferences {
+  agreement_reviews: boolean;
+  consent_rounds: boolean;
+  proposal_deadlines: boolean;
+  conflict_updates: boolean;
+}
+
+export interface PushSubscriptionRequest {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  notification_types?: NotificationPreferences;
+}
+
+// Member status transition
+export interface MemberStatusTransition {
+  status: string;
+  trigger?: string;
+  notes?: string;
 }
 
 // Safeguards types

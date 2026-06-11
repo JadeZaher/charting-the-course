@@ -255,6 +255,9 @@ export function updateConflict(id: string, data: Record<string, any>): Promise<C
 export function createRepairAgreement(conflictId: string, data: Record<string, any>): Promise<RepairAgreement> {
   return apiFetch<RepairAgreement>(`/api/v1/conflicts/${conflictId}/repair`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
+export function updateRepairAgreement(conflictId: string, repairId: string, data: Record<string, any>): Promise<RepairAgreement> {
+  return apiFetch<RepairAgreement>(`/api/v1/conflicts/${conflictId}/repair/${repairId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
 
 // Ecosystems API (paginated list)
 export function fetchEcosystemsList(params?: Record<string, string>): Promise<{ ecosystems: EcosystemSummary[]; total: number; page: number; per_page: number }> {
@@ -416,6 +419,10 @@ export function declareEmergency(data: Record<string, any>): Promise<EmergencySt
 export function resolveEmergency(id: string): Promise<EmergencyStateDetail> {
   return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
 }
+// SPECULATIVE: built from S2 patch in flight — verify payload shape at integration
+export function completeEmergencyRecovery(id: string): Promise<EmergencyStateDetail> {
+  return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/complete-recovery`, { method: 'POST' });
+}
 
 // Exit API
 export function fetchExits(params?: Record<string, string>): Promise<PaginatedResponse<ExitListItem>> {
@@ -430,6 +437,9 @@ export function createExit(data: Record<string, any>): Promise<ExitDetail> {
 }
 export function updateExitStatus(id: string, data: Record<string, any>): Promise<ExitDetail> {
   return apiFetch<ExitDetail>(`/api/v1/exit/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function requestExitDataExport(id: string): Promise<ExitDetail> {
+  return apiFetch<ExitDetail>(`/api/v1/exit/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_status: 'export_requested' }) });
 }
 
 // Safeguards API
@@ -538,6 +548,40 @@ export function fetchEcosystemSharesNeeds(ecosystemId: string, params?: Record<s
 export function fetchDomainSharesNeeds(domainId: string, params?: Record<string, string>): Promise<{ items: SharesNeeds[] }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch(`/api/v1/domains/${domainId}/shares-needs${qs}`);
+}
+
+// Notifications API
+export function subscribeNotifications(data: { endpoint: string; keys: { p256dh: string; auth: string }; notification_types?: Record<string, boolean> }): Promise<{ status: string }> {
+  return apiFetch<{ status: string }>('/api/v1/notifications/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function unsubscribeNotifications(endpoint: string): Promise<void> {
+  return apiFetch<void>('/api/v1/notifications/subscribe', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint }) });
+}
+export function fetchNotificationPreferences(): Promise<{ notification_types: Record<string, boolean> }> {
+  return apiFetch<{ notification_types: Record<string, boolean> }>('/api/v1/notifications/preferences');
+}
+export function updateNotificationPreferences(types: Record<string, boolean>): Promise<{ status: string; notification_types: Record<string, boolean> }> {
+  return apiFetch<{ status: string; notification_types: Record<string, boolean> }>('/api/v1/notifications/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notification_types: types }) });
+}
+
+// Member status transition
+export function transitionMemberStatus(memberId: string, data: { status: string; trigger?: string; notes?: string }): Promise<MemberDetail> {
+  return apiFetch<MemberDetail>(`/api/v1/members/${memberId}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// Course update
+export function updateCourse(id: string, data: Record<string, any>): Promise<CourseListItem> {
+  return apiFetch<CourseListItem>(`/api/v1/courses/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// Ecosystem quiz results
+export function fetchEcosystemQuizResults(ecosystemId: string): Promise<{ results: (QuizResultItem & { member_name: string; quiz_title: string })[] }> {
+  return apiFetch<{ results: (QuizResultItem & { member_name: string; quiz_title: string })[] }>(`/api/v1/ecosystems/${ecosystemId}/quiz-results`);
+}
+
+// Domain quiz results
+export function fetchDomainQuizResults(domainId: string): Promise<{ items: (QuizResultItem & { member_name: string; quiz_title: string })[]; total: number }> {
+  return apiFetch<{ items: (QuizResultItem & { member_name: string; quiz_title: string })[]; total: number }>(`/api/v1/domains/${domainId}/quiz-results`);
 }
 
 // AI Assist API

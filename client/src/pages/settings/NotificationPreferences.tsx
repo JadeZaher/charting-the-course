@@ -1,187 +1,190 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useNotifications } from '@/hooks/use-notifications';
-import { Bell, BellOff, Loader2, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/use-governance';
+import type { NotificationPreferences } from '@/types/api';
+import { Bell, BellRing, Loader2, Save, Undo2 } from 'lucide-react';
 
-interface NotificationType {
-  id: string;
-  label: string;
-  description: string;
-}
-
-const NOTIFICATION_TYPES: NotificationType[] = [
-  {
-    id: 'agreement_reviews',
+const NOTIFICATION_LABELS: Record<keyof NotificationPreferences, { label: string; description: string; icon: React.ReactNode }> = {
+  agreement_reviews: {
     label: 'Agreement Reviews',
-    description: 'When an agreement requires your review or has been updated',
+    description: 'When agreements come due for periodic review',
+    icon: <BellRing className="h-4 w-4 text-blue-600" />,
   },
-  {
-    id: 'consent_rounds',
+  consent_rounds: {
     label: 'Consent Rounds',
-    description: 'When a consent round opens or closes on a proposal',
+    description: 'When proposals enter consent phase requiring your position',
+    icon: <BellRing className="h-4 w-4 text-purple-600" />,
   },
-  {
-    id: 'proposal_deadlines',
+  proposal_deadlines: {
     label: 'Proposal Deadlines',
-    description: 'Reminders when proposal deadlines are approaching',
+    description: 'When proposal deadlines are approaching or past due',
+    icon: <BellRing className="h-4 w-4 text-orange-600" />,
   },
-  {
-    id: 'conflict_updates',
+  conflict_updates: {
     label: 'Conflict Updates',
-    description: 'When a conflict you are involved in is updated',
+    description: 'When conflict cases you\'re involved in are updated',
+    icon: <BellRing className="h-4 w-4 text-red-600" />,
   },
-];
+};
 
-export default function NotificationPreferences() {
-  const {
-    isSupported,
-    permission,
-    isSubscribed,
-    isLoading,
-    error,
-    requestPermissionAndSubscribe,
-    unsubscribe,
-  } = useNotifications();
+const DEFAULT_PREFS: NotificationPreferences = {
+  agreement_reviews: true,
+  consent_rounds: true,
+  proposal_deadlines: true,
+  conflict_updates: true,
+};
 
-  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(
-    new Set(NOTIFICATION_TYPES.map((t) => t.id))
+export default function NotificationPreferencesPage() {
+  const { data, isLoading, error } = useNotificationPreferences();
+  const updateMutation = useUpdateNotificationPreferences();
+
+  const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
+  const [initialized, setInitialized] = useState(false);
+
+  // Load preferences from server
+  if (data && !initialized) {
+    const types = data.notification_types;
+    setPrefs({
+      agreement_reviews: types.agreement_reviews ?? true,
+      consent_rounds: types.consent_rounds ?? true,
+      proposal_deadlines: types.proposal_deadlines ?? true,
+      conflict_updates: types.conflict_updates ?? true,
+    });
+    setInitialized(true);
+  }
+
+  const togglePref = (key: keyof NotificationPreferences) => {
+    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSave = async () => {
+    const types: Record<string, boolean> = {};
+    for (const [key, val] of Object.entries(prefs)) {
+      types[key] = val;
+    }
+    await updateMutation.mutateAsync(types);
+  };
+
+  const handleReset = () => {
+    setPrefs(DEFAULT_PREFS);
+  };
+
+  const hasChanges = initialized && JSON.stringify(prefs) !== JSON.stringify(
+    data?.notification_types
+      ? {
+          agreement_reviews: data.notification_types.agreement_reviews ?? true,
+          consent_rounds: data.notification_types.consent_rounds ?? true,
+          proposal_deadlines: data.notification_types.proposal_deadlines ?? true,
+          conflict_updates: data.notification_types.conflict_updates ?? true,
+        }
+      : DEFAULT_PREFS
   );
 
-  const toggleType = (id: string) => {
-    setEnabledTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
+  }
 
-  const handleTogglePush = async () => {
-    if (isSubscribed) {
-      await unsubscribe();
-    } else {
-      await requestPermissionAndSubscribe();
-    }
-  };
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <p className="text-destructive">Failed to load notification preferences</p>
+        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Notification Preferences</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage how and when NEOS notifies you about governance activity.
-        </p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Notification Preferences</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage which governance events trigger push notifications
+          </p>
+        </div>
       </div>
 
-      {/* Push toggle */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {isSubscribed ? (
-              <Bell className="h-5 w-5 text-primary" />
-            ) : (
-              <BellOff className="h-5 w-5 text-muted-foreground" />
-            )}
-            Push Notifications
-          </CardTitle>
-          <CardDescription>
-            Receive push notifications in your browser, even when the app is not open.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!isSupported ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <AlertTriangle className="h-4 w-4" />
-              Push notifications are not supported in this browser.
-            </div>
+      {updateMutation.error && (
+        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          {(updateMutation.error as Error).message}
+        </div>
+      )}
+
+      {updateMutation.isSuccess && (
+        <div className="p-3 rounded-md bg-green-50 text-green-800 text-sm border border-green-200">
+          Preferences saved successfully.
+        </div>
+      )}
+
+      {/* Notification type cards */}
+      <div className="space-y-4">
+        {(Object.keys(NOTIFICATION_LABELS) as Array<keyof NotificationPreferences>).map((key) => {
+          const info = NOTIFICATION_LABELS[key];
+          return (
+            <Card key={key}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">{info.icon}</div>
+                  <div>
+                    <p className="font-medium">{info.label}</p>
+                    <p className="text-sm text-muted-foreground">{info.description}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={prefs[key]}
+                  onCheckedChange={() => togglePref(key)}
+                />
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Empty state: no subscriptions */}
+      {!initialized && (
+        <Card>
+          <CardContent className="flex flex-col items-center py-8 text-center">
+            <Bell className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">
+              No push subscription detected. Notifications require a browser that supports
+              Web Push API. Subscribe from your browser settings to enable notifications.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-3 pt-4 border-t">
+        <Button onClick={handleSave} disabled={updateMutation.isPending || !hasChanges}>
+          {updateMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="push-toggle" className="text-sm font-medium">
-                    {isSubscribed ? 'Enabled' : 'Disabled'}
-                  </Label>
-                  {permission === 'denied' && (
-                    <p className="text-xs text-destructive">
-                      Permission denied. Enable notifications in your browser settings.
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  <Switch
-                    id="push-toggle"
-                    checked={isSubscribed}
-                    onCheckedChange={handleTogglePush}
-                    disabled={isLoading || permission === 'denied'}
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <p className="text-sm text-destructive flex items-center gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                  {error}
-                </p>
-              )}
+              <Save className="h-4 w-4 mr-2" />
+              Save Preferences
             </>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Notification types */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Notification Types</CardTitle>
-          <CardDescription>
-            Choose which events you want to be notified about.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {NOTIFICATION_TYPES.map((type) => (
-            <div key={type.id} className="flex items-start gap-3">
-              <Checkbox
-                id={type.id}
-                checked={enabledTypes.has(type.id)}
-                onCheckedChange={() => toggleType(type.id)}
-                disabled={!isSubscribed || !isSupported}
-                className="mt-0.5"
-              />
-              <div className="space-y-0.5 leading-none">
-                <Label
-                  htmlFor={type.id}
-                  className={`text-sm font-medium cursor-pointer ${
-                    !isSubscribed || !isSupported ? 'text-muted-foreground' : ''
-                  }`}
-                >
-                  {type.label}
-                </Label>
-                <p className="text-xs text-muted-foreground">{type.description}</p>
-              </div>
-            </div>
-          ))}
-
-          {isSubscribed && (
-            <div className="pt-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  // Preferences are local for now; a real impl would POST to backend
-                }}
-              >
-                Save Preferences
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </Button>
+        <Button variant="outline" onClick={handleReset} disabled={!hasChanges}>
+          <Undo2 className="h-4 w-4 mr-2" />
+          Reset to Defaults
+        </Button>
+      </div>
     </div>
   );
 }

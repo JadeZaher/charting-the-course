@@ -126,6 +126,14 @@ export function useCreateConflict() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: api.createConflict, onSuccess: () => qc.invalidateQueries({ queryKey: ['conflicts'] }) });
 }
+export function useUpdateConflict() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) => api.updateConflict(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['conflicts'] }) });
+}
+export function useUpdateRepairAgreement(conflictId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ repairId, data }: { repairId: string; data: Record<string, any> }) => api.updateRepairAgreement(conflictId, repairId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['conflicts'] }); qc.invalidateQueries({ queryKey: ['conflicts', conflictId] }); } });
+}
 
 // Ecosystem hooks
 export function useEcosystems(params?: Record<string, string>) {
@@ -162,6 +170,11 @@ export function useResolveEmergency() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => api.resolveEmergency(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
 }
+// SPECULATIVE: built from S2 patch in flight — verify payload shape at integration
+export function useCompleteRecovery() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.completeEmergencyRecovery(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
+}
 
 // Exit hooks
 export function useExits(params?: Record<string, string>) {
@@ -178,6 +191,10 @@ export function useUpdateExitStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: Record<string, any>) => api.updateExitStatus(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['exits'] }); qc.invalidateQueries({ queryKey: ['exits', id] }); } });
 }
+export function useRequestExitDataExport(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.requestExitDataExport(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['exits'] }); qc.invalidateQueries({ queryKey: ['exits', id] }); } });
+}
 
 // Safeguards hooks
 export function useSafeguards() {
@@ -192,4 +209,19 @@ export function useAudit(id: string) {
 export function useRequestAudit() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: api.requestAudit, onSuccess: () => { qc.invalidateQueries({ queryKey: ['audits'] }); qc.invalidateQueries({ queryKey: ['safeguards'] }); } });
+}
+
+// Notification hooks
+export function useNotificationPreferences() {
+  return useQuery({ queryKey: ['notifications', 'preferences'], queryFn: () => api.fetchNotificationPreferences(), staleTime: 60_000 });
+}
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (types: Record<string, boolean>) => api.updateNotificationPreferences(types), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
+}
+
+// Member status transition
+export function useTransitionMemberStatus(memberId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: { status: string; trigger?: string; notes?: string }) => api.transitionMemberStatus(memberId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['members', memberId] }); } });
 }
