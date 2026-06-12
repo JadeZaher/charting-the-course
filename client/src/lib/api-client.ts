@@ -396,6 +396,7 @@ export function deleteChatSession(id: string): Promise<{ ok: boolean }> {
 export function updateChatSessionPrivacy(id: string, privacy: 'private' | 'ecosystem' | 'public'): Promise<{ privacy: string; share_token: string | null }> {
   return apiFetch<{ privacy: string; share_token: string | null }>(`/api/v1/chat/sessions/${id}/privacy`, {
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ privacy }),
   });
 }
@@ -497,7 +498,7 @@ export function fetchComplianceLatest(): Promise<ComplianceSummary> {
 }
 export function fetchComplianceHistory(params?: Record<string, string>): Promise<PaginatedResponse<ComplianceSummary>> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch<PaginatedResponse<ComplianceSummary>>(`/api/v1/compliance${qs}`);
+  return apiFetch<PaginatedResponse<ComplianceSummary>>(`/api/v1/compliance/history${qs}`);
 }
 export function generateCompliance(): Promise<ComplianceSummary> {
   return apiFetch<ComplianceSummary>('/api/v1/compliance/generate', { method: 'POST' });

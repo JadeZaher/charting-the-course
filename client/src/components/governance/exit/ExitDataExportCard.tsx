@@ -23,7 +23,7 @@ export function ExitDataExportCard({ exit }: ExitDataExportCardProps) {
   let statusVariant: 'default' | 'secondary' | 'destructive' | 'outline';
 
   if (hasCompleted) {
-    statusLabel = `Exported ${new Date(exit.data_export_completed!).toLocaleDateString()}`;
+    statusLabel = `Exported ${exit.data_export_completed ? new Date(exit.data_export_completed).toLocaleDateString() : ""}`;
     statusIcon = <CheckCircle2 className="h-4 w-4" />;
     statusVariant = 'default';
   } else if (hasRequested) {

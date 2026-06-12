@@ -128,7 +128,7 @@ export function useCreateConflict() {
 }
 export function useUpdateConflict() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) => api.updateConflict(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['conflicts'] }) });
+  return useMutation({ mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) => api.updateConflict(id, data), onSuccess: (_data, { id }) => { qc.invalidateQueries({ queryKey: ['conflicts'] }); qc.invalidateQueries({ queryKey: ['conflicts', id] }); } });
 }
 export function useUpdateRepairAgreement(conflictId: string) {
   const qc = useQueryClient();

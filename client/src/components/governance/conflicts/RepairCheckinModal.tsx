@@ -42,7 +42,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
   const getDateDisplay = (dateKey: keyof RepairAgreement): string => {
     const val = repairAgreement[dateKey];
     if (!val) return 'Not scheduled';
-    return new Date(val).toLocaleDateString();
+    return new Date(String(val)).toLocaleDateString();
   };
 
   const isComplete = repairAgreement.status === 'fulfilled' || repairAgreement.status === 'completed';
@@ -54,7 +54,13 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
     markComplete;
 
   const handleSubmit = async () => {
-    const data: Record<string, any> = {};
+    const data: {
+      checkin_30_notes?: string;
+      checkin_60_notes?: string;
+      checkin_90_notes?: string;
+      status?: string;
+      completed_date?: string;
+    } = {};
     if (notes30 !== (repairAgreement.checkin_30_notes ?? '')) data.checkin_30_notes = notes30;
     if (notes60 !== (repairAgreement.checkin_60_notes ?? '')) data.checkin_60_notes = notes60;
     if (notes90 !== (repairAgreement.checkin_90_notes ?? '')) data.checkin_90_notes = notes90;
@@ -158,7 +164,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={updateMutation.isPending || (!hasChanges && !markComplete) || isComplete}
+            disabled={updateMutation.isPending || !hasChanges || isComplete}
           >
             {updateMutation.isPending ? (
               <>

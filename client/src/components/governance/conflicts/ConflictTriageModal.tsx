@@ -93,7 +93,15 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
     triageNotes !== (conflict.triage_notes ?? '');
 
   const handleSubmit = async () => {
-    const data: Record<string, any> = {
+    const data: {
+      severity: string | null;
+      urgency: string | null;
+      scope: string | null;
+      tier: number | null;
+      root_cause_category: string | null;
+      triage_notes: string | null;
+      facilitator_id?: string;
+    } = {
       severity: severity || null,
       urgency: urgency || null,
       scope: scope || null,

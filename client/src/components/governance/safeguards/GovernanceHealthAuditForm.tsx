@@ -33,7 +33,7 @@ interface GovernanceHealthAuditFormProps {
 }
 
 export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHealthAuditFormProps) {
-  const { data: safeguards } = useSafeguards();
+  const { data: safeguards, isLoading: safeguardsLoading } = useSafeguards();
   const { selected: selectedEcosystem } = useEcosystem();
   const requestMutation = useRequestAudit();
   const [auditScope, setAuditScope] = useState('full');
@@ -51,9 +51,9 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
   }
 
   const handleSubmit = async () => {
-    const payload: Record<string, any> = {
-      audit_scope: auditScope,
-    };
+    // Note: audit_scope is not yet accepted by AuditCreateRequest backend schema (S2 backlog).
+    // Only ecosystem_id is required; auditor defaults to 'AI Governance Agent' server-side.
+    const payload: Record<string, any> = {};
     if (selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
     }
@@ -64,6 +64,24 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
       // Error handled by mutation state
     }
   };
+
+    if (safeguardsLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Request Governance Health Audit
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

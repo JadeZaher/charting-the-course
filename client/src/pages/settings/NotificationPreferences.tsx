@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -39,23 +39,25 @@ const DEFAULT_PREFS: NotificationPreferences = {
 };
 
 export default function NotificationPreferencesPage() {
-  const { data, isLoading, error } = useNotificationPreferences();
+  const { data, isLoading, error, refetch } = useNotificationPreferences();
   const updateMutation = useUpdateNotificationPreferences();
 
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [initialized, setInitialized] = useState(false);
 
-  // Load preferences from server
-  if (data && !initialized) {
-    const types = data.notification_types;
-    setPrefs({
-      agreement_reviews: types.agreement_reviews ?? true,
-      consent_rounds: types.consent_rounds ?? true,
-      proposal_deadlines: types.proposal_deadlines ?? true,
-      conflict_updates: types.conflict_updates ?? true,
-    });
-    setInitialized(true);
-  }
+  // Load preferences from server once data arrives
+  useEffect(() => {
+    if (data && !initialized) {
+      const types = data.notification_types;
+      setPrefs({
+        agreement_reviews: types.agreement_reviews ?? true,
+        consent_rounds: types.consent_rounds ?? true,
+        proposal_deadlines: types.proposal_deadlines ?? true,
+        conflict_updates: types.conflict_updates ?? true,
+      });
+      setInitialized(true);
+    }
+  }, [data, initialized]);
 
   const togglePref = (key: keyof NotificationPreferences) => {
     setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
@@ -101,6 +103,7 @@ export default function NotificationPreferencesPage() {
         <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <p className="text-destructive">Failed to load notification preferences</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <button onClick={() => refetch()} className="mt-3 text-sm text-primary underline">Try again</button>
       </div>
     );
   }
@@ -145,6 +148,7 @@ export default function NotificationPreferencesPage() {
                 <Switch
                   checked={prefs[key]}
                   onCheckedChange={() => togglePref(key)}
+                  aria-label={info.label + " notifications"}
                 />
               </CardContent>
             </Card>
