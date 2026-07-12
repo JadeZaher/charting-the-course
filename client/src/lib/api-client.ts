@@ -368,7 +368,7 @@ export interface ChatSessionDetail {
   skill: string | null;
   privacy: string;
   share_token: string | null;
-  messages: { role: string; content: string }[];
+  messages: { role: string; content: string; approval_request?: { question: string; options: string[]; allow_other: boolean } }[];
   created_at: string | null;
   updated_at: string | null;
 }
