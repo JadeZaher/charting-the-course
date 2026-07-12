@@ -11,6 +11,7 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePageContext } from '@/contexts/PageContext';
 import { fetchChatSessions, fetchChatSession, deleteChatSession, type ChatSessionItem } from '@/lib/api-client';
+import { ApprovalRequestCard } from '@/components/chat/ApprovalRequestCard';
 import {
   Bot, User, Send, Square, Trash2, Loader2, Wrench, ArrowRight,
   Building2, Coins, Copy, Check, Share2, Globe, Lock, Users, AlertTriangle,
@@ -112,6 +113,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
       const msgs: ChatMessage[] = detail.messages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
+        approvalRequest: m.approval_request,
       }));
       loadSession(id, msgs, detail.skill);
     } catch {
@@ -143,6 +145,17 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
       ecosystemName: ecosystem?.name,
     });
     setInput('');
+  };
+
+  const handleApprovalSubmit = (selection: string, otherText?: string) => {
+    if (isStreaming) return;
+    const message = otherText ? `Other: ${otherText}` : selection;
+    sendMessage(message, {
+      selectedEcosystemIds: selectedIds,
+      pageContextSummary: getAISummary(),
+      member: member ? { id: member.id, display_name: member.display_name } : undefined,
+      ecosystemName: ecosystem?.name,
+    });
   };
 
   const handleCopy = async (content: string, index: number) => {
@@ -475,6 +488,13 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                             </Link>
                           ))}
                         </div>
+                      )}
+
+                      {msg.role === 'assistant' && msg.approvalRequest && i === messages.length - 1 && !msg.isStreaming && (
+                        <ApprovalRequestCard
+                          approvalRequest={msg.approvalRequest}
+                          onSubmit={handleApprovalSubmit}
+                        />
                       )}
 
                       {msg.role === 'assistant' && msg.content && !msg.isStreaming && (

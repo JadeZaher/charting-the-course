@@ -27,6 +27,12 @@ export interface ArtifactLink {
   label: string;
 }
 
+export interface ApprovalRequest {
+  question: string;
+  options: string[];
+  allow_other: boolean;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -36,6 +42,7 @@ export interface ChatMessage {
   usage?: TokenUsage;
   thinkingSteps?: ThinkingStep[];
   artifacts?: ArtifactLink[];
+  approvalRequest?: ApprovalRequest;
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -273,6 +280,21 @@ export function useSSEChat() {
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
                 updated[updated.length - 1] = { ...last, usage };
+              }
+              return updated;
+            });
+          } catch { /* ignore */ }
+          break;
+        }
+
+        case 'approval_request': {
+          try {
+            const approvalRequest = JSON.parse(data) as ApprovalRequest;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, approvalRequest };
               }
               return updated;
             });
