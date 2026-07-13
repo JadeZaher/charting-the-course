@@ -47,7 +47,7 @@ export function NotificationCenter() {
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]"
+              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center border border-background p-0 text-[10px]"
             >
               {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
@@ -59,12 +59,12 @@ export function NotificationCenter() {
         <div className="p-4 pb-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-sm">Notifications</h3>
-            <Link href="/settings/notifications">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
+            <Button asChild variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
+              <Link href="/settings/notifications">
                 <Settings className="h-3.5 w-3.5" />
                 <span className="sr-only">Notification settings</span>
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
         <Separator />
@@ -100,7 +100,7 @@ export function NotificationCenter() {
                       </p>
                     </div>
                     {!notification.read && (
-                      <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                      <div className="mt-1.5 h-2 w-2 flex-shrink-0 bg-primary" />
                     )}
                   </div>
                 </div>

@@ -58,9 +58,9 @@ export default function ExitDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load exit</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/exit">
-          <Button variant="outline" className="mt-4">Back to Exits</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/exit">Back to Exits</Link>
+        </Button>
       </div>
     );
   }
@@ -82,12 +82,12 @@ export default function ExitDetail() {
 
   return (
     <div className="space-y-6">
-      <Link href="/exit">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/exit">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Exits
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
@@ -137,7 +137,7 @@ export default function ExitDetail() {
       </AlertDialog>
 
       {updateStatusMutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(updateStatusMutation.error as Error).message}
         </div>
       )}

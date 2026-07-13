@@ -52,7 +52,7 @@ export function EcosystemPicker() {
           <div className="space-y-1">
             {ecosystems.length > 1 && (
               <label
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer font-medium"
+                className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer font-medium"
               >
                 <Checkbox
                   checked={isAll}
@@ -67,7 +67,7 @@ export function EcosystemPicker() {
             {ecosystems.map((eco) => (
               <label
                 key={eco.id}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
               >
                 <Checkbox
                   checked={selectedIds.includes(eco.id)}
@@ -105,7 +105,7 @@ export function EcosystemPicker() {
                   key={eco.id}
                   href={`/ecosystems/${eco.id}`}
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                  className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
                 >
                   <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate flex-1">{eco.name}</span>

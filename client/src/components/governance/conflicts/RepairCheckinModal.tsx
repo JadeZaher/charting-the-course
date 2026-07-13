@@ -104,7 +104,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
         <div className="space-y-5 py-2">
           {/* Status banner */}
           {isComplete ? (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-green-50 border border-green-200 text-green-800 text-sm">
+            <div className="flex items-center gap-2 border border-success bg-success/10 p-3 text-sm text-success">
               <CheckCircle2 className="h-4 w-4" />
               Completed {repairAgreement.completed_date ? new Date(repairAgreement.completed_date).toLocaleDateString() : ''}
             </div>
@@ -153,7 +153,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
         </div>
 
         {updateMutation.error && (
-          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
             {(updateMutation.error as Error).message}
           </div>
         )}

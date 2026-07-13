@@ -5,12 +5,18 @@ export interface EthosSummary {
   slug: string;
   name: string;
   tagline?: string;
+  description?: string;
   sector?: string;
   ethos_type: string;
   image_url?: string;
   member_count: number;
   member_avatars: string[];
   alignment_score?: number; // 0-100
+  status?: string;
+  location?: string;
+  tags?: string[];
+  website?: string;
+  founded_date?: string;
 }
 
 export interface EthosDetail extends EthosSummary {
@@ -21,6 +27,12 @@ export interface EthosDetail extends EthosSummary {
   is_active: boolean;
   is_public: boolean;
   created_at: string;
+  governance_summary?: string;
+  phase?: string;
+  map_url?: string;
+  map_type?: string;
+  map_title?: string;
+  external_links?: { label: string; url: string }[];
 }
 
 export interface EthosMemberWithProfile {
@@ -39,9 +51,14 @@ export interface JourneyStep {
   title: string;
   description?: string;
   video_url?: string;
+  captions_url?: string;
+  captions_language?: string;
+  transcript?: string;
+  transcript_url?: string;
   required: boolean;
+  section_key?: string;
   branch_condition?: { dimension: string; min_score: number };
-  choices?: { value: string; label: string; description?: string }[];
+  choices?: { value: string; label: string; description?: string; choice_index?: number | null }[];
   choice_routes?: Record<string, number>;
   ai_prompt_template?: string;
   confirmation_label?: string;

@@ -27,21 +27,23 @@ export default function DecisionDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load decision</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/decisions">
-          <Button variant="outline" className="mt-4">Back to Decisions</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/decisions">Back to Decisions</Link>
+        </Button>
       </div>
     );
   }
 
+  const relatedRecords = Object.entries(data.related_records ?? {});
+
   return (
     <div className="space-y-6">
-      <Link href="/decisions">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/decisions">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Decisions
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">{data.record_id}</h1>
@@ -120,17 +122,19 @@ export default function DecisionDetail() {
         </CardContent>
       </Card>
 
-      {data.precedent_references && data.precedent_references.length > 0 && (
+      {relatedRecords.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Precedent References</CardTitle>
+            <CardTitle className="text-lg">Related Records</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {data.precedent_references.map((ref: any, i: number) => (
-                <li key={i} className="text-sm border-l-2 border-muted pl-3">
-                  <span className="font-medium">{ref.record_id || ref.title || `Reference ${i + 1}`}</span>
-                  {ref.description && <p className="text-muted-foreground mt-1">{ref.description}</p>}
+              {relatedRecords.map(([label, value]) => (
+                <li key={label} className="text-sm border-l-2 border-muted pl-3">
+                  <span className="font-medium">{label}</span>
+                  <p className="text-muted-foreground mt-1">
+                    {typeof value === 'string' ? value : JSON.stringify(value)}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -138,21 +142,16 @@ export default function DecisionDetail() {
         </Card>
       )}
 
-      {data.artifact_references && data.artifact_references.length > 0 && (
+      {data.artifact_reference && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Artifact References</CardTitle>
+            <CardTitle className="text-lg">Artifact Reference</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2">
-              {data.artifact_references.map((ref: any, i: number) => (
-                <li key={i} className="text-sm border-l-2 border-muted pl-3">
-                  <span className="font-medium">{ref.name || ref.title || `Artifact ${i + 1}`}</span>
-                  {ref.type && <Badge variant="outline" className="ml-2">{ref.type}</Badge>}
-                  {ref.description && <p className="text-muted-foreground mt-1">{ref.description}</p>}
-                </li>
-              ))}
-            </ul>
+            <div className="border-l-2 border-muted pl-3 text-sm">
+              <span className="font-medium">{data.artifact_reference}</span>
+              {data.artifact_type && <Badge variant="outline" className="ml-2">{data.artifact_type}</Badge>}
+            </div>
           </CardContent>
         </Card>
       )}

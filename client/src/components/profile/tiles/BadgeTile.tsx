@@ -72,7 +72,7 @@ export function BadgeTile({ data }: BadgeTileProps) {
     <Card className="h-full">
       <CardContent className="p-4 flex flex-col items-center text-center gap-2">
         <div 
-          className="w-16 h-16 rounded-full flex items-center justify-center bg-primary/10"
+          className="flex h-16 w-16 items-center justify-center border border-primary bg-primary/10"
           data-testid={`badge-icon-${content.badge_key}`}
         >
           <IconComponent className="w-8 h-8 text-primary" />

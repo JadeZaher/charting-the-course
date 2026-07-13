@@ -279,14 +279,14 @@ export default function JourneyMapList() {
                     </TableCell>
                     <TableCell className="text-center">
                       {map.is_active ? (
-                        <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
+                        <CheckCircle className="mx-auto h-4 w-4 text-success" />
                       ) : (
                         <XCircle className="h-4 w-4 text-muted-foreground mx-auto" />
                       )}
                     </TableCell>
                     <TableCell className="text-center">
                       {map.is_default ? (
-                        <Star className="h-4 w-4 text-yellow-500 mx-auto fill-yellow-500" />
+                        <Star className="mx-auto h-4 w-4 fill-warning text-warning" />
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

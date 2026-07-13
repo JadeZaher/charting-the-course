@@ -89,12 +89,12 @@ export default function ConflictList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Conflicts</h1>
-        <Link href="/conflicts/new">
-          <Button>
+        <Button asChild>
+          <Link href="/conflicts/new">
             <Plus className="h-4 w-4 mr-2" />
             Report Conflict
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       <FilterBar

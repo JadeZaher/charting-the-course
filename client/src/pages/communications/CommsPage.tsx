@@ -16,9 +16,9 @@ export default function CommsPage() {
         <button
           onClick={() => setActiveTab('messaging')}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-[2px] border-2 border-strong-border px-3 py-1.5 text-sm font-medium transition-colors',
             activeTab === 'messaging'
-              ? 'bg-primary text-primary-foreground'
+              ? 'border-primary bg-primary text-primary-foreground'
               : 'hover:bg-muted text-muted-foreground'
           )}
         >
@@ -28,9 +28,9 @@ export default function CommsPage() {
         <button
           onClick={() => setActiveTab('agent')}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-[2px] border-2 border-strong-border px-3 py-1.5 text-sm font-medium transition-colors',
             activeTab === 'agent'
-              ? 'bg-primary text-primary-foreground'
+              ? 'border-primary bg-primary text-primary-foreground'
               : 'hover:bg-muted text-muted-foreground'
           )}
         >

@@ -1,23 +1,13 @@
-import { useRoute, useLocation } from 'wouter';
-import { Link } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { useEthosDetail } from '@/hooks/useEthos';
+import { fetchEthosJourneyMaps } from '@/lib/api-client';
+import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl, resolveMiroEmbedUrl } from '@/lib/media';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, ArrowRight, ExternalLink, Users, Map } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import { ConsentGate } from '@/components/discovery/ConsentGate';
-
-const BASE_URL = import.meta.env.VITE_API_URL || '';
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as any).error || res.statusText);
-  }
-  return res.json();
-}
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: 'Discovery',
@@ -29,250 +19,288 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 export default function EthosDetail() {
-  const [, paramsBase] = useRoute('/ethos/:slug');
-  const [, paramsDetail] = useRoute('/ethos/:slug/detail');
+  const [, baseParams] = useRoute('/ethos/:slug');
+  const [, detailParams] = useRoute('/ethos/:slug/detail');
   const [, navigate] = useLocation();
-  const slug = (paramsDetail ?? paramsBase)?.slug ?? '';
-
-  const { data, isLoading, isError } = useEthosDetail(slug);
-
-  const ethosId = data?.ethos?.id;
-  const { data: journeyMaps = [] } = useQuery({
+  const slug = (detailParams ?? baseParams)?.slug ?? '';
+  const detailQuery = useEthosDetail(slug);
+  const ethosId = detailQuery.data?.ethos.id;
+  const journeyQuery = useQuery({
     queryKey: ['ethos-journey-maps', ethosId],
-    queryFn: async () => {
-      const result = await apiFetch<any>(`/api/v1/ecosystems/${ethosId}/journey-maps?is_active=true`);
-      return result?.maps || result?.items || [];
-    },
+    queryFn: () => fetchEthosJourneyMaps(ethosId!),
     enabled: !!ethosId,
   });
 
-  if (isLoading) {
+  if (detailQuery.isLoading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6">
-        <Skeleton className="h-8 w-36" />
-        <Skeleton className="h-56 rounded-2xl" />
-        <Skeleton className="h-28 rounded-xl" />
-        <Skeleton className="h-40 rounded-xl" />
+      <div className="space-y-6" aria-label="Loading ecosystem dossier">
+        <Skeleton className="h-12 w-44 rounded-none" />
+        <div className="grid gap-5 lg:grid-cols-12">
+          <Skeleton className="aspect-[3/2] rounded-none border-2 border-border lg:col-span-8" />
+          <Skeleton className="h-full min-h-80 rounded-none border-2 border-border lg:col-span-4" />
+        </div>
       </div>
     );
   }
 
-  if (isError || !data) {
+  if (detailQuery.isError || !detailQuery.data) {
     return (
-      <div className="text-center py-16 space-y-3">
-        <p className="text-muted-foreground">ETHOS not found.</p>
-        <Link href="/discover" className="text-primary underline text-sm">
-          Browse all ETHOS
+      <div className="border-2 border-destructive p-8" role="alert">
+        <p className="font-black uppercase tracking-wide text-destructive">Ecosystem not found</p>
+        <p className="mt-2 text-sm text-muted-foreground">This dossier is unavailable or outside your current access.</p>
+        <Link href="/discover" className="mt-6 inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Browse Discover
         </Link>
       </div>
     );
   }
 
-  const { ethos, members, viewer_alignment } = data;
-  const alignScore = ethos.alignment_score ?? viewer_alignment ?? null;
-
-  // New C3 fields — not yet in TypeScript type, access via any
-  const ethosAny = ethos as any;
-  const phase: string | null = ethosAny.phase ?? null;
-  const mapUrl: string | null = ethosAny.map_url ?? null;
-  const mapType: string = ethosAny.map_type ?? 'image';
-  const mapTitle: string | null = ethosAny.map_title ?? null;
-  const externalLinks: { label: string; url: string }[] = Array.isArray(ethosAny.external_links) ? ethosAny.external_links : [];
+  const { ethos, members, viewer_alignment: viewerAlignment } = detailQuery.data;
+  const alignment = ethos.alignment_score ?? viewerAlignment;
+  const phase = ethos.phase ? (PHASE_LABELS[ethos.phase] ?? ethos.phase) : null;
+  const mapUrl = ethos.map_type === 'miro'
+    ? resolveMiroEmbedUrl(ethos.map_url)
+    : resolveMediaUrl(ethos.map_url);
+  const imageUrl = resolveMediaUrl(ethos.image_url);
+  const officialUrl = resolveExternalUrl(ethos.external_url);
+  const externalLinks = (ethos.external_links ?? []).flatMap((resource) => {
+    const url = resolveExternalUrl(resource.url);
+    return url ? [{ ...resource, url }] : [];
+  });
+  const journeyMaps = journeyQuery.data ?? [];
+  const showDescription = ethos.description && ethos.description !== ethos.tagline;
 
   return (
     <ConsentGate ethosId={ethos.id}>
-    <div className="max-w-3xl mx-auto space-y-8">
-      {/* Back navigation */}
-      <Button variant="ghost" size="sm" asChild>
-        <Link href="/discover">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          All ETHOS
+      <div className="space-y-10">
+        <Link href="/discover" className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Discover index
         </Link>
-      </Button>
 
-      {/* Hero card */}
-      <div className="rounded-2xl overflow-hidden border bg-card shadow-sm">
-        <div className="h-44 bg-gradient-to-br from-primary/30 via-primary/10 to-muted relative flex items-center justify-center">
-          {ethos.image_url ? (
-            <img src={ethos.image_url} alt={ethos.name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-7xl font-black text-primary/20 select-none">
-              {ethos.name.slice(0, 2).toUpperCase()}
-            </span>
-          )}
-          {ethos.sector && (
-            <Badge className="absolute top-3 left-3 capitalize">{ethos.sector}</Badge>
-          )}
-          {alignScore !== null && (
-            <div className="absolute top-3 right-3 bg-background/90 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-bold shadow">
-              {alignScore}% aligned
-            </div>
-          )}
-        </div>
-
-        <div className="p-6">
-          <h1 className="text-2xl font-bold mb-1">{ethos.name}</h1>
-          {ethos.tagline && (
-            <p className="text-muted-foreground mb-4 text-sm">{ethos.tagline}</p>
-          )}
-
-          <div className="flex flex-wrap gap-2 mb-5">
-            <Badge variant="secondary" className="capitalize">{ethos.ethos_type}</Badge>
-            {ethos.is_active && (
-              <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>
-            )}
-            {phase && PHASE_LABELS[phase] && (
-              <Badge variant="outline">{PHASE_LABELS[phase]}</Badge>
-            )}
-          </div>
-
-          {ethos.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed">{ethos.description}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Mission */}
-      {ethos.mission && (
-        <div className="border rounded-xl p-5 bg-muted/30">
-          <h2 className="font-semibold mb-2 text-sm uppercase tracking-wide text-muted-foreground">
-            Mission
-          </h2>
-          <p className="text-sm leading-relaxed">{ethos.mission}</p>
-        </div>
-      )}
-
-      {/* Members grid */}
-      {members.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <h2 className="font-semibold">
-              Members
-              <span className="text-muted-foreground font-normal ml-1.5">({members.length})</span>
-            </h2>
-          </div>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {members.map(m => (
-              <Link key={m.user_id} href={m.profile_url}>
-                <div className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">
-                  <Avatar className="h-9 w-9 flex-shrink-0">
-                    <AvatarImage src={m.avatar_url} />
-                    <AvatarFallback className="text-xs">
-                      {m.display_name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{m.display_name}</p>
-                    {m.role_in_ethos && (
-                      <p className="text-xs text-muted-foreground truncate">{m.role_in_ethos}</p>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* External URL */}
-      {ethos.external_url && (
-        <a
-          href={ethos.external_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Visit external site
-        </a>
-      )}
-
-      {/* Journey Maps */}
-      {journeyMaps.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Map className="h-4 w-4 text-muted-foreground" />
-            <h2 className="font-semibold">Journey Maps</h2>
-          </div>
-          <div className="space-y-2.5">
-            {journeyMaps.map((map: any) => (
-              <div key={map.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:border-primary/40 transition-all">
-                <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{map.title}</p>
-                  {map.description && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{map.description}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">{map.step_count} step{map.step_count !== 1 ? 's' : ''}</p>
-                </div>
-                <Button size="sm" className="ml-4 flex-shrink-0" onClick={() => navigate(`/orientation/${slug}`)}>
-                  Begin Journey
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
+        <header className="grid border-2 border-strong-border bg-card lg:grid-cols-12">
+          <div className="relative min-h-80 overflow-hidden border-b-2 border-strong-border bg-muted lg:col-span-8 lg:min-h-[34rem] lg:border-b-0 lg:border-r-2">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={`A view representing ${ethos.name}${ethos.location ? ` in ${ethos.location}` : ''}`}
+                width={1600}
+                height={1067}
+                loading="eager"
+                decoding="async"
+                className="h-full w-full object-cover grayscale-[10%]"
+              />
+            ) : (
+              <div className="flex h-full min-h-80 items-end justify-between bg-foreground p-8 text-background" role="img" aria-label={`No image available for ${ethos.name}`}>
+                <span className="text-xs font-black uppercase tracking-[0.2em]">Visual pending</span>
+                <span className="text-8xl font-black tracking-[-0.08em]" aria-hidden="true">{ethos.name.slice(0, 2).toUpperCase()}</span>
               </div>
-            ))}
+            )}
+            <span className="absolute left-4 top-4 border border-background bg-foreground px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-background">
+              Ecosystem dossier
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* C3: ETHOS Map */}
-      {mapUrl && (
-        <div>
-          <h2 className="font-semibold mb-3">Map</h2>
-          {mapType === 'miro' ? (
-            <iframe
-              src={mapUrl}
-              width="100%"
-              height="400"
-              frameBorder="0"
-              title={mapTitle ?? 'ETHOS Map'}
-              className="rounded-lg border"
-            />
-          ) : (
-            <img src={mapUrl} alt={mapTitle ?? 'ETHOS Map'} className="w-full rounded-lg border" />
-          )}
-          {mapTitle && (
-            <p className="text-xs text-muted-foreground mt-2">{mapTitle}</p>
-          )}
-        </div>
-      )}
+          <div className="flex flex-col p-6 sm:p-8 lg:col-span-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">{ethos.location ?? ethos.sector ?? 'Distributed network'}</p>
+            <h1 className="mt-4 text-5xl font-black leading-[0.86] tracking-[-0.055em] sm:text-6xl">{ethos.name}</h1>
+            {ethos.tagline && <p className="mt-5 text-base leading-7 text-muted-foreground">{ethos.tagline}</p>}
 
-      {/* C3: External Links / Resources */}
-      {externalLinks.length > 0 && (
-        <div>
-          <h2 className="font-semibold mb-3">Resources</h2>
-          <ul className="space-y-1.5">
-            {externalLinks.map((link, i) => (
-              <li key={i}>
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Badge variant="outline" className="rounded-none border-2 uppercase tracking-wide">{ethos.ethos_type}</Badge>
+              <Badge variant={ethos.is_active ? 'default' : 'secondary'} className="rounded-none uppercase tracking-wide">
+                {ethos.is_active ? 'Active' : 'Inactive'}
+              </Badge>
+              {phase && <Badge variant="outline" className="rounded-none uppercase tracking-wide">{phase}</Badge>}
+            </div>
+
+            <dl className="mt-auto grid grid-cols-2 gap-px bg-border pt-px">
+              <div className="bg-card py-5 pr-4">
+                <dt className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Members</dt>
+                <dd className="mt-1 text-3xl font-black tabular-nums">{ethos.member_count}</dd>
+              </div>
+              <div className="bg-card py-5 pl-4">
+                <dt className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Alignment</dt>
+                <dd className={`mt-1 text-3xl font-black tabular-nums ${alignment !== null ? 'text-success' : 'text-muted-foreground'}`}>
+                  {alignment !== null ? `${alignment}%` : '—'}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </header>
+
+        <div className="grid gap-8 lg:grid-cols-12">
+          <div className="space-y-8 lg:col-span-8">
+            {(showDescription || ethos.mission || ethos.governance_summary) && (
+              <section className="border-2 border-strong-border bg-card" aria-labelledby="dossier-purpose-title">
+                <div className="border-b-2 border-strong-border p-5 sm:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">01 / Purpose</p>
+                  <h2 id="dossier-purpose-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Operating intent.</h2>
+                </div>
+                <div className="space-y-6 p-5 sm:p-6">
+                  {showDescription && <p className="text-base leading-8">{ethos.description}</p>}
+                  {ethos.mission && (
+                    <div className="border-l-4 border-strong-border pl-5">
+                      <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-muted-foreground">Mission</p>
+                      <p className="mt-2 text-sm leading-7">{ethos.mission}</p>
+                    </div>
+                  )}
+                  {ethos.governance_summary && (
+                    <div className="border-l-4 border-strong-border pl-5">
+                      <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-muted-foreground">Governance summary</p>
+                      <p className="mt-2 text-sm leading-7">{ethos.governance_summary}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            <section className="border-2 border-strong-border bg-card" aria-labelledby="journey-maps-title">
+              <div className="flex items-end justify-between gap-5 border-b-2 border-strong-border p-5 sm:p-6">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">02 / Orientation</p>
+                  <h2 id="journey-maps-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Journey maps.</h2>
+                </div>
+                <span className="text-4xl font-black tabular-nums">{journeyMaps.length}</span>
+              </div>
+
+              {journeyQuery.isLoading ? (
+                <div className="space-y-2 p-5"><Skeleton className="h-20 rounded-none" /><Skeleton className="h-20 rounded-none" /></div>
+              ) : journeyQuery.error ? (
+                <p className="p-6 text-sm text-destructive" role="alert">Journey maps could not be loaded.</p>
+              ) : journeyMaps.length > 0 ? (
+                <ol className="divide-y divide-border">
+                  {journeyMaps.map((map: any, index: number) => (
+                    <li key={map.id} className="grid gap-4 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6">
+                      <span className="text-xs font-black tabular-nums text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
+                      <div>
+                        <p className="font-black">{map.title}</p>
+                        {map.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{map.description}</p>}
+                        <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{map.step_count} {map.step_count === 1 ? 'step' : 'steps'}</p>
+                      </div>
+                      <Link href={`/orientation/${slug}`} className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        Begin <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="p-6 sm:p-8">
+                  <p className="font-black">No published journey map yet.</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">You can still open the orientation overview for this ecosystem.</p>
+                </div>
+              )}
+
+              <div className="border-t-2 border-strong-border p-5 text-right">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/orientation/${slug}`)}
+                  className="inline-flex min-h-11 items-center gap-2 border-2 border-strong-border bg-foreground px-5 text-xs font-black uppercase tracking-[0.12em] text-background hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                  {link.label || link.url}
-                </a>
-              </li>
-            ))}
-          </ul>
+                  Open orientation <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </section>
+
+            {mapUrl && (
+              <section className="border-2 border-strong-border bg-card" aria-labelledby="ecosystem-map-title">
+                <div className="border-b-2 border-strong-border p-5 sm:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">03 / Spatial model</p>
+                  <h2 id="ecosystem-map-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">{ethos.map_title ?? 'Ecosystem map'}</h2>
+                </div>
+                {ethos.map_type === 'miro' ? (
+                  <iframe
+                    src={mapUrl}
+                    width="100%"
+                    height="480"
+                    title={ethos.map_title ?? 'Ecosystem map'}
+                    loading="lazy"
+                    sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
+                    referrerPolicy="no-referrer"
+                    allow="fullscreen; clipboard-read; clipboard-write"
+                    allowFullScreen
+                    className="block border-0"
+                  />
+                ) : (
+                  <img src={mapUrl} alt={ethos.map_title ?? `Map of ${ethos.name}`} width={1400} height={900} loading="lazy" decoding="async" className="h-auto w-full" />
+                )}
+              </section>
+            )}
+          </div>
+
+          <aside className="space-y-6 lg:col-span-4">
+            <section className="border-2 border-strong-border bg-card p-5 sm:p-6" aria-labelledby="members-title">
+              <div className="flex items-end justify-between gap-4 border-b-2 border-strong-border pb-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Network</p>
+                  <h2 id="members-title" className="mt-2 text-2xl font-black tracking-tight">Members.</h2>
+                </div>
+                <span className="text-3xl font-black tabular-nums">{members.length}</span>
+              </div>
+              {members.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {members.map((member) => {
+                    const profileUrl = resolveInternalPath(member.profile_url)
+                      ?? `/users/${encodeURIComponent(member.username || member.user_id)}`;
+                    return (
+                    <li key={member.user_id}>
+                      <Link href={profileUrl} className="flex min-h-16 items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <Avatar className="h-10 w-10 shrink-0 border border-border">
+                          <AvatarImage src={resolveMediaUrl(member.avatar_url)} alt="" />
+                          <AvatarFallback className="text-xs font-black">{member.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-black hover:underline">{member.display_name}</span>
+                          {member.role_in_ethos && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{member.role_in_ethos}</span>}
+                        </span>
+                      </Link>
+                    </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="py-6 text-sm leading-6 text-muted-foreground">Member profiles are private or not yet connected to this dossier.</p>
+              )}
+            </section>
+
+            {ethos.tags && ethos.tags.length > 0 && (
+              <section className="border-2 border-strong-border bg-card p-5 sm:p-6" aria-labelledby="topics-title">
+                <h2 id="topics-title" className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Topics</h2>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {ethos.tags.map((tag) => <Badge key={tag} variant="outline" className="rounded-none uppercase tracking-wide">{tag}</Badge>)}
+                </div>
+              </section>
+            )}
+
+            {(officialUrl || externalLinks.length > 0) && (
+              <section className="border-2 border-strong-border bg-card p-5 sm:p-6" aria-labelledby="resources-title">
+                <h2 id="resources-title" className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">External resources</h2>
+                <ul className="mt-4 divide-y divide-border border-t border-border">
+                  {officialUrl && (
+                    <li>
+                      <a href={officialUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-between gap-3 py-3 text-sm font-black text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        Official website <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                      </a>
+                    </li>
+                  )}
+                  {externalLinks.map((resource) => (
+                    <li key={`${resource.label}-${resource.url}`}>
+                      <a href={resource.url} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-between gap-3 py-3 text-sm font-black text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {resource.label || resource.url} <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section className="border-2 border-strong-border bg-foreground p-5 text-background sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-background/70">Active teams</p>
+              <p className="mt-3 text-2xl font-black tracking-tight">Connection pending.</p>
+              <p className="mt-2 text-sm leading-6 text-background/75">Team information will appear after the ecosystem completes its network connection.</p>
+            </section>
+          </aside>
         </div>
-      )}
-
-      {/* C3: Active Teams placeholder */}
-      <div className="rounded-lg border p-4">
-        <p className="text-sm font-medium mb-1">Active Teams</p>
-        <p className="text-muted-foreground text-sm">Team information available after full ecosystem connection.</p>
       </div>
-
-      {/* Begin orientation CTA */}
-      <div className="flex justify-end pt-2">
-        <Button size="lg" onClick={() => navigate(`/orientation/${slug}`)}>
-          Begin Orientation
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </div>
     </ConsentGate>
   );
 }

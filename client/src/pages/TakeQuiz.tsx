@@ -237,7 +237,7 @@ function QuestionField({
                   type="button"
                   onClick={() => onChange(n)}
                   className={cn(
-                    "h-10 w-10 rounded-md border text-sm font-medium transition-colors",
+                    "h-10 w-10 rounded-[2px] border-2 border-control-border text-sm font-medium transition-colors",
                     value === n
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background hover:bg-muted border-input"

@@ -115,19 +115,19 @@ export default function QuizzesOnboardingHub() {
         </div>
         <div className="flex gap-2">
           {canManageContent && (
-            <Link href="/quiz/manage">
-              <Button variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/quiz/manage">
                 <FileEdit className="h-4 w-4 mr-2" />
                 Manage Quizzes
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           )}
-          <Link href="/my-quiz-history">
-            <Button variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/my-quiz-history">
               <History className="h-4 w-4 mr-2" />
               My History
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -196,12 +196,12 @@ export default function QuizzesOnboardingHub() {
                           )}
                         </div>
                       </div>
-                      <Link href={`/quiz/take/${quiz.id}`}>
-                        <Button>
+                      <Button asChild>
+                        <Link href={`/quiz/take/${quiz.id}`}>
                           Take Quiz
                           <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </div>
                   </CardHeader>
                 </Card>
@@ -261,12 +261,12 @@ export default function QuizzesOnboardingHub() {
                           )}
                         </div>
                       </div>
-                      <Link href={`/quiz/take/${quiz.id}`}>
-                        <Button>
+                      <Button asChild>
+                        <Link href={`/quiz/take/${quiz.id}`}>
                           Take Quiz
                           <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </div>
                   </CardHeader>
                 </Card>
@@ -286,12 +286,12 @@ export default function QuizzesOnboardingHub() {
             <p className="text-sm text-muted-foreground">
               Track onboarding ceremonies and member orientation progress.
             </p>
-            <Link href="/onboarding">
-              <Button variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/onboarding">
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Full Onboarding List
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
           <div className="grid gap-4">
@@ -318,12 +318,12 @@ export default function QuizzesOnboardingHub() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={statusColor(o.status)}>{o.status}</Badge>
-                        <Link href={`/onboarding/${o.member_id}/ceremony`}>
-                          <Button variant="outline" size="sm">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/onboarding/${o.member_id}/ceremony`}>
                             View
                             <ArrowRight className="h-3 w-3 ml-1" />
-                          </Button>
-                        </Link>
+                          </Link>
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>

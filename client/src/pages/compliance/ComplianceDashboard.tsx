@@ -40,7 +40,7 @@ function extractIssueList(flaggedIssues: Record<string, any> | null): string[] {
 function ScoreIndicator({ score }: { score: number | null | undefined }) {
   if (score == null) return <span className="text-muted-foreground text-sm">N/A</span>;
 
-  const color = score >= 80 ? 'text-green-600' : score >= 50 ? 'text-yellow-600' : 'text-red-600';
+  const color = score >= 80 ? 'text-success' : score >= 50 ? 'text-warning' : 'text-destructive';
   const Icon = score >= 80 ? CheckCircle2 : score >= 50 ? AlertTriangle : XCircle;
   const label = score >= 80 ? 'Good' : score >= 50 ? 'Fair' : 'Poor';
 
@@ -55,9 +55,9 @@ function ScoreIndicator({ score }: { score: number | null | undefined }) {
 
 function ScoreBadge({ score }: { score: number | null | undefined }) {
   if (score == null) return <Badge variant="outline">N/A</Badge>;
-  if (score >= 80) return <Badge className="bg-green-100 text-green-800 border-green-200">Good</Badge>;
-  if (score >= 50) return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Fair</Badge>;
-  return <Badge className="bg-red-100 text-red-800 border-red-200">Poor</Badge>;
+  if (score >= 80) return <Badge className="border-success bg-success/10 text-success">Good</Badge>;
+  if (score >= 50) return <Badge className="border-warning bg-warning/10 text-warning">Fair</Badge>;
+  return <Badge className="border-destructive bg-destructive/10 text-destructive">Poor</Badge>;
 }
 
 function EmptyState({ onGenerate, isGenerating }: { onGenerate: () => void; isGenerating: boolean }) {
@@ -172,7 +172,7 @@ export default function ComplianceDashboard() {
       </div>
 
       {generateMutation.isError && (
-        <div className="rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {generateMutation.error?.message || 'Failed to generate compliance summary'}
         </div>
       )}
@@ -244,10 +244,10 @@ export default function ComplianceDashboard() {
                     <TableCell>
                       {typeof val === 'number' ? (
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-24 rounded-full bg-muted overflow-hidden">
+                          <div className="h-2 w-24 overflow-hidden border border-strong-border bg-muted">
                             <div
-                              className={`h-full rounded-full ${
-                                Number(val) >= 80 ? 'bg-green-500' : Number(val) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                              className={`h-full ${
+                                Number(val) >= 80 ? 'bg-success' : Number(val) >= 50 ? 'bg-warning' : 'bg-destructive'
                               }`}
                               style={{ width: `${Math.min(100, Number(val))}%` }}
                             />
@@ -272,7 +272,7 @@ export default function ComplianceDashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
             Flagged Issues
           </CardTitle>
         </CardHeader>
@@ -281,13 +281,13 @@ export default function ComplianceDashboard() {
             <ul className="space-y-2">
               {issueList.map((issue, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
                   <span>{issue}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-green-700 flex items-center gap-2">
+            <p className="flex items-center gap-2 text-sm text-success">
               <CheckCircle2 className="h-4 w-4" />
               No flagged issues
             </p>

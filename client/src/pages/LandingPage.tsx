@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "wouter";
 import {
   HandHeart,
@@ -24,7 +23,6 @@ import {
   Layers,
   Bot,
   User,
-  ChevronDown,
 } from "lucide-react";
 
 const LAYERS = [
@@ -45,271 +43,231 @@ const ACT_STEPS = [
     icon: HandHeart,
     title: "Advice",
     desc: "Gather wisdom from the people affected. No one decides alone.",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    border: "border-emerald-200 dark:border-emerald-800",
   },
   {
     icon: ShieldCheck,
     title: "Consent",
     desc: "Not 'do you agree?' but 'can you live with this?' Objections improve the proposal.",
-    color: "text-teal-600 dark:text-teal-400",
-    bg: "bg-teal-50 dark:bg-teal-950/40",
-    border: "border-teal-200 dark:border-teal-800",
   },
   {
     icon: FlaskConical,
     title: "Test",
     desc: "Try it in practice. Measure results. Adapt or adopt.",
-    color: "text-cyan-600 dark:text-cyan-400",
-    bg: "bg-cyan-50 dark:bg-cyan-950/40",
-    border: "border-cyan-200 dark:border-cyan-800",
   },
 ];
 
 function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
 }
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* ── Hero ── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 py-24 overflow-hidden">
-        {/* Animated gradient background */}
-        <div
-          className="absolute inset-0 -z-10 animate-pulse"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(16,185,129,0.12) 0%, rgba(20,184,166,0.08) 40%, transparent 70%)",
-            animationDuration: "6s",
-          }}
-        />
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 -z-10 opacity-[0.04] dark:opacity-[0.06]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(0,0,0,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,1) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-          }}
-        />
-
-        <Badge variant="outline" className="mb-6 text-sm px-4 py-1 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300">
-          Open Source Governance
-        </Badge>
-
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-center max-w-4xl leading-tight tracking-tight">
-          Governance for the{" "}
-          <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-            New Earth
-          </span>
-        </h1>
-
-        <p className="mt-6 text-lg sm:text-xl text-muted-foreground text-center max-w-2xl leading-relaxed">
-          NEOS is an open operating system for communities that govern themselves.
-          No kings. No tokens. Just agreements, consent, and collective intelligence.
-        </p>
-
-        <div className="mt-10 flex flex-col sm:flex-row gap-4">
-          <Link href="/login">
-            <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-8">
-              Join a Community
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      <header className="sticky top-0 z-50 border-b border-foreground bg-background">
+        <div className="flex min-h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="inline-flex min-h-11 items-center text-sm font-black uppercase tracking-[0.18em]">
+            NEOS
           </Link>
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={() => scrollToSection("how-it-works")}
-            className="border-emerald-300 dark:border-emerald-700"
-          >
-            Explore How It Works
-            <ChevronDown className="ml-2 w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/about">About</Link>
+            </Button>
+            <ThemeToggle />
+            <Button asChild size="sm">
+              <Link href="/login">Enter NEOS</Link>
+            </Button>
+          </div>
         </div>
+      </header>
 
-        <button
-          onClick={() => scrollToSection("how-it-works")}
-          className="absolute bottom-10 animate-bounce text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Scroll down"
-        >
-          <ArrowDown className="w-6 h-6" />
-        </button>
-      </section>
-
-      {/* ── ACT Process ── */}
-      <section id="how-it-works" className="py-24 px-6 bg-slate-50/50 dark:bg-slate-900/30">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">The ACT Process</Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold">Decisions That Everyone Can Trust</h2>
+      <main>
+        <section className="grid min-h-[calc(100svh-3.5rem)] border-b border-foreground lg:grid-cols-12">
+          <div className="flex flex-col justify-between px-4 py-10 sm:px-6 sm:py-14 lg:col-span-8 lg:px-8 lg:py-20">
+            <p className="text-xs font-bold uppercase tracking-[0.18em]">Open-source governance infrastructure</p>
+            <div className="max-w-5xl py-16 lg:py-24">
+              <h1 className="text-[clamp(3.5rem,9vw,9rem)] font-black uppercase leading-[0.82] tracking-[-0.07em]">
+                Govern<br />together.<br />Stay free.
+              </h1>
+              <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+                NEOS is an operating system for communities that govern themselves. No kings. No tokens.
+                Just agreements, consent, and collective intelligence.
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-3 sm:flex-row">
+              <Button asChild size="lg" className="min-w-48 justify-between">
+                <Link href="/login">
+                  Join a community
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => scrollToSection("how-it-works")}>
+                Read the system
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 relative">
-            {/* Connector lines (desktop) */}
-            <div className="hidden md:block absolute top-1/2 left-[33%] right-[33%] h-px bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300 dark:from-emerald-700 dark:via-teal-700 dark:to-cyan-700 -translate-y-1/2 z-0" />
+          <aside className="flex min-h-80 flex-col justify-between border-t border-foreground bg-foreground p-6 text-background lg:col-span-4 lg:border-l lg:border-t-0 lg:p-8">
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em]">
+              <span>System index</span>
+              <span>01—10</span>
+            </div>
+            <div>
+              <p className="text-[clamp(5rem,14vw,12rem)] font-black leading-none tracking-[-0.08em]">10</p>
+              <p className="max-w-xs text-lg font-bold uppercase leading-tight">Interlocking layers of accountable governance.</p>
+            </div>
+            <p className="max-w-sm text-sm leading-relaxed text-background/75">
+              Authority stays visible. Decisions remain testable. Every member retains the right to repair, learn, and exit.
+            </p>
+          </aside>
+        </section>
 
-            {ACT_STEPS.map((step, i) => (
-              <Card
-                key={step.title}
-                className={`relative z-10 border ${step.border} ${step.bg} hover:shadow-lg transition-shadow duration-300`}
-              >
-                <CardContent className="pt-8 pb-6 px-6 text-center space-y-4">
-                  <div className="mx-auto w-14 h-14 rounded-full bg-white dark:bg-slate-800 border flex items-center justify-center shadow-sm">
-                    <step.icon className={`w-7 h-7 ${step.color}`} />
-                  </div>
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Step {i + 1}
-                  </div>
-                  <h3 className="text-xl font-bold">{step.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">{step.desc}</p>
-                </CardContent>
-              </Card>
+        <section id="how-it-works" className="border-b border-foreground px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mb-10 grid gap-5 lg:grid-cols-12">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] lg:col-span-3">01 / The ACT process</p>
+            <h2 className="text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl lg:col-span-9">
+              Decisions people can trust.
+            </h2>
+          </div>
+          <div className="grid border-l border-t border-foreground md:grid-cols-3">
+            {ACT_STEPS.map((step, index) => (
+              <article key={step.title} className="flex min-h-72 flex-col justify-between border-b border-r border-foreground bg-card p-6 sm:p-8">
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-bold uppercase tracking-[0.18em]">0{index + 1}</span>
+                  <step.icon className="h-7 w-7" aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="text-3xl font-black uppercase tracking-[-0.03em]">{step.title}</h3>
+                  <p className="mt-4 max-w-sm leading-relaxed text-muted-foreground">{step.desc}</p>
+                </div>
+              </article>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── 10 Governance Layers ── */}
-      <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">
-              <Layers className="w-3 h-3 mr-1" />
-              Full Stack
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold">A Complete Governance Stack</h2>
-            <p className="mt-4 text-muted-foreground text-lg max-w-xl mx-auto">
-              54 governance skills across 10 layers. Everything a self-organizing community needs.
-            </p>
+        <section className="border-b border-foreground px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mb-10 grid gap-5 lg:grid-cols-12">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] lg:col-span-3">
+              <Layers className="h-4 w-4" aria-hidden="true" />
+              02 / Full stack
+            </div>
+            <div className="lg:col-span-9">
+              <h2 className="text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl">A complete governance stack.</h2>
+              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+                54 governance skills across 10 layers. Everything a self-organizing community needs, indexed and accountable.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid border-l border-t border-foreground sm:grid-cols-2 lg:grid-cols-5">
             {LAYERS.map((layer) => (
-              <Card
-                key={layer.num}
-                className="group hover:shadow-md hover:-translate-y-1 transition-all duration-300 border-slate-200 dark:border-slate-800"
-              >
-                <CardContent className="pt-6 pb-5 px-4 text-center space-y-3">
-                  <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tracking-widest">
-                    {layer.num}
-                  </div>
-                  <div className="mx-auto w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/40 transition-colors">
-                    <layer.icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <h3 className="font-semibold text-sm">{layer.name}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{layer.desc}</p>
-                </CardContent>
-              </Card>
+              <article key={layer.num} className="flex min-h-56 flex-col justify-between border-b border-r border-foreground bg-card p-5 sm:p-6">
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-black tracking-[0.18em]">{layer.num}</span>
+                  <layer.icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase">{layer.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{layer.desc}</p>
+                </div>
+              </article>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Stats ── */}
-      <section className="py-24 px-6 bg-slate-50/50 dark:bg-slate-900/30">
-        <div className="max-w-4xl mx-auto grid sm:grid-cols-3 gap-6">
+        <section className="grid border-b border-foreground bg-foreground text-background sm:grid-cols-3">
           {[
-            { icon: Layers, big: "10 Layers", sub: "54 governance skills" },
-            { icon: Globe, big: "First Ecosystem", sub: "OmniOne, Bali" },
-            { icon: GitFork, big: "Open Source", sub: "Fork it. Make it yours." },
+            { icon: Layers, big: "10 layers", sub: "54 governance skills" },
+            { icon: Globe, big: "OmniOne", sub: "First ecosystem · Bali" },
+            { icon: GitFork, big: "Open source", sub: "Fork it. Make it yours." },
           ].map((stat) => (
-            <Card key={stat.big} className="text-center hover:shadow-md transition-shadow">
-              <CardContent className="pt-8 pb-6 space-y-3">
-                <stat.icon className="w-8 h-8 mx-auto text-emerald-600 dark:text-emerald-400" />
-                <div className="text-2xl font-bold">{stat.big}</div>
-                <div className="text-muted-foreground">{stat.sub}</div>
-              </CardContent>
-            </Card>
+            <div key={stat.big} className="border-b border-background/40 p-8 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:p-12">
+              <stat.icon className="mb-10 h-7 w-7" aria-hidden="true" />
+              <p className="text-3xl font-black uppercase tracking-[-0.03em]">{stat.big}</p>
+              <p className="mt-2 text-sm text-background/70">{stat.sub}</p>
+            </div>
           ))}
-        </div>
-      </section>
+        </section>
 
-      {/* ── AI Governance ── */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <Badge variant="outline" className="mb-2">
-              <Sparkles className="w-3 h-3 mr-1" />
-              AI-Augmented
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold">An AI That Serves the Community</h2>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              The NEOS governance agent helps facilitate discussions, summarize proposals,
-              and guide participants through decision processes. It never decides for you --
-              it makes sure the community's voice is heard clearly.
+        <section className="grid border-b border-foreground lg:grid-cols-12">
+          <div className="px-4 py-16 sm:px-6 lg:col-span-6 lg:px-8 lg:py-24">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em]">
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              03 / AI-augmented
+            </div>
+            <h2 className="mt-8 text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl">An AI that serves the community.</h2>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+              The NEOS agent facilitates discussions, summarizes proposals, and guides participants. It never decides for you.
             </p>
-            <ul className="space-y-2 text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 mt-1 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                Summarizes objections and proposals impartially
-              </li>
-              <li className="flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 mt-1 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                Guides new members through governance processes
-              </li>
-              <li className="flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 mt-1 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                Works across ecosystems while respecting local sovereignty
-              </li>
+            <ul className="mt-8 divide-y divide-border border-y border-border">
+              {[
+                "Summarizes objections and proposals impartially",
+                "Guides new members through governance processes",
+                "Works across ecosystems while respecting local sovereignty",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3 py-4 text-sm">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Chat mockup */}
-          <div className="bg-slate-100 dark:bg-slate-800/60 rounded-2xl p-6 space-y-4 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+          <div className="border-t border-foreground bg-card p-4 sm:p-6 lg:col-span-6 lg:border-l lg:border-t-0 lg:p-8">
+            <div className="flex h-full min-h-[30rem] flex-col justify-between border border-foreground">
+              <div className="flex items-center justify-between border-b border-foreground p-4 text-xs font-bold uppercase tracking-[0.18em]">
+                <span>Governance assistant</span>
+                <span>Live protocol</span>
               </div>
-              <div className="bg-white dark:bg-slate-700 rounded-xl rounded-tl-sm px-4 py-3 text-sm max-w-xs shadow-sm">
-                How do I propose a composting policy?
+              <div className="space-y-8 p-5 sm:p-8">
+                <div className="grid grid-cols-[2rem_1fr] gap-4">
+                  <div className="flex h-8 w-8 items-center justify-center border border-foreground"><User className="h-4 w-4" /></div>
+                  <p className="border border-foreground p-4 text-sm">How do I propose a composting policy?</p>
+                </div>
+                <div className="grid grid-cols-[2rem_1fr] gap-4">
+                  <div className="flex h-8 w-8 items-center justify-center bg-foreground text-background"><Bot className="h-4 w-4" /></div>
+                  <div className="bg-foreground p-5 text-sm text-background">
+                    <p className="font-bold uppercase">Start with ACT</p>
+                    <ol className="mt-4 list-decimal space-y-2 pl-4 text-background/75">
+                      <li>Post the draft and request advice from affected members.</li>
+                      <li>Call a consent round and integrate reasoned objections.</li>
+                      <li>Run a 90-day test with visible success measures.</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3 flex-row-reverse">
-              <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900 flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 text-teal-700 dark:text-teal-300" />
-              </div>
-              <div className="bg-emerald-50 dark:bg-emerald-950/60 rounded-xl rounded-tr-sm px-4 py-3 text-sm max-w-sm shadow-sm space-y-2">
-                <p className="font-medium text-foreground">Great question! Here is the ACT process:</p>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground text-xs">
-                  <li><strong>Advice</strong> -- Post your draft in the composting domain and tag affected members.</li>
-                  <li><strong>Consent</strong> -- After advice rounds, call a consent round. Members raise objections or stand aside.</li>
-                  <li><strong>Test</strong> -- Set a 90-day trial with clear success metrics.</li>
-                </ol>
-                <p className="text-xs text-muted-foreground">Want me to draft a proposal template for you?</p>
-              </div>
+              <p className="border-t border-foreground p-4 text-xs text-muted-foreground">Human authority remains final at every step.</p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── Final CTA ── */}
-      <section className="py-24 px-6 bg-gradient-to-b from-emerald-50/50 to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10">
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-          <h2 className="text-3xl sm:text-4xl font-bold">Ready to govern differently?</h2>
-          <p className="text-lg text-muted-foreground">
-            Join an existing ecosystem or start your own.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Link href="/login">
-              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-8">
-                Get Started
-                <ArrowRight className="ml-2 w-4 h-4" />
+        <section className="bg-foreground px-4 py-16 text-background sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid items-end gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-background/70">The next agreement starts here</p>
+              <h2 className="mt-6 text-5xl font-black uppercase leading-[0.9] tracking-[-0.05em] sm:text-7xl">Ready to govern differently?</h2>
+            </div>
+            <div className="flex flex-col gap-3 lg:col-span-4">
+              <Button asChild size="lg" variant="secondary" className="w-full justify-between">
+                <Link href="/login">
+                  Get started
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </Button>
-            </Link>
-            <Link href="/about">
-              <Button size="lg" variant="outline">
-                Learn More
+              <Button asChild size="lg" variant="outline" className="w-full border-background/60 text-background hover:bg-background hover:text-foreground">
+                <Link href="/about">
+                  Read about NEOS
+                </Link>
               </Button>
-            </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t text-center text-sm text-muted-foreground">
-        <p>NEOS -- New Earth Operating System. Open source. Community governed.</p>
+      <footer className="flex flex-col gap-2 border-t border-foreground px-4 py-6 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <p>NEOS — New Earth Operating System</p>
+        <p>Open source · Community governed</p>
       </footer>
     </div>
   );

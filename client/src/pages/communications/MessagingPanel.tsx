@@ -166,7 +166,7 @@ export default function MessagingPanel() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 mt-0.5 pl-6">
-                <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className={`h-1.5 w-1.5 ${isConnected ? 'bg-success' : 'bg-destructive'}`} />
                 <span className="text-xs text-muted-foreground">
                   {isConnected ? 'Connected' : 'Disconnected'}
                   {activeConv.type === 'group' && ` · ${activeConv.participants.length} members`}
@@ -181,7 +181,7 @@ export default function MessagingPanel() {
                     className={`flex ${msg.sender_id === member?.id ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[75%] rounded-lg p-2.5 ${
+                      className={`max-w-[75%] border p-3 ${
                         msg.sender_id === member?.id
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted'
@@ -294,7 +294,7 @@ export default function MessagingPanel() {
                 value={memberSearch}
                 onChange={e => setMemberSearch(e.target.value)}
               />
-              <ScrollArea className="h-40 border rounded-md">
+              <ScrollArea className="h-40 rounded-none border-2 border-strong-border">
                 {filteredMembers.map(m => (
                   <button
                     key={m.id}

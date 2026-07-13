@@ -69,7 +69,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
   const [scope, setScope] = useState(conflict.scope ?? '');
   const [tier, setTier] = useState(String(conflict.tier ?? ''));
   const [rootCauseCategory, setRootCauseCategory] = useState(conflict.root_cause_category ?? '');
-  const [facilitatorId, setFacilitatorId] = useState('');
+  const [facilitatorId, setFacilitatorId] = useState(conflict.facilitator_id ?? '');
   const [triageNotes, setTriageNotes] = useState(conflict.triage_notes ?? '');
 
   // Sync with conflict data when modal opens
@@ -80,6 +80,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
       setScope(conflict.scope ?? '');
       setTier(String(conflict.tier ?? ''));
       setRootCauseCategory(conflict.root_cause_category ?? '');
+      setFacilitatorId(conflict.facilitator_id ?? '');
       setTriageNotes(conflict.triage_notes ?? '');
     }
   }, [open, conflict]);
@@ -90,6 +91,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
     scope !== (conflict.scope ?? '') ||
     tier !== String(conflict.tier ?? '') ||
     rootCauseCategory !== (conflict.root_cause_category ?? '') ||
+    facilitatorId !== (conflict.facilitator_id ?? '') ||
     triageNotes !== (conflict.triage_notes ?? '');
 
   const handleSubmit = async () => {
@@ -216,12 +218,12 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
 
           {/* Facilitator */}
           <div className="space-y-2">
-            <Label htmlFor="triage-facilitator">Facilitator (optional)</Label>
+            <Label htmlFor="triage-facilitator">Facilitator member ID (optional)</Label>
             <Input
               id="triage-facilitator"
               value={facilitatorId}
               onChange={(e) => setFacilitatorId(e.target.value)}
-              placeholder="Facilitator name or member ID"
+              placeholder="Member UUID"
             />
           </div>
 
@@ -239,7 +241,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
         </div>
 
         {updateMutation.error && (
-          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
             {(updateMutation.error as Error).message}
           </div>
         )}

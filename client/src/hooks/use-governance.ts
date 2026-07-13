@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api-client';
+import type { CeremonyConsentRequest } from '@/types/api';
 
 // Agreement hooks
 export function useAgreements(params?: Record<string, string> | false) {
@@ -112,7 +113,7 @@ export function useOnboardingCeremony(memberId: string) {
 }
 export function useSubmitCeremonyConsent(memberId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: { section: string; consented: boolean }) => api.submitCeremonyConsent(memberId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding', memberId] }) });
+  return useMutation({ mutationFn: (data: CeremonyConsentRequest) => api.submitCeremonyConsent(memberId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding', memberId] }) });
 }
 
 // Conflict hooks

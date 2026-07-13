@@ -60,9 +60,9 @@ export function ACTStepper({ currentStatus }: ACTStepperProps) {
                   <div className="flex flex-col items-center relative z-10">
                     <div
                       className={cn(
-                        'flex items-center justify-center rounded-full border-2 transition-all duration-300',
+                        'flex items-center justify-center border-2 transition-colors motion-reduce:transition-none',
                         isCompleted && 'h-10 w-10 bg-primary border-primary text-primary-foreground',
-                        isCurrent && 'h-12 w-12 bg-primary/10 border-primary text-primary animate-pulse',
+                        isCurrent && 'h-12 w-12 bg-primary/10 border-primary text-primary',
                         isFuture && 'h-10 w-10 bg-muted border-muted-foreground/25 text-muted-foreground',
                         isTerminal && 'h-10 w-10 bg-muted border-muted-foreground/25 text-muted-foreground'
                       )}
@@ -122,7 +122,7 @@ export function ACTStepper({ currentStatus }: ACTStepperProps) {
                   <div className="flex items-center gap-1.5">
                     <div
                       className={cn(
-                        'flex items-center justify-center rounded-full border-2 shrink-0',
+                        'flex shrink-0 items-center justify-center border-2',
                         isCompleted && 'h-7 w-7 bg-primary border-primary text-primary-foreground',
                         isCurrent && 'h-8 w-8 bg-primary/10 border-primary text-primary',
                         !isCompleted && !isCurrent && 'h-7 w-7 bg-muted border-muted-foreground/25 text-muted-foreground'

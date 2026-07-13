@@ -209,7 +209,7 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus }: { adviceLogs: Adv
               <div className="space-y-3">
                 <p className="text-sm font-medium text-muted-foreground">Entries ({log.entries.length})</p>
                 {log.entries.map((entry) => (
-                  <div key={entry.id} className="border rounded-md p-3 space-y-1">
+                  <div key={entry.id} className="space-y-1 rounded-none border-2 border-strong-border p-3">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">{entry.advisor}</span>
                       {entry.role && <Badge variant="outline" className="text-xs">{entry.role}</Badge>}
@@ -521,9 +521,9 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
                         <TableCell>
                           {sc.met != null ? (
                             sc.met ? (
-                              <Check className="h-4 w-4 text-green-600" />
+                              <Check className="h-4 w-4 text-success" />
                             ) : (
-                              <X className="h-4 w-4 text-red-600" />
+                              <X className="h-4 w-4 text-destructive" />
                             )
                           ) : '-'}
                         </TableCell>
@@ -562,9 +562,9 @@ export default function ProposalDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load proposal</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/proposals">
-          <Button variant="outline" className="mt-4">Back to Proposals</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/proposals">Back to Proposals</Link>
+        </Button>
       </div>
     );
   }
@@ -598,20 +598,20 @@ export default function ProposalDetail() {
   return (
     <div className="space-y-6">
       {/* Back link */}
-      <Link href="/proposals">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/proposals">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Proposals
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       {/* Ratification banner */}
       {data.status === 'ratified' && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 flex items-center gap-3">
-          <Award className="h-5 w-5 text-emerald-600" />
+        <div className="flex items-center gap-3 border border-success bg-success/10 p-5 text-success">
+          <Award className="h-5 w-5" />
           <div>
-            <p className="font-medium text-emerald-800 dark:text-emerald-200">This proposal has been ratified</p>
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">It passed through the full Advice-Consent-Test process and is now active.</p>
+            <p className="font-bold">This proposal has been ratified</p>
+            <p className="text-sm">It passed through the full Advice-Consent-Test process and is now active.</p>
           </div>
         </div>
       )}
@@ -629,12 +629,12 @@ export default function ProposalDetail() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link href={`/proposals/${id}/edit`}>
-            <Button variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/proposals/${id}/edit`}>
               <Pencil className="h-4 w-4 mr-1" />
               Edit
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           {validNextStatuses.length > 0 && (
             <Select onValueChange={handleStatusChange} disabled={statusChanging}>
               <SelectTrigger className="w-[160px] h-9">

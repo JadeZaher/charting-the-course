@@ -61,7 +61,7 @@ export function EcosystemFilter() {
           {ecosystems.map((eco) => (
             <label
               key={eco.id}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+              className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
             >
               <Checkbox
                 checked={isAll || selectedIds.includes(eco.id)}

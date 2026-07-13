@@ -18,6 +18,7 @@ import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'wouter';
+import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
 import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
@@ -61,13 +62,12 @@ export function FloatingComms() {
   const [activeTab, setActiveTab] = useState<Tab>('messaging');
   const isMobile = useIsMobile();
 
+  const { data: convData } = useConversations();
+  const totalUnread = (convData?.conversations || []).reduce((sum, c) => sum + c.unread_count, 0);
+
   // Hide on comms page where full messaging + agent are available
   const isCommsPage = window.location.pathname.startsWith('/comms');
   if (isCommsPage) return null;
-
-  // Messaging unread count for badge on FAB
-  const { data: convData } = useConversations();
-  const totalUnread = (convData?.conversations || []).reduce((sum, c) => sum + c.unread_count, 0);
 
   return (
     <div className={cn('fixed z-50 flex flex-col items-end gap-3', isMobile ? 'bottom-4 right-4' : 'bottom-6 right-6')}>
@@ -75,7 +75,7 @@ export function FloatingComms() {
       {open && (
         <div
           className={cn(
-            'rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden transition-all duration-300',
+            'border-2 border-strong-border bg-background flex flex-col overflow-hidden transition-[width,height] duration-200 motion-reduce:transition-none',
             expanded
               ? isMobile ? 'w-screen h-[85vh]' : 'w-[85vw] h-[85vh] max-w-[1200px]'
               : isMobile ? 'w-[calc(100vw-1.5rem)] h-[70vh]' : 'w-[420px] h-[560px]'
@@ -88,10 +88,10 @@ export function FloatingComms() {
               <button
                 onClick={() => setActiveTab('messaging')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5',
+                  'flex min-h-11 items-center gap-1.5 border border-primary-foreground/40 px-3 py-1.5 text-sm font-bold transition-colors motion-reduce:transition-none',
                   activeTab === 'messaging'
                     ? 'bg-primary-foreground/20'
-                    : 'hover:bg-primary-foreground/10 opacity-75'
+                    : 'hover:bg-primary-foreground/10'
                 )}
               >
                 <MessageSquare className="h-3.5 w-3.5" />
@@ -105,10 +105,10 @@ export function FloatingComms() {
               <button
                 onClick={() => setActiveTab('chat')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5',
+                  'flex min-h-11 items-center gap-1.5 border border-primary-foreground/40 px-3 py-1.5 text-sm font-bold transition-colors motion-reduce:transition-none',
                   activeTab === 'chat'
                     ? 'bg-primary-foreground/20'
-                    : 'hover:bg-primary-foreground/10 opacity-75'
+                    : 'hover:bg-primary-foreground/10'
                 )}
               >
                 <Bot className="h-3.5 w-3.5" />
@@ -118,14 +118,14 @@ export function FloatingComms() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setExpanded(e => !e)}
-                className="p-1.5 rounded-md hover:bg-primary-foreground/10 transition-colors"
+                className="min-h-11 min-w-11 p-1.5 hover:bg-primary-foreground/10 transition-colors"
                 aria-label={expanded ? 'Minimize' : 'Expand'}
               >
                 {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
               <button
                 onClick={() => { setOpen(false); setExpanded(false); }}
-                className="p-1.5 rounded-md hover:bg-primary-foreground/10 transition-colors"
+                className="min-h-11 min-w-11 p-1.5 hover:bg-primary-foreground/10 transition-colors"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -143,7 +143,7 @@ export function FloatingComms() {
       {/* Floating Action Button */}
       <Button
         size="icon"
-        className="h-14 w-14 min-h-[48px] min-w-[48px] rounded-full shadow-lg"
+        className="h-14 w-14 min-h-[48px] min-w-[48px] border-2 border-strong-border"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close communications' : 'Open communications'}
       >
@@ -153,7 +153,7 @@ export function FloatingComms() {
           <div className="relative">
             <MessageSquare className="h-5 w-5" />
             {totalUnread > 0 && (
-              <span className="absolute -top-2 -right-2 h-4 min-w-4 px-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center border border-background bg-destructive px-0.5 text-[10px] font-bold text-destructive-foreground">
                 {totalUnread > 9 ? '9+' : totalUnread}
               </span>
             )}
@@ -315,7 +315,7 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
               value={memberSearch}
               onChange={e => setMemberSearch(e.target.value)}
             />
-            <ScrollArea className="h-40 border rounded-md">
+            <ScrollArea className="h-40 rounded-none border-2 border-strong-border">
               {filteredMembers.map(m => (
                 <button
                   key={m.id}
@@ -527,7 +527,7 @@ function ConversationView({
             {conv.title || conv.participants.map((p: any) => p.display_name).join(', ')}
           </p>
           <div className="flex items-center gap-1 mt-0.5">
-            <span className={cn('h-1.5 w-1.5 rounded-full', isConnected ? 'bg-green-500' : 'bg-red-500')} />
+            <span className={cn('h-1.5 w-1.5', isConnected ? 'bg-success' : 'bg-destructive')} />
             <span className="text-[10px] text-muted-foreground">
               {isConnected ? 'Connected' : 'Disconnected'}
             </span>
@@ -545,7 +545,7 @@ function ConversationView({
             >
               <div
                 className={cn(
-                  'max-w-[80%] rounded-xl px-3 py-2',
+                  'max-w-[80%] border-2 border-strong-border px-3 py-2',
                   msg.sender_id === memberId
                     ? 'bg-primary text-primary-foreground rounded-br-sm'
                     : 'bg-muted rounded-bl-sm'
@@ -654,7 +654,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowSessions(false)} className="p-1 rounded hover:bg-muted transition-colors">
+            <button onClick={() => setShowSessions(false)} className="rounded-[2px] border-2 border-strong-border p-1 transition-colors hover:bg-muted">
               <ArrowLeft className="h-3.5 w-3.5" />
             </button>
             <span className="text-sm font-semibold">Chat History</span>
@@ -720,7 +720,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
               </Button>
               {privacy !== 'private' && shareToken && (
                 <Button variant="ghost" size="sm" onClick={handleShare} className="h-7 px-1.5 text-xs" title="Copy share link">
-                  {copied ? <Check className="h-3 w-3 text-green-500" /> : <Share2 className="h-3 w-3" />}
+                  {copied ? <Check className="h-3 w-3 text-success" /> : <Share2 className="h-3 w-3" />}
                 </Button>
               )}
             </>
@@ -765,7 +765,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
           {messages.map((msg, i) => (
             <div key={i}>
               {msg.skill && (
-                <div className="flex items-center justify-center gap-1.5 my-2 py-1.5 bg-primary/5 rounded-lg text-xs">
+                <div className="my-2 flex items-center justify-center gap-1.5 border-y border-border bg-primary/5 py-1.5 text-xs">
                   <ArrowRight className="h-3 w-3 text-primary" />
                   <span className="text-muted-foreground">Skill:</span>
                   <span className="font-semibold text-primary">{msg.skill}</span>
@@ -774,7 +774,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
 
               <div className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                 {msg.role === 'assistant' && (
-                  <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center bg-primary">
                     <Bot className="h-3 w-3 text-primary-foreground" />
                   </div>
                 )}
@@ -790,7 +790,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                       {msg.tools.map((tool, ti) => (
                         <div
                           key={ti}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 border-l-2 border-primary/30 rounded-r text-[10px]"
+                          className="flex items-center gap-1.5 rounded-r-sm border-l-2 border-primary bg-muted/50 px-2 py-1 text-[10px]"
                         >
                           <Wrench className="h-2.5 w-2.5 text-muted-foreground" />
                           <code className="font-mono">{tool.name}</code>
@@ -807,7 +807,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
 
                   <div
                     className={cn(
-                      'rounded-xl px-3 py-2',
+                      'border-2 border-strong-border px-3 py-2',
                       msg.role === 'user'
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-muted rounded-bl-sm'
@@ -819,10 +819,21 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                           remarkPlugins={[remarkGfm]}
                           components={{
                             a: ({ href, children }) => {
-                              if (href?.startsWith('/')) {
-                                return <Link href={href} className="text-primary underline hover:text-primary/80">{children}</Link>;
+                              const internalHref = resolveInternalPath(href);
+                              if (internalHref) {
+                                return <Link href={internalHref} className="text-primary underline hover:text-primary/80">{children}</Link>;
                               }
-                              return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                              const safeHref = resolveExternalUrl(href);
+                              return safeHref
+                                ? <a href={safeHref} target="_blank" rel="noopener noreferrer">{children}</a>
+                                : <span>{children}</span>;
+                            },
+                            img: ({ src, alt }) => {
+                              const internalSrc = resolveInternalPath(src);
+                              const safeSrc = resolveMediaUrl(internalSrc);
+                              return safeSrc
+                                ? <img src={safeSrc} alt={alt || ''} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="my-2 max-h-48 w-auto border-2 border-strong-border object-contain" />
+                                : <span role="note" className="my-2 block border border-border px-2 py-1 text-[10px] text-muted-foreground">{alt ? `External image blocked: ${alt}` : 'External image blocked'}</span>;
                             },
                           }}
                         >
@@ -839,16 +850,19 @@ function ChatTab({ expanded }: { expanded: boolean }) {
 
                   {msg.role === 'assistant' && msg.artifacts && msg.artifacts.length > 0 && !msg.isStreaming && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {msg.artifacts.map((a, ai) => (
-                        <Link
-                          key={ai}
-                          href={a.route}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors"
-                        >
-                          <ArrowRight className="h-2.5 w-2.5" />
-                          {a.label}
-                        </Link>
-                      ))}
+                      {msg.artifacts.map((a, ai) => {
+                        const route = resolveInternalPath(a.route);
+                        return route ? (
+                          <Link
+                            key={ai}
+                            href={route}
+                            className="inline-flex items-center gap-1 rounded-[2px] border-2 border-primary bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20"
+                          >
+                            <ArrowRight className="h-2.5 w-2.5" />
+                            {a.label}
+                          </Link>
+                        ) : null;
+                      })}
                     </div>
                   )}
 
@@ -861,7 +875,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                 </div>
 
                 {msg.role === 'user' && (
-                  <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center bg-secondary">
                     <User className="h-3 w-3 text-secondary-foreground" />
                   </div>
                 )}

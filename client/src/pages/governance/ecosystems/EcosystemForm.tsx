@@ -109,17 +109,17 @@ export default function EcosystemForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href={isEdit ? `/ecosystems/${editId}` : '/ecosystems'}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={isEdit ? `/ecosystems/${editId}` : '/ecosystems'}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           {isEdit ? 'Back to Ecosystem' : 'Back to Ecosystems'}
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Ecosystem' : 'New Ecosystem'}</h1>
 
       {mutationError && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutationError as Error).message}
         </div>
       )}
@@ -255,9 +255,9 @@ export default function EcosystemForm() {
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Ecosystem' : 'Create Ecosystem')}
               </Button>
-              <Link href={isEdit ? `/ecosystems/${editId}` : '/ecosystems'}>
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href={isEdit ? `/ecosystems/${editId}` : '/ecosystems'}>Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

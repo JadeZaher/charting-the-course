@@ -37,7 +37,7 @@ export function ReflectionStep({ step, onComplete }: Props) {
         {step.required && (
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Minimum {MIN_REQUIRED_CHARS} characters required</span>
-            <span className={text.trim().length >= MIN_REQUIRED_CHARS ? 'text-green-600' : ''}>
+            <span className={text.trim().length >= MIN_REQUIRED_CHARS ? 'text-success' : ''}>
               {text.trim().length} chars
             </span>
           </div>

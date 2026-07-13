@@ -60,7 +60,7 @@ export function TileRenderer({ tile, isOwner = false, onToggleVisibility }: Tile
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm"
+          className="absolute right-2 top-2 border border-strong-border bg-background opacity-0 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
           onClick={() => onToggleVisibility(tile.id, !tile.is_visible)}
           data-testid={`button-toggle-visibility-${tile.id}`}
         >

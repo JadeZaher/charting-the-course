@@ -100,17 +100,17 @@ export default function RepairAgreementForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href={`/conflicts/${conflictId}`}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`/conflicts/${conflictId}`}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Conflict
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">New Repair Agreement</h1>
 
       {mutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutation.error as Error).message}
         </div>
       )}
@@ -118,11 +118,11 @@ export default function RepairAgreementForm() {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-4">
-              <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+            <div className="border border-info bg-info/10 p-5 text-info">
+              <p className="text-sm font-bold">
                 Building a Path to Repair
               </p>
-              <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+              <p className="mt-1 text-sm">
                 This agreement captures the commitments made to address harm and rebuild trust.
                 Each commitment should be specific, measurable, and have a clear timeline.
               </p>
@@ -265,11 +265,11 @@ export default function RepairAgreementForm() {
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? 'Saving...' : 'Create Agreement'}
               </Button>
-              <Link href={`/conflicts/${conflictId}`}>
-                <Button type="button" variant="outline">
+              <Button asChild variant="outline">
+                <Link href={`/conflicts/${conflictId}`}>
                   Cancel
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </form>
         </CardContent>

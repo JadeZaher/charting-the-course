@@ -17,14 +17,14 @@ export function JourneyMapCard({ map, isRecommended, misalignmentFlags, onSelect
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left rounded-xl border-2 p-4 transition-all duration-150 ${
+      className={`w-full border-2 p-5 text-left transition-colors motion-reduce:transition-none ${
         isSelected
           ? 'border-primary bg-primary/5'
           : 'border-border bg-card hover:border-primary/40'
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className={`mt-0.5 rounded-full p-1.5 flex-shrink-0 ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+        <div className={`mt-0.5 flex-shrink-0 border p-1.5 ${isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted'}`}>
           {isSelected ? <CheckCircle className="h-4 w-4" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
         </div>
         <div className="flex-1 min-w-0">
@@ -45,8 +45,8 @@ export function JourneyMapCard({ map, isRecommended, misalignmentFlags, onSelect
           </div>
           {misalignmentFlags && misalignmentFlags.length > 0 && (
             <div className="mt-2 flex items-start gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-0.5">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-warning" />
+              <ul className="space-y-0.5 text-xs text-warning">
                 {misalignmentFlags.map((f, i) => <li key={i}>{f}</li>)}
               </ul>
             </div>

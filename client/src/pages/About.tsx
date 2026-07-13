@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "wouter";
 import {
   ScrollText,
@@ -18,6 +16,8 @@ import {
   ArrowRight,
   Globe,
   Leaf,
+  Check,
+  X,
 } from "lucide-react";
 
 const LAYERS_DETAIL = [
@@ -106,7 +106,7 @@ const LAYERS_DETAIL = [
 const TERMINOLOGY = [
   {
     term: "ETHOS",
-    def: "Ecosystem Transforming Holistic Operating System -- the full governance framework that NEOS implements.",
+    def: "Ecosystem Transforming Holistic Operating System — the full governance framework that NEOS implements.",
   },
   {
     term: "Current-See",
@@ -118,7 +118,7 @@ const TERMINOLOGY = [
   },
   {
     term: "ACT",
-    def: "Advice-Consent-Test -- the three-phase decision protocol at the heart of NEOS governance.",
+    def: "Advice-Consent-Test — the three-phase decision protocol at the heart of NEOS governance.",
   },
   {
     term: "Agreement Field",
@@ -138,212 +138,183 @@ const TERMINOLOGY = [
   },
 ];
 
+const IS_ITEMS = [
+  "A complete governance stack with 54 skills across 10 layers",
+  "Open source software you can fork, adapt, and run yourself",
+  "A platform for consent-based decision-making at any scale",
+  "AI-augmented — assistants guide, but never decide",
+  "Designed around dignity, sovereignty, and collective intelligence",
+];
+
+const IS_NOT_ITEMS = [
+  "A blockchain, token, or crypto project",
+  "A voting platform — consent is not majority rule",
+  "A corporate hierarchy tool rebranded as flat",
+  "A platform where AI makes decisions for humans",
+  "A utopian experiment — it is practical governance infrastructure",
+];
+
 export default function About() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b px-6 py-3">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
+      <nav className="sticky top-0 z-50 border-b border-foreground bg-background">
+        <div className="flex min-h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/">
+              <ArrowLeft className="h-4 w-4" />
+              Home
+            </Link>
+          </Button>
+          <p className="hidden text-xs font-black uppercase tracking-[0.18em] sm:block">NEOS / System brief</p>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button asChild size="sm">
+              <Link href="/login">Get started</Link>
             </Button>
-          </Link>
-          <Link href="/login">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              Get Started
-            </Button>
-          </Link>
+          </div>
         </div>
       </nav>
 
-      <article className="max-w-4xl mx-auto px-6 py-16 space-y-20">
-        {/* Header */}
-        <header className="space-y-6">
-          <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
-            About NEOS
-          </Badge>
-          <h1 className="text-4xl sm:text-5xl font-bold leading-tight">
-            The New Earth Operating System
-          </h1>
-          <p className="text-xl text-muted-foreground leading-relaxed max-w-3xl">
-            NEOS is a governance platform for communities that want to make decisions together
-            without concentrating power in the hands of a few. It is built on decades of
-            experience with sociocracy, consent-based governance, and distributed organizing.
-          </p>
+      <main>
+        <header className="grid border-b border-foreground lg:grid-cols-12">
+          <div className="px-4 py-16 sm:px-6 lg:col-span-8 lg:px-8 lg:py-24">
+            <p className="text-xs font-bold uppercase tracking-[0.18em]">About NEOS / 2026</p>
+            <h1 className="mt-10 max-w-5xl text-[clamp(3.5rem,8vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.07em]">
+              The New Earth Operating System.
+            </h1>
+          </div>
+          <div className="flex items-end border-t border-foreground bg-foreground p-6 text-background lg:col-span-4 lg:border-l lg:border-t-0 lg:p-8">
+            <p className="max-w-md text-lg font-medium leading-relaxed">
+              Governance infrastructure for communities that make decisions together without concentrating power in the hands of a few.
+            </p>
+          </div>
         </header>
 
-        <Separator />
-
-        {/* What NEOS Is / Isn't */}
-        <section className="space-y-8">
-          <h2 className="text-3xl font-bold">What NEOS Is</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">It is...</h3>
-              <ul className="space-y-3 text-muted-foreground">
-                <li className="flex gap-2">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">+</span>
-                  A complete governance stack with 54 skills across 10 layers
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">+</span>
-                  Open source software you can fork, adapt, and run yourself
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">+</span>
-                  A platform for consent-based decision-making at any scale
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">+</span>
-                  AI-augmented -- assistants guide, but never decide
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">+</span>
-                  Designed around dignity, sovereignty, and collective intelligence
-                </li>
-              </ul>
+        <section className="grid border-b border-foreground lg:grid-cols-2">
+          <div className="p-4 sm:p-6 lg:p-8">
+            <div className="mb-8 flex items-center justify-between border-b border-foreground pb-4">
+              <h2 className="text-3xl font-black uppercase tracking-[-0.03em]">It is</h2>
+              <Check className="h-7 w-7" aria-hidden="true" />
             </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-red-600 dark:text-red-400">It is not...</h3>
-              <ul className="space-y-3 text-muted-foreground">
-                <li className="flex gap-2">
-                  <span className="text-red-500 font-bold shrink-0">-</span>
-                  A blockchain, token, or crypto project
+            <ul className="divide-y divide-border border-y border-border">
+              {IS_ITEMS.map((item, index) => (
+                <li key={item} className="grid grid-cols-[2.5rem_1fr] gap-3 py-4 text-sm leading-relaxed sm:text-base">
+                  <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
+                  <span>{item}</span>
                 </li>
-                <li className="flex gap-2">
-                  <span className="text-red-500 font-bold shrink-0">-</span>
-                  A voting platform (consent is not majority rule)
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-red-500 font-bold shrink-0">-</span>
-                  A corporate hierarchy tool rebranded as "flat"
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-red-500 font-bold shrink-0">-</span>
-                  A platform where AI makes decisions for humans
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-red-500 font-bold shrink-0">-</span>
-                  A utopian experiment -- it is practical governance infrastructure
-                </li>
-              </ul>
+              ))}
+            </ul>
+          </div>
+          <div className="border-t border-foreground bg-card p-4 sm:p-6 lg:border-l lg:border-t-0 lg:p-8">
+            <div className="mb-8 flex items-center justify-between border-b border-foreground pb-4">
+              <h2 className="text-3xl font-black uppercase tracking-[-0.03em]">It is not</h2>
+              <X className="h-7 w-7" aria-hidden="true" />
             </div>
+            <ul className="divide-y divide-border border-y border-border">
+              {IS_NOT_ITEMS.map((item, index) => (
+                <li key={item} className="grid grid-cols-[2.5rem_1fr] gap-3 py-4 text-sm leading-relaxed sm:text-base">
+                  <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
-        <Separator />
+        <section className="border-b border-foreground px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mb-12 grid gap-6 lg:grid-cols-12">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] lg:col-span-3">01 / Architecture</p>
+            <div className="lg:col-span-9">
+              <h2 className="text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl">The 10 governance layers.</h2>
+              <p className="mt-5 max-w-3xl text-lg leading-relaxed text-muted-foreground">
+                Each layer addresses a fundamental governance need. Together they form an interlocking system in which capture of one layer is checked by the others.
+              </p>
+            </div>
+          </div>
 
-        {/* 10 Layers Detail */}
-        <section className="space-y-8">
-          <h2 className="text-3xl font-bold">The 10 Governance Layers</h2>
-          <p className="text-muted-foreground text-lg">
-            Each layer addresses a fundamental governance need. Together they form a complete,
-            interlocking system where no single layer can be captured without the others providing checks.
-          </p>
-
-          <div className="space-y-6">
+          <div className="border-l border-t border-foreground">
             {LAYERS_DETAIL.map((layer) => (
-              <Card key={layer.num} className="overflow-hidden">
-                <CardContent className="p-6 flex gap-5 items-start">
-                  <div className="shrink-0 w-12 h-12 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
-                    <layer.icon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="space-y-2 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tracking-widest">
-                        Layer {layer.num}
-                      </span>
-                      <h3 className="text-lg font-semibold">{layer.name}</h3>
-                    </div>
-                    <p className="text-sm font-medium text-muted-foreground">{layer.short}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{layer.detail}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <article key={layer.num} className="grid border-b border-r border-foreground bg-card sm:grid-cols-[5rem_1fr] lg:grid-cols-[7rem_15rem_1fr]">
+                <div className="flex items-center justify-between border-b border-foreground p-5 sm:flex-col sm:items-start sm:border-b-0 sm:border-r lg:p-6">
+                  <span className="text-xs font-black tracking-[0.18em]">{layer.num}</span>
+                  <layer.icon className="h-6 w-6" aria-hidden="true" />
+                </div>
+                <div className="border-b border-foreground p-5 sm:col-start-2 sm:border-b-0 lg:border-r lg:p-6">
+                  <h3 className="text-xl font-black uppercase">{layer.name}</h3>
+                  <p className="mt-2 text-sm font-medium leading-relaxed text-muted-foreground">{layer.short}</p>
+                </div>
+                <p className="p-5 text-sm leading-relaxed text-muted-foreground sm:col-span-2 lg:col-span-1 lg:p-6">{layer.detail}</p>
+              </article>
             ))}
           </div>
         </section>
 
-        <Separator />
-
-        {/* First Ecosystem */}
-        <section className="space-y-8">
-          <div className="flex items-center gap-3">
-            <Globe className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
-            <h2 className="text-3xl font-bold">The First Ecosystem: OmniOne</h2>
+        <section className="grid border-b border-foreground lg:grid-cols-12">
+          <div className="bg-foreground p-6 text-background sm:p-8 lg:col-span-4 lg:p-10">
+            <Globe className="h-8 w-8" aria-hidden="true" />
+            <p className="mt-16 text-xs font-bold uppercase tracking-[0.18em] text-background/70">First live ecosystem</p>
+            <h2 className="mt-5 text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-5xl">OmniOne, Bali.</h2>
           </div>
+          <div className="p-6 sm:p-8 lg:col-span-8 lg:p-12">
+            <div className="flex items-center gap-3 border-b border-foreground pb-5">
+              <Leaf className="h-5 w-5" aria-hidden="true" />
+              <h3 className="text-xl font-black uppercase">Governance in practice</h3>
+            </div>
+            <div className="mt-8 grid gap-6 text-base leading-relaxed text-muted-foreground md:grid-cols-2">
+              <p>
+                The first NEOS ecosystem is OmniOne, based in Bali, Indonesia and stewarded by Green Earth Vision. It is the proving ground where real communities use ACT, circles, and all ten governance layers.
+              </p>
+              <p>
+                From composting policies to resource allocation, conflict repair, and member onboarding, OmniOne demonstrates that consent-based governance works in practice, not just in theory.
+              </p>
+            </div>
+          </div>
+        </section>
 
-          <Card className="overflow-hidden border-emerald-200 dark:border-emerald-800">
-            <CardContent className="p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <Leaf className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="text-xl font-semibold">OmniOne, Bali</h3>
+        <section className="border-b border-foreground px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mb-12 grid gap-6 lg:grid-cols-12">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] lg:col-span-3">02 / Working language</p>
+            <h2 className="text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl lg:col-span-9">Key terminology.</h2>
+          </div>
+          <dl className="grid border-l border-t border-foreground sm:grid-cols-2">
+            {TERMINOLOGY.map((item, index) => (
+              <div key={item.term} className="min-h-48 border-b border-r border-foreground bg-card p-6 sm:p-8">
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-xl font-black uppercase">{item.term}</dt>
+                  <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
+                </div>
+                <dd className="mt-8 max-w-xl text-sm leading-relaxed text-muted-foreground">{item.def}</dd>
               </div>
-              <p className="text-muted-foreground leading-relaxed">
-                The first NEOS ecosystem is OmniOne, based in Bali, Indonesia. It is stewarded by
-                Green Earth Vision, a 501(c)(3) nonprofit organization. OmniOne serves as the proving ground
-                for NEOS governance, where real communities are using the ACT process, circles, and
-                all 10 governance layers to coordinate their shared life.
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                From composting policies to resource allocation, from conflict resolution to
-                onboarding new members -- OmniOne demonstrates that consent-based governance
-                works in practice, not just in theory.
-              </p>
-            </CardContent>
-          </Card>
-        </section>
-
-        <Separator />
-
-        {/* Terminology */}
-        <section className="space-y-8">
-          <h2 className="text-3xl font-bold">Key Terminology</h2>
-          <p className="text-muted-foreground text-lg">
-            NEOS uses specific terms to describe its governance concepts. Here is a quick reference.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            {TERMINOLOGY.map((item) => (
-              <Card key={item.term} className="hover:shadow-sm transition-shadow">
-                <CardContent className="p-5 space-y-2">
-                  <h3 className="font-bold text-emerald-700 dark:text-emerald-400">{item.term}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{item.def}</p>
-                </CardContent>
-              </Card>
             ))}
-          </div>
+          </dl>
         </section>
 
-        <Separator />
-
-        {/* CTA */}
-        <section className="text-center space-y-6 py-8">
-          <h2 className="text-3xl font-bold">Join the Movement</h2>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Whether you want to join an existing ecosystem or start one of your own,
-            NEOS gives you the tools to govern together.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/login">
-              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-8">
-                Get Started
-                <ArrowRight className="ml-2 w-4 h-4" />
+        <section className="bg-foreground px-4 py-16 text-background sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid items-end gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-background/70">Your community can begin here</p>
+              <h2 className="mt-6 text-5xl font-black uppercase leading-[0.9] tracking-[-0.05em] sm:text-7xl">Govern together.</h2>
+            </div>
+            <div className="flex flex-col gap-3 lg:col-span-4">
+              <Button asChild size="lg" variant="secondary" className="w-full justify-between">
+                <Link href="/login">
+                  Get started
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </Button>
-            </Link>
-            <Link href="/">
-              <Button size="lg" variant="outline">
-                Back to Home
+              <Button asChild size="lg" variant="outline" className="w-full border-background/60 text-background hover:bg-background hover:text-foreground">
+                <Link href="/">
+                  Back to home
+                </Link>
               </Button>
-            </Link>
+            </div>
           </div>
         </section>
-      </article>
+      </main>
 
-      <footer className="py-8 px-6 border-t text-center text-sm text-muted-foreground">
-        <p>NEOS -- New Earth Operating System. Open source. Community governed.</p>
+      <footer className="flex flex-col gap-2 border-t border-foreground px-4 py-6 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <p>NEOS — New Earth Operating System</p>
+        <p>Open source · Community governed</p>
       </footer>
     </div>
   );

@@ -120,7 +120,7 @@ export default function EmergencyDashboard() {
               </>
             ) : (
               <>
-                <ShieldCheck className="h-5 w-5 text-green-600" />
+                <ShieldCheck className="h-5 w-5 text-success" />
                 System Normal
               </>
             )}
@@ -152,9 +152,9 @@ export default function EmergencyDashboard() {
                 </dd>
               </div>
               <div>
-                <Link href={`/emergency/${data.current.id}`}>
-                  <Button variant="outline" size="sm">View Details</Button>
-                </Link>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/emergency/${data.current.id}`}>View Details</Link>
+                </Button>
               </div>
             </dl>
           ) : (
@@ -172,7 +172,7 @@ export default function EmergencyDashboard() {
           </CardHeader>
           <CardContent>
             {declareMutation.error && (
-              <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm mb-4">
+              <div className="mb-4 rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
                 {(declareMutation.error as Error).message}
               </div>
             )}

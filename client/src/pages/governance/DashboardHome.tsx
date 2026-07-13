@@ -8,6 +8,7 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FileText, Vote, Users, Globe2, Scale, Clock } from 'lucide-react';
 import type { SummaryCard as SummaryCardType, ActivityItem } from '@/types/api';
+import { resolveInternalPath } from '@/lib/media';
 
 type ActivityFilter = 'all' | 'needs_input' | 'watching';
 
@@ -21,10 +22,11 @@ const iconMap: Record<string, React.ElementType> = {
 
 function SummaryCardComponent({ card }: { card: SummaryCardType }) {
   const Icon = iconMap[card.label] || FileText;
+  const href = resolveInternalPath(card.href) ?? '/governance';
 
   return (
-    <Link href={card.href}>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+    <Link href={href}>
+      <Card className="cursor-pointer border-strong-border transition-colors hover:bg-muted/40 motion-reduce:transition-none">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
           <Icon className="h-5 w-5 text-muted-foreground" />
@@ -48,10 +50,11 @@ function SummaryCardComponent({ card }: { card: SummaryCardType }) {
 
 function ActivityFeedItem({ item }: { item: ActivityItem }) {
   const timeAgo = new Date(item.timestamp).toLocaleDateString();
+  const href = resolveInternalPath(item.href) ?? '/governance';
 
   return (
-    <Link href={item.href}>
-      <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
+    <Link href={href}>
+      <div className="flex cursor-pointer items-start gap-3 border-b border-border p-4 transition-colors hover:bg-muted/50 motion-reduce:transition-none">
         <div className="mt-1">
           <Clock className="h-4 w-4 text-muted-foreground" />
         </div>
@@ -105,7 +108,7 @@ export default function GovernanceDashboard() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle>Recent Activity</CardTitle>
-            <div className="flex gap-1 rounded-lg bg-muted p-1">
+            <div className="flex gap-1 border border-strong-border bg-muted p-1">
               {([
                 { key: 'all' as const, label: 'All Activity' },
                 { key: 'needs_input' as const, label: 'Needs My Input' },

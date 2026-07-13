@@ -1,225 +1,108 @@
-# Design Guidelines: Course & Team Management Platform
+# NEOS Design System — Signal Paper / Black Index
 
-## Design Approach
+## Direction
 
-**System-Based with Educational Platform References**  
-Using Material Design principles as the foundation, enhanced with patterns from modern learning platforms (Notion, Canvas, Linear). This approach prioritizes clarity, efficiency, and progressive disclosure of complex information while maintaining an inviting, approachable aesthetic suitable for educational contexts.
+NEOS is a functional Swiss-brutalist information system: warm paper in light mode, a true-black index in dark mode, oversized sans-serif hierarchy, hard rules, and generous internal space. The interface should feel editorial and exact rather than decorative.
 
-**Core Principles:**
-- Information hierarchy through typography and spacing, not excessive color
-- Progressive disclosure for complex admin features
-- Consistent, predictable interaction patterns across roles
-- Visual feedback that builds confidence in user actions
+The system has five rules:
 
----
+1. Information leads; decoration recedes.
+2. Outer gutters stay economical while panels and sections have ample internal space.
+3. Hierarchy comes from scale, weight, rules, and inversion—not shadows or gradients.
+4. Every color is a semantic role with a tested foreground partner.
+5. Discovery surfaces may be image-rich, but imagery must carry meaning and preserve readable controls.
 
-## Color Palette
+## Color roles
 
-### Light Mode
-- **Primary**: 220 85% 55% (Calm, trustworthy blue - course actions, navigation)
-- **Primary Hover**: 220 85% 48%
-- **Secondary**: 265 70% 60% (Supporting purple - secondary actions, facilitator features)
-- **Success**: 145 70% 45% (Quiz completion, progress indicators)
-- **Warning**: 35 90% 55% (Pending items, draft status)
-- **Error**: 0 75% 55% (Failed uploads, validation errors)
-- **Background**: 210 15% 98%
-- **Surface**: 0 0% 100% (Cards, panels)
-- **Border**: 210 12% 88%
-- **Text Primary**: 215 20% 20%
-- **Text Secondary**: 215 15% 45%
+Use tokens from `client/src/index.css`; never copy these values into components.
 
-### Dark Mode
-- **Primary**: 220 75% 60%
-- **Primary Hover**: 220 75% 68%
-- **Secondary**: 265 60% 65%
-- **Success**: 145 60% 50%
-- **Warning**: 35 80% 60%
-- **Error**: 0 70% 60%
-- **Background**: 215 25% 12%
-- **Surface**: 215 20% 16%
-- **Border**: 215 15% 24%
-- **Text Primary**: 210 15% 92%
-- **Text Secondary**: 210 12% 70%
+| Role | Light | Dark | Use |
+|---|---:|---:|---|
+| Page | `#F2EDE3` | `#000000` | Application canvas |
+| Surface | `#FFFDF8` | `#0A0A0A` | Cards, menus, panels |
+| Text | `#15130F` | `#F7F2E8` | Primary copy and strong rules |
+| Muted text | `#5E584E` | `#AAA49A` | Metadata and supporting copy |
+| Border | `#C8BEAF` | `#2D2D2D` | Structural rules |
+| Control border | `#6C655A` | `#7A756D` | Inputs and inactive controls |
+| Link / focus / info | `#1739D6` | `#82A7FF` | Links, keyboard focus, selected data |
+| Success | `#146B43` | `#66D69A` | Confirmed and healthy states |
+| Warning | `#855600` | `#F5BD57` | Pending or caution states |
+| Destructive | `#A42B24` | `#FF8B7C` | Errors and destructive actions |
 
----
+Default actions use foreground/background inversion. Blue is reserved for links, focus, and informational data—not generic decoration. Status meaning must include text or an icon; never rely on hue alone.
 
 ## Typography
 
-**Font Families:**
-- **Primary**: Inter (via Google Fonts CDN) - UI text, body content
-- **Headings**: Inter (weight variation for hierarchy)
-- **Code/Data**: JetBrains Mono - JSON displays, technical content
+- Primary: Inter, with Helvetica Neue and Arial fallbacks.
+- Data and code: JetBrains Mono.
+- Use weights 400–900. Page titles are 800+, compact, and tightly tracked.
+- Display: `text-display`; page title: `text-page-title`; metrics: `text-metric`.
+- Kicker/index labels: 10–11 px, 800 weight, uppercase, wide tracking.
+- Body copy stays 14–16 px with relaxed leading and a maximum reading width of `68ch`.
+- Avoid serif display copy, lightweight headings, and centered paragraphs longer than two lines.
 
-**Scale:**
-- **Hero/Page Titles**: text-4xl font-bold (36px) - Dashboard welcome, page headers
-- **Section Headers**: text-2xl font-semibold (24px) - Card titles, panel headers
-- **Subsections**: text-lg font-medium (18px) - Quiz titles, module names
-- **Body**: text-base (16px) - Primary reading content
-- **Supporting**: text-sm (14px) - Metadata, timestamps, helper text
-- **Micro**: text-xs (12px) - Labels, badges, status indicators
+## Layout and spacing
 
----
+- The route canvas is full width. Do not add a page-level `max-w-*` wrapper.
+- `--page-gutter` controls economical outer spacing: 16–32 px fluid.
+- `--panel-padding` controls generous internal space: 20–36 px fluid.
+- `--section-gap` separates major narratives: 40–72 px fluid.
+- Restrict only prose, narrow forms, or intentional detail rails—not dashboards or discovery grids.
+- Prefer ruled grids and asymmetric editorial compositions. Dense data may use responsive columns; preserve a clear reading order at narrow widths.
+- On mobile, stack detail panels, keep the primary action reachable, and allow data tables to scroll horizontally.
 
-## Layout System
+## Geometry and depth
 
-**Spacing Primitives**: 2, 4, 6, 8, 12, 16, 20 (Tailwind units)
-- **Micro spacing**: 2, 4 (icon-text gaps, tight groupings)
-- **Component spacing**: 6, 8 (card padding, form field gaps)
-- **Section spacing**: 12, 16, 20 (between major content blocks)
+- Corners are square, with a maximum radius of 2 px.
+- Reserve full circles for true avatars, radio indicators, and status dots; never use pill geometry for containers or ordinary actions.
+- Use 1 px dividers and 2 px structural or interactive borders.
+- Do not use gradients, glass blur, soft drop shadows, floating cards, or glow effects.
+- Depth is expressed with containment, overlap, hard rules, inversion, and at most a deliberate hard-offset shadow.
+- Controls have a minimum 44 px target. Compact checkboxes, radios, and switches use expanded invisible hit areas.
 
-**Grid Structure:**
-- **Max Content Width**: max-w-7xl (1280px) for main content areas
-- **Dashboard Cards**: Grid with gap-6, responsive (grid-cols-1 md:grid-cols-2 lg:grid-cols-3)
-- **Admin Control Panel**: Two-column layout (sidebar + main) with sidebar at w-64
-- **Forms**: Single column, max-w-2xl for readability
-
----
-
-## Component Library
+## Components
 
 ### Navigation
-**Top Navigation Bar:**
-- Fixed header with backdrop-blur-md bg-surface/90
-- Logo left, main navigation center, user profile right
-- Height: h-16
-- Shadow: shadow-sm in light mode, subtle border in dark mode
-- Active state: border-b-2 border-primary with text-primary
 
-**Role Indicator Badge:**
-- Small pill badge next to username (text-xs px-2 py-1 rounded-full)
-- Color-coded: Admin (primary), Facilitator (secondary), Contributor (success), Viewer (gray)
+The sidebar is a typographic index. Group labels use numbered or categorical kickers; the active destination uses full inversion and a hard left rule. `Discover` is the visual collaboration hub. `Solutions` is the ethos/orientation catalogue.
 
-### Cards & Containers
-**Standard Card:**
-- rounded-xl border border-border bg-surface
-- p-6 for content padding
-- hover:shadow-lg transition-shadow duration-200
-- Subtle elevation increase on hover
+### Buttons and inputs
 
-**Dashboard Stat Card:**
-- Compact height with large number (text-3xl font-bold)
-- Icon in top-right corner (h-8 w-8 opacity-60)
-- Trend indicator (small arrow + percentage)
+Primary buttons invert foreground and background. Secondary and outline controls use a 2 px rule. Hover states change fill or border; active states may shift by 1 px. Inputs are at least 44 px high with a 2 px control border and explicit labels.
 
-**Quiz Card:**
-- Horizontal layout: icon/thumbnail left, content center, status/action right
-- Status badges: rounded-lg px-3 py-1 text-sm font-medium
-- Progress bar: h-2 rounded-full bg-border with colored fill
+### Cards and panels
 
-### Forms & Inputs
-**Text Inputs:**
-- rounded-lg border-2 border-border focus:border-primary
-- px-4 py-3 text-base
-- Transition: transition-colors duration-150
-- Dark mode: bg-surface border-border text-text-primary
+Cards are bordered surfaces, not floating tiles. Use generous padding and strong headings. A card may become fully clickable only when it has one destination; otherwise keep actions explicit.
 
-**File Upload Zone:**
-- Dashed border (border-2 border-dashed border-border)
-- Large drop zone: min-h-48 rounded-xl
-- Center-aligned icon (upload cloud, h-12 w-12 text-text-secondary)
-- Hover state: bg-primary/5 border-primary
+### Tables and tabs
 
-**Buttons:**
-- Primary: bg-primary text-white rounded-lg px-6 py-3 font-medium
-- Secondary: bg-secondary text-white rounded-lg px-6 py-3 font-medium
-- Outline: border-2 border-primary text-primary bg-transparent
-- Sizes: Small (px-4 py-2 text-sm), Regular (px-6 py-3), Large (px-8 py-4 text-lg)
+Tables have sticky micro-label headers, ruled rows, 52 px target rows, and tabular numbers. Tabs form a full-width rule; the active tab is indicated by text and a 2 px underline.
 
-### Data Display
-**Table (Quiz Results, User List):**
-- Minimal borders: border-b border-border on rows only
-- Hover: bg-surface-hover (slight tint)
-- Headers: sticky top-0 bg-surface font-semibold text-sm uppercase tracking-wide
-- Cell padding: px-6 py-4
+### Charts
 
-**Progress Indicators:**
-- Circular: Use percentage with subtle gradient fill
-- Linear: h-2 rounded-full with animated gradient on completion
-- Colors map to success (>80%), warning (50-80%), error (<50%)
+Use semantic chart tokens and render axes, labels, legends, and tooltips with current theme roles. Provide direct values or a table alternative. Keep grid lines quiet, label important points directly, and do not communicate categories with color alone.
 
-**Map/Visual View:**
-- Canvas-based or SVG interactive diagram
-- Nodes: Circular for teams (w-20 h-20), rectangular for courses (w-32 h-24)
-- Connections: Dashed lines (stroke-dasharray) for pending, solid for active
-- Hover: Scale 1.05 with shadow-xl
-- Click: Border highlight with info panel slide-in from right
+## Dashboard and discovery imagery
 
-### Admin Control Panel
-**Sidebar Navigation:**
-- w-64 fixed left sidebar
-- bg-surface border-r border-border
-- Menu items: rounded-lg px-4 py-3 hover:bg-primary/10
-- Active: bg-primary text-white
-- Icons from Heroicons (use CDN)
+- Use rich images for people, places, ecosystems, projects, and editorial features—not as generic wallpaper.
+- Store a stable `image_url`, descriptive alt text, source, and credit when content is seeded.
+- Crop with a clear focal point. Prefer 4:3 or 3:2 editorial frames and square corners.
+- Keep text off busy image regions. If an image must sit behind text, use a hard opaque caption panel rather than a gradient overlay.
+- Use optimized responsive assets, lazy-load below the fold, and provide a deterministic fallback.
 
-**Data Tables with Actions:**
-- Row actions appear on hover (edit, delete icons)
-- Bulk actions: Checkbox column + sticky action bar at top when selected
-- Inline editing: Click to edit with save/cancel micro-actions
+## Motion and accessibility
 
----
+- Keyboard focus is always a 2 px blue outline with a 2 px offset.
+- Main routes expose a skip link and a focusable `#main-content` target.
+- Respect `prefers-reduced-motion`; no interaction depends on motion.
+- Preserve native zoom and text resizing.
+- Support `forced-colors` and visible selected, disabled, error, and loading states.
+- Theme preference supports Light, Dark, and System. The prepaint script and runtime provider must resolve themes identically.
+- Test representative states at 320 px, 768 px, 1280 px, and 200% zoom.
 
-## Interactions & Animations
+## Route language
 
-**Page Transitions:**
-- Fade in content: opacity-0 to opacity-100 over 200ms
-- Slide panels from right: translate-x-full to translate-x-0 over 300ms ease-out
-
-**Micro-interactions:**
-- Button press: Scale 0.98 on active
-- Card hover: Lift with shadow (translateY(-2px))
-- Checkbox/toggle: Smooth color transition over 150ms
-- File upload success: Green checkmark with scale-in animation
-
-**Loading States:**
-- Skeleton screens for initial page loads (bg-border animate-pulse)
-- Spinner for actions: Simple rotating ring (border-4 border-primary border-t-transparent)
-- Progressive loading: Cards appear with stagger delay (50ms each)
-
----
-
-## Page-Specific Layouts
-
-### Login Page
-- Centered card (max-w-md) on full-height viewport
-- Logo/brand at top
-- Form fields vertically stacked with gap-4
-- File upload zone below sign-in option with clear separator
-- Split layout option: Left (form), Right (hero image showing platform benefits)
-
-### Dashboard
-- Grid of 4 stat cards at top (grid-cols-1 md:grid-cols-2 lg:grid-cols-4)
-- Recent activity feed: Timeline layout with left border accent
-- Quick actions: Large button tiles (grid-cols-2 md:grid-cols-4)
-- Charts: Use Chart.js or similar, with primary color scheme
-
-### Quiz Pages
-**Take Quiz:** Step-by-step with progress bar, one question per view, large touch targets for options
-**Quiz Results:** Summary card with score visualization, detailed breakdown in accordion sections
-
-### Map View
-- Full-width canvas with zoom/pan controls in bottom-right corner
-- Sidebar toggles for filters and legend
-- Info panel slides in from right on node selection
-
----
-
-## Accessibility
-
-- Focus indicators: ring-2 ring-primary ring-offset-2
-- Keyboard navigation: Visible focus states throughout
-- Color contrast: All text meets WCAG AA standards (4.5:1 minimum)
-- Dark mode: Consistent implementation across all inputs, forms, and interactive elements
-- Screen reader labels on all interactive elements
-- Error messages: Clear, actionable text below affected fields
-
----
-
-## Images
-
-**Login Page Hero:** Abstract educational illustration (books, people collaborating, digital learning) - right side of split layout, soft gradient overlay  
-**Dashboard Welcome Section:** Optional small avatar/profile image, team photo thumbnail in recent activity  
-**Empty States:** Friendly illustrations for "no quizzes yet," "no teams assigned" with call-to-action buttons  
-**Map View Background:** Subtle grid pattern or abstract network visualization as canvas background  
-
-No large hero images needed on internal pages - focus on efficient information display and task completion.
+- `/discover`: visual, explorative collaboration hub.
+- `/solutions`: ethos catalogue and entry into orientation journeys.
+- `/explore` and `/discover/hub`: legacy redirects to `/discover`.
+- Navigation labels and active states must follow this ownership exactly.

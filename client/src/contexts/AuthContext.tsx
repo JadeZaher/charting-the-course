@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword, registerWithPassword, resetDid, linkDid, getOAuthUrl, fetchOAuthProviders } from '@/lib/api-client';
 import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, clearKeyPair, publicKeyToDid } from '@/lib/did-auth';
 import type { MemberSummary, EcosystemSummary, OAuthProvider } from '@/types/api';
+import { resolveExternalUrl } from '@/lib/media';
 
 interface AuthContextType {
   member: MemberSummary | null;
@@ -150,8 +151,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const { url } = await getOAuthUrl(provider);
+      const safeUrl = resolveExternalUrl(url);
+      if (!safeUrl) throw new Error('OAuth provider returned an invalid URL');
       // Redirect to OAuth provider — callback will set cookie and redirect back
-      window.location.href = url;
+      window.location.assign(safeUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OAuth failed');
       throw err;

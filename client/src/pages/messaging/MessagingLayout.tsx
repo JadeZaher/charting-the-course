@@ -96,7 +96,7 @@ export default function MessagingLayout() {
                 {activeConv.title || activeConv.participants.map(p => p.display_name).join(', ')}
               </h3>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className={`h-2 w-2 ${isConnected ? 'bg-success' : 'bg-destructive'}`} />
                 <span className="text-xs text-muted-foreground">
                   {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
@@ -110,7 +110,7 @@ export default function MessagingLayout() {
                     className={`flex ${msg.sender_id === member?.id ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[70%] rounded-lg p-3 ${
+                      className={`max-w-[70%] border p-3 ${
                         msg.sender_id === member?.id
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted'

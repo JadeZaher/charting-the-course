@@ -14,7 +14,8 @@ const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
 function base58Encode(bytes: Uint8Array): string {
   // Convert bytes to BigInt
   let num = BigInt(0);
-  for (const b of bytes) {
+  for (let index = 0; index < bytes.length; index += 1) {
+    const b = bytes[index];
     num = num * BigInt(256) + BigInt(b);
   }
   // Encode to base58
@@ -25,7 +26,8 @@ function base58Encode(bytes: Uint8Array): string {
     encoded = BASE58_ALPHABET[remainder] + encoded;
   }
   // Handle leading zeros
-  for (const b of bytes) {
+  for (let index = 0; index < bytes.length; index += 1) {
+    const b = bytes[index];
     if (b === 0) encoded = '1' + encoded;
     else break;
   }
@@ -50,6 +52,9 @@ export async function generateKeyPair(): Promise<{ publicKey: Uint8Array; privat
     true,
     ['sign', 'verify']
   );
+  if (!('privateKey' in keyPair)) {
+    throw new Error('Ed25519 key generation did not return a key pair.');
+  }
 
   const privateRaw = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
   const publicRaw = await crypto.subtle.exportKey('raw', keyPair.publicKey);

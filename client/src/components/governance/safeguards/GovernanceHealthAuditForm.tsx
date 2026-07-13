@@ -100,7 +100,7 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
         <div className="space-y-6 py-2">
           {/* Current health snapshot */}
           {latestAudit && (
-            <div className="border rounded-md p-3 bg-muted/50">
+            <div className="rounded-none border-2 border-strong-border bg-muted/50 p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Current Health Score</span>
                 <span className="text-lg font-bold">{(safeguards?.health_score ?? 0)} / 100</span>
@@ -121,10 +121,10 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
               <div className="grid grid-cols-2 gap-2">
                 {GHI_INDICATORS.map((indicator) => {
                   const score = scoreMap.get(indicator.id);
-                  const statusColor = score?.status === 'critical' ? 'text-red-600' :
-                    score?.status === 'warning' ? 'text-yellow-600' : 'text-green-600';
+                  const statusColor = score?.status === 'critical' ? 'text-destructive' :
+                    score?.status === 'warning' ? 'text-warning' : 'text-success';
                   return (
-                    <div key={indicator.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
+                    <div key={indicator.id} className="flex items-center justify-between rounded-none border-2 border-strong-border px-2 py-1.5 text-xs">
                       <span className="truncate mr-2">{indicator.name}</span>
                       <span className={`font-mono ${statusColor}`}>
                         {score?.measured_value ?? '—'}
@@ -138,12 +138,12 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
 
           {/* Triggered safeguards alert */}
           {triggeredSafeguards && triggeredSafeguards.length > 0 && (
-            <div className="border border-yellow-300 bg-yellow-50 rounded-md px-3 py-2 text-sm">
-              <div className="flex items-center gap-2 font-semibold text-yellow-800 mb-1">
+            <div className="border border-warning bg-warning/10 px-4 py-3 text-sm text-warning">
+              <div className="mb-1 flex items-center gap-2 font-semibold">
                 <AlertTriangle className="h-4 w-4" />
                 {triggeredSafeguards.length} Safeguard{triggeredSafeguards.length > 1 ? 's' : ''} Triggered
               </div>
-              <ul className="list-disc pl-5 text-yellow-700 text-xs space-y-0.5">
+              <ul className="list-disc space-y-0.5 pl-5 text-xs">
                 {triggeredSafeguards.map((ts: TriggeredSafeguard) => (
                   <li key={ts.trigger_id}>
                     {GHI_INDICATORS.find(i => i.id === ts.indicator_id)?.name ?? ts.indicator_id}: {ts.threshold_crossed}
@@ -179,7 +179,7 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
         </div>
 
         {requestMutation.error && (
-          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+          <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
             {(requestMutation.error as Error).message}
           </div>
         )}

@@ -78,9 +78,9 @@ export default function OnboardingList() {
                       <TableCell className="font-medium">{o.member_name || o.display_name || o.member_id}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-24 rounded-full bg-muted overflow-hidden">
+                          <div className="h-2 w-24 overflow-hidden border border-strong-border bg-muted">
                             <div
-                              className="h-full rounded-full bg-primary transition-all"
+                              className="h-full bg-primary transition-[width] motion-reduce:transition-none"
                               style={{ width: `${completionPct}%` }}
                             />
                           </div>

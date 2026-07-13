@@ -15,7 +15,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMember } from "@/lib/api-client";
-import { prezify, APP_SETTINGS_KEYS } from "@/lib/utils";
+import { APP_SETTINGS_KEYS } from "@/lib/utils";
+import { resolvePreziEmbedUrl, resolvePreziUrl } from "@/lib/media";
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -45,17 +46,19 @@ interface PersonalMapData {
 // Prezi embed iframe
 // ——————————————————————————————————————————————
 function MapEmbed({ url, title }: { url: string; title: string }) {
-  const embedUrl = prezify(url);
   return (
-    <div className="rounded-lg overflow-hidden border border-border">
+    <div className="overflow-hidden border border-strong-border">
       <iframe
-        src={embedUrl}
+        src={url}
         title={title}
         width="100%"
         height="500"
         className="block"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
         allowFullScreen
-        allow="autoplay; fullscreen"
+        allow="fullscreen"
       />
     </div>
   );
@@ -108,8 +111,11 @@ export default function MapPage() {
   const savePersonalMapMutation = useMutation({
     mutationFn: async (values: { personal_map_url: string; personal_map_notes: string }) => {
       if (!member) throw new Error("Not authenticated");
+      const submittedUrl = values.personal_map_url.trim();
+      const safeUrl = submittedUrl ? resolvePreziUrl(submittedUrl) : undefined;
+      if (submittedUrl && !safeUrl) throw new Error("Enter a valid HTTPS Prezi URL");
       await updateMember(member.id, {
-        personal_map_url: values.personal_map_url || null,
+        personal_map_url: safeUrl || null,
         personal_map_notes: values.personal_map_notes || null,
       });
     },
@@ -131,13 +137,17 @@ export default function MapPage() {
     setPersonalMapDialogOpen(true);
   }
 
-  const ctcUrl = ctcSettings?.prezi_url || "";
+  const ctcSourceUrl = ctcSettings?.prezi_url || "";
+  const ctcUrl = resolvePreziUrl(ctcSourceUrl);
+  const ctcEmbedUrl = resolvePreziEmbedUrl(ctcSourceUrl);
   const ctcDescription = ctcSettings?.description || "";
-  const personalUrl = personalMap?.personal_map_url || "";
+  const personalSourceUrl = personalMap?.personal_map_url || "";
+  const personalUrl = resolvePreziUrl(personalSourceUrl);
+  const personalEmbedUrl = resolvePreziEmbedUrl(personalSourceUrl);
   const personalNotes = personalMap?.personal_map_notes || "";
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8">
       {/* ——— Section 1: CTC Goals Map ——— */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
@@ -155,12 +165,12 @@ export default function MapPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading map...
           </div>
-        ) : ctcUrl ? (
+        ) : ctcUrl && ctcEmbedUrl ? (
           <div className="space-y-3">
             {ctcDescription && (
               <p className="text-muted-foreground">{ctcDescription}</p>
             )}
-            <MapEmbed url={ctcUrl} title="Charting the Course Goals Map" />
+            <MapEmbed url={ctcEmbedUrl} title="Charting the Course Goals Map" />
             <div className="flex justify-end">
               <a
                 href={ctcUrl}
@@ -198,7 +208,7 @@ export default function MapPage() {
               </p>
             </div>
           </div>
-          {personalUrl && (
+          {personalSourceUrl && (
             <Button variant="outline" size="sm" onClick={openEditPersonalMap}>
               <Edit className="h-4 w-4 mr-2" />
               Edit Map
@@ -211,12 +221,12 @@ export default function MapPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading your map...
           </div>
-        ) : personalUrl ? (
+        ) : personalUrl && personalEmbedUrl ? (
           <div className="space-y-3">
             {personalNotes && (
               <p className="text-muted-foreground text-sm">{personalNotes}</p>
             )}
-            <MapEmbed url={personalUrl} title="Your Personal Map" />
+            <MapEmbed url={personalEmbedUrl} title="Your Personal Map" />
             <div className="flex justify-end">
               <a
                 href={personalUrl}
@@ -233,13 +243,17 @@ export default function MapPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-medium mb-2">No personal map yet</h3>
+              <h3 className="font-medium mb-2">
+                {personalSourceUrl ? "Map link unavailable" : "No personal map yet"}
+              </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Add your personal Prezi map to share your vision and journey with the community.
+                {personalSourceUrl
+                  ? "Update the saved link with a supported HTTPS Prezi share URL."
+                  : "Add your personal Prezi map to share your vision and journey with the community."}
               </p>
               <Button onClick={openEditPersonalMap}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Your Map
+                {personalSourceUrl ? "Update Your Map" : "Add Your Map"}
               </Button>
             </CardContent>
           </Card>
@@ -250,12 +264,13 @@ export default function MapPage() {
       <Dialog open={personalMapDialogOpen} onOpenChange={setPersonalMapDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{personalUrl ? "Edit Your Map" : "Add Your Map"}</DialogTitle>
+            <DialogTitle>{personalSourceUrl ? "Edit Your Map" : "Add Your Map"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label>Prezi URL</Label>
+              <Label htmlFor="personal-map-url">Prezi URL</Label>
               <Input
+                id="personal-map-url"
                 value={personalMapForm.personal_map_url}
                 onChange={(e) =>
                   setPersonalMapForm((f) => ({ ...f, personal_map_url: e.target.value }))
@@ -267,8 +282,9 @@ export default function MapPage() {
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label>Notes (optional)</Label>
+              <Label htmlFor="personal-map-notes">Notes (optional)</Label>
               <Textarea
+                id="personal-map-notes"
                 value={personalMapForm.personal_map_notes}
                 onChange={(e) =>
                   setPersonalMapForm((f) => ({ ...f, personal_map_notes: e.target.value }))

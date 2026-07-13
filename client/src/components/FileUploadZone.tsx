@@ -69,7 +69,7 @@ export function FileUploadZone({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`
-        min-h-48 rounded-xl border-2 border-dashed transition-all duration-200
+        min-h-48 rounded-none border-2 border-dashed transition-all duration-200
         flex flex-col items-center justify-center p-8 text-center
         ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}
         ${uploadStatus === "success" ? 'border-chart-3 bg-chart-3/5' : ''}

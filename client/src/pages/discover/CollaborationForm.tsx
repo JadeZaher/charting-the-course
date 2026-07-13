@@ -79,17 +79,17 @@ export default function CollaborationForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href="/discover">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/discover">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Discover
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">Propose Collaboration</h1>
 
       {createMutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(createMutation.error as Error).message}
         </div>
       )}
@@ -186,9 +186,9 @@ export default function CollaborationForm() {
               <Button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Proposing...' : 'Propose Collaboration'}
               </Button>
-              <Link href="/discover">
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href="/discover">Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

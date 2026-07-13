@@ -88,17 +88,17 @@ export default function ConflictForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href="/conflicts">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/conflicts">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Conflicts
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">Report Conflict</h1>
 
       {createMutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(createMutation.error as Error).message}
         </div>
       )}
@@ -106,11 +106,11 @@ export default function ConflictForm() {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            <div className="space-y-2 border border-warning bg-warning/10 p-5 text-warning">
+              <p className="text-sm font-bold">
                 Naming conflict takes courage
               </p>
-              <p className="text-sm text-amber-700 dark:text-amber-300">
+              <p className="text-sm">
                 Conflict is a natural part of community life. This process exists to help repair relationships
                 and strengthen agreements, not to assign blame. Everything shared here is treated with care
                 and confidentiality.
@@ -204,7 +204,7 @@ export default function ConflictForm() {
                 id="safety_flag"
                 checked={safetyFlag}
                 onChange={(e) => setSafetyFlag(e.target.checked)}
-                className="h-4 w-4 rounded border-input"
+                className="h-4 w-4 rounded-[2px] border-2 border-control-border"
               />
               <Label htmlFor="safety_flag" className="font-normal">
                 Safety concern (requires immediate attention)
@@ -234,9 +234,9 @@ export default function ConflictForm() {
               <Button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Submitting...' : 'Report Conflict'}
               </Button>
-              <Link href="/conflicts">
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href="/conflicts">Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

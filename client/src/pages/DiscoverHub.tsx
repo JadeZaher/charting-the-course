@@ -250,11 +250,11 @@ function QuizDiscoverCard({ quiz }: { quiz: DiscoverQuiz }) {
         </div>
       </CardContent>
       <CardFooter className="pt-2">
-        <Link href={`/quiz/take/${quiz.id}`} className="w-full">
-          <Button className="w-full" size="sm">
+        <Button asChild className="w-full" size="sm">
+          <Link href={`/quiz/take/${quiz.id}`} className="w-full">
             Take Quiz <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   );
@@ -321,11 +321,11 @@ function EcosystemDiscoverCard({
         )}
       </CardContent>
       <CardFooter className="pt-2">
-        <Link href={`/ecosystems/${ecosystem.id}`} className="w-full">
-          <Button variant="outline" className="w-full" size="sm">
+        <Button asChild variant="outline" className="w-full" size="sm">
+          <Link href={`/ecosystems/${ecosystem.id}`} className="w-full">
             View Ecosystem <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   );

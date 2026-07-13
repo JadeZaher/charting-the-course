@@ -238,7 +238,7 @@ export default function QuizResults() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="text-center">
                 <div className="relative inline-flex">
-                  <div className="h-32 w-32 rounded-full border-8 border-muted flex items-center justify-center">
+                  <div className="flex h-32 w-32 items-center justify-center border-8 border-strong-border bg-muted/25">
                     <div className="text-center">
                       <div className="text-4xl font-bold" data-testid="text-score">
                         {scorePercentage}%
@@ -306,7 +306,7 @@ export default function QuizResults() {
           <CardContent className="p-6">
             <div className="flex items-center justify-center gap-8 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-primary/10">
+                <div className="border border-primary bg-primary/10 p-3">
                   <CheckCircle className="h-6 w-6 text-primary" />
                 </div>
                 <div>
@@ -326,7 +326,7 @@ export default function QuizResults() {
               </div>
               {result.result_metadata?.skippedQuestions !== undefined && result.result_metadata.skippedQuestions > 0 && result.result_metadata.totalQuestions !== undefined && (
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-full bg-muted">
+                  <div className="border border-strong-border bg-muted p-3">
                     <XCircle className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <div>
@@ -336,7 +336,7 @@ export default function QuizResults() {
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-primary/10">
+                <div className="border border-primary bg-primary/10 p-3">
                   <Clock className="h-6 w-6 text-primary" />
                 </div>
                 <div>
@@ -345,7 +345,7 @@ export default function QuizResults() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-primary/10">
+                <div className="border border-primary bg-primary/10 p-3">
                   <Calendar className="h-6 w-6 text-primary" />
                 </div>
                 <div>
@@ -379,7 +379,7 @@ export default function QuizResults() {
               return (
                 <div
                   key={q.name}
-                  className="p-4 rounded-lg border space-y-3"
+                  className="space-y-3 border border-strong-border p-5"
                   data-testid={`question-result-${index}`}
                 >
                   <div className="flex items-start gap-3">
@@ -421,11 +421,11 @@ export default function QuizResults() {
                 return (
                   <div
                     key={q.name}
-                    className="p-4 rounded-lg border"
+                    className="border border-strong-border p-5"
                     data-testid={`response-${index}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-sm font-medium flex-shrink-0">
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center border border-primary bg-primary/10 text-sm font-medium text-primary">
                         {index + 1}
                       </div>
                       <div className="flex-1 space-y-2">

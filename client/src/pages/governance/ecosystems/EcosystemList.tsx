@@ -16,19 +16,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchDiscover } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Check, UserPlus } from 'lucide-react';
+import type { EcosystemSummary } from '@/types/api';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'active', label: 'Active' },
   { value: 'forming', label: 'Forming' },
   { value: 'inactive', label: 'Inactive' },
-];
-
-const VISIBILITY_OPTIONS = [
-  { value: 'all', label: 'All Visibility' },
-  { value: 'public', label: 'Public' },
-  { value: 'private', label: 'Private' },
-  { value: 'unlisted', label: 'Unlisted' },
 ];
 
 const statusVariant = (status: string) => {
@@ -86,7 +80,6 @@ export default function EcosystemList() {
   const [, navigate] = useLocation();
   const [tab, setTab] = useState('mine');
   const [status, setStatus] = useState('all');
-  const [visibility, setVisibility] = useState('all');
   const [search, setSearch] = useState('');
   const [discoverSearch, setDiscoverSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -97,10 +90,9 @@ export default function EcosystemList() {
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
     if (status !== 'all') p.status = status;
-    if (visibility !== 'all') p.visibility = visibility;
     if (search) p.q = search;
     return p;
-  }, [status, visibility, search, page]);
+  }, [status, search, page]);
 
   const { data: rawData, isLoading, error } = useEcosystems(params);
 
@@ -113,10 +105,10 @@ export default function EcosystemList() {
   const discoverEcosystems = (discoverData?.ecosystems?.items ?? []);
 
   // Normalize API response
-  const data = rawData ? {
-    items: (rawData as any).items ?? (rawData as any).ecosystems ?? [],
+  const data: { items: EcosystemSummary[]; total: number; per_page: number } | undefined = rawData ? {
+    items: rawData.ecosystems,
     total: rawData.total ?? 0,
-    per_page: (rawData as any).per_page ?? 20,
+    per_page: rawData.per_page ?? 20,
   } : undefined;
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 1;
 
@@ -124,12 +116,12 @@ export default function EcosystemList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Ecosystems</h1>
-        <Link href="/ecosystems/new">
-          <Button>
+        <Button asChild>
+          <Link href="/ecosystems/new">
             <Plus className="h-4 w-4 mr-2" />
             New Ecosystem
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => { setTab(v); setPage(1); }}>
@@ -148,17 +140,6 @@ export default function EcosystemList() {
                   </SelectTrigger>
                   <SelectContent>
                     {STATUS_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={visibility} onValueChange={(v) => { setVisibility(v); setPage(1); }}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Visibility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITY_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -190,13 +171,12 @@ export default function EcosystemList() {
                         <TableHead>Location</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Members</TableHead>
-                        <TableHead>Visibility</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {data?.items.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                             No ecosystems found
                           </TableCell>
                         </TableRow>
@@ -213,9 +193,6 @@ export default function EcosystemList() {
                               <Badge variant={statusVariant(e.status)}>{e.status}</Badge>
                             </TableCell>
                             <TableCell>{e.member_count ?? '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{e.visibility}</Badge>
-                            </TableCell>
                           </TableRow>
                         ))
                       )}

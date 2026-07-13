@@ -62,7 +62,7 @@ export default function AgreementForm() {
       setHierarchyLevel(existing.hierarchy_level);
       setReviewDate(existing.review_date || '');
       setSunsetDate(existing.sunset_date || '');
-      setSharedEcosystemIds(existing.shared_ecosystem_ids || []);
+      setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
     }
   }, [existing, isEdit]);
 
@@ -89,14 +89,11 @@ export default function AgreementForm() {
       hierarchy_level: hierarchyLevel,
       review_date: reviewDate || null,
       sunset_date: sunsetDate || null,
+      shared_ecosystem_ids: sharedEcosystemIds,
     };
 
     if (!isEdit && selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
-    }
-
-    if (sharedEcosystemIds.length > 0) {
-      payload.shared_ecosystem_ids = sharedEcosystemIds;
     }
 
     try {
@@ -118,17 +115,17 @@ export default function AgreementForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href={isEdit ? `/agreements/${editId}` : '/agreements'}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={isEdit ? `/agreements/${editId}` : '/agreements'}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           {isEdit ? 'Back to Agreement' : 'Back to Agreements'}
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Agreement' : 'New Agreement'}</h1>
 
       {mutationError && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutationError as Error).message}
         </div>
       )}
@@ -238,7 +235,7 @@ export default function AgreementForm() {
             <EcosystemMultiSelect
               label="Cross-Ecosystem Sharing"
               description="Select additional ecosystems this applies to."
-              primaryId={selectedEcosystem?.id ?? ''}
+              primaryId={isEdit ? existing?.ecosystem_id ?? '' : selectedEcosystem?.id ?? ''}
               sharedIds={sharedEcosystemIds}
               onPrimaryChange={() => {}}
               onSharedChange={setSharedEcosystemIds}
@@ -248,9 +245,9 @@ export default function AgreementForm() {
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Agreement' : 'Create Agreement')}
               </Button>
-              <Link href={isEdit ? `/agreements/${editId}` : '/agreements'}>
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href={isEdit ? `/agreements/${editId}` : '/agreements'}>Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

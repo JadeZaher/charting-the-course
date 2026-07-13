@@ -34,9 +34,9 @@ export default function AgreementDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load agreement</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/agreements">
-          <Button variant="outline" className="mt-4">Back to Agreements</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/agreements">Back to Agreements</Link>
+        </Button>
       </div>
     );
   }
@@ -53,12 +53,12 @@ export default function AgreementDetail() {
   return (
     <div className="space-y-6">
       {/* Back link */}
-      <Link href="/agreements">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/agreements">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Agreements
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -72,18 +72,18 @@ export default function AgreementDetail() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link href={`/agreements/${id}/edit`}>
-            <Button variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/agreements/${id}/edit`}>
               <Pencil className="h-4 w-4 mr-1" />
               Edit
-            </Button>
-          </Link>
-          <Link href={`/agreements/${id}/history`}>
-            <Button variant="outline" size="sm">
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/agreements/${id}/history`}>
               <History className="h-4 w-4 mr-1" />
               History
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <Select onValueChange={handleStatusChange} disabled={statusChanging}>
             <SelectTrigger className="w-[160px] h-9">
               <SelectValue placeholder="Change Status" />

@@ -66,7 +66,7 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
 
       {/* Chat window */}
       <div
-        className="border rounded-xl bg-muted/10 flex flex-col overflow-hidden"
+        className="flex flex-col overflow-hidden border border-strong-border bg-muted/10"
         style={{ height: '340px' }}
       >
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -87,10 +87,10 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
               )}
               <div
                 className={cn(
-                  'max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
+                  'max-w-[75%] border-2 border-strong-border px-3.5 py-2.5 text-sm leading-relaxed',
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-sm'
-                    : 'bg-background border rounded-bl-sm',
+                    : 'bg-background rounded-bl-sm',
                 )}
               >
                 {msg.content}
@@ -112,8 +112,8 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
                   <Bot className="h-3.5 w-3.5" />
                 </AvatarFallback>
               </Avatar>
-              <div className="bg-background border rounded-2xl rounded-bl-sm px-3.5 py-2.5">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <div className="border bg-background px-3.5 py-2.5">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground motion-reduce:animate-none" />
               </div>
             </div>
           )}

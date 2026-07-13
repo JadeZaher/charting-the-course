@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { isSpeechSupported, createSpeechRecognition } from '@/lib/speech';
+import type { SpeechRecognition, SpeechRecognitionEvent } from '@/lib/speech';
 
 interface UseSpeechInputOptions {
   onTranscript: (text: string) => void;

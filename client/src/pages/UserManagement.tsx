@@ -106,7 +106,6 @@ async function fetchUsers(): Promise<UserProfile[]> {
     roleName: m.role_name ?? 'Viewer',
     permissions: (m.permissions as Permission[]) || [],
     isArchived: m.is_archived ?? false,
-    canAccessDiscover: m.can_access_discover ?? false,
     quiz_count: m.quiz_count ?? 0,
   })) as UserProfile[];
 }
@@ -365,7 +364,7 @@ export default function UserManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
+              <div className="border border-primary bg-primary/10 p-2">
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
@@ -378,7 +377,7 @@ export default function UserManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
+              <div className="border border-destructive bg-destructive/10 p-2">
                 <Shield className="h-5 w-5 text-destructive" />
               </div>
               <div>
@@ -391,8 +390,8 @@ export default function UserManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <UserCheck className="h-5 w-5 text-blue-500" />
+              <div className="border border-info bg-info/10 p-2">
+                <UserCheck className="h-5 w-5 text-info" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.withManageContent}</p>
@@ -404,8 +403,8 @@ export default function UserManagement() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <Archive className="h-5 w-5 text-amber-500" />
+              <div className="border border-warning bg-warning/10 p-2">
+                <Archive className="h-5 w-5 text-warning" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.archived}</p>
@@ -466,7 +465,7 @@ export default function UserManagement() {
         <CardContent>
           {/* Bulk action toolbar */}
           {someSelected && (
-            <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-lg bg-muted border text-sm">
+            <div className="mb-3 flex items-center gap-3 border border-strong-border bg-muted px-4 py-3 text-sm">
               <span className="font-medium">
                 {selectedIds.size} selected
               </span>
@@ -509,7 +508,7 @@ export default function UserManagement() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : filteredUsers.length > 0 ? (
-            <div className="rounded-md border overflow-x-auto">
+            <div className="overflow-x-auto rounded-none border-2 border-strong-border">
               <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
@@ -524,7 +523,6 @@ export default function UserManagement() {
                     <TableHead>Legacy Role</TableHead>
                     <TableHead>Permissions</TableHead>
                     <TableHead className="hidden md:table-cell">Quizzes</TableHead>
-                    <TableHead className="hidden lg:table-cell">Discover</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -575,23 +573,13 @@ export default function UserManagement() {
                           {user.quiz_count}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <Switch
-                          checked={user.canAccessDiscover}
-                          onCheckedChange={async (checked) => {
-                            await updateMember(user.id, { can_access_discover: checked });
-                            queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
-                          }}
-                          aria-label="Toggle Discover access"
-                        />
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          <Link href={`/admin/users/${user.id}/history`}>
-                            <Button variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}>
+                          <Button asChild variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}>
+                            <Link href={`/admin/users/${user.id}/history`}>
                               <History className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                            </Link>
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon"
@@ -700,7 +688,7 @@ export default function UserManagement() {
           </DialogHeader>
           {selectedUser && (
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
+              <div className="flex items-center gap-3 border border-strong-border bg-muted p-4">
                 <Avatar>
                   <AvatarImage src={selectedUser.avatar_url || ''} />
                   <AvatarFallback>{getInitials(selectedUser)}</AvatarFallback>
@@ -718,7 +706,7 @@ export default function UserManagement() {
                 {ALL_PERMISSIONS.map(permission => (
                   <div 
                     key={permission}
-                    className="flex items-start gap-3 p-3 rounded-lg border hover-elevate cursor-pointer"
+                    className="flex cursor-pointer items-start gap-3 border border-strong-border p-4 transition-colors hover:bg-muted/50 motion-reduce:transition-none"
                     onClick={() => handlePermissionToggle(permission)}
                   >
                     <Checkbox

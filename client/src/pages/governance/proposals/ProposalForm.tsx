@@ -68,7 +68,7 @@ export default function ProposalForm() {
       setProposedChange(existing.proposed_change || '');
       setRationale(existing.rationale || '');
       setAdviceDeadline(existing.advice_deadline || '');
-      setSharedEcosystemIds(existing.shared_ecosystem_ids || []);
+      setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
     }
   }, [existing, isEdit]);
 
@@ -96,15 +96,12 @@ export default function ProposalForm() {
       proposed_change: proposedChange || null,
       rationale: rationale || null,
       advice_deadline: adviceDeadline || null,
+      shared_ecosystem_ids: sharedEcosystemIds,
     };
 
     if (!isEdit && selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
     }
-    if (sharedEcosystemIds.length > 0) {
-      payload.shared_ecosystem_ids = sharedEcosystemIds;
-    }
-
     try {
       let result;
       if (isEdit) {
@@ -124,17 +121,17 @@ export default function ProposalForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href={isEdit ? `/proposals/${editId}` : '/proposals'}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={isEdit ? `/proposals/${editId}` : '/proposals'}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           {isEdit ? 'Back to Proposal' : 'Back to Proposals'}
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Proposal' : 'New Proposal'}</h1>
 
       {mutationError && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutationError as Error).message}
         </div>
       )}
@@ -241,7 +238,7 @@ export default function ProposalForm() {
             <EcosystemMultiSelect
               label="Cross-Ecosystem Sharing"
               description="Select additional ecosystems this proposal applies to."
-              primaryId={selectedEcosystem?.id ?? ''}
+              primaryId={isEdit ? existing?.ecosystem_id ?? '' : selectedEcosystem?.id ?? ''}
               sharedIds={sharedEcosystemIds}
               onPrimaryChange={() => {}}
               onSharedChange={setSharedEcosystemIds}
@@ -251,9 +248,9 @@ export default function ProposalForm() {
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Proposal' : 'Create Proposal')}
               </Button>
-              <Link href={isEdit ? `/proposals/${editId}` : '/proposals'}>
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href={isEdit ? `/proposals/${editId}` : '/proposals'}>Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

@@ -73,8 +73,8 @@ export function ExitDataExportCard({ exit }: ExitDataExportCardProps) {
                 A data export has been requested. The member&apos;s data is being
                 prepared for secure transfer. This typically completes within 24 hours.
               </p>
-              <div className="flex items-center gap-2 text-sm text-yellow-700">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <div className="flex items-center gap-2 text-sm text-warning">
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                 Processing...
               </div>
             </div>
@@ -107,7 +107,7 @@ export function ExitDataExportCard({ exit }: ExitDataExportCardProps) {
           )}
 
           {exportMutation.error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
               {(exportMutation.error as Error).message}
             </div>
           )}

@@ -46,6 +46,7 @@ import {
   Bell,
   MessageSquare,
   Package,
+  Layers3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -61,6 +62,11 @@ const menuItems = [
     title: "Discover",
     url: "/discover",
     icon: Compass,
+  },
+  {
+    title: "Solutions",
+    url: "/solutions",
+    icon: Layers3,
   },
   {
     title: "Quizzes & Onboarding",
@@ -198,18 +204,22 @@ function CollapsibleGovernanceGroup({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel
-        className="cursor-pointer select-none flex items-center justify-between"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span>{group.label}</span>
-        {!isCollapsed && (
-          <ChevronDown
-            className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-          />
-        )}
+      <SidebarGroupLabel asChild>
+        <button
+          type="button"
+          className="flex w-full cursor-pointer select-none items-center justify-between"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <span>{group.label}</span>
+          {!isCollapsed && (
+            <ChevronDown
+              className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                open ? "" : "-rotate-90"
+              }`}
+            />
+          )}
+        </button>
       </SidebarGroupLabel>
       {(open || isCollapsed) && (
         <SidebarGroupContent>
@@ -259,24 +269,27 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className={`border-b ${isCollapsed ? 'p-2' : 'p-4'}`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-          <div className={`${isCollapsed ? 'h-8 w-8' : 'h-10 w-10'} rounded-lg bg-primary flex items-center justify-center flex-shrink-0`}>
-            <Compass className={`${isCollapsed ? 'h-4 w-4' : 'h-5 w-5'} text-primary-foreground`} />
-          </div>
-          {!isCollapsed && (
-            <div className="overflow-hidden">
-              <h2 className="font-bold text-lg truncate">NEOS</h2>
-              <p className="text-xs text-muted-foreground">Governance OS</p>
-            </div>
+      <SidebarHeader className={`border-b-2 border-sidebar-border ${isCollapsed ? 'p-0.5' : 'p-4'}`}>
+        <Link
+          href="/dashboard"
+          aria-label="NEOS dashboard"
+          className={`flex min-h-14 items-center text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring ${isCollapsed ? 'justify-center' : 'w-full'}`}
+        >
+          {isCollapsed ? (
+            <span className="text-xl font-black tracking-[-0.08em]">N.</span>
+          ) : (
+            <span className="grid gap-1">
+              <span className="text-[0.625rem] font-black uppercase tracking-[0.24em] text-sidebar-foreground/65">NEOS / Index 01</span>
+              <span className="text-xl font-black uppercase leading-[0.92] tracking-[-0.045em]">Charting the Course</span>
+            </span>
           )}
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
         {!isCollapsed && ecosystems.length > 1 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Ecosystems</SidebarGroupLabel>
+            <SidebarGroupLabel>Ecosystems / Scope</SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="flex flex-col gap-1 px-1">
                 {ecosystems.map((eco) => {
@@ -285,10 +298,11 @@ export function AppSidebar() {
                     <button
                       key={eco.id}
                       onClick={() => toggleEcosystem(eco.id)}
-                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors ${
+                      aria-pressed={isActive}
+                      className={`flex min-h-11 items-center gap-2 border-l-2 px-3 py-2 text-left text-sm font-semibold transition-colors ${
                         isActive
-                          ? 'bg-primary text-primary-foreground font-medium'
-                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                          ? 'border-sidebar-primary bg-sidebar-primary text-sidebar-primary-foreground'
+                          : 'border-transparent text-sidebar-foreground/70 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                       }`}
                     >
                       <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
@@ -302,16 +316,18 @@ export function AppSidebar() {
         )}
 
         <SidebarGroup>
-          <SidebarGroupLabel>Learning</SidebarGroupLabel>
+          <SidebarGroupLabel>Core / 01</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                // Discover is only visible to admins or users with at least one ethos_user_access row
-                if (item.url === '/discover' && !canAccessDiscover) return null;
+                if (item.url === '/solutions' && !canAccessDiscover) return null;
 
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';
                 if (item.url === '/discover') {
+                  isActive = isActive || location.startsWith('/discover/');
+                }
+                if (item.url === '/solutions') {
                   isActive = isActive || location.startsWith('/ethos/') || location.startsWith('/orientation/');
                 }
                 return (
@@ -423,12 +439,12 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className={`border-t ${isCollapsed ? 'p-2' : 'p-4'}`}>
+      <SidebarFooter className={`border-t-2 border-sidebar-border ${isCollapsed ? 'p-0.5' : 'p-4'}`}>
         {isCollapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex justify-center">
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-9 w-9 border-2 border-sidebar-border rounded-none">
                   <AvatarFallback className="text-xs">
                     {displayName.split(' ').map(n => n[0]).join('').toUpperCase() || "?"}
                   </AvatarFallback>
@@ -444,7 +460,7 @@ export function AppSidebar() {
           </Tooltip>
         ) : (
           <div className="flex items-center gap-3 mb-3">
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-11 w-11 border-2 border-sidebar-border rounded-none">
               <AvatarFallback>
                 {displayName.split(' ').map(n => n[0]).join('').toUpperCase() || "?"}
               </AvatarFallback>

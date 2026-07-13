@@ -66,12 +66,12 @@ export default function ExitList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Exits</h1>
-        <Link href="/exit/new">
-          <Button>
+        <Button asChild>
+          <Link href="/exit/new">
             <Plus className="h-4 w-4 mr-2" />
             Initiate Exit
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       <FilterBar

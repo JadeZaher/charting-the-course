@@ -39,6 +39,7 @@ import {
   fetchDomains,
 } from '@/lib/api-client';
 import type { QuizListItem, SharesNeeds, DomainListItem } from '@/types/api';
+import { resolveExternalUrl } from '@/lib/media';
 
 interface EcoQuiz {
   id: string;
@@ -275,7 +276,7 @@ export default function EcosystemDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load ecosystem</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/ecosystems"><Button variant="outline" className="mt-4">Back to Ecosystems</Button></Link>
+        <Button asChild variant="outline" className="mt-4"><Link href="/ecosystems">Back to Ecosystems</Link></Button>
       </div>
     );
   }
@@ -300,12 +301,13 @@ export default function EcosystemDetail() {
 
   const assignedIds = new Set(ecoQuizzes.map(q => q.id));
   const unassignedQuizzes = allQuizzes.filter(q => !assignedIds.has(q.id));
+  const websiteUrl = resolveExternalUrl(data.website);
 
   return (
     <div className="space-y-6">
-      <Link href="/ecosystems">
-        <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back to Ecosystems</Button>
-      </Link>
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/ecosystems"><ArrowLeft className="h-4 w-4 mr-1" />Back to Ecosystems</Link>
+      </Button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
@@ -318,9 +320,9 @@ export default function EcosystemDetail() {
         </div>
         <div className="flex flex-wrap gap-2">
           {isMember ? (
-            <Link href={`/ecosystems/${id}/edit`}>
-              <Button variant="outline" size="sm"><Pencil className="h-4 w-4 mr-1" />Edit</Button>
-            </Link>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/ecosystems/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
+            </Button>
           ) : joinRequested || joinMutation.isSuccess ? (
             <Button variant="outline" size="sm" disabled><Clock className="h-4 w-4 mr-1" />Join Requested</Button>
           ) : (
@@ -343,7 +345,7 @@ export default function EcosystemDetail() {
         <CardContent>
           <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div><dt className="text-muted-foreground">Location</dt><dd className="font-medium">{data.location || '-'}</dd></div>
-            <div><dt className="text-muted-foreground">Website</dt><dd className="font-medium">{data.website ? <a href={data.website} target="_blank" rel="noopener noreferrer" className="text-primary underline">{data.website}</a> : '-'}</dd></div>
+            <div><dt className="text-muted-foreground">Website</dt><dd className="font-medium">{websiteUrl ? <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">{data.website}</a> : '-'}</dd></div>
             <div><dt className="text-muted-foreground">Founded</dt><dd className="font-medium">{data.founded_date ? new Date(data.founded_date).toLocaleDateString() : '-'}</dd></div>
             <div><dt className="text-muted-foreground">Member Count</dt><dd className="font-medium">{data.member_count ?? '-'}</dd></div>
             <div><dt className="text-muted-foreground">Contact Email</dt><dd className="font-medium">{data.contact_email ? <a href={`mailto:${data.contact_email}`} className="text-primary underline">{data.contact_email}</a> : '-'}</dd></div>
@@ -382,7 +384,7 @@ export default function EcosystemDetail() {
           ) : (
             <div className="space-y-2">
               {visibleAgreements.map((agreement: any) => (
-                <Link key={agreement.id} href={`/agreements/${agreement.id}`} className="block rounded-md border p-3 hover:bg-accent transition-colors">
+                <Link key={agreement.id} href={`/agreements/${agreement.id}`} className="block rounded-none border-2 border-strong-border p-3 transition-colors hover:bg-accent">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{agreement.title}</span>
                     <Badge variant={agreement.status === 'active' ? 'default' : 'secondary'} className="text-xs">{agreement.status}</Badge>
@@ -410,25 +412,25 @@ export default function EcosystemDetail() {
           </CardHeader>
           <CardContent className="space-y-4">
             {showJmForm && (
-              <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+              <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/30 p-4">
                 <div className="space-y-1">
-                  <Label>Title</Label>
-                  <Input value={jmForm.title} onChange={e => setJmForm({ ...jmForm, title: e.target.value })} placeholder="e.g. New Member Orientation" />
+                  <Label htmlFor="journey-map-title">Title</Label>
+                  <Input id="journey-map-title" value={jmForm.title} onChange={e => setJmForm({ ...jmForm, title: e.target.value })} placeholder="e.g. New Member Orientation" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Description</Label>
-                  <Textarea value={jmForm.description} onChange={e => setJmForm({ ...jmForm, description: e.target.value })} placeholder="Brief description of this journey" rows={2} />
+                  <Label htmlFor="journey-map-description">Description</Label>
+                  <Textarea id="journey-map-description" value={jmForm.description} onChange={e => setJmForm({ ...jmForm, description: e.target.value })} placeholder="Brief description of this journey" rows={2} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Content Sequence (JSON array of steps)</Label>
-                  <Textarea value={jmForm.contentJson} onChange={e => setJmForm({ ...jmForm, contentJson: e.target.value })} placeholder='[{"step":1,"type":"video","title":"Welcome","required":true}]' rows={4} className="font-mono text-sm" />
+                  <Label htmlFor="journey-map-content">Content Sequence (JSON array of steps)</Label>
+                  <Textarea id="journey-map-content" value={jmForm.contentJson} onChange={e => setJmForm({ ...jmForm, contentJson: e.target.value })} placeholder='[{"step":1,"type":"video","title":"Welcome","required":true}]' rows={4} className="font-mono text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Exit Package (JSON)</Label>
-                  <Textarea value={jmForm.exitJson} onChange={e => setJmForm({ ...jmForm, exitJson: e.target.value })} placeholder='{"docs":[],"tools":[],"next_steps":[]}' rows={3} className="font-mono text-sm" />
+                  <Label htmlFor="journey-map-exit">Exit Package (JSON)</Label>
+                  <Textarea id="journey-map-exit" value={jmForm.exitJson} onChange={e => setJmForm({ ...jmForm, exitJson: e.target.value })} placeholder='{"docs":[],"tools":[],"next_steps":[]}' rows={3} className="font-mono text-sm" />
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={jmForm.is_default} onChange={e => setJmForm({ ...jmForm, is_default: e.target.checked })} className="rounded" />
+                  <input type="checkbox" checked={jmForm.is_default} onChange={e => setJmForm({ ...jmForm, is_default: e.target.checked })} className="rounded-[2px] border-2 border-control-border" />
                   Default journey map
                 </label>
                 <Button size="sm" onClick={handleCreateJourneyMap} disabled={jmSaving || !jmForm.title.trim()}>
@@ -444,7 +446,7 @@ export default function EcosystemDetail() {
             ) : (
               <div className="space-y-2">
                 {journeyMaps.map(jm => (
-                  <div key={jm.id} className="flex items-center justify-between border rounded-md p-3">
+                  <div key={jm.id} className="flex items-center justify-between rounded-none border-2 border-strong-border p-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{jm.title}</span>
@@ -484,8 +486,8 @@ export default function EcosystemDetail() {
             ) : ecoQuizzes.length === 0 ? (
               <p className="text-sm text-muted-foreground">No quizzes assigned to this ecosystem yet.</p>
             ) : (
-              <div className="border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-none border-2 border-strong-border">
+                <table className="w-full min-w-[42rem] text-sm">
                   <thead><tr className="border-b bg-muted/50">
                     <th className="text-left p-2 font-medium">Title</th>
                     <th className="text-left p-2 font-medium">Mode</th>
@@ -502,7 +504,7 @@ export default function EcosystemDetail() {
                         <td className="p-2">{q.is_entry_quiz && <Badge variant="outline" className="text-xs"><Check className="h-3 w-3 mr-1" />Entry Quiz</Badge>}</td>
                         <td className="p-2 text-right">
                           <div className="flex gap-1 justify-end">
-                            <Link href={`/quiz/results/${q.id}`}><Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" />Results</Button></Link>
+                            <Button asChild variant="ghost" size="sm"><Link href={`/quiz/results/${q.id}`}><Eye className="h-4 w-4 mr-1" />Results</Link></Button>
                             {permissions.canAssignQuizzes && (
                               <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
                             )}
@@ -519,16 +521,16 @@ export default function EcosystemDetail() {
                 <p className="text-sm font-medium mb-2">Assign a Quiz</p>
                 <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
                   <div className="flex-1">
-                    <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
+                    <Label htmlFor="assign-quiz-select" className="mb-1 block text-xs text-muted-foreground">Select Quiz</Label>
                     <Select value={assignQuizId} onValueChange={setAssignQuizId}>
-                      <SelectTrigger><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
+                      <SelectTrigger id="assign-quiz-select"><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
                       <SelectContent>
                         {unassignedQuizzes.length === 0 ? <SelectItem value="_none" disabled>No available quizzes</SelectItem> : unassignedQuizzes.map(q => <SelectItem key={q.id} value={q.id}>{q.title}{!q.is_published ? ' (Draft)' : ''}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="rounded" />Entry Quiz
+                    <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="rounded-[2px] border-2 border-control-border" />Entry Quiz
                   </label>
                   <Button size="sm" onClick={handleAssignQuiz} disabled={assigning || !assignQuizId}>{assigning ? 'Assigning...' : 'Assign'}</Button>
                 </div>
@@ -553,12 +555,12 @@ export default function EcosystemDetail() {
           </CardHeader>
           <CardContent className="space-y-4">
             {showSnForm && (
-              <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+              <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/30 p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Type</Label>
+                    <Label htmlFor="share-need-type">Type</Label>
                     <Select value={snForm.type} onValueChange={(v: any) => setSnForm({ ...snForm, type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="share-need-type"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="share">Share (offering)</SelectItem>
                         <SelectItem value="need">Need (requesting)</SelectItem>
@@ -566,9 +568,9 @@ export default function EcosystemDetail() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label>Category</Label>
+                    <Label htmlFor="share-need-category">Category</Label>
                     <Select value={snForm.category} onValueChange={(v: string) => setSnForm({ ...snForm, category: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
+                      <SelectTrigger id="share-need-category"><SelectValue placeholder="Select category..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="skill">Skill</SelectItem>
                         <SelectItem value="resource">Resource</SelectItem>
@@ -580,18 +582,18 @@ export default function EcosystemDetail() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label>Title</Label>
-                  <Input value={snForm.title} onChange={e => setSnForm({ ...snForm, title: e.target.value })} placeholder="What are you sharing or needing?" />
+                  <Label htmlFor="share-need-title">Title</Label>
+                  <Input id="share-need-title" value={snForm.title} onChange={e => setSnForm({ ...snForm, title: e.target.value })} placeholder="What are you sharing or needing?" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Description</Label>
-                  <Textarea value={snForm.description} onChange={e => setSnForm({ ...snForm, description: e.target.value })} placeholder="Details..." rows={2} />
+                  <Label htmlFor="share-need-description">Description</Label>
+                  <Textarea id="share-need-description" value={snForm.description} onChange={e => setSnForm({ ...snForm, description: e.target.value })} placeholder="Details..." rows={2} />
                 </div>
                 {ecoDomains.length > 1 && (
                   <div className="space-y-1">
-                    <Label>Domain</Label>
+                    <Label htmlFor="share-need-domain">Domain</Label>
                     <Select value={snForm.domain_id} onValueChange={(v: string) => setSnForm({ ...snForm, domain_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select domain..." /></SelectTrigger>
+                      <SelectTrigger id="share-need-domain"><SelectValue placeholder="Select domain..." /></SelectTrigger>
                       <SelectContent>
                         {ecoDomains.map(d => <SelectItem key={d.id} value={d.id}>{d.domain_id}</SelectItem>)}
                       </SelectContent>
@@ -600,13 +602,13 @@ export default function EcosystemDetail() {
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Capacity / Availability</Label>
-                    <Input value={snForm.capacity} onChange={e => setSnForm({ ...snForm, capacity: e.target.value })} placeholder="e.g. 10 hrs/week, 5 units" />
+                    <Label htmlFor="share-need-capacity">Capacity / Availability</Label>
+                    <Input id="share-need-capacity" value={snForm.capacity} onChange={e => setSnForm({ ...snForm, capacity: e.target.value })} placeholder="e.g. 10 hrs/week, 5 units" />
                   </div>
                   <div className="space-y-1">
-                    <Label>Visibility</Label>
+                    <Label htmlFor="share-need-visibility">Visibility</Label>
                     <Select value={snForm.visibility} onValueChange={(v: string) => setSnForm({ ...snForm, visibility: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="share-need-visibility"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="public">Public</SelectItem>
                         <SelectItem value="ecosystem">Ecosystem Only</SelectItem>
@@ -628,7 +630,7 @@ export default function EcosystemDetail() {
             ) : (
               <div className="space-y-2">
                 {sharesNeeds.map(sn => (
-                  <div key={sn.id} className="flex items-start justify-between border rounded-md p-3">
+                  <div key={sn.id} className="flex items-start justify-between rounded-none border-2 border-strong-border p-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge variant={snTypeColor(sn.type)} className="text-xs capitalize">{sn.type}</Badge>

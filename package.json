@@ -8,7 +8,8 @@
     "dev:client": "vite --host --port 5000",
     "build": "vite build",
     "build:client": "vite build",
-    "check": "tsc"
+    "check": "tsc",
+    "check:contrast": "node scripts/verify-contrast.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

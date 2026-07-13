@@ -1,5 +1,3 @@
-// TanStack Query hooks for ETHOS data via Sanic BFF API
-
 import { useQuery } from '@tanstack/react-query';
 import { fetchEcosystems, fetchEcosystem } from '@/lib/api-client';
 import type { EthosSummary, EthosDetail, EthosMemberWithProfile } from '@/types/orientation';
@@ -15,64 +13,104 @@ interface EthosDetailResponse {
   viewer_alignment: number | null;
 }
 
-export function useEthosList(sector?: string, _limit = 20, _offset = 0) {
-  return useQuery({
-    queryKey: ['ethos-list', sector, _limit, _offset],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (sector && sector !== 'all') params.sector = sector;
-      params.limit = String(_limit);
-      params.offset = String(_offset);
+function toOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
 
-      // fetchEcosystems maps to ethos — adapter layer
+function toStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+    : [];
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function mapEthosSummary(ecosystem: Record<string, any>): EthosSummary {
+  const alignment = toOptionalNumber(ecosystem.alignment_score);
+
+  return {
+    id: String(ecosystem.id),
+    slug: toOptionalString(ecosystem.slug) ?? String(ecosystem.id),
+    name: toOptionalString(ecosystem.name) ?? 'Untitled ecosystem',
+    tagline: toOptionalString(ecosystem.tagline) ?? toOptionalString(ecosystem.description),
+    description: toOptionalString(ecosystem.description),
+    sector: toOptionalString(ecosystem.sector),
+    ethos_type: toOptionalString(ecosystem.ethos_type) ?? 'ecosystem',
+    image_url: toOptionalString(ecosystem.logo_url) ?? toOptionalString(ecosystem.image_url),
+    member_count: Number.isFinite(Number(ecosystem.member_count)) ? Number(ecosystem.member_count) : 0,
+    member_avatars: toStringList(ecosystem.member_avatars),
+    alignment_score: alignment,
+    status: toOptionalString(ecosystem.status),
+    location: toOptionalString(ecosystem.location),
+    tags: toStringList(ecosystem.tags),
+    website: toOptionalString(ecosystem.website),
+    founded_date: toOptionalString(ecosystem.founded_date),
+  };
+}
+
+export function useEthosList(sector?: string, limit = 20, offset = 0) {
+  return useQuery({
+    queryKey: ['ethos-list', sector, limit, offset],
+    queryFn: async () => {
       const result = await fetchEcosystems();
-      // Map ecosystem shape to ethos shape expected by components
       const ecosystems = (result as any).ecosystems || (result as any).items || [];
-      const ethos: EthosSummary[] = ecosystems.map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        slug: e.slug || e.id,
-        description: e.description,
-        sector: e.sector,
-        member_count: e.member_count ?? 0,
-        banner_url: e.banner_url ?? null,
-        icon_url: e.icon_url ?? null,
-      }));
-      return { ethos, total: (result as any).total ?? ethos.length } as EthosListResponse;
+      const mapped = ecosystems.map((ecosystem: Record<string, any>) => mapEthosSummary(ecosystem));
+      const filtered = sector && sector !== 'all'
+        ? mapped.filter((ethos: EthosSummary) => ethos.sector?.toLowerCase() === sector.toLowerCase())
+        : mapped;
+      const ethos = filtered.slice(offset, offset + limit);
+
+      return {
+        ethos,
+        total: sector && sector !== 'all' ? filtered.length : ((result as any).total ?? filtered.length),
+      } as EthosListResponse;
     },
-    staleTime: 1000 * 60 * 5, // 5 min
+    staleTime: 1000 * 60 * 5,
   });
 }
 
-export function useEthosDetail(slug: string) {
+export function useEthosDetail(id: string) {
   return useQuery({
-    queryKey: ['ethos-detail', slug],
+    queryKey: ['ethos-detail', id],
     queryFn: async () => {
-      if (!slug) return null;
-      const result = await fetchEcosystem(slug);
-      // Map ecosystem detail to ethos detail shape
+      if (!id) return null;
+
+      const result = await fetchEcosystem(id) as unknown as Record<string, any>;
+      const summary = mapEthosSummary(result);
+      const status = toOptionalString(result.status);
+      const members: EthosMemberWithProfile[] = Array.isArray(result.members) ? result.members : [];
+      const externalLinks = Array.isArray(result.external_links)
+        ? result.external_links.filter((item): item is { label: string; url: string } => (
+            typeof item?.label === 'string' && typeof item?.url === 'string'
+          ))
+        : [];
+
       const ethos: EthosDetail = {
-        id: (result as any).id,
-        name: (result as any).name,
-        slug: (result as any).slug || (result as any).id,
-        description: (result as any).description,
-        sector: (result as any).sector,
-        member_count: (result as any).member_count ?? 0,
-        banner_url: (result as any).banner_url ?? null,
-        icon_url: (result as any).icon_url ?? null,
-        long_description: (result as any).long_description ?? null,
-        principles: (result as any).principles ?? [],
-        tags: (result as any).tags ?? [],
-        created_at: (result as any).created_at,
-      } as unknown as EthosDetail;
-      const members: EthosMemberWithProfile[] = (result as any).members ?? [];
+        ...summary,
+        mission: toOptionalString(result.mission),
+        external_url: toOptionalString(result.website) ?? toOptionalString(result.external_url),
+        is_active: status ? status === 'active' : true,
+        is_public: result.visibility ? result.visibility === 'public' : true,
+        created_at: toOptionalString(result.created_at) ?? '',
+        governance_summary: toOptionalString(result.governance_summary),
+        phase: toOptionalString(result.phase),
+        map_url: toOptionalString(result.map_url),
+        map_type: toOptionalString(result.map_type),
+        map_title: toOptionalString(result.map_title),
+        external_links: externalLinks,
+      };
+
       return {
         ethos,
         members,
-        viewer_alignment: (result as any).viewer_alignment ?? null,
+        viewer_alignment: toOptionalNumber(result.viewer_alignment) ?? null,
       } as EthosDetailResponse;
     },
-    enabled: !!slug,
+    enabled: !!id,
     staleTime: 1000 * 60 * 5,
   });
 }

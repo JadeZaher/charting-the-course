@@ -65,7 +65,7 @@ export function OmniBotPanel({ context }: Props) {
       {/* Chat panel */}
       {open && (
         <div
-          className="w-80 sm:w-96 rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden"
+          className="flex w-80 flex-col overflow-hidden border-2 border-strong-border bg-background sm:w-96"
           style={{ height: '420px' }}
         >
           {/* Header */}
@@ -104,7 +104,7 @@ export function OmniBotPanel({ context }: Props) {
                 )}
                 <div
                   className={cn(
-                    'max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
+                    'max-w-[80%] border-2 border-strong-border px-3 py-2 text-xs leading-relaxed',
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground rounded-br-sm'
                       : 'bg-muted rounded-bl-sm',
@@ -129,8 +129,8 @@ export function OmniBotPanel({ context }: Props) {
                     <Bot className="h-3 w-3" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="bg-muted rounded-2xl rounded-bl-sm px-3 py-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <div className="border bg-muted px-3 py-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground motion-reduce:animate-none" />
                 </div>
               </div>
             )}
@@ -188,7 +188,7 @@ export function OmniBotPanel({ context }: Props) {
       {/* Floating toggle button */}
       <Button
         size="icon"
-        className="h-12 w-12 rounded-full shadow-lg"
+        className="h-12 w-12 border-2 border-strong-border"
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Close OmniBot' : 'Open OmniBot'}
       >

@@ -28,7 +28,7 @@ export function ChoiceStep({ step, onComplete }: Props) {
             key={choice.value}
             onClick={() => setSelected(choice.value)}
             className={cn(
-              'w-full text-left rounded-xl border-2 p-4 transition-all duration-150',
+              'w-full border-2 p-5 text-left transition-colors motion-reduce:transition-none',
               selected === choice.value
                 ? 'border-primary bg-primary/5'
                 : 'border-border bg-card hover:border-primary/40',

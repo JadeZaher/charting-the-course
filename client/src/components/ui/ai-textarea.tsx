@@ -38,7 +38,7 @@ const AITextarea = React.forwardRef<HTMLTextAreaElement, AITextareaProps>(
           <button
             type="button"
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              'inline-flex items-center gap-1.5 rounded-none border-2 border-strong-border px-3 py-1 text-xs font-medium transition-colors',
               'border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'disabled:pointer-events-none disabled:opacity-50',

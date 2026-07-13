@@ -128,6 +128,7 @@ export interface RatificationRecord {
 }
 
 export interface AgreementDetail extends AgreementListItem {
+  shared_ecosystem_ids: string[] | null;
   text: string | null;
   affected_parties: string[] | null;
   parent_agreement_id: string | null;
@@ -264,6 +265,7 @@ export interface TestReport {
 }
 
 export interface ProposalDetail extends ProposalListItem {
+  shared_ecosystem_ids: string[] | null;
   ecosystem_id: string;
   co_sponsors: string[] | null;
   impacted_parties: string[] | null;
@@ -296,17 +298,30 @@ export interface MemberListItem {
   profile: string | null;
   did: string | null;
   phone: string | null;
+  profile_picture: string | null;
+  onboarding_status: string | null;
   created_at: string;
 }
 
 export interface MemberDetail extends MemberListItem {
+  shared_ecosystem_ids: string[] | null;
   ecosystem_id: string;
-  profile_picture: string | null;
   skills_offered: string[] | null;
   skills_needed: string[] | null;
   interests: string[] | null;
+  kyc_status: string | null;
+  last_governance_activity_date: string | null;
   updated_at: string;
-  onboarding: OnboardingState | null;
+  onboarding: MemberOnboardingSnapshot | null;
+}
+
+export interface MemberOnboardingSnapshot {
+  id: string;
+  facilitator: string | null;
+  completion_percentage: number | null;
+  cooling_off_start: string | null;
+  cooling_off_end: string | null;
+  consent_date: string | null;
 }
 
 export interface QuizStatusItem {
@@ -336,14 +351,30 @@ export interface MemberProfileResponse extends MemberDetail {
   tags: UserTagItem[];
 }
 
+export interface OnboardingSectionPosition {
+  consented: boolean;
+  position: string | null;
+  objection_text: string | null;
+}
+
+export type OnboardingSectionConsent = boolean | OnboardingSectionPosition;
+
 export interface OnboardingState {
-  id: string;
+  member_id: string;
   facilitator: string | null;
   completion_percentage: number;
-  section_consents: Record<string, boolean> | null;
+  section_consents: Record<string, OnboardingSectionConsent>;
   cooling_off_start: string | null;
   cooling_off_end: string | null;
   consent_date: string | null;
+  uaf_version_consented: string | null;
+}
+
+export interface CeremonyConsentRequest {
+  section: string;
+  consented: boolean;
+  position?: 'consent' | 'stand_aside' | 'object';
+  objection_text?: string;
 }
 
 // Domain types
@@ -355,6 +386,8 @@ export interface DomainListItem {
   status: string;
   purpose: string | null;
   current_steward: string | null;
+  parent_domain_id: string | null;
+  version_fingerprint: string | null;
   created_at: string;
 }
 
@@ -372,11 +405,14 @@ export interface DomainMetric {
 }
 
 export interface DomainDetail extends DomainListItem {
+  shared_ecosystem_ids: string[] | null;
   ecosystem_id: string;
+  steward_id: string | null;
   created_by: string | null;
-  parent_domain_id: string | null;
-  elements: DomainElement[];
-  metrics: DomainMetric[];
+  metric_definitions: string | Record<string, unknown> | null;
+  elements: Record<string, unknown> | null;
+  domain_elements: DomainElement[];
+  domain_metrics: DomainMetric[];
   updated_at: string;
 }
 
@@ -404,6 +440,12 @@ export interface DecisionDetail extends DecisionListItem {
   artifact_reference: string | null;
   overruled_by: string | null;
   superseded_by: string | null;
+  related_records: Record<string, unknown> | null;
+  review_date: string | null;
+  recorder: string | null;
+  recorder_role: string | null;
+  verification_by: string | null;
+  verification_date: string | null;
   updated_at: string;
 }
 
@@ -443,9 +485,12 @@ export interface ConflictDetail extends ConflictListItem {
   scope: string | null;
   tier: number | null;
   root_cause_category: string | null;
-  parties: string[] | null;
+  parties: Record<string, unknown> | null;
   reporter_id: string | null;
   facilitator_id: string | null;
+  triage_notes: string | null;
+  resolution_summary: string | null;
+  resolved_date: string | null;
   updated_at: string;
   repair_agreements: RepairAgreement[];
 }

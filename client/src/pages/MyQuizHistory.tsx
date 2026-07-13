@@ -72,7 +72,7 @@ export default function MyQuizHistory() {
 
   if (!member) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div>
         <Card>
           <CardContent className="p-12 text-center">
             <p className="text-muted-foreground">Please log in to view your quiz history</p>
@@ -83,7 +83,7 @@ export default function MyQuizHistory() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button 
           variant="ghost" 
@@ -123,11 +123,11 @@ export default function MyQuizHistory() {
               {displayedResults.map((result) => (
                 <Link key={result.id} href={`/quiz/results/${result.id}`}>
                   <div
-                    className="flex items-center justify-between p-4 rounded-lg border hover-elevate active-elevate-2 cursor-pointer"
+                    className="flex cursor-pointer items-center justify-between border border-strong-border p-5 transition-colors hover:bg-muted/50 motion-reduce:transition-none"
                     data-testid={`quiz-result-${result.id}`}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={`p-2 rounded-full flex-shrink-0 ${
+                      <div className={`flex-shrink-0 border p-2 ${
                         result.is_passed === false ? "bg-destructive/10" : "bg-primary/10"
                       }`}>
                         {result.is_passed === false ? (
@@ -201,7 +201,7 @@ export default function MyQuizHistory() {
             </div>
           ) : (
             <div className="text-center py-12 space-y-4">
-              <div className="p-4 rounded-full bg-muted inline-block">
+              <div className="inline-block border border-strong-border bg-muted p-4">
                 <CheckCircle className="h-8 w-8 text-muted-foreground" />
               </div>
               <div className="space-y-2">

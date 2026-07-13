@@ -17,7 +17,6 @@ import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
-import QuizList from "@/pages/QuizList";
 import QuizzesOnboardingHub from "@/pages/QuizzesOnboardingHub";
 import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
@@ -38,7 +37,7 @@ import MapPage from "@/pages/MapPage";
 import JourneyMapList from "@/pages/JourneyMapList";
 import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
-import Discover from "@/pages/Discover";
+import Solutions from "@/pages/Discover";
 import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
@@ -67,10 +66,25 @@ import NotificationPreferences from '@/pages/settings/NotificationPreferences';
 // Loading spinner component
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-background" role="status" aria-live="polite">
       <div className="text-center">
-        <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+        <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" aria-hidden="true" />
         <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function SkipLink() {
+  return <a className="skip-link" href="#main-content">Skip to content</a>;
+}
+
+function PublicPageFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen bg-background text-foreground">
+      <SkipLink />
+      <div id="main-content" tabIndex={-1} className="min-h-screen">
+        {children}
       </div>
     </div>
   );
@@ -213,9 +227,9 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={ProposalList} />
       </Route>
 
-      {/* Explore / Discover hub - all authenticated users */}
+      {/* Legacy discovery entry point */}
       <Route path="/explore">
-        <ProtectedRoute component={DiscoverHub} />
+        <Redirect to="/discover" />
       </Route>
 
       {/* Quiz & Onboarding hub */}
@@ -255,12 +269,17 @@ function AuthenticatedRoutes() {
         <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={CollaborationDetail} /></Suspense>
       </Route>
       <Route path="/discover/hub">
+        <Redirect to="/discover" />
+      </Route>
+
+      {/* Visual discovery hub - all authenticated users */}
+      <Route path="/discover">
         <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={DiscoverHub} /></Suspense>
       </Route>
 
-      {/* Orientation Portal - all authenticated users */}
-      <Route path="/discover">
-        <ProtectedRoute component={Discover} />
+      {/* Solutions catalogue and orientation journeys */}
+      <Route path="/solutions">
+        <ProtectedRoute component={Solutions} />
       </Route>
       <Route path="/ethos/:slug">
         <ProtectedRoute component={EthosDetail} />
@@ -393,19 +412,21 @@ function AppLayout() {
 
   // Show landing page for unauthenticated users at root
   if (!isAuthenticated && isLandingPage) {
-    return <LandingPage />;
+    return <PublicPageFrame><LandingPage /></PublicPageFrame>;
   }
 
   // Show public routes without sidebar
   if (!isAuthenticated || isPublicPath) {
     return (
-      <Switch>
-        <Route path="/login" component={Login} />
-        <Route path="/about" component={About} />
-        <Route path="/users/:username" component={PublicProfile} />
-        {!isAuthenticated && <Route><Redirect to="/" /></Route>}
-        {isAuthenticated && <Route><Redirect to="/dashboard" /></Route>}
-      </Switch>
+      <PublicPageFrame>
+        <Switch>
+          <Route path="/login" component={Login} />
+          <Route path="/about" component={About} />
+          <Route path="/users/:username" component={PublicProfile} />
+          {!isAuthenticated && <Route><Redirect to="/" /></Route>}
+          {isAuthenticated && <Route><Redirect to="/dashboard" /></Route>}
+        </Switch>
+      </PublicPageFrame>
     );
   }
 
@@ -417,10 +438,11 @@ function AppLayout() {
 
   return (
     <SidebarProvider style={sidebarStyle}>
+      <SkipLink />
       <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between p-3 sm:p-4 border-b bg-background">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b-2 border-strong-border bg-background px-[var(--page-gutter)]">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <EcosystemPicker />
             <div className="flex items-center gap-2">
@@ -428,7 +450,7 @@ function AppLayout() {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 min-w-0">
+          <main id="main-content" tabIndex={-1} className="route-shell min-w-0 flex-1 overflow-auto">
             <AuthenticatedRoutes />
           </main>
         </div>

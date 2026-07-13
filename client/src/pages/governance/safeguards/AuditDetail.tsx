@@ -18,17 +18,17 @@ const statusVariant = (status: string) => {
 
 const statusColorClass = (status: string | null) => {
   switch (status) {
-    case 'healthy': return 'bg-green-100 text-green-800 border-green-200';
-    case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'critical': return 'bg-red-100 text-red-800 border-red-200';
+    case 'healthy': return 'border-success bg-success/10 text-success';
+    case 'warning': return 'border-warning bg-warning/10 text-warning';
+    case 'critical': return 'border-destructive bg-destructive/10 text-destructive';
     default: return '';
   }
 };
 
 const trendColor = (trend: string) => {
   switch (trend) {
-    case 'improving': return 'text-green-600';
-    case 'degrading': return 'text-red-600';
+    case 'improving': return 'text-success';
+    case 'degrading': return 'text-destructive';
     default: return 'text-muted-foreground';
   }
 };
@@ -63,9 +63,9 @@ export default function AuditDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load audit</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/safeguards/audits">
-          <Button variant="outline" className="mt-4">Back to Audits</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/safeguards/audits">Back to Audits</Link>
+        </Button>
       </div>
     );
   }
@@ -76,12 +76,12 @@ export default function AuditDetail() {
 
   return (
     <div className="space-y-6">
-      <Link href="/safeguards/audits">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/safeguards/audits">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Audits
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
@@ -196,7 +196,7 @@ export default function AuditDetail() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {data.indicator_scores.map((score: IndicatorScore) => (
-                <div key={score.indicator_id} className="border rounded-lg p-3 space-y-2">
+                <div key={score.indicator_id} className="space-y-2 border border-strong-border p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">{score.indicator_id}</span>
                     <Badge className={statusColorClass(score.status)}>{score.status ?? 'N/A'}</Badge>
@@ -225,17 +225,17 @@ export default function AuditDetail() {
 
       {/* Triggered Safeguards */}
       {data.triggered_safeguards && data.triggered_safeguards.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+        <Card className="border-warning bg-warning/10">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
               Triggered Safeguards
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {data.triggered_safeguards.map((sg: TriggeredSafeguard, i: number) => (
-                <div key={i} className="border rounded-md p-3 space-y-1 bg-background">
+                <div key={i} className="space-y-1 rounded-none border-2 border-strong-border bg-background p-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Badge variant="outline">{sg.indicator_id}</Badge>
                     <span className="font-medium">Threshold: {sg.threshold_crossed}</span>
@@ -287,7 +287,7 @@ export default function AuditDetail() {
 
       {/* Next Audit Due banner */}
       {data.next_audit_due && (
-        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+        <div className="flex items-center gap-3 border border-info bg-info/10 px-4 py-3 text-sm text-info">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
             Next audit due:{' '}

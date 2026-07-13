@@ -126,12 +126,12 @@ export default function QuizList() {
                       )}
                     </div>
                   </div>
-                  <Link href={`/quiz/take/${quiz.id}`}>
-                    <Button data-testid={`button-take-${quiz.id}`}>
+                  <Button asChild data-testid={`button-take-${quiz.id}`}>
+                    <Link href={`/quiz/take/${quiz.id}`}>
                       Take Quiz
                       <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 </div>
               </CardHeader>
             </Card>

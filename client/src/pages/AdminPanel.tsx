@@ -1230,7 +1230,7 @@ export default function AdminPanel() {
                   {filteredUsers.map((user: any) => (
                     <div
                       key={user.id}
-                      className="flex items-center justify-between p-4 rounded-lg border"
+                      className="flex items-center justify-between border border-strong-border p-5"
                       data-testid={`user-row-${user.id}`}
                     >
                       <div className="flex-1 min-w-0 space-y-1">
@@ -1254,7 +1254,7 @@ export default function AdminPanel() {
                           <Switch
                             checked={handoffMap[user.id] ?? false}
                             onCheckedChange={(checked) =>
-                              setNeosDenReadyMutation.mutate({ user_id: user.id, did: (user as any).did || '', ready_for_neos_den: checked })
+                              setNeosDenReadyMutation.mutate({ user_id: user.id, ready_for_neos_den: checked })
                             }
                           />
                           <span className="text-sm text-muted-foreground whitespace-nowrap">NEOS Den</span>
@@ -1380,9 +1380,9 @@ export default function AdminPanel() {
                       </div>
                       <div>
                         <Label>Add Members</Label>
-                        <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                        <div className="max-h-48 space-y-2 overflow-y-auto border border-strong-border p-4">
                           {users.map((user: any) => (
-                            <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded">
+                            <label key={user.id} className="flex cursor-pointer items-center gap-2 rounded-[2px] border-2 border-strong-border p-1 hover:bg-muted/50">
                               <input
                                 type="checkbox"
                                 checked={selectedTeamMembers.includes(user.id)}
@@ -1393,7 +1393,7 @@ export default function AdminPanel() {
                                     setSelectedTeamMembers(m => m.filter(id => id !== user.id));
                                   }
                                 }}
-                                className="rounded"
+                                className="rounded-[2px] border-2 border-control-border"
                               />
                               <span>{user.first_name} {user.last_name}</span>
                               <span className="text-muted-foreground text-sm">@{user.username}</span>
@@ -1431,9 +1431,9 @@ export default function AdminPanel() {
               ) : teams.length > 0 ? (
                 <div className="space-y-3">
                   {teams.map((team: any) => (
-                    <div key={team.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={team.id} className="flex items-center justify-between border border-strong-border p-5">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <div className="flex h-10 w-10 items-center justify-center border border-primary bg-primary/10">
                           <UsersRound className="h-5 w-5 text-primary" />
                         </div>
                         <div>
@@ -1475,12 +1475,12 @@ export default function AdminPanel() {
                   <CardTitle>Quiz Management</CardTitle>
                   <CardDescription>View and manage all quizzes ({quizzes.length} total, {activeQuizzes.length} published)</CardDescription>
                 </div>
-                <Link href="/quiz/manage">
-                  <Button data-testid="button-manage-quizzes">
+                <Button asChild data-testid="button-manage-quizzes">
+                  <Link href="/quiz/manage">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Quiz
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1495,7 +1495,7 @@ export default function AdminPanel() {
                     return (
                     <div
                       key={quiz.id}
-                      className="flex items-center justify-between p-4 rounded-lg border"
+                      className="flex items-center justify-between border border-strong-border p-5"
                       data-testid={`quiz-row-${quiz.id}`}
                     >
                       <div className="flex-1 min-w-0 space-y-1">
@@ -1650,9 +1650,9 @@ export default function AdminPanel() {
                       </div>
                       <div>
                         <Label>Assign to Individual Users</Label>
-                        <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                        <div className="max-h-48 space-y-2 overflow-y-auto border border-strong-border p-4">
                           {users.map((user: any) => (
-                            <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded">
+                            <label key={user.id} className="flex cursor-pointer items-center gap-2 rounded-[2px] border-2 border-strong-border p-1 hover:bg-muted/50">
                               <input
                                 type="checkbox"
                                 checked={assignmentForm.user_ids.includes(user.id)}
@@ -1663,7 +1663,7 @@ export default function AdminPanel() {
                                     setAssignmentForm(f => ({ ...f, user_ids: f.user_ids.filter(id => id !== user.id) }));
                                   }
                                 }}
-                                className="rounded"
+                                className="rounded-[2px] border-2 border-control-border"
                               />
                               <span>{user.first_name} {user.last_name}</span>
                               <RoleBadge role={getRoleBadgeRole(user.role)} className="text-xs ml-auto" />
@@ -1706,10 +1706,10 @@ export default function AdminPanel() {
               ) : assignments.length > 0 ? (
                 <div className="space-y-3">
                   {assignments.map((assignment: any) => (
-                    <div key={assignment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={assignment.id} className="flex items-center justify-between border border-strong-border p-5">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <ClipboardList className="h-5 w-5 text-blue-500" />
+                        <div className="flex h-10 w-10 items-center justify-center border border-info bg-info/10">
+                          <ClipboardList className="h-5 w-5 text-info" />
                         </div>
                         <div>
                           <p className="font-medium">{assignment.quiz?.title || 'Unknown Quiz'}</p>
@@ -1773,36 +1773,36 @@ export default function AdminPanel() {
             </Card>
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
-                <ArrowDownCircle className="h-8 w-8 text-orange-500/50" />
+                <ArrowDownCircle className="h-8 w-8 text-warning" />
                 <div>
-                  <div className="text-xl font-bold">{snAdminStats.needs}</div>
+                  <div className="text-xl font-bold tabular-nums">{snAdminStats.needs}</div>
                   <div className="text-xs text-muted-foreground">Needs</div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle2 className="h-8 w-8 text-green-500/50" />
+                <CheckCircle2 className="h-8 w-8 text-success" />
                 <div>
-                  <div className="text-xl font-bold">{snAdminStats.active}</div>
+                  <div className="text-xl font-bold tabular-nums">{snAdminStats.active}</div>
                   <div className="text-xs text-muted-foreground">Active</div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle className="h-8 w-8 text-blue-500/50" />
+                <CheckCircle className="h-8 w-8 text-info" />
                 <div>
-                  <div className="text-xl font-bold">{snAdminStats.fulfilled}</div>
+                  <div className="text-xl font-bold tabular-nums">{snAdminStats.fulfilled}</div>
                   <div className="text-xs text-muted-foreground">Fulfilled</div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
-                <XCircle className="h-8 w-8 text-gray-500/50" />
+                <XCircle className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <div className="text-xl font-bold">{snAdminStats.withdrawn}</div>
+                  <div className="text-xl font-bold tabular-nums">{snAdminStats.withdrawn}</div>
                   <div className="text-xs text-muted-foreground">Withdrawn</div>
                 </div>
               </CardContent>
@@ -1874,7 +1874,7 @@ export default function AdminPanel() {
                   {snAdminItems.map((item: any) => (
                     <div
                       key={item.id}
-                      className="flex items-start justify-between p-4 rounded-lg border"
+                      className="flex items-start justify-between border border-strong-border p-5"
                       data-testid={`sn-row-${item.id}`}
                     >
                       <div className="flex-1 min-w-0 space-y-1">
@@ -1882,7 +1882,7 @@ export default function AdminPanel() {
                           {item.type === 'share' ? (
                             <ArrowUpCircle className="h-4 w-4 text-primary shrink-0" />
                           ) : (
-                            <ArrowDownCircle className="h-4 w-4 text-orange-500 shrink-0" />
+                            <ArrowDownCircle className="h-4 w-4 shrink-0 text-warning" />
                           )}
                           <p className="font-medium truncate">{item.title}</p>
                           <Badge variant={item.type === 'share' ? 'default' : 'secondary'} className="capitalize text-xs">{item.type}</Badge>
@@ -2126,7 +2126,7 @@ export default function AdminPanel() {
                                 <img 
                                   src={iconPreview} 
                                   alt="Badge icon preview" 
-                                  className="h-16 w-16 rounded-lg object-cover border"
+                                  className="h-16 w-16 border border-strong-border object-cover"
                                 />
                                 <Button
                                   type="button"
@@ -2138,7 +2138,7 @@ export default function AdminPanel() {
                                 </Button>
                               </div>
                             ) : (
-                              <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                              <div className="border-2 border-dashed border-strong-border p-5 text-center">
                                 <input
                                   type="file"
                                   accept="image/*"
@@ -2206,7 +2206,7 @@ export default function AdminPanel() {
                             type="checkbox" 
                             checked={badgeForm.is_active}
                             onChange={(e) => setBadgeForm({...badgeForm, is_active: e.target.checked})}
-                            className="rounded"
+                            className="rounded-[2px] border-2 border-control-border"
                           />
                           <span className="text-sm">Active</span>
                         </label>
@@ -2215,7 +2215,7 @@ export default function AdminPanel() {
                             type="checkbox" 
                             checked={badgeForm.is_featured}
                             onChange={(e) => setBadgeForm({...badgeForm, is_featured: e.target.checked})}
-                            className="rounded"
+                            className="rounded-[2px] border-2 border-control-border"
                           />
                           <span className="text-sm">Featured</span>
                         </label>
@@ -2247,7 +2247,7 @@ export default function AdminPanel() {
                           <div className="flex items-center gap-3">
                             {isEmojiIcon(badge.badge_icon) ? (
                               <div 
-                                className="h-12 w-12 rounded-full flex items-center justify-center text-2xl"
+                                className="flex h-12 w-12 items-center justify-center border border-strong-border text-2xl"
                                 style={{ backgroundColor: `${badge.badge_color}20` }}
                               >
                                 {badge.badge_icon || '🏅'}
@@ -2256,7 +2256,7 @@ export default function AdminPanel() {
                               <img 
                                 src={badge.badge_icon} 
                                 alt={badge.badge_name}
-                                className="h-12 w-12 rounded-full object-cover border-2"
+                                className="h-12 w-12 border-2 object-cover"
                                 style={{ borderColor: badge.badge_color }}
                               />
                             )}
@@ -2342,7 +2342,7 @@ export default function AdminPanel() {
                                             <img 
                                               src={iconPreview || badgeForm.badge_icon} 
                                               alt="Badge icon preview" 
-                                              className="h-16 w-16 rounded-lg object-cover border"
+                                              className="h-16 w-16 border border-strong-border object-cover"
                                             />
                                             <Button
                                               type="button"
@@ -2354,7 +2354,7 @@ export default function AdminPanel() {
                                             </Button>
                                           </div>
                                         ) : (
-                                          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                                          <div className="border-2 border-dashed border-strong-border p-5 text-center">
                                             <input
                                               type="file"
                                               accept="image/*"
@@ -2422,7 +2422,7 @@ export default function AdminPanel() {
                                         type="checkbox" 
                                         checked={badgeForm.is_active}
                                         onChange={(e) => setBadgeForm({...badgeForm, is_active: e.target.checked})}
-                                        className="rounded"
+                                        className="rounded-[2px] border-2 border-control-border"
                                       />
                                       <span className="text-sm">Active</span>
                                     </label>
@@ -2431,7 +2431,7 @@ export default function AdminPanel() {
                                         type="checkbox" 
                                         checked={badgeForm.is_featured}
                                         onChange={(e) => setBadgeForm({...badgeForm, is_featured: e.target.checked})}
-                                        className="rounded"
+                                        className="rounded-[2px] border-2 border-control-border"
                                       />
                                       <span className="text-sm">Featured</span>
                                     </label>
@@ -2513,7 +2513,7 @@ export default function AdminPanel() {
                     <p className="text-sm text-muted-foreground mt-1">Click "Create ETHOS" to add the first one</p>
                   </div>
                 ) : (
-                  <div className="rounded-md border overflow-hidden">
+                  <div className="overflow-hidden rounded-none border-2 border-strong-border">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50">
                         <tr>
@@ -2731,7 +2731,7 @@ export default function AdminPanel() {
                     {ethosMembers.length > 0 && (
                       <div className="space-y-2">
                         {ethosMembers.map((m: any) => (
-                          <div key={m.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                          <div key={m.id} className="flex items-center justify-between rounded-none border-2 border-strong-border bg-muted/30 p-2">
                             <div>
                               <span className="font-medium">{[m.profiles?.first_name, m.profiles?.last_name].filter(Boolean).join(' ') || m.profiles?.username || m.user_id}</span>
                               <span className="text-muted-foreground text-sm ml-2">{m.role_in_ethos}</span>
@@ -2748,7 +2748,7 @@ export default function AdminPanel() {
                     )}
 
                     {/* Add member */}
-                    <div className="space-y-3 p-3 border rounded bg-muted/20">
+                    <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/20 p-3">
                       <p className="text-sm font-medium">Add Member</p>
                       <div className="space-y-2">
                         <Input
@@ -2757,7 +2757,7 @@ export default function AdminPanel() {
                           onChange={(e) => { setEthosUserSearch(e.target.value); searchEthosUsers(e.target.value); }}
                         />
                         {ethosUserResults.length > 0 && (
-                          <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
+                          <div className="max-h-40 overflow-y-auto border border-strong-border bg-background">
                             {ethosUserResults.map((u: any) => (
                               <button key={u.id} type="button"
                                 className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
@@ -2827,7 +2827,7 @@ export default function AdminPanel() {
                         const profile = users.find((u: any) => u.id === g.user_id);
                         const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.username || g.user_id;
                         return (
-                          <div key={g.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                          <div key={g.id} className="flex items-center justify-between rounded-none border-2 border-strong-border bg-muted/30 p-2">
                             <div>
                               <span className="font-medium text-sm">{displayName}</span>
                               {profile?.username && <span className="text-muted-foreground text-xs ml-2">@{profile.username}</span>}
@@ -2853,7 +2853,7 @@ export default function AdminPanel() {
                     onChange={(e) => { setAccessUserSearch(e.target.value); searchAccessUsers(e.target.value); }}
                   />
                   {accessUserResults.length > 0 && (
-                    <div className="border rounded bg-background shadow-sm max-h-40 overflow-y-auto">
+                    <div className="max-h-40 overflow-y-auto border border-strong-border bg-background">
                       {accessUserResults.map((u: any) => (
                         <button key={u.id} type="button"
                           className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between"
@@ -2995,7 +2995,7 @@ export default function AdminPanel() {
                     <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
                       {(Array.isArray(selectedOmnibotSession.messages) ? selectedOmnibotSession.messages : []).map((msg: any, i: number) => (
                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                          <div className={`max-w-[80%] border px-3 py-2 text-sm ${
                             msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                           }`}>
                             <p className="whitespace-pre-wrap">{msg.content}</p>

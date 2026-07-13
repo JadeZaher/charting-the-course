@@ -5,7 +5,7 @@ import emptyStateImage from "@assets/generated_images/Empty_quiz_state_illustrat
 export default function EmptyStateExample() {
   return (
     <div className="p-8">
-      <div className="border rounded-xl p-4 mb-8">
+      <div className="mb-8 rounded-none border-2 border-strong-border p-4">
         <EmptyState
           icon={BookOpen}
           title="No Quizzes Yet"
@@ -14,7 +14,7 @@ export default function EmptyStateExample() {
           onAction={() => console.log("Browse clicked")}
         />
       </div>
-      <div className="border rounded-xl p-4">
+      <div className="rounded-none border-2 border-strong-border p-4">
         <EmptyState
           icon={BookOpen}
           title="No Quizzes Available"

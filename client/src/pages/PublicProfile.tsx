@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  ArrowLeft, Sparkles, Heart, Target, Loader2 as LoaderIcon,
+  ArrowLeft, Loader2 as LoaderIcon,
   Globe, Linkedin, Twitter, Github, Compass, Share2,
-  ExternalLink, Lock, Copy, Check, Settings, Link2, ChevronRight,
-  Users, Award, Edit
+  Lock, Check, Settings, ChevronRight, Award, Edit
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TileGrid, ProfileTile } from "@/components/profile/tiles";
@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
 import { fetchMember, fetchMemberBadges, fetchMemberTags, fetchMemberQuizHistory } from "@/lib/api-client";
 import { iconMap } from "@/components/profile/tiles/BadgeTile";
+import { resolveExternalUrl, resolveMediaUrl } from "@/lib/media";
 
 interface PublicProfileData {
   profile: {
@@ -78,323 +79,20 @@ interface PublicProfileData {
   } | null;
 }
 
-// Crystal glass card with visible frosted border and subtle hover glow
-function CrystalCard({ children, className = "", featured = false }: { 
-  children: React.ReactNode; 
+// Dossier panel shared by public profile sections.
+function CrystalCard({ children, className = "" }: {
+  children: React.ReactNode;
   className?: string;
   featured?: boolean;
 }) {
-  return (
-    <div className={`relative group ${className}`}>
-      {/* Subtle hover glow effect - minimal spread */}
-      <div className={`
-        absolute inset-0 rounded-2xl transition-all duration-300 ease-out
-        opacity-0 group-hover:opacity-100 group-hover:-inset-1 group-hover:blur-md
-        bg-gradient-to-br from-cyan-500/20 via-teal-400/15 to-emerald-500/20
-      `} />
-      
-      {/* Crystal border frame */}
-      <div className="absolute inset-0 rounded-2xl overflow-hidden">
-        {/* Top edge highlight */}
-        <div className="absolute top-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-white/60 to-transparent transition-colors duration-300 group-hover:via-cyan-300/70" />
-        {/* Left edge highlight */}
-        <div className="absolute top-4 bottom-4 left-0 w-[2px] bg-gradient-to-b from-transparent via-white/40 to-transparent transition-colors duration-300 group-hover:via-cyan-300/50" />
-        {/* Right edge highlight */}
-        <div className="absolute top-4 bottom-4 right-0 w-[2px] bg-gradient-to-b from-transparent via-white/30 to-transparent transition-colors duration-300 group-hover:via-teal-300/40" />
-        {/* Bottom edge */}
-        <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent transition-colors duration-300 group-hover:via-teal-300/30" />
-        
-        {/* Corner accents */}
-        <div className="absolute top-0 left-0 w-6 h-6">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-white/70 to-transparent transition-colors duration-300 group-hover:from-cyan-400/80" />
-          <div className="absolute top-0 left-0 h-full w-[2px] bg-gradient-to-b from-white/70 to-transparent transition-colors duration-300 group-hover:from-cyan-400/80" />
-        </div>
-        <div className="absolute top-0 right-0 w-6 h-6">
-          <div className="absolute top-0 right-0 w-full h-[2px] bg-gradient-to-l from-white/70 to-transparent transition-colors duration-300 group-hover:from-teal-400/80" />
-          <div className="absolute top-0 right-0 h-full w-[2px] bg-gradient-to-b from-white/70 to-transparent transition-colors duration-300 group-hover:from-teal-400/80" />
-        </div>
-        <div className="absolute bottom-0 left-0 w-6 h-6">
-          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-white/40 to-transparent transition-colors duration-300 group-hover:from-emerald-400/60" />
-          <div className="absolute bottom-0 left-0 h-full w-[2px] bg-gradient-to-t from-white/40 to-transparent transition-colors duration-300 group-hover:from-emerald-400/60" />
-        </div>
-        <div className="absolute bottom-0 right-0 w-6 h-6">
-          <div className="absolute bottom-0 right-0 w-full h-[1px] bg-gradient-to-l from-white/40 to-transparent transition-colors duration-300 group-hover:from-teal-400/60" />
-          <div className="absolute bottom-0 right-0 h-full w-[2px] bg-gradient-to-t from-white/40 to-transparent transition-colors duration-300 group-hover:from-teal-400/60" />
-        </div>
-      </div>
-      
-      {/* Main card background */}
-      <div className="relative rounded-2xl bg-gradient-to-br from-slate-800/80 via-slate-800/60 to-slate-900/80 backdrop-blur-xl border border-white/10 overflow-hidden transition-all duration-300 group-hover:border-cyan-500/20">
-        {/* Inner top highlight */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-        
-        {/* Content */}
-        <div className="relative z-10">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+  return <section className={`border border-foreground bg-card ${className}`}>{children}</section>;
 }
 
-// Section title with icon
 function SectionLabel({ icon: Icon, title }: { icon: any; title: string }) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <Icon className="h-4 w-4 text-cyan-400" />
-      <span className="text-xs font-semibold uppercase tracking-wider text-white/70">{title}</span>
-    </div>
-  );
-}
-
-// Tag pill component
-function TagPill({ children, variant = "default" }: { 
-  children: React.ReactNode; 
-  variant?: "default" | "cyan" | "emerald" | "amber" | "rose";
-}) {
-  const variants = {
-    default: "bg-white/10 text-white/80 border-white/20",
-    cyan: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-    emerald: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    amber: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    rose: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-  };
-  
-  return (
-    <span className={`
-      inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium
-      border backdrop-blur-sm
-      ${variants[variant]}
-    `}>
-      {children}
-    </span>
-  );
-}
-
-// Crystal decoration SVG with 3D animation
-function CrystalDecoration({ 
-  className = "", 
-  rotateY = 0,
-  floatOffset = 0,
-  glowIntensity = 1
-}: { 
-  className?: string;
-  rotateY?: number;
-  floatOffset?: number;
-  glowIntensity?: number;
-}) {
-  return (
-    <div 
-      className={`transition-transform duration-75 ${className}`}
-      style={{
-        transform: `perspective(1000px) rotateY(${rotateY}deg) translateY(${floatOffset}px)`,
-        transformStyle: 'preserve-3d',
-      }}
-    >
-      {/* Glow effect behind crystal */}
-      <div 
-        className="absolute inset-0 blur-xl rounded-full"
-        style={{
-          background: `radial-gradient(ellipse, rgba(34, 211, 238, ${0.3 * glowIntensity}), transparent 70%)`,
-          transform: 'translateZ(-20px) scale(1.5)',
-        }}
-      />
-      <svg viewBox="0 0 80 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative">
-        <defs>
-          <linearGradient id="crystalMain" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(34, 211, 238, 0.6)" />
-            <stop offset="50%" stopColor="rgba(20, 184, 166, 0.4)" />
-            <stop offset="100%" stopColor="rgba(16, 185, 129, 0.3)" />
-          </linearGradient>
-          <linearGradient id="crystalHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(255, 255, 255, 0.7)" />
-            <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
-          </linearGradient>
-          <linearGradient id="crystalShine" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="rgba(255, 255, 255, 0.5)" />
-            <stop offset="50%" stopColor="rgba(255, 255, 255, 0.1)" />
-            <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
-          </linearGradient>
-          <filter id="crystalGlow">
-            <feGaussianBlur stdDeviation="2" result="glow" />
-            <feMerge>
-              <feMergeNode in="glow" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        {/* Main crystal body */}
-        <path 
-          d="M40 5 L70 50 L65 140 L40 195 L15 140 L10 50 Z" 
-          fill="url(#crystalMain)" 
-          filter="url(#crystalGlow)"
-        />
-        {/* Crystal edges with glow */}
-        <path 
-          d="M40 5 L70 50 L65 140 L40 195 L15 140 L10 50 Z" 
-          stroke="rgba(34, 211, 238, 0.6)" 
-          strokeWidth="1.5" 
-          fill="none" 
-        />
-        {/* Internal facets */}
-        <path d="M40 5 L40 195" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
-        <path d="M10 50 L70 50" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
-        <path d="M15 140 L65 140" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
-        <path d="M40 5 L15 140" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
-        <path d="M40 5 L65 140" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
-        <path d="M40 50 L10 50" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-        <path d="M40 50 L15 140" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-        {/* Highlight shine */}
-        <path d="M25 20 L35 15 L50 40 L30 60 Z" fill="url(#crystalHighlight)" />
-        {/* Additional shine based on rotation */}
-        <path d="M50 30 L60 45 L55 80 L45 60 Z" fill="url(#crystalShine)" opacity="0.6" />
-      </svg>
-    </div>
-  );
-}
-
-// Animated crystal container with scroll effects and idle heartbeat
-function AnimatedCrystals({ scrollY, isScrolling }: { scrollY: number; isScrolling: boolean }) {
-  const [idleTime, setIdleTime] = useState(0);
-  
-  // Idle animation timer
-  useEffect(() => {
-    if (!isScrolling) {
-      const interval = setInterval(() => {
-        setIdleTime(t => t + 16); // ~60fps
-      }, 16);
-      return () => clearInterval(interval);
-    } else {
-      setIdleTime(0);
-    }
-  }, [isScrolling]);
-
-  // Orbit angle based on scroll (crystals rotate around each other)
-  const orbitAngle = scrollY * 0.15; // Degrees of orbit rotation
-  
-  // Orbit radius and positions for 3 crystals rotating around center
-  const orbitRadius = 50;
-  const crystalConfigs = [
-    { 
-      angle: orbitAngle, 
-      size: 'w-20 h-48', 
-      opacity: 1,
-      orbitR: orbitRadius,
-      zOffset: 0 
-    },
-    { 
-      angle: orbitAngle + 120, 
-      size: 'w-14 h-36', 
-      opacity: 0.75,
-      orbitR: orbitRadius * 0.8,
-      zOffset: -30 
-    },
-    { 
-      angle: orbitAngle + 240, 
-      size: 'w-10 h-28', 
-      opacity: 0.55,
-      orbitR: orbitRadius * 0.6,
-      zOffset: -60 
-    },
-  ];
-
-  // Idle vertical float (2-3 pixels up/down)
-  const idleFloat = isScrolling 
-    ? 0 
-    : Math.sin(idleTime * 0.002) * 3;
-  
-  // Light glow effect
-  const glowIntensity = isScrolling 
-    ? 0.5 + Math.sin(scrollY * 0.005) * 0.2
-    : 0.4 + Math.sin(idleTime * 0.003) * 0.15;
-
-  return (
-    <div className="fixed right-4 top-1/2 -translate-y-1/2 pointer-events-none hidden lg:block z-20">
-      {/* Crystal orbit container */}
-      <div 
-        className="relative w-40 h-64"
-        style={{
-          transform: `translateY(${idleFloat}px)`,
-          transition: isScrolling ? 'none' : 'transform 0.3s ease-out',
-        }}
-      >
-        {/* Orbiting crystals */}
-        {crystalConfigs.map((config, index) => {
-          // Convert angle to radians for position calculation
-          const angleRad = (config.angle * Math.PI) / 180;
-          
-          // Calculate X position based on orbit (horizontal movement)
-          const xPos = Math.cos(angleRad) * config.orbitR;
-          // Y position is more subtle (creates 3D feel)
-          const yPos = Math.sin(angleRad) * (config.orbitR * 0.3);
-          // Z for depth effect (crystals in front/back)
-          const zPos = Math.sin(angleRad) * 50 + config.zOffset;
-          
-          // Rotation changes as crystal orbits
-          const rotateY = isScrolling 
-            ? Math.sin(angleRad) * 45 // More rotation when scrolling
-            : Math.sin(idleTime * 0.001 + index) * 5; // Gentle sway when idle
-          
-          return (
-            <div
-              key={index}
-              className="absolute left-1/2 top-1/2"
-              style={{
-                transform: `
-                  translateX(${xPos - 40}px) 
-                  translateY(${yPos - 80}px) 
-                  translateZ(${zPos}px)
-                `,
-                zIndex: Math.round(50 + zPos),
-                opacity: config.opacity,
-                transition: isScrolling ? 'transform 0.05s linear' : 'transform 0.3s ease-out',
-              }}
-            >
-              <CrystalDecoration 
-                className={config.size}
-                rotateY={rotateY} 
-                floatOffset={0}
-                glowIntensity={glowIntensity * config.opacity}
-              />
-            </div>
-          );
-        })}
-        
-        {/* Center glow effect */}
-        <div 
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full blur-3xl"
-          style={{
-            background: `radial-gradient(ellipse, rgba(34, 211, 238, ${0.15 * glowIntensity}), transparent 70%)`,
-          }}
-        />
-      </div>
-      
-      {/* Floating particles around crystals */}
-      <div className="absolute -inset-8 overflow-hidden">
-        {[...Array(15)].map((_, i) => {
-          const particleAngle = ((scrollY * 0.1) + (i * 24)) * (Math.PI / 180);
-          const particleRadius = 60 + (i % 3) * 20;
-          const px = Math.cos(particleAngle) * particleRadius + 80;
-          const py = Math.sin(particleAngle) * particleRadius * 0.5 + 120;
-          
-          return (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-cyan-400 rounded-full"
-              style={{
-                left: `${px}px`,
-                top: `${py}px`,
-                opacity: isScrolling 
-                  ? 0.4 + Math.sin(scrollY * 0.01 + i) * 0.3
-                  : 0.2 + Math.sin(idleTime * 0.003 + i * 0.5) * 0.3,
-                transform: `scale(${0.5 + (i % 3) * 0.3})`,
-                boxShadow: '0 0 4px rgba(34, 211, 238, 0.8)',
-                transition: isScrolling ? 'none' : 'all 0.3s ease-out',
-              }}
-            />
-          );
-        })}
-      </div>
+    <div className="mb-5 flex items-center justify-between gap-4 border-b border-foreground pb-4">
+      <span className="text-xs font-black uppercase tracking-[0.18em]">{title}</span>
+      <Icon className="h-4 w-4" aria-hidden="true" />
     </div>
   );
 }
@@ -471,41 +169,39 @@ function QuizResultCard({ result }: { result: PublicProfileData['quizResults'][0
   
   return (
     <CrystalCard>
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
+      <div className="p-5 sm:p-6">
+        <div className="mb-5 flex items-start justify-between gap-5 border-b border-foreground pb-5">
           <div className="flex-1">
-            <h4 className="font-semibold text-white mb-1">{result.quiz_title || 'Quiz'}</h4>
-            <p className="text-xs text-white/40">
+            <h4 className="mb-1 text-lg font-black uppercase tracking-tight text-foreground">{result.quiz_title || 'Quiz'}</h4>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
               Completed {new Date(result.completed_at).toLocaleDateString('en-US', { 
                 month: 'short', day: 'numeric', year: 'numeric' 
               })}
             </p>
           </div>
-          {/* Quiz type icon instead of percentage */}
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/20 border border-cyan-500/30">
-            <span className="text-xl">{getQuizTypeIcon(result.quiz_title || '')}</span>
+          <div className="flex h-12 w-12 items-center justify-center border border-foreground bg-foreground text-background">
+            <span className="text-xl" aria-hidden="true">{getQuizTypeIcon(result.quiz_title || '')}</span>
           </div>
         </div>
         
         {/* Key Takeaways */}
         {takeaways.length > 0 && (
           <div className="space-y-3">
-            <div className="text-xs font-medium text-cyan-400 uppercase tracking-wider">Key Takeaways</div>
+            <div className="text-xs font-black uppercase tracking-[0.16em] text-foreground">Key takeaways</div>
             {takeaways.map((item, idx) => (
-              <div key={idx} className="bg-white/5 rounded-lg p-3 border border-white/5">
-                <p className="text-xs text-white/50 mb-1">{item.question}</p>
-                <p className="text-sm text-white/90">{item.answer}</p>
+              <div key={idx} className="border border-border bg-muted/35 p-4">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">{item.question}</p>
+                <p className="text-sm leading-relaxed text-foreground">{item.answer}</p>
               </div>
             ))}
             
             {hasMoreTakeaways && (
               <button 
                 onClick={() => setExpanded(!expanded)}
-                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="flex items-center gap-1 border-b border-foreground pb-0.5 text-xs font-black uppercase tracking-wide text-foreground transition-colors hover:text-muted-foreground motion-reduce:transition-none"
               >
                 {expanded ? 'Show less' : 'Show more'}
-                <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                <ChevronRight className={`h-3 w-3 transition-transform motion-reduce:transition-none ${expanded ? 'rotate-90' : ''}`} />
               </button>
             )}
           </div>
@@ -513,7 +209,7 @@ function QuizResultCard({ result }: { result: PublicProfileData['quizResults'][0
         
         {/* Fallback if no parsed answers */}
         {takeaways.length === 0 && (
-          <p className="text-sm text-white/50 italic">Quiz completed successfully</p>
+          <p className="text-sm italic text-muted-foreground">Quiz completed successfully</p>
         )}
       </div>
     </CrystalCard>
@@ -526,35 +222,6 @@ export default function PublicProfile() {
   const { toast } = useToast();
   const { member: user } = useAuth();
   const [copied, setCopied] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Track scroll position and activity for crystal animation
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-      setIsScrolling(true);
-      
-      // Clear previous timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      
-      // Set scrolling to false after 150ms of no scroll
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 150);
-    };
-    
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const { data, isLoading, error } = useQuery<PublicProfileData>({
     queryKey: ['public-profile', username],
@@ -742,10 +409,10 @@ export default function PublicProfile() {
   // Loading
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-500/30 to-teal-500/30 animate-pulse border border-cyan-500/30" />
-          <p className="text-white/60">Loading profile...</p>
+      <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
+        <div className="w-full max-w-sm border border-foreground bg-card p-8 text-center">
+          <LoaderIcon className="mx-auto mb-5 h-7 w-7 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          <p className="text-xs font-black uppercase tracking-[0.18em]">Loading public dossier</p>
         </div>
       </div>
     );
@@ -754,26 +421,36 @@ export default function PublicProfile() {
   // Error
   if (error || !data?.profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 flex items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
         <CrystalCard className="max-w-md w-full">
-          <div className="p-8 text-center">
-            <Lock className="h-16 w-16 mx-auto mb-4 text-cyan-400/50" />
-            <h2 className="text-xl font-bold text-white mb-2">Profile Not Available</h2>
-            <p className="text-white/60 mb-6">{(error as Error)?.message || "This profile doesn't exist or is private."}</p>
-            <Link href="/">
-              <Button variant="outline" className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+          <div className="p-8 sm:p-10">
+            <div className="mb-8 flex items-center justify-between border-b border-foreground pb-5">
+              <span className="text-xs font-black uppercase tracking-[0.18em]">Access status</span>
+              <Lock className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h2 className="mb-3 text-3xl font-black uppercase tracking-[-0.04em]">Profile not available</h2>
+            <p className="mb-8 leading-relaxed text-muted-foreground">{(error as Error)?.message || "This profile doesn't exist or is private."}</p>
+            <Button asChild variant="outline" className="w-full border-foreground">
+              <Link href="/">
+                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                 Go Back
+              </Link>
             </Button>
-          </Link>
-        </div>
+          </div>
         </CrystalCard>
       </div>
     );
   }
 
   const profile = data.profile;
-  const privacy = data.privacy;
+  const coverUrl = resolveMediaUrl(profile.cover_url);
+  const avatarUrl = resolveMediaUrl(profile.avatar_url);
+  const socialLinks = {
+    website: resolveExternalUrl(profile.social_links?.website),
+    linkedin: resolveExternalUrl(profile.social_links?.linkedin),
+    twitter: resolveExternalUrl(profile.social_links?.twitter),
+    github: resolveExternalUrl(profile.social_links?.github),
+  };
   const displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Anonymous';
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
   
@@ -802,145 +479,163 @@ export default function PublicProfile() {
   });
   const showBadgesSection = badgeTiles.length > 0;
   const showInsightsSection = displayInsightTiles.length > 0;
-  const hasSocialLinks = profile.social_links && Object.values(profile.social_links).some(v => v);
+  const hasSocialLinks = Object.values(socialLinks).some(Boolean);
   const hasLegacyTiles = Object.keys(legacyTilesByDimension).length > 0;
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 relative overflow-hidden">
-      {/* Aurora background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/3 w-[800px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px]" />
-        <div className="absolute top-1/4 right-1/4 w-[600px] h-[600px] bg-teal-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[150px]" />
-      </div>
-      
-      {/* Stars */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(80)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-0.5 h-0.5 bg-white rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              opacity: Math.random() * 0.6 + 0.1,
-              animation: `twinkle ${2 + Math.random() * 3}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 3}s`,
-            }}
-          />
-        ))}
-      </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-foreground bg-background">
+        <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.16em]">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            System index
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground sm:inline">Public dossier</span>
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
 
-      {/* Animated Crystal decorations - sticky and 3D rotating on scroll */}
-      <AnimatedCrystals scrollY={scrollY} isScrolling={isScrolling} />
-      
-      <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-6 space-y-4">
+      <main className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
 
         {/* Own-profile action bar */}
         {isViewingOwnProfile && (
-          <div className="flex items-center justify-end gap-2">
-            <Link href="/profile">
-              <Button size="sm" variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
-                <Edit className="h-4 w-4 mr-2" />
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-foreground bg-card p-3 sm:p-4">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Owner controls</span>
+            <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="outline" className="border-foreground">
+              <Link href="/profile">
+                <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
                 Edit Profile
-              </Button>
-            </Link>
-            <Link href="/profile?tab=privacy">
-              <Button size="sm" variant="outline" className="border-white/20 text-white/80 hover:bg-white/10">
-                <Settings className="h-4 w-4 mr-2" />
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="border-foreground">
+              <Link href="/profile?tab=privacy">
+                <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
                 Privacy Settings
-              </Button>
-            </Link>
+              </Link>
+            </Button>
+            </div>
           </div>
         )}
 
         {/* Main Profile Card */}
         <CrystalCard featured>
-          <div className="p-6">
-            <div className="flex flex-col lg:flex-row gap-6">
+          {coverUrl ? (
+            <div className="relative h-40 overflow-hidden border-b border-foreground sm:h-56 lg:h-64">
+              <img
+                src={coverUrl}
+                alt=""
+                className="h-full w-full object-cover grayscale contrast-125 dark:brightness-75"
+              />
+              <div className="absolute left-0 top-0 bg-foreground px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-background">
+                Member record / {profile.username || 'unlisted'}
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-24 items-end border-b border-foreground bg-muted p-4">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Member record / {profile.username || 'unlisted'}</span>
+            </div>
+          )}
+          <div className="p-5 sm:p-8 lg:p-10">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-12">
               {/* Left: Avatar & Name */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 flex-1">
-                {/* Avatar with glow */}
-                <div className="relative flex-shrink-0">
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/40 to-teal-400/40 rounded-full blur-xl scale-110" />
-                  <Avatar className="relative h-24 w-24 border-2 border-white/30 shadow-2xl">
-                    <AvatarImage src={profile.avatar_url || ''} />
-                    <AvatarFallback className="text-2xl bg-gradient-to-br from-cyan-600 to-teal-600 text-white">
+              <div className="flex min-w-0 flex-col items-start gap-6 sm:flex-row sm:gap-8">
+                <div className="flex-shrink-0 border border-foreground bg-background p-1">
+                  <Avatar className="h-24 w-24 rounded-none border border-foreground sm:h-28 sm:w-28">
+                    <AvatarImage src={avatarUrl || ''} />
+                    <AvatarFallback className="rounded-none bg-foreground text-2xl font-black text-background">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                 </div>
                 
                 {/* Name & Info */}
-                <div className="text-center sm:text-left flex-1">
-                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{displayName}</h1>
+                <div className="min-w-0 flex-1">
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Identity / 01</p>
+                  <h1 className="mb-2 break-words text-4xl font-black uppercase leading-[0.88] tracking-[-0.055em] sm:text-5xl lg:text-6xl">{displayName}</h1>
                   {profile.headline && (
-                    <p className="text-cyan-300/80 mb-2">{profile.headline}</p>
+                    <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">{profile.headline}</p>
                   )}
                   
                   {/* Badge icons row */}
                   {badgeTiles.length > 0 && (
-                    <div className="flex items-center justify-center sm:justify-start gap-1 mb-3 flex-wrap">
+                    <div className="mt-5 flex flex-wrap items-center gap-1.5">
                       {badgeTiles.slice(0, 6).map(tile => {
                         const iconKey = (tile.content.badge_icon as string || 'award').toLowerCase();
                         const IconComponent = iconMap[iconKey] || Award;
                         return (
-                          <span key={tile.id} className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10" title={tile.title}>
-                            <IconComponent className="w-3.5 h-3.5 text-cyan-400" />
+                          <span key={tile.id} className="inline-flex h-8 w-8 items-center justify-center border border-foreground bg-background" title={tile.title}>
+                            <IconComponent className="h-4 w-4" aria-hidden="true" />
                           </span>
                         );
                       })}
                       {badgeTiles.length > 6 && (
-                        <span className="text-xs text-white/40 ml-1">+{badgeTiles.length - 6}</span>
+                        <span className="ml-1 text-xs font-black">+{badgeTiles.length - 6}</span>
                       )}
                     </div>
                   )}
 
-                  {/* Action buttons */}
-                  <div className="flex items-center justify-center sm:justify-start gap-2">
-                    <Button 
-                      size="sm"
-                      onClick={handleShare}
-                      className="bg-gradient-to-r from-cyan-600 to-teal-600 text-white hover:from-cyan-500 hover:to-teal-500 border-0"
-                    >
-                      {copied ? <Check className="h-3 w-3 mr-1" /> : <Share2 className="h-3 w-3 mr-1" />}
-                      {copied ? 'Copied!' : 'Share Profile'}
-                    </Button>
-                  </div>
                 </div>
               </div>
+
+              <aside className="flex flex-col justify-between gap-8 border-t border-foreground pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                <dl className="space-y-5 text-xs">
+                  <div>
+                    <dt className="font-black uppercase tracking-[0.16em] text-muted-foreground">Handle</dt>
+                    <dd className="mt-1 break-all font-bold">@{profile.username || 'unlisted'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-black uppercase tracking-[0.16em] text-muted-foreground">Member since</dt>
+                    <dd className="mt-1 font-bold">{new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</dd>
+                  </div>
+                </dl>
+                <Button size="sm" onClick={handleShare} className="w-full">
+                  {copied ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />}
+                  {copied ? 'Copied' : 'Share profile'}
+                </Button>
+              </aside>
             </div>
 
             {/* Bio */}
             {profile.bio && (
-              <p className="text-white/70 text-sm mt-4 pt-4 border-t border-white/10">{profile.bio}</p>
+              <div className="mt-10 grid gap-3 border-t border-foreground pt-6 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-8">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Statement / 02</span>
+                <p className="max-w-3xl text-base leading-relaxed sm:text-lg">{profile.bio}</p>
+              </div>
             )}
 
             {/* Social Links */}
             {hasSocialLinks && (
-              <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-white/10">
-                {profile.social_links?.website && (
-                  <a href={profile.social_links.website} target="_blank" rel="noopener noreferrer" 
-                     className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-                    <Globe className="h-4 w-4 text-white/60" />
+              <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-foreground pt-6">
+                <span className="mr-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">External links</span>
+                {socialLinks.website && (
+                  <a href={socialLinks.website} target="_blank" rel="noopener noreferrer"
+                     aria-label="Visit website"
+                     className="inline-flex h-11 w-11 items-center justify-center border border-foreground bg-background transition-colors hover:bg-foreground hover:text-background motion-reduce:transition-none">
+                    <Globe className="h-4 w-4" aria-hidden="true" />
                   </a>
                 )}
-                {profile.social_links?.linkedin && (
-                  <a href={profile.social_links.linkedin} target="_blank" rel="noopener noreferrer"
-                     className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-                    <Linkedin className="h-4 w-4 text-white/60" />
+                {socialLinks.linkedin && (
+                  <a href={socialLinks.linkedin} target="_blank" rel="noopener noreferrer"
+                     aria-label="Visit LinkedIn profile"
+                     className="inline-flex h-11 w-11 items-center justify-center border border-foreground bg-background transition-colors hover:bg-foreground hover:text-background motion-reduce:transition-none">
+                    <Linkedin className="h-4 w-4" aria-hidden="true" />
                   </a>
                 )}
-                {profile.social_links?.twitter && (
-                  <a href={profile.social_links.twitter} target="_blank" rel="noopener noreferrer"
-                     className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-                    <Twitter className="h-4 w-4 text-white/60" />
+                {socialLinks.twitter && (
+                  <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer"
+                     aria-label="Visit X or Twitter profile"
+                     className="inline-flex h-11 w-11 items-center justify-center border border-foreground bg-background transition-colors hover:bg-foreground hover:text-background motion-reduce:transition-none">
+                    <Twitter className="h-4 w-4" aria-hidden="true" />
                   </a>
                 )}
-                {profile.social_links?.github && (
-                  <a href={profile.social_links.github} target="_blank" rel="noopener noreferrer"
-                     className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-                    <Github className="h-4 w-4 text-white/60" />
+                {socialLinks.github && (
+                  <a href={socialLinks.github} target="_blank" rel="noopener noreferrer"
+                     aria-label="Visit GitHub profile"
+                     className="inline-flex h-11 w-11 items-center justify-center border border-foreground bg-background transition-colors hover:bg-foreground hover:text-background motion-reduce:transition-none">
+                    <Github className="h-4 w-4" aria-hidden="true" />
                   </a>
                 )}
               </div>
@@ -951,9 +646,9 @@ export default function PublicProfile() {
         {/* Badges Section */}
         {showBadgesSection && (
           <CrystalCard>
-            <div className="p-4">
+            <div className="p-5 sm:p-8">
               <SectionLabel icon={Award} title={`Badges & Achievements (${badgeTiles.length})`} />
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              <div className="grid grid-cols-2 gap-px border border-foreground bg-foreground sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                 
                 {/* New Badge Tiles */}
                 {badgeTiles.map(tile => {
@@ -963,11 +658,11 @@ export default function PublicProfile() {
                   return (
                     <div
                       key={tile.id}
-                      className="flex flex-col items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:scale-105 cursor-pointer"
+                      className="flex min-h-32 flex-col items-start justify-between bg-card p-4 transition-colors hover:bg-muted motion-reduce:transition-none"
                       title={(tile.content.badge_description as string) || tile.title}
                     >
-                      <IconComponent className="w-8 h-8 text-cyan-400 mb-1" />
-                      <span className="text-[10px] text-white/70 text-center line-clamp-2">{tile.title}</span>
+                      <IconComponent className="mb-5 h-7 w-7" aria-hidden="true" />
+                      <span className="line-clamp-2 text-left text-[10px] font-black uppercase tracking-[0.12em]">{tile.title}</span>
                     </div>
                   );
                 })}
@@ -981,8 +676,8 @@ export default function PublicProfile() {
           <div className="space-y-4">
             {isLoading ? (
               <CrystalCard>
-                <div className="p-8 text-center text-white/60">
-                  <LoaderIcon className="h-6 w-6 animate-spin mx-auto mb-2" />
+                <div className="p-8 text-center text-muted-foreground">
+                  <LoaderIcon className="mx-auto mb-2 h-6 w-6 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                   Loading insights...
                 </div>
               </CrystalCard>
@@ -993,9 +688,9 @@ export default function PublicProfile() {
 
               return (
                 <CrystalCard key={dim}>
-                  <div className="p-4">
+                  <div className="p-5 sm:p-8">
                     <SectionLabel icon={config.icon} title={config.title} />
-                    <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_>div>div]:bg-white/5 [&_>div>div]:border-white/10 [&_>div>div]:text-white [&_h3]:text-white [&_p]:text-white/70">
+                    <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_h3]:font-black [&_h3]:uppercase [&_h3]:tracking-tight [&_p]:text-muted-foreground">
                       <TileGrid 
                         tiles={tiles} 
                         isOwner={false}
@@ -1011,28 +706,23 @@ export default function PublicProfile() {
             {/* Empty State */}
             {!showBadgesSection && !hasLegacyTiles && !showInsightsSection && !profile.bio && (
               <CrystalCard>
-                <div className="p-8 text-center">
-                  <Compass className="h-12 w-12 mx-auto mb-4 text-cyan-400/30" />
-                  <p className="text-white/50">This user hasn't added any public information yet.</p>
+                <div className="grid min-h-56 place-items-center p-8 text-center sm:p-12">
+                  <div>
+                    <Compass className="mx-auto mb-5 h-10 w-10" aria-hidden="true" />
+                    <p className="text-sm font-black uppercase tracking-[0.12em] text-muted-foreground">This user hasn't added any public information yet.</p>
+                  </div>
                 </div>
               </CrystalCard>
             )}
 
         {/* Footer */}
-        <div className="text-center py-6">
-          <p className="text-xs text-white/30">
-            Powered by <span className="text-cyan-400/60">Charting the Course</span>
+        <div className="flex flex-col justify-between gap-2 border-t border-foreground py-6 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground sm:flex-row">
+          <p>
+            Powered by <span className="text-foreground">Charting the Course</span>
           </p>
+          <p>NEOS / Public record</p>
         </div>
-      </div>
-
-      {/* CSS for star twinkle animation */}
-      <style>{`
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.1; }
-          50% { opacity: 0.6; }
-        }
-      `}</style>
+      </main>
     </div>
   );
 }

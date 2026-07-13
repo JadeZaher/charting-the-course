@@ -40,8 +40,8 @@ export default function CollaborationDetail() {
       <div className="space-y-6 max-w-3xl">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-48 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
+        <Skeleton className="h-48 rounded-none" />
+        <Skeleton className="h-32 rounded-none" />
       </div>
     );
   }
@@ -49,12 +49,12 @@ export default function CollaborationDetail() {
   if (error || !collab) {
     return (
       <div className="space-y-4">
-        <Link href="/discover">
-          <Button variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/discover">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Discover
-          </Button>
-        </Link>
+          </Link>
+        </Button>
         <div className="text-center py-12">
           <p className="text-destructive">Failed to load collaboration</p>
           {error && <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>}
@@ -71,12 +71,12 @@ export default function CollaborationDetail() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <Link href="/discover">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/discover">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Discover
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       {/* Header */}
       <div className="space-y-2">
@@ -196,7 +196,7 @@ export default function CollaborationDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="text-xs bg-muted rounded p-3 overflow-auto whitespace-pre-wrap">
+            <pre className="overflow-auto whitespace-pre-wrap rounded-none border-2 border-strong-border bg-muted p-3 text-xs">
               {JSON.stringify(collab.terms, null, 2)}
             </pre>
           </CardContent>

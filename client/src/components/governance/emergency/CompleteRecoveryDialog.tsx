@@ -32,7 +32,7 @@ export function CompleteRecoveryDialog({ emergency, onSuccess }: CompleteRecover
 
   if (!canComplete) {
     return (
-      <div className="border border-yellow-300 bg-yellow-50 rounded-md px-4 py-3 text-sm text-yellow-800">
+      <div className="border border-warning bg-warning/10 px-4 py-3 text-sm text-warning">
         <div className="flex items-center gap-2 font-semibold mb-1">
           <AlertTriangle className="h-4 w-4" />
           Recovery in Progress
@@ -49,7 +49,7 @@ export function CompleteRecoveryDialog({ emergency, onSuccess }: CompleteRecover
   return (
     <div className="space-y-4">
       {/* Recovery ready banner */}
-      <div className="border border-green-300 bg-green-50 rounded-md px-4 py-3 text-sm text-green-800">
+      <div className="border border-success bg-success/10 px-4 py-3 text-sm text-success">
         <div className="flex items-center gap-2 font-semibold mb-1">
           <CheckCircle className="h-4 w-4" />
           Recovery Review Complete
@@ -72,7 +72,7 @@ export function CompleteRecoveryDialog({ emergency, onSuccess }: CompleteRecover
       </div>
 
       {recoveryMutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(recoveryMutation.error as Error).message}
         </div>
       )}

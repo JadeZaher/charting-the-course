@@ -37,10 +37,10 @@ const statusVariant = (status: string) => {
 };
 
 const overallHealthStyle: Record<string, string> = {
-  healthy: 'bg-green-100 text-green-800 border-green-200',
-  mixed: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  degrading: 'bg-orange-100 text-orange-800 border-orange-200',
-  critical: 'bg-red-100 text-red-800 border-red-200',
+  healthy: 'border-success bg-success/10 text-success',
+  mixed: 'border-warning bg-warning/10 text-warning',
+  degrading: 'border-warning bg-warning/10 text-warning',
+  critical: 'border-destructive bg-destructive/10 text-destructive',
 };
 
 // ---------------------------------------------------------------------------
@@ -48,15 +48,15 @@ const overallHealthStyle: Record<string, string> = {
 // ---------------------------------------------------------------------------
 function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[number]; score?: IndicatorScore }) {
   const statusColor: Record<string, string> = {
-    healthy: 'bg-green-100 text-green-800 border-green-200',
-    warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    critical: 'bg-red-100 text-red-800 border-red-200',
+    healthy: 'border-success bg-success/10 text-success',
+    warning: 'border-warning bg-warning/10 text-warning',
+    critical: 'border-destructive bg-destructive/10 text-destructive',
   };
 
   const trendIcon: Record<string, { icon: React.ElementType; color: string }> = {
-    improving: { icon: TrendingUp, color: 'text-green-600' },
+    improving: { icon: TrendingUp, color: 'text-success' },
     stable: { icon: ArrowRight, color: 'text-muted-foreground' },
-    degrading: { icon: TrendingDown, color: 'text-red-600' },
+    degrading: { icon: TrendingDown, color: 'text-destructive' },
   };
 
   return (
@@ -91,9 +91,9 @@ function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[
           <p className="text-sm text-muted-foreground mt-1">No data</p>
         )}
         <div className="mt-2 flex gap-2 text-[10px]">
-          <span className="text-green-600">{'\u2713'} {indicator.healthy}</span>
-          <span className="text-yellow-600">{'\u26A0'} {indicator.warning}</span>
-          <span className="text-red-600">{'\u2717'} {indicator.critical}</span>
+          <span className="text-success">{'\u2713'} {indicator.healthy}</span>
+          <span className="text-warning">{'\u26A0'} {indicator.warning}</span>
+          <span className="text-destructive">{'\u2717'} {indicator.critical}</span>
         </div>
       </CardContent>
     </Card>
@@ -151,12 +151,12 @@ export default function SafeguardsDashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Governance Safeguards</h1>
         <div className="flex gap-2">
-          <Link href="/safeguards/audits">
-            <Button variant="outline">
+          <Button asChild variant="outline">
+            <Link href="/safeguards/audits">
               <ClipboardList className="h-4 w-4 mr-2" />
               All Audits
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <Button onClick={handleRequestAudit} disabled={requestMutation.isPending}>
             {requestMutation.isPending ? 'Requesting...' : 'Request Audit'}
           </Button>
@@ -164,7 +164,7 @@ export default function SafeguardsDashboard() {
       </div>
 
       {requestMutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(requestMutation.error as Error).message}
         </div>
       )}
@@ -184,10 +184,10 @@ export default function SafeguardsDashboard() {
                 {healthScore}
                 <span className="text-lg text-muted-foreground font-normal"> / 100</span>
               </div>
-              <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden w-48">
+              <div className="mt-2 h-2 w-48 overflow-hidden border border-strong-border bg-muted">
                 <div
-                  className={`h-full rounded-full transition-all ${
-                    healthScore >= 80 ? 'bg-green-500' : healthScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                  className={`h-full transition-[width] motion-reduce:transition-none ${
+                    healthScore >= 80 ? 'bg-success' : healthScore >= 50 ? 'bg-warning' : 'bg-destructive'
                   }`}
                   style={{ width: `${healthScore}%` }}
                 />
@@ -218,9 +218,9 @@ export default function SafeguardsDashboard() {
 
       {/* Triggered Safeguards Alert */}
       {triggeredSafeguards && triggeredSafeguards.length > 0 && (
-        <Card className="border-yellow-300 bg-yellow-50">
+        <Card className="border-warning bg-warning/10 text-warning">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-yellow-800">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <AlertTriangle className="h-5 w-5" />
               Triggered Safeguards
             </CardTitle>
@@ -231,10 +231,10 @@ export default function SafeguardsDashboard() {
                 const matchedIndicator = GHI_INDICATORS.find((i) => i.id === ts.indicator_id);
                 return (
                   <li key={ts.trigger_id} className="text-sm">
-                    <p className="font-semibold text-yellow-900">
+                    <p className="font-semibold">
                       {matchedIndicator?.name ?? ts.indicator_id}: {ts.threshold_crossed}
                     </p>
-                    <p className="text-yellow-800">{ts.recommended_action}</p>
+                    <p>{ts.recommended_action}</p>
                   </li>
                 );
               })}
@@ -279,9 +279,9 @@ export default function SafeguardsDashboard() {
                   <dd className="font-medium">{new Date(latestAudit.next_audit_due).toLocaleDateString()}</dd>
                 </div>
               )}
-              <Link href={`/safeguards/audits/${latestAudit.id}`}>
-                <Button variant="outline" size="sm" className="mt-2 w-full">View Details</Button>
-              </Link>
+              <Button asChild variant="outline" size="sm" className="mt-2 w-full">
+                <Link href={`/safeguards/audits/${latestAudit.id}`}>View Details</Link>
+              </Button>
             </dl>
           ) : (
             <p className="text-sm text-muted-foreground">No audits found.</p>

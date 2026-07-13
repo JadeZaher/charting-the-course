@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -234,7 +234,7 @@ export function fetchOnboardings(params?: Record<string, string>): Promise<{ ite
 export function fetchOnboardingCeremony(memberId: string): Promise<OnboardingState> {
   return apiFetch<OnboardingState>(`/api/v1/onboarding/${memberId}/ceremony`);
 }
-export function submitCeremonyConsent(memberId: string, data: { section: string; consented: boolean }): Promise<OnboardingState> {
+export function submitCeremonyConsent(memberId: string, data: CeremonyConsentRequest): Promise<OnboardingState> {
   return apiFetch<OnboardingState>(`/api/v1/onboarding/${memberId}/ceremony`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
@@ -348,11 +348,13 @@ export function fetchQuizResultsAdmin(quizId: string, params?: Record<string, st
 export function fetchMemberQuizHistory(memberId: string): Promise<{ results: QuizResultItem[] }> {
   return apiFetch(`/api/v1/members/${memberId}/quiz-history`);
 }
-export function fetchMemberBadges(memberId: string): Promise<{ badges: UserBadgeItem[] }> {
-  return apiFetch(`/api/v1/members/${memberId}/badges`);
+export async function fetchMemberBadges(memberId: string): Promise<{ badges: UserBadgeItem[] }> {
+  const response = await apiFetch<{ items: UserBadgeItem[] }>(`/api/v1/members/${memberId}/badges`);
+  return { badges: response.items };
 }
-export function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[] }> {
-  return apiFetch(`/api/v1/members/${memberId}/tags`);
+export async function fetchMemberTags(memberId: string): Promise<{ tags: UserTagItem[] }> {
+  const response = await apiFetch<{ items: UserTagItem[] }>(`/api/v1/members/${memberId}/tags`);
+  return { tags: response.items };
 }
 
 // Chat Sessions API

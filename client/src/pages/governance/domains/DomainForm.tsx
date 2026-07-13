@@ -43,8 +43,14 @@ export default function DomainForm() {
       setPurpose(existing.purpose || '');
       setCurrentSteward(existing.current_steward || '');
       setStatus(existing.status || 'draft');
-      setMetricDefinitions(existing.metric_definitions || '');
-      setSharedEcosystemIds(existing.shared_ecosystem_ids || []);
+      setMetricDefinitions(
+        typeof existing.metric_definitions === 'string'
+          ? existing.metric_definitions
+          : existing.metric_definitions
+            ? JSON.stringify(existing.metric_definitions, null, 2)
+            : '',
+      );
+      setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
     }
   }, [existing, isEdit]);
 
@@ -66,14 +72,11 @@ export default function DomainForm() {
       current_steward: currentSteward || null,
       status,
       metric_definitions: metricDefinitions || null,
+      shared_ecosystem_ids: sharedEcosystemIds,
     };
 
     if (!isEdit && selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
-    }
-
-    if (sharedEcosystemIds.length > 0) {
-      payload.shared_ecosystem_ids = sharedEcosystemIds;
     }
 
     try {
@@ -95,17 +98,17 @@ export default function DomainForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href={isEdit ? `/domains/${editId}` : '/domains'}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={isEdit ? `/domains/${editId}` : '/domains'}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           {isEdit ? 'Back to Domain' : 'Back to Domains'}
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Domain' : 'New Domain'}</h1>
 
       {mutationError && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutationError as Error).message}
         </div>
       )}
@@ -167,7 +170,7 @@ export default function DomainForm() {
             <EcosystemMultiSelect
               label="Cross-Ecosystem Sharing"
               description="Select additional ecosystems this applies to."
-              primaryId={selectedEcosystem?.id ?? ''}
+              primaryId={isEdit ? existing?.ecosystem_id ?? '' : selectedEcosystem?.id ?? ''}
               sharedIds={sharedEcosystemIds}
               onPrimaryChange={() => {}}
               onSharedChange={setSharedEcosystemIds}
@@ -177,9 +180,9 @@ export default function DomainForm() {
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Domain' : 'Create Domain')}
               </Button>
-              <Link href={isEdit ? `/domains/${editId}` : '/domains'}>
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href={isEdit ? `/domains/${editId}` : '/domains'}>Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

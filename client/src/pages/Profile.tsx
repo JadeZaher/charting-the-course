@@ -370,7 +370,7 @@ export default function Profile() {
 
       // Header Section
       pdf.setFillColor(...cardColor);
-      pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 55, 5, 5, 'F');
+      pdf.rect(margin, yPos, pageWidth - margin * 2, 55, 'F');
 
       // Avatar placeholder (circle)
       pdf.setFillColor(...primaryColor);
@@ -418,7 +418,7 @@ export default function Profile() {
       const bio = (profileData as any)?.bio || userBio;
       if (bio && bio.trim()) {
         pdf.setFillColor(...cardColor);
-        pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 22, 3, 3, 'F');
+        pdf.rect(margin, yPos, pageWidth - margin * 2, 22, 'F');
         
         pdf.setFontSize(8);
         pdf.setTextColor(...textColor);
@@ -431,7 +431,7 @@ export default function Profile() {
       // Badges Section
       if (badges.length > 0) {
         pdf.setFillColor(...cardColor);
-        pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 40, 3, 3, 'F');
+        pdf.rect(margin, yPos, pageWidth - margin * 2, 40, 'F');
         
         pdf.setFontSize(10);
         pdf.setTextColor(...primaryColor);
@@ -459,7 +459,7 @@ export default function Profile() {
       // Tags Section
       if (tags.length > 0) {
         pdf.setFillColor(...cardColor);
-        pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 30, 3, 3, 'F');
+        pdf.rect(margin, yPos, pageWidth - margin * 2, 30, 'F');
         
         pdf.setFontSize(10);
         pdf.setTextColor(...primaryColor);
@@ -480,7 +480,7 @@ export default function Profile() {
       const quizList = completedQuizzes || [];
       if (quizList.length > 0) {
         pdf.setFillColor(...cardColor);
-        pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 45, 3, 3, 'F');
+        pdf.rect(margin, yPos, pageWidth - margin * 2, 45, 'F');
         
         pdf.setFontSize(10);
         pdf.setTextColor(...primaryColor);
@@ -645,7 +645,7 @@ export default function Profile() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Profile</h1>
@@ -850,11 +850,11 @@ export default function Profile() {
                   </CardDescription>
                 </div>
                 {completedQuizzes.length > 5 && (
-                  <Link href="/my-quiz-history">
-                    <Button variant="outline" size="sm" data-testid="button-view-all-history">
+                  <Button asChild variant="outline" size="sm" data-testid="button-view-all-history">
+                    <Link href="/my-quiz-history">
                       View All
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 )}
               </div>
             </CardHeader>
@@ -866,14 +866,14 @@ export default function Profile() {
                   {quizSummary.quizzes.map((q) => (
                     <div
                       key={q.quiz_id}
-                      className="flex items-center justify-between p-4 rounded-lg border"
+                      className="flex items-center justify-between border border-strong-border p-5"
                       data-testid={`quiz-status-${q.quiz_id}`}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {q.status === 'completed' ? (
                           <CheckCircle className={`h-5 w-5 flex-shrink-0 ${q.is_passed ? 'text-chart-3' : 'text-destructive'}`} />
                         ) : q.status === 'in_progress' ? (
-                          <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                          <Clock className="h-5 w-5 flex-shrink-0 text-warning" />
                         ) : (
                           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                         )}
@@ -885,7 +885,7 @@ export default function Profile() {
                             </p>
                           )}
                           {q.status === 'in_progress' && (
-                            <p className="text-sm text-yellow-600">In progress</p>
+                            <p className="text-sm text-warning">In progress</p>
                           )}
                           {q.status === 'not_started' && (
                             <p className="text-sm text-muted-foreground">Not started</p>
@@ -1018,15 +1018,17 @@ export default function Profile() {
                 className="w-full" 
                 data-testid="button-preview-profile"
                 onClick={() => {
-                  const profileUrl = username ? `/users/${username}` : `/users/${member?.id}`;
-                  window.open(profileUrl, '_blank');
+                  const profileHandle = username || member?.id;
+                  if (!profileHandle) return;
+                  const profileUrl = `/users/${encodeURIComponent(profileHandle)}`;
+                  window.open(profileUrl, '_blank', 'noopener,noreferrer');
                 }}
               >
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Public Profile
               </Button>
               {!privacy?.isProfilePublic && (
-                <p className="text-xs text-amber-500 text-center">
+                <p className="text-center text-xs text-warning">
                   Your profile is currently private. Enable "Make Profile Public" above to allow others to view it.
                 </p>
               )}

@@ -8,45 +8,50 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useOnboardingCeremony, useSubmitCeremonyConsent } from '@/hooks/use-governance';
 import { ArrowLeft, CheckCircle2, ChevronDown, Circle } from 'lucide-react';
+import type { OnboardingSectionConsent } from '@/types/api';
 
 const CEREMONY_STEPS = [
   {
-    key: 'purpose_values',
-    title: 'Purpose & Values',
-    description: 'Understanding the purpose, vision, and core values of the ecosystem. This section covers the foundational agreements that guide all ecosystem activity.',
-    fullText: "By consenting to this section, you acknowledge and agree to uphold the ecosystem's stated purpose and values. You understand that all governance activity within this ecosystem is guided by these foundational principles. You commit to acting in alignment with the shared values and to raising concerns through proper governance channels when you believe actions conflict with these principles.",
-  },
-  {
     key: 'governance',
     title: 'Governance',
-    description: 'How the ecosystem governs itself through sociocratic and consent-based processes. Covers domains, roles, and decision-making structures.',
-    fullText: "By consenting to this section, you agree to participate in the ecosystem's governance structure. You understand that authority is distributed through domains, each with defined purpose, scope, and stewardship. You agree to respect domain boundaries and to use the established governance processes for proposing changes. You recognize that all structural changes require consent through the ACT (Advice-Consent-Test) process.",
+    description: 'How authority is distributed through domains, roles, and consent-based decision processes.',
+    fullText: "By consenting to this section, you agree to participate in the ecosystem's governance structure. You understand that authority is distributed through domains with defined purposes and stewardship. You agree to respect domain boundaries and use the established governance process for proposing changes.",
   },
   {
-    key: 'decision_making',
-    title: 'Decision-Making',
-    description: 'The consent-based decision-making process, including proposals, advice rounds, and how objections are integrated for stronger outcomes.',
-    fullText: 'By consenting to this section, you agree to the consent-based decision-making process. You understand that proposals go through Advice, Consent, and Test phases. You commit to providing thoughtful advice when consulted, to raising objections only when you believe a proposal would cause harm the ecosystem cannot afford, and to participating in good faith in integration rounds when objections arise. You understand that "stand aside" is a valid position when you have no objection but choose not to participate.',
+    key: 'economics',
+    title: 'Economics & Resources',
+    description: 'How shared resources, contributions, access, and economic agreements are stewarded.',
+    fullText: "By consenting to this section, you agree to the ecosystem's approach to transparent resource stewardship. You commit to honoring contribution and access agreements, disclosing relevant resource use, and participating in decisions that materially affect shared resources.",
   },
   {
-    key: 'resources',
-    title: 'Resources',
-    description: 'How resources are stewarded within the ecosystem, including commons, access agreements, and contribution expectations.',
-    fullText: "By consenting to this section, you agree to the ecosystem's approach to resource stewardship. You understand that resources are held in common and managed through transparent allocation processes. You commit to contributing according to your agreements and to participating in resource decisions that affect you. You agree to transparency in resource usage and to the ecosystem's right to audit resource allocation.",
+    key: 'membership',
+    title: 'Membership',
+    description: 'The rights, responsibilities, participation expectations, and status transitions of membership.',
+    fullText: 'By consenting to this section, you acknowledge the rights and responsibilities of membership. You commit to participating in good faith, honoring the agreements that apply to your roles, and using the defined processes when your participation or status changes.',
   },
   {
-    key: 'conflict',
-    title: 'Conflict',
-    description: 'The restorative approach to conflict resolution, including escalation paths, repair agreements, and how safety is maintained.',
-    fullText: "By consenting to this section, you agree to the ecosystem's restorative approach to conflict. You understand that conflicts are addressed through structured processes including harm circles, mediation, and repair agreements. You commit to engaging in good faith with conflict resolution processes when involved. You understand that safety concerns receive priority handling and that facilitators are neutral parties.",
+    key: 'conflict_resolution',
+    title: 'Conflict Resolution',
+    description: 'The restorative approach to conflict, including escalation paths, repair agreements, and safety.',
+    fullText: "By consenting to this section, you agree to the ecosystem's restorative approach to conflict. You commit to engaging in good faith with facilitated resolution processes when involved, while understanding that safety concerns receive priority handling.",
   },
   {
-    key: 'exit',
-    title: 'Exit',
+    key: 'data_sovereignty',
+    title: 'Data Sovereignty',
+    description: 'How personal and shared data is controlled, protected, accessed, and carried between systems.',
+    fullText: 'By consenting to this section, you acknowledge the data practices that support participation. You retain the rights defined by the ecosystem over your personal data and agree to protect shared or sensitive information according to its access agreements.',
+  },
+  {
+    key: 'exit_rights',
+    title: 'Exit Rights',
     description: 'Understanding the voluntary exit process, cooling-off periods, and how membership transitions are handled with dignity and care.',
     fullText: 'By consenting to this section, you understand and accept the exit process. You acknowledge that you may leave voluntarily at any time with a 30-day wind-down period. You agree to participate in commitment unwinding and role transfer during your exit. You understand that a portable record of your contributions and participation will be generated. You acknowledge the cooling-off period and the possibility of re-entry through proper processes.',
   },
 ];
+
+function hasConsented(value: OnboardingSectionConsent | undefined): boolean {
+  return typeof value === 'boolean' ? value : value?.consented ?? false;
+}
 
 export default function OnboardingCeremony() {
   const [, params] = useRoute('/onboarding/:memberId/ceremony');
@@ -64,22 +69,18 @@ export default function OnboardingCeremony() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load onboarding ceremony</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/onboarding">
-          <Button variant="outline" className="mt-4">Back to Onboarding</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/onboarding">Back to Onboarding</Link>
+        </Button>
       </div>
     );
   }
 
-  const sections = data.sections ?? [];
-  const completedSections = sections.filter((s: any) => s.consented || s.completed);
-  const completionPct = sections.length > 0
-    ? Math.round((completedSections.length / sections.length) * 100)
-    : 0;
+  const completedSections = CEREMONY_STEPS.filter((step) => hasConsented(data.section_consents[step.key]));
+  const completionPct = data.completion_percentage;
 
   const isSectionComplete = (key: string) => {
-    const section = sections.find((s: any) => s.key === key || s.name === key);
-    return section?.consented || section?.completed || false;
+    return hasConsented(data.section_consents[key]);
   };
 
   const handleConsent = async (sectionKey: string) => {
@@ -94,7 +95,7 @@ export default function OnboardingCeremony() {
   const handleStandAside = async (sectionKey: string) => {
     setSubmittingSection(sectionKey);
     try {
-      await consentMutation.mutateAsync({ section: sectionKey, consented: true } as any);
+      await consentMutation.mutateAsync({ section: sectionKey, consented: true, position: 'stand_aside' });
     } finally {
       setSubmittingSection(null);
     }
@@ -104,7 +105,12 @@ export default function OnboardingCeremony() {
     if (!objectingSection || !objectionText.trim()) return;
     setSubmittingSection(objectingSection);
     try {
-      await consentMutation.mutateAsync({ section: objectingSection, consented: false } as any);
+      await consentMutation.mutateAsync({
+        section: objectingSection,
+        consented: false,
+        position: 'object',
+        objection_text: objectionText.trim(),
+      });
       setObjectingSection(null);
       setObjectionText('');
     } finally {
@@ -114,17 +120,17 @@ export default function OnboardingCeremony() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <Link href="/onboarding">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/onboarding">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Onboarding
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">UAF Consent Ceremony</h1>
         <p className="text-muted-foreground">
-          {data.member_name || `Member ${memberId}`}
+          Member {data.member_id}
         </p>
       </div>
 
@@ -136,9 +142,9 @@ export default function OnboardingCeremony() {
               <span className="text-muted-foreground">Ceremony Progress</span>
               <span className="font-medium">{completionPct}%</span>
             </div>
-            <div className="h-3 rounded-full bg-muted overflow-hidden">
+            <div className="h-3 overflow-hidden border border-strong-border bg-muted">
               <div
-                className="h-full rounded-full bg-primary transition-all"
+                className="h-full bg-primary transition-[width] motion-reduce:transition-none"
                 style={{ width: `${completionPct}%` }}
               />
             </div>
@@ -184,7 +190,7 @@ export default function OnboardingCeremony() {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="mt-3 p-4 rounded-md bg-muted/50 text-sm leading-relaxed">
+                  <div className="mt-3 rounded-none border-2 border-strong-border bg-muted/50 p-4 text-sm leading-relaxed">
                     {step.fullText}
                   </div>
                 </CollapsibleContent>
@@ -224,7 +230,7 @@ export default function OnboardingCeremony() {
               )}
 
               {objectingSection === step.key && (
-                <div className="mt-3 p-4 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 space-y-3">
+                <div className="mt-3 space-y-3 border border-warning bg-warning/10 p-5 text-warning">
                   <p className="text-sm font-medium">What is your objection?</p>
                   <p className="text-xs text-muted-foreground">
                     An objection should describe a paramount concern — something that would cause harm
@@ -252,7 +258,7 @@ export default function OnboardingCeremony() {
       })}
 
       {/* Cooling-off period info */}
-      <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+      <Card className="border-warning bg-warning/10">
         <CardContent className="pt-6">
           <div className="space-y-2">
             <h3 className="font-semibold text-sm">Cooling-Off Period</h3>

@@ -19,7 +19,7 @@ import { useDomain } from '@/hooks/use-governance';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Pencil, ArrowLeft, Users, ClipboardCheck, Eye, Check, Link2Off, Plus, X, Trash2, Handshake,
+  Pencil, ArrowLeft, ClipboardCheck, Eye, Check, Link2Off, Plus, X, Trash2, Handshake,
 } from 'lucide-react';
 import {
   fetchDomainQuizzes,
@@ -44,14 +44,6 @@ interface DomainQuiz {
   passing_score: number | null;
   created_at: string | null;
 }
-
-const roleVariant = (role: string) => {
-  switch (role) {
-    case 'steward': return 'default' as const;
-    case 'delegate': return 'secondary' as const;
-    default: return 'outline' as const;
-  }
-};
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -103,8 +95,7 @@ export default function DomainDetail() {
         fetchQuizzes(),
       ]);
       setDomainQuizzes(domResult.items ?? []);
-      const items = (allResult as any).items || (allResult as any).quizzes || [];
-      setAllQuizzes(items);
+      setAllQuizzes(allResult.items);
     } catch { /* silent */ }
   }, [id]);
 
@@ -182,7 +173,7 @@ export default function DomainDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load domain</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/domains"><Button variant="outline" className="mt-4">Back to Domains</Button></Link>
+        <Button asChild variant="outline" className="mt-4"><Link href="/domains">Back to Domains</Link></Button>
       </div>
     );
   }
@@ -192,9 +183,9 @@ export default function DomainDetail() {
 
   return (
     <div className="space-y-6">
-      <Link href="/domains">
-        <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" />Back to Domains</Button>
-      </Link>
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/domains"><ArrowLeft className="h-4 w-4 mr-1" />Back to Domains</Link>
+      </Button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
@@ -205,9 +196,9 @@ export default function DomainDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/domains/${id}/edit`}>
-            <Button variant="outline" size="sm"><Pencil className="h-4 w-4 mr-1" />Edit</Button>
-          </Link>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/domains/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
+          </Button>
         </div>
       </div>
 
@@ -227,36 +218,19 @@ export default function DomainDetail() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="h-4 w-4" />Circle Members</CardTitle></CardHeader>
-        <CardContent>
-          {data.circle_memberships && data.circle_memberships.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {data.circle_memberships.map((cm: any) => (
-                <div key={cm.id || cm.member_id} className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm">
-                  <span className="font-medium">{cm.display_name || cm.member_id}</span>
-                  <Badge variant={roleVariant(cm.role)} className="text-xs">{cm.role}</Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No circle members assigned</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {data.elements && data.elements.length > 0 && (
+      {data.domain_elements.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-lg">Domain Elements</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Value</TableHead></TableRow></TableHeader>
               <TableBody>
-                {data.elements.map((el: any) => (
-                  <TableRow key={el.id || el.name}>
-                    <TableCell className="font-medium">{el.name}</TableCell>
-                    <TableCell>{el.type || '-'}</TableCell>
-                    <TableCell className="max-w-[300px] truncate">{el.description || '-'}</TableCell>
+                {data.domain_elements.map((element) => (
+                  <TableRow key={element.id}>
+                    <TableCell className="font-medium">{element.element_name}</TableCell>
+                    <TableCell className="max-w-[480px] whitespace-pre-wrap">
+                      {element.element_value ? JSON.stringify(element.element_value, null, 2) : '-'}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -265,19 +239,18 @@ export default function DomainDetail() {
         </Card>
       )}
 
-      {data.metrics && data.metrics.length > 0 && (
+      {data.domain_metrics.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-lg">Domain Metrics</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader><TableRow><TableHead>Metric</TableHead><TableHead>Target</TableHead><TableHead>Current</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Metric</TableHead><TableHead>Target</TableHead><TableHead>Measurement Method</TableHead></TableRow></TableHeader>
               <TableBody>
-                {data.metrics.map((m: any) => (
-                  <TableRow key={m.id || m.name}>
-                    <TableCell className="font-medium">{m.name}</TableCell>
-                    <TableCell>{m.target ?? '-'}</TableCell>
-                    <TableCell>{m.current ?? '-'}</TableCell>
-                    <TableCell><Badge variant={m.status === 'on_track' ? 'default' : 'secondary'}>{m.status || '-'}</Badge></TableCell>
+                {data.domain_metrics.map((metric) => (
+                  <TableRow key={metric.id}>
+                    <TableCell className="font-medium">{metric.metric}</TableCell>
+                    <TableCell>{metric.target ?? '-'}</TableCell>
+                    <TableCell>{metric.measurement_method ?? '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -306,8 +279,8 @@ export default function DomainDetail() {
                     <TableCell>{q.is_entry_quiz && <Badge variant="outline" className="text-xs"><Check className="h-3 w-3 mr-1" />Entry Quiz</Badge>}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
-                        <Link href={`/quiz/take/${q.id}`}><Button variant="ghost" size="sm">Take</Button></Link>
-                        <Link href={`/quiz/results/${q.id}`}><Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button></Link>
+                        <Button asChild variant="ghost" size="sm"><Link href={`/quiz/take/${q.id}`}>Take</Link></Button>
+                        <Button asChild variant="ghost" size="sm"><Link href={`/quiz/results/${q.id}`}><Eye className="h-4 w-4" /></Link></Button>
                         {permissions.canAssignQuizzes && (
                           <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
                         )}
@@ -333,7 +306,7 @@ export default function DomainDetail() {
                 </Select>
               </div>
               <label className="flex items-center gap-1.5 text-sm whitespace-nowrap cursor-pointer">
-                <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="h-4 w-4 rounded" />Entry quiz
+                <input type="checkbox" checked={assignAsEntry} onChange={e => setAssignAsEntry(e.target.checked)} className="h-4 w-4 rounded-[2px] border-2 border-control-border" />Entry quiz
               </label>
               <Button size="sm" onClick={handleAssignQuiz} disabled={assigning || !assignQuizId}>{assigning ? 'Assigning...' : 'Assign'}</Button>
             </div>
@@ -355,7 +328,7 @@ export default function DomainDetail() {
         </CardHeader>
         <CardContent className="space-y-4">
           {showSnForm && (
-            <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+            <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/30 p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Type</Label>
@@ -419,7 +392,7 @@ export default function DomainDetail() {
           ) : (
             <div className="space-y-2">
               {sharesNeeds.map(sn => (
-                <div key={sn.id} className="flex items-start justify-between border rounded-md p-3">
+                <div key={sn.id} className="flex items-start justify-between rounded-none border-2 border-strong-border p-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Badge variant={snTypeColor(sn.type)} className="text-xs capitalize">{sn.type}</Badge>

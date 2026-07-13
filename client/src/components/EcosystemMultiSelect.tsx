@@ -39,7 +39,7 @@ export function EcosystemMultiSelect({
     <div className="space-y-2">
       <Label>{label}</Label>
       <p className="text-xs text-muted-foreground">{description}</p>
-      <div className="border rounded-md p-3 space-y-1">
+      <div className="space-y-1 rounded-none border-2 border-strong-border p-3">
         {ecosystems.map((eco) => {
           const isPrimary = eco.id === primaryId;
           const isShared = sharedIds.includes(eco.id);
@@ -48,7 +48,7 @@ export function EcosystemMultiSelect({
           return (
             <label
               key={eco.id}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+              className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
             >
               <Checkbox
                 checked={isChecked}

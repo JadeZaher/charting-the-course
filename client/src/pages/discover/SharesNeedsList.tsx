@@ -1,16 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Package } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useSharesNeeds } from '@/hooks/use-discover';
 
 const CATEGORY_OPTIONS = [
-  { value: 'all', label: 'All Categories' },
+  { value: 'all', label: 'All categories' },
   { value: 'technology', label: 'Technology' },
   { value: 'resources', label: 'Resources' },
   { value: 'skills', label: 'Skills' },
@@ -21,58 +19,48 @@ const CATEGORY_OPTIONS = [
 ];
 
 const TYPE_OPTIONS = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'All exchanges' },
   { value: 'share', label: 'Shares' },
   { value: 'need', label: 'Needs' },
 ];
 
-const typeBadgeVariant = (type: string) => type === 'share' ? 'default' as const : 'secondary' as const;
-
-const statusBadgeVariant = (status: string) => {
-  switch (status) {
-    case 'active': return 'default' as const;
-    case 'fulfilled': return 'outline' as const;
-    case 'expired': return 'secondary' as const;
-    default: return 'secondary' as const;
-  }
-};
+function statusTone(status: string) {
+  if (status === 'active') return 'text-success';
+  if (status === 'expired') return 'text-destructive';
+  return 'text-muted-foreground';
+}
 
 interface Props {
   searchProp?: string;
 }
 
-export default function SharesNeedsList({ searchProp }: Props) {
+export default function SharesNeedsList({ searchProp = '' }: Props) {
   const [, navigate] = useLocation();
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [search, setSearch] = useState(searchProp ?? '');
-
-  // Sync external search prop into local state when it changes
-  useMemo(() => { setSearch(searchProp ?? ''); }, [searchProp]);
 
   const params = useMemo(() => {
-    const p: Record<string, string> = { per_page: '24' };
-    if (typeFilter !== 'all') p.type = typeFilter;
-    if (categoryFilter !== 'all') p.category = categoryFilter;
-    if (search) p.q = search;
-    return p;
-  }, [typeFilter, categoryFilter, search]);
+    const next: Record<string, string> = { per_page: '24' };
+    if (typeFilter !== 'all') next.type = typeFilter;
+    if (categoryFilter !== 'all') next.category = categoryFilter;
+    if (searchProp.trim()) next.q = searchProp.trim();
+    return next;
+  }, [typeFilter, categoryFilter, searchProp]);
 
   const { data, isLoading, error } = useSharesNeeds(params);
-
   const items = data?.items ?? [];
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-3">
-          <Skeleton className="h-9 w-32" />
-          <Skeleton className="h-9 w-40" />
-          <Skeleton className="h-9 w-48" />
+      <div className="space-y-5" aria-label="Loading shares and needs">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-14 rounded-none border-2 border-border" />
+          ))}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 rounded-lg" />
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-64 rounded-none border-2 border-border" />
           ))}
         </div>
       </div>
@@ -81,109 +69,110 @@ export default function SharesNeedsList({ searchProp }: Props) {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-destructive">Failed to load shares & needs</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+      <div className="border-2 border-destructive p-8" role="alert">
+        <p className="font-black uppercase tracking-wide text-destructive">Exchange index unavailable</p>
+        <p className="mt-2 text-sm text-muted-foreground">{(error as Error).message}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <div className="flex flex-wrap gap-3">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              {TYPE_OPTIONS.map(o => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {CATEGORY_OPTIONS.map(o => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-[200px]"
-          />
+    <div className="space-y-6">
+      <div className="grid gap-5 border-b-2 border-strong-border pb-6 lg:grid-cols-12 lg:items-end">
+        <div className="lg:col-span-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Capacity exchange</p>
+          <h2 className="mt-2 text-3xl font-black tracking-[-0.035em]">{items.length} live signals</h2>
         </div>
-
-        <Button onClick={() => navigate('/discover/shares-needs/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Share / Need
+        <div className="grid gap-3 sm:grid-cols-2 lg:col-span-5">
+          <div>
+            <label className="mb-2 block text-[0.68rem] font-black uppercase tracking-[0.14em]" htmlFor="exchange-type">
+              Exchange type
+            </label>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger id="exchange-type" className="h-11 w-full rounded-none border-2">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="mb-2 block text-[0.68rem] font-black uppercase tracking-[0.14em]" htmlFor="exchange-category">
+              Category
+            </label>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger id="exchange-category" className="h-11 w-full rounded-none border-2">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <Button className="min-h-11 rounded-none lg:col-span-2" onClick={() => navigate('/discover/shares-needs/new')}>
+          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+          Add signal
         </Button>
       </div>
 
-      {/* Grid */}
       {items.length === 0 ? (
-        <div className="text-center py-16 rounded-lg border border-dashed">
-          <Package className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="font-medium text-muted-foreground">No shares or needs found</p>
-          <p className="text-sm text-muted-foreground mt-1">Be the first to share a resource or post a need</p>
-          <Button className="mt-4" variant="outline" onClick={() => navigate('/discover/shares-needs/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Share / Need
+        <div className="border-2 border-dashed border-strong-border p-10 sm:p-16">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Open capacity</p>
+          <h3 className="mt-3 text-3xl font-black tracking-tight">No matching signals yet.</h3>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            Publish a resource you can share or name a need the wider network could meet.
+          </p>
+          <Button className="mt-6 rounded-none" variant="outline" onClick={() => navigate('/discover/shares-needs/new')}>
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+            Add share or need
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map(item => (
-            <Card key={item.id} className="flex flex-col hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/discover/shares-needs/${item.id}`)}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {item.type === 'share' ? (
-                      <ArrowUpCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    ) : (
-                      <ArrowDownCircle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
-                    )}
-                    <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <Badge variant={typeBadgeVariant(item.type)} className="capitalize">{item.type}</Badge>
-                    <Badge variant={statusBadgeVariant(item.status)} className="capitalize text-xs">{item.status}</Badge>
-                  </div>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((item, index) => (
+            <article key={item.id} className="flex min-h-64 flex-col border-2 border-strong-border bg-card p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
+                <div>
+                  <p className={`text-xs font-black uppercase tracking-[0.18em] ${item.type === 'share' ? 'text-success' : 'text-link'}`}>
+                    {item.type === 'share' ? 'Offers' : 'Seeks'} / {String(index + 1).padStart(2, '0')}
+                  </p>
+                  <h3 className="mt-3 text-xl font-black leading-tight tracking-[-0.025em]">{item.title}</h3>
                 </div>
-              </CardHeader>
-              <CardContent className="flex flex-col flex-1 gap-2">
-                {item.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                )}
+                <span className={`text-[0.65rem] font-black uppercase tracking-[0.14em] ${statusTone(item.status)}`}>
+                  {item.status}
+                </span>
+              </div>
+
+              {item.description && (
+                <p className="mt-4 line-clamp-4 text-sm leading-6 text-muted-foreground">{item.description}</p>
+              )}
+
+              <div className="mt-5 flex flex-wrap gap-2">
                 {item.category && (
-                  <Badge variant="outline" className="w-fit text-xs capitalize">{item.category}</Badge>
+                  <Badge variant="outline" className="rounded-none capitalize">{item.category}</Badge>
                 )}
-                {item.capacity && (
-                  <p className="text-xs text-muted-foreground">Capacity: {item.capacity}</p>
-                )}
-                {item.tags && item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {item.tags.slice(0, 3).map(tag => (
-                      <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-auto pt-2 border-t text-xs text-muted-foreground">
-                  {item.domain_name && <span>{item.domain_name}</span>}
-                  {item.domain_name && item.ecosystem_name && <span className="mx-1">·</span>}
-                  {item.ecosystem_name && <span>{item.ecosystem_name}</span>}
+                {item.tags.slice(0, 3).map((tag) => (
+                  <Badge key={tag} variant="secondary" className="rounded-none">{tag}</Badge>
+                ))}
+              </div>
+
+              <dl className="mt-auto grid grid-cols-2 gap-3 border-t border-border pt-5 text-xs">
+                <div>
+                  <dt className="font-bold uppercase tracking-[0.12em] text-muted-foreground">Ecosystem</dt>
+                  <dd className="mt-1 font-semibold">{item.ecosystem_name ?? 'Network-wide'}</dd>
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <dt className="font-bold uppercase tracking-[0.12em] text-muted-foreground">Capacity</dt>
+                  <dd className="mt-1 font-semibold">{item.capacity ?? 'Open'}</dd>
+                </div>
+              </dl>
+            </article>
           ))}
         </div>
       )}

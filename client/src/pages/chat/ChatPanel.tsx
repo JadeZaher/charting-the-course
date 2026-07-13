@@ -19,6 +19,7 @@ import {
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'wouter';
+import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
 
 interface ChatPanelProps {
@@ -170,10 +171,10 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
   const PrivacyIcon = privacyConfig[privacy].icon;
 
   return (
-    <div className={embedded ? 'h-full flex' : 'max-w-6xl mx-auto h-[calc(100vh-8rem)] flex'}>
+    <div className={embedded ? 'h-full flex' : 'h-[calc(100vh-8rem)] flex'}>
       {/* Session Sidebar */}
       {sidebarOpen ? (
-        <div className="w-72 flex-shrink-0 border-r flex flex-col bg-muted/30 rounded-l-lg overflow-hidden transition-all duration-200">
+        <div className="flex w-72 flex-shrink-0 flex-col overflow-hidden rounded-none border-r-2 border-strong-border bg-muted/30 transition-all duration-200">
           {/* Sidebar header */}
           <div className="p-3 border-b flex items-center justify-between">
             <h3 className="text-sm font-semibold">Sessions</h3>
@@ -226,10 +227,10 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                 <button
                   key={s.id}
                   onClick={() => handleSelectSession(s.id)}
-                  className={`w-full text-left px-2.5 py-2 rounded-md text-xs group transition-colors ${
+                  className={`group w-full rounded-[2px] border-2 px-2.5 py-2 text-left text-xs transition-colors ${
                     sessionId === s.id
-                      ? 'bg-primary/10 text-primary'
-                      : 'hover:bg-muted'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-strong-border hover:bg-muted'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-1">
@@ -274,7 +275,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="p-1.5 rounded-md hover:bg-muted transition-colors">
+                <button className="rounded-[2px] border-2 border-strong-border p-1.5 transition-colors hover:bg-muted">
                   <PanelLeftOpen className="h-4 w-4 text-muted-foreground" />
                 </button>
               </TooltipTrigger>
@@ -285,7 +286,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                  className="rounded-[2px] border-2 border-strong-border p-1.5 transition-colors hover:bg-muted"
                   onClick={e => { e.stopPropagation(); handleNewConversation(); }}
                 >
                   <Plus className="h-4 w-4 text-muted-foreground" />
@@ -394,7 +395,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
               {messages.map((msg, i) => (
                 <div key={i}>
                   {msg.skill && (
-                    <div className="flex items-center justify-center gap-2 my-2 py-1.5 bg-primary/5 rounded-lg text-xs">
+                    <div className="my-2 flex items-center justify-center gap-2 border-y border-border bg-primary/5 py-1.5 text-xs">
                       <ArrowRight className="h-3 w-3 text-primary" />
                       <span className="text-muted-foreground">Skill:</span>
                       <span className="font-semibold text-primary">{msg.skill}</span>
@@ -403,7 +404,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
 
                   <div className={`group flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {msg.role === 'assistant' && (
-                      <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center bg-primary">
                         <Bot className="h-3.5 w-3.5 text-primary-foreground" />
                       </div>
                     )}
@@ -416,7 +417,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                           {msg.tools.map((tool, ti) => (
                             <div
                               key={ti}
-                              className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 border-l-2 border-primary/30 rounded-r text-xs"
+                              className="flex items-center gap-1.5 rounded-r-sm border-l-2 border-primary bg-muted/50 px-2 py-1 text-xs"
                             >
                               <Wrench className="h-3 w-3 text-muted-foreground" />
                               <code className="font-mono text-xs">{tool.name}</code>
@@ -432,7 +433,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                       )}
 
                       <div
-                        className={`rounded-lg p-3 ${
+                        className={`border-2 border-strong-border p-3 ${
                           msg.role === 'user'
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted'
@@ -444,10 +445,21 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                               remarkPlugins={[remarkGfm]}
                               components={{
                                 a: ({ href, children }) => {
-                                  if (href?.startsWith('/')) {
-                                    return <Link href={href} className="text-primary underline hover:text-primary/80">{children}</Link>;
+                                  const internalHref = resolveInternalPath(href);
+                                  if (internalHref) {
+                                    return <Link href={internalHref} className="text-primary underline hover:text-primary/80">{children}</Link>;
                                   }
-                                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                                  const safeHref = resolveExternalUrl(href);
+                                  return safeHref
+                                    ? <a href={safeHref} target="_blank" rel="noopener noreferrer">{children}</a>
+                                    : <span>{children}</span>;
+                                },
+                                img: ({ src, alt }) => {
+                                  const internalSrc = resolveInternalPath(src);
+                                  const safeSrc = resolveMediaUrl(internalSrc);
+                                  return safeSrc
+                                    ? <img src={safeSrc} alt={alt || ''} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="my-3 max-h-80 w-auto border-2 border-strong-border object-contain" />
+                                    : <span role="note" className="my-2 block border border-border px-2 py-1 text-xs text-muted-foreground">{alt ? `External image blocked: ${alt}` : 'External image blocked'}</span>;
                                 },
                               }}
                             >
@@ -464,16 +476,19 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
 
                       {msg.role === 'assistant' && msg.artifacts && msg.artifacts.length > 0 && !msg.isStreaming && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {msg.artifacts.map((a, ai) => (
-                            <Link
-                              key={ai}
-                              href={a.route}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
-                            >
-                              <ArrowRight className="h-3 w-3" />
-                              {a.label}
-                            </Link>
-                          ))}
+                          {msg.artifacts.map((a, ai) => {
+                            const route = resolveInternalPath(a.route);
+                            return route ? (
+                              <Link
+                                key={ai}
+                                href={route}
+                                className="inline-flex items-center gap-1 rounded-[2px] border-2 border-primary bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                              >
+                                <ArrowRight className="h-3 w-3" />
+                                {a.label}
+                              </Link>
+                            ) : null;
+                          })}
                         </div>
                       )}
 
@@ -498,7 +513,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
                     </div>
 
                     {msg.role === 'user' && (
-                      <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center bg-secondary">
                         <User className="h-3.5 w-3.5 text-secondary-foreground" />
                       </div>
                     )}
@@ -516,7 +531,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
           )}
 
           {limitReached && (
-            <div className="px-4 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm border-t flex items-center gap-2">
+            <div className="flex items-center gap-2 border-t border-warning bg-warning/10 px-4 py-3 text-sm text-warning">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
               <span>
                 {userMessageCount >= maxMessages

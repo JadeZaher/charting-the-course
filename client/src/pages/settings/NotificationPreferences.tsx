@@ -12,22 +12,22 @@ const NOTIFICATION_LABELS: Record<keyof NotificationPreferences, { label: string
   agreement_reviews: {
     label: 'Agreement Reviews',
     description: 'When agreements come due for periodic review',
-    icon: <BellRing className="h-4 w-4 text-blue-600" />,
+    icon: <BellRing className="h-4 w-4 text-info" />,
   },
   consent_rounds: {
     label: 'Consent Rounds',
     description: 'When proposals enter consent phase requiring your position',
-    icon: <BellRing className="h-4 w-4 text-purple-600" />,
+    icon: <BellRing className="h-4 w-4 text-chart-3" />,
   },
   proposal_deadlines: {
     label: 'Proposal Deadlines',
     description: 'When proposal deadlines are approaching or past due',
-    icon: <BellRing className="h-4 w-4 text-orange-600" />,
+    icon: <BellRing className="h-4 w-4 text-warning" />,
   },
   conflict_updates: {
     label: 'Conflict Updates',
     description: 'When conflict cases you\'re involved in are updated',
-    icon: <BellRing className="h-4 w-4 text-red-600" />,
+    icon: <BellRing className="h-4 w-4 text-destructive" />,
   },
 };
 
@@ -120,13 +120,13 @@ export default function NotificationPreferencesPage() {
       </div>
 
       {updateMutation.error && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(updateMutation.error as Error).message}
         </div>
       )}
 
       {updateMutation.isSuccess && (
-        <div className="p-3 rounded-md bg-green-50 text-green-800 text-sm border border-green-200">
+        <div className="border border-success bg-success/10 p-3 text-sm text-success">
           Preferences saved successfully.
         </div>
       )}

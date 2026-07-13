@@ -4,11 +4,11 @@ class SurveyEditorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
 > {
-  state = { hasError: false, error: null };
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
   static getDerivedStateFromError(e: Error) { return { hasError: true, error: e }; }
   render() {
     if (this.state.hasError)
-      return <div className="p-4 text-sm text-destructive border rounded">Survey editor error: {this.state.error?.message}</div>;
+      return <div className="rounded-none border-2 border-destructive bg-destructive/10 p-4 text-sm text-destructive">Survey editor error: {this.state.error?.message}</div>;
     return this.props.children;
   }
 }
@@ -94,6 +94,10 @@ interface Step {
   branch_condition?: BranchCondition | null;
   // type-specific
   video_url?: string;
+  captions_url?: string;
+  captions_language?: string;
+  transcript?: string;
+  transcript_url?: string;
   choices?: ChoiceOption[];
   choice_routes?: Record<string, string>;
   confirmation_label?: string;
@@ -151,7 +155,14 @@ function makeDefaultStep(type: StepType): Step {
   };
   switch (type) {
     case "video":
-      return { ...base, video_url: "" };
+      return {
+        ...base,
+        video_url: "",
+        captions_url: "",
+        captions_language: "en",
+        transcript: "",
+        transcript_url: "",
+      };
     case "choice":
       return { ...base, choices: [{ value: "", label: "", description: "" }], choice_routes: {} };
     case "confirmation":
@@ -237,7 +248,7 @@ function SortableStepCard({
       <Card className="border border-border">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <div className="flex items-center gap-2 p-3 cursor-pointer hover:bg-muted/50 rounded-t-lg">
+            <div className="flex cursor-pointer items-center gap-2 rounded-none border-b-2 border-strong-border p-3 hover:bg-muted/50">
               {/* Drag handle */}
               <button
                 {...attributes}
@@ -287,8 +298,9 @@ function SortableStepCard({
               {/* Common fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Title *</Label>
+                  <Label htmlFor={`step-title-${step.id}`}>Title *</Label>
                   <Input
+                    id={`step-title-${step.id}`}
                     value={step.title}
                     onChange={(e) => update({ title: e.target.value })}
                     placeholder="Step title"
@@ -307,8 +319,9 @@ function SortableStepCard({
               </div>
 
               <div className="space-y-1.5">
-                <Label>Description</Label>
+                <Label htmlFor={`step-description-${step.id}`}>Description</Label>
                 <Textarea
+                  id={`step-description-${step.id}`}
                   value={step.description}
                   onChange={(e) => update({ description: e.target.value })}
                   placeholder="Optional step description or instructions"
@@ -318,13 +331,53 @@ function SortableStepCard({
 
               {/* Type-specific fields */}
               {step.type === "video" && (
-                <div className="space-y-1.5">
-                  <Label>Video URL *</Label>
-                  <Input
-                    value={step.video_url || ""}
-                    onChange={(e) => update({ video_url: e.target.value })}
-                    placeholder="https://..."
-                  />
+                <div className="grid gap-4 border-2 border-strong-border bg-muted/20 p-4 sm:grid-cols-2">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor={`step-video-${step.id}`}>Video URL *</Label>
+                    <Input
+                      id={`step-video-${step.id}`}
+                      value={step.video_url || ""}
+                      onChange={(e) => update({ video_url: e.target.value })}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`step-captions-${step.id}`}>Captions URL</Label>
+                    <Input
+                      id={`step-captions-${step.id}`}
+                      value={step.captions_url || ""}
+                      onChange={(e) => update({ captions_url: e.target.value })}
+                      placeholder="https://.../captions.vtt"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`step-captions-language-${step.id}`}>Caption language</Label>
+                    <Input
+                      id={`step-captions-language-${step.id}`}
+                      value={step.captions_language || "en"}
+                      onChange={(e) => update({ captions_language: e.target.value })}
+                      placeholder="en"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor={`step-transcript-url-${step.id}`}>Transcript URL</Label>
+                    <Input
+                      id={`step-transcript-url-${step.id}`}
+                      value={step.transcript_url || ""}
+                      onChange={(e) => update({ transcript_url: e.target.value })}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor={`step-transcript-${step.id}`}>Transcript text</Label>
+                    <Textarea
+                      id={`step-transcript-${step.id}`}
+                      value={step.transcript || ""}
+                      onChange={(e) => update({ transcript: e.target.value })}
+                      placeholder="Provide a text alternative for audio-bearing content."
+                      rows={5}
+                    />
+                  </div>
                 </div>
               )}
 

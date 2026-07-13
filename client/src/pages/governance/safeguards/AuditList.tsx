@@ -38,10 +38,10 @@ const statusVariant = (status: string) => {
 
 const healthColorClass = (health: string) => {
   switch (health) {
-    case 'healthy': return 'bg-green-100 text-green-800 border-green-200';
-    case 'mixed': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'degrading': return 'bg-orange-100 text-orange-800 border-orange-200';
-    case 'critical': return 'bg-red-100 text-red-800 border-red-200';
+    case 'healthy': return 'border-success bg-success/10 text-success';
+    case 'mixed': return 'border-warning bg-warning/10 text-warning';
+    case 'degrading': return 'border-warning bg-warning/10 text-warning';
+    case 'critical': return 'border-destructive bg-destructive/10 text-destructive';
     default: return '';
   }
 };
@@ -70,20 +70,20 @@ export default function AuditList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/safeguards">
-            <Button variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/safeguards">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to Safeguards
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Audit History</h1>
-        <Link href="/safeguards">
-          <Button variant="outline" size="sm">Request New Audit</Button>
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/safeguards">Request New Audit</Link>
+        </Button>
       </div>
 
       <FilterBar

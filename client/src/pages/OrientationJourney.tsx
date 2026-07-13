@@ -128,9 +128,9 @@ export default function OrientationJourney() {
   if (isLoading) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <Skeleton className="h-2 rounded-full" />
+        <Skeleton className="h-2 rounded-none" />
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-64 rounded-none" />
       </div>
     );
   }
@@ -167,28 +167,29 @@ export default function OrientationJourney() {
       </div>
 
       {/* Step card */}
-      <div className="border rounded-2xl bg-card p-6 sm:p-8 shadow-sm">
+      <div className="border border-strong-border bg-card p-6 sm:p-8">
         {currentStep.type === 'video' && (
-          <VideoStep step={currentStep} onComplete={handleStepComplete} />
+          <VideoStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'choice' && (
-          <ChoiceStep step={currentStep} onComplete={handleStepComplete} />
+          <ChoiceStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'confirmation' && (
-          <ConfirmationStep step={currentStep} onComplete={handleStepComplete} />
+          <ConfirmationStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'reflection' && (
-          <ReflectionStep step={currentStep} onComplete={handleStepComplete} />
+          <ReflectionStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'ai_conversation' && (
           <AIConversationStep
+            key={currentStepIdx}
             step={currentStep}
             context={omnibotCtx}
             onComplete={handleStepComplete}
           />
         )}
         {currentStep.type === 'survey' && (
-          <SurveyStep step={currentStep} onComplete={handleStepComplete} />
+          <SurveyStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
         )}
       </div>
 

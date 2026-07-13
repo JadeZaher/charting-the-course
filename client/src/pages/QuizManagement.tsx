@@ -576,7 +576,7 @@ function QuizFormFields({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="flex items-center justify-between border border-strong-border p-4">
           <div>
             <Label htmlFor={`${idPrefix}-retakes`} className="cursor-pointer">Allow Retakes</Label>
             <p className="text-xs text-muted-foreground mt-0.5">Members can retake this quiz after completing it</p>
@@ -588,7 +588,7 @@ function QuizFormFields({
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="flex items-center justify-between border border-strong-border p-4">
           <div>
             <Label htmlFor={`${idPrefix}-entry`} className="cursor-pointer">Entry Quiz</Label>
             <p className="text-xs text-muted-foreground mt-0.5">Required for onboarding into the ecosystem</p>
@@ -644,7 +644,7 @@ function QuizFormFields({
         />
         {form.mode === "standard" && (
           <p className="text-xs text-muted-foreground">
-            For graded quizzes, add a <code className="bg-muted px-1 rounded">"correctAnswer"</code> field to each radiogroup element.
+            For graded quizzes, add a <code className="rounded-none border-2 border-strong-border bg-muted px-1">"correctAnswer"</code> field to each radiogroup element.
           </p>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -8,7 +9,7 @@ import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_il
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLocation, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { hasSavedIdentity, getSavedDid } from "@/lib/did-auth";
 
 type AuthMode = "did" | "password" | "register";
@@ -169,27 +170,36 @@ export default function Login() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="border border-foreground p-8 text-center">
+          <Loader2 className="mx-auto h-7 w-7 animate-spin motion-reduce:animate-none" />
+          <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Opening secure access</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Welcome Content */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-lg space-y-8">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold">Welcome to NEOS</h1>
-            <p className="text-xl text-muted-foreground">
-              New Earth Operating System
+    <div className="grid min-h-screen bg-background text-foreground lg:grid-cols-12">
+      <div className="relative flex items-center border-b border-foreground px-4 pb-12 pt-24 sm:px-6 lg:col-span-7 lg:border-b-0 lg:border-r lg:px-10 lg:py-20">
+        <div className="absolute inset-x-4 top-4 flex min-h-12 items-center justify-between border-b border-foreground pb-4 sm:inset-x-6 lg:inset-x-10">
+          <Link href="/" className="inline-flex min-h-11 items-center text-sm font-black uppercase tracking-[0.18em]">NEOS</Link>
+          <ThemeToggle />
+        </div>
+
+        <div className="mx-auto w-full max-w-2xl space-y-10">
+          <div className="space-y-4">
+            <p className="text-xs font-bold uppercase tracking-[0.18em]">Secure community access</p>
+            <h1 className="text-5xl font-black uppercase leading-[0.9] tracking-[-0.05em] sm:text-7xl">Welcome to NEOS.</h1>
+            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
+              Sign in to your ecosystem, governance work, and shared agreements.
             </p>
           </div>
 
-          <Card>
-            <CardHeader className="text-center">
-              <CardTitle>
+          <Card className="rounded-none border-foreground shadow-none">
+            <CardHeader className="border-b border-foreground text-left">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Identity protocol</p>
+              <CardTitle className="text-3xl font-black uppercase tracking-[-0.03em]">
                 {authMode === "register"
                   ? 'Create Account'
                   : 'Sign In'}
@@ -200,7 +210,7 @@ export default function Login() {
                   : 'Enter your credentials to access your ecosystem'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 p-6 sm:p-8">
               {/* OAuth Buttons - shown first for least friction */}
               {oauthProviders.length > 0 && authMode !== "did" && (
                 <div className="space-y-2">
@@ -233,8 +243,8 @@ export default function Login() {
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t" />
                     </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">or</span>
+                    <div className="relative flex justify-center text-xs font-bold uppercase tracking-[0.18em]">
+                      <span className="bg-card px-3 text-muted-foreground">or</span>
                     </div>
                   </div>
                 </div>
@@ -278,7 +288,7 @@ export default function Login() {
                     >
                       {isSubmitting ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                           Signing in...
                         </>
                       ) : (
@@ -293,7 +303,7 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setAuthMode("register")}
-                      className="w-full text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+                      className="w-full text-sm font-bold text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
                     >
                       Don't have an account? Sign up
                     </button>
@@ -304,9 +314,9 @@ export default function Login() {
                     <CollapsibleTrigger asChild>
                       <button
                         type="button"
-                        className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        className="flex w-full items-center justify-center gap-1 border-t border-border pt-4 text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        <ChevronDown className={`w-3 h-3 transition-transform ${didOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`h-3 w-3 transition-transform motion-reduce:transition-none ${didOpen ? "rotate-180" : ""}`} />
                         Advanced: Sign in with DID
                       </button>
                     </CollapsibleTrigger>
@@ -314,7 +324,7 @@ export default function Login() {
                       <form onSubmit={handleDIDLogin} className="space-y-4">
                         {hasIdentity && savedDid ? (
                           <div className="space-y-3">
-                            <div className="p-3 rounded-md bg-muted">
+                            <div className="border border-foreground bg-muted p-3">
                               <Label className="text-xs text-muted-foreground">Your DID</Label>
                               <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
                             </div>
@@ -326,7 +336,7 @@ export default function Login() {
                             >
                               {isSubmitting ? (
                                 <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                                   Signing in...
                                 </>
                               ) : (
@@ -359,7 +369,7 @@ export default function Login() {
                             >
                               {isSubmitting ? (
                                 <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                                   Creating identity...
                                 </>
                               ) : (
@@ -383,7 +393,7 @@ export default function Login() {
                               });
                             }
                           }}
-                          className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center gap-1"
+                          className="flex w-full items-center justify-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
                         >
                           <RefreshCw className="w-3 h-3" />
                           Reset saved identity
@@ -454,7 +464,7 @@ export default function Login() {
                     >
                       {isSubmitting ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                           Creating account...
                         </>
                       ) : (
@@ -469,7 +479,7 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setAuthMode("password")}
-                      className="w-full text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+                      className="w-full text-sm font-bold text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
                     >
                       Already have an account? Sign in
                     </button>
@@ -483,7 +493,7 @@ export default function Login() {
                   <form onSubmit={handleDIDLogin} className="space-y-4">
                     {hasIdentity && savedDid ? (
                       <div className="space-y-3">
-                        <div className="p-3 rounded-md bg-muted">
+                        <div className="border border-foreground bg-muted p-3">
                           <Label className="text-xs text-muted-foreground">Your DID</Label>
                           <p className="text-sm font-mono break-all mt-1">{savedDid}</p>
                         </div>
@@ -495,7 +505,7 @@ export default function Login() {
                         >
                           {isSubmitting ? (
                             <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                               Signing in...
                             </>
                           ) : (
@@ -528,7 +538,7 @@ export default function Login() {
                         >
                           {isSubmitting ? (
                             <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                               Creating identity...
                             </>
                           ) : (
@@ -545,14 +555,14 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setAuthMode("password")}
-                      className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="w-full text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
                     >
                       Sign in with username & password
                     </button>
                     <button
                       type="button"
                       onClick={() => setAuthMode("register")}
-                      className="w-full text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+                      className="w-full text-sm font-bold text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
                     >
                       Create a new account
                     </button>
@@ -567,7 +577,7 @@ export default function Login() {
                             });
                           }
                         }}
-                        className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center gap-1"
+                        className="flex w-full items-center justify-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
                       >
                         <RefreshCw className="w-3 h-3" />
                         Reset saved identity
@@ -578,14 +588,14 @@ export default function Login() {
               )}
 
               {authError && (
-                <p className="text-sm text-destructive text-center">{authError}</p>
+                <p className="border border-destructive p-3 text-center text-sm text-destructive" role="alert">{authError}</p>
               )}
 
-              <div className="space-y-4 pt-4">
-                <h3 className="font-semibold text-center">What You Can Do</h3>
-                <div className="grid gap-4">
-                  <div className="flex gap-3 items-start">
-                    <Vote className="w-5 h-5 text-primary mt-0.5" />
+              <div className="space-y-4 border-t border-foreground pt-6">
+                <h3 className="text-xs font-bold uppercase tracking-[0.18em]">Inside the system</h3>
+                <div className="grid divide-y divide-border border-y border-border">
+                  <div className="flex items-start gap-3 py-4">
+                    <Vote className="mt-0.5 h-5 w-5" />
                     <div>
                       <p className="font-medium">Participate in Governance</p>
                       <p className="text-sm text-muted-foreground">
@@ -593,8 +603,8 @@ export default function Login() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3 items-start">
-                    <Users className="w-5 h-5 text-primary mt-0.5" />
+                  <div className="flex items-start gap-3 py-4">
+                    <Users className="mt-0.5 h-5 w-5" />
                     <div>
                       <p className="font-medium">Join Your Community</p>
                       <p className="text-sm text-muted-foreground">
@@ -602,8 +612,8 @@ export default function Login() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3 items-start">
-                    <Globe className="w-5 h-5 text-primary mt-0.5" />
+                  <div className="flex items-start gap-3 py-4">
+                    <Globe className="mt-0.5 h-5 w-5" />
                     <div>
                       <p className="font-medium">Cross-Ecosystem Discovery</p>
                       <p className="text-sm text-muted-foreground">
@@ -611,8 +621,8 @@ export default function Login() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3 items-start">
-                    <Sparkles className="w-5 h-5 text-primary mt-0.5" />
+                  <div className="flex items-start gap-3 py-4">
+                    <Sparkles className="mt-0.5 h-5 w-5" />
                     <div>
                       <p className="font-medium">AI-Powered Guidance</p>
                       <p className="text-sm text-muted-foreground">
@@ -627,22 +637,20 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right Side - Hero Image */}
-      <div
-        className="hidden lg:flex flex-1 items-center justify-center relative overflow-hidden"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${loginHeroImage})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div className="text-center text-white z-10 p-8">
-          <h2 className="text-3xl font-bold mb-4">Govern Together, Thrive Together</h2>
-          <p className="text-lg opacity-90">
-            Consent-based governance for self-organizing communities
+      <aside className="relative hidden min-h-screen overflow-hidden lg:col-span-5 lg:block">
+        <img
+          src={loginHeroImage}
+          alt="Community members collaborating around a shared table"
+          className="h-full w-full object-cover grayscale contrast-125"
+        />
+        <div className="absolute inset-x-0 bottom-0 border-t border-foreground bg-background p-8 text-foreground">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Governance is a shared practice</p>
+          <h2 className="mt-5 text-4xl font-black uppercase leading-none tracking-[-0.04em]">Govern together.<br />Thrive together.</h2>
+          <p className="mt-5 max-w-md leading-relaxed text-muted-foreground">
+            Consent-based governance for self-organizing communities.
           </p>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

@@ -78,7 +78,7 @@ export function SurveyStep({ step, onComplete }: Props) {
       <div className="space-y-4">
         <Skeleton className="h-7 w-48" />
         <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-none" />
       </div>
     );
   }
@@ -117,7 +117,7 @@ export function SurveyStep({ step, onComplete }: Props) {
 
       <div className="space-y-5">
         {questions.map((q, i) => (
-          <div key={q.id} className="space-y-2 p-4 rounded-xl border bg-muted/20">
+          <div key={q.id} className="space-y-2 border border-strong-border bg-muted/20 p-5">
             <p className="text-sm font-medium">
               {i + 1}. {q.text}
             </p>

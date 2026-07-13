@@ -52,21 +52,21 @@ export default function AgreementHistory() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load history</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
-        <Link href={`/agreements/${id}`}>
-          <Button variant="outline" className="mt-4">Back to Agreement</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href={`/agreements/${id}`}>Back to Agreement</Link>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <Link href={`/agreements/${id}`}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`/agreements/${id}`}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Agreement
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">Agreement History</h1>
 
@@ -84,7 +84,7 @@ export default function AgreementHistory() {
             const Icon = isVersion ? GitBranch : isAmendment ? FileEdit : Search;
             return (
               <div key={item.data.id} className="relative pl-8">
-                <div className="absolute -left-[11px] top-1 w-5 h-5 rounded-full border-2 border-background bg-muted flex items-center justify-center">
+                <div className="absolute -left-[11px] top-1 flex h-5 w-5 items-center justify-center border-2 border-background bg-muted">
                   <Icon className="h-3 w-3 text-muted-foreground" />
                 </div>
                 <Card>
@@ -93,8 +93,10 @@ export default function AgreementHistory() {
                       <Badge variant={isVersion ? 'outline' : isAmendment ? 'default' : 'secondary'}>
                         {isVersion ? 'Version Snapshot' : isAmendment ? 'Amendment' : 'Review'}
                       </Badge>
-                      {!isVersion && (
-                        <Badge variant="outline">{item.data.status ?? (item.data as ReviewRecord).outcome ?? '-'}</Badge>
+                      {item.kind !== 'version' && (
+                        <Badge variant="outline">
+                          {item.kind === 'amendment' ? item.data.status : item.data.outcome ?? '-'}
+                        </Badge>
                       )}
                       {isVersion && (
                         <Badge variant="outline">v{(item.data as AgreementVersionRecord).version}</Badge>

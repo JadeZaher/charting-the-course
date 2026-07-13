@@ -21,7 +21,7 @@ export function ConfirmationStep({ step, onComplete }: Props) {
         )}
       </div>
 
-      <label className="flex items-start gap-3 p-4 rounded-xl border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors select-none">
+      <label className="flex cursor-pointer select-none items-start gap-3 border border-strong-border bg-muted/30 p-5 transition-colors hover:bg-muted/50 motion-reduce:transition-none">
         <Checkbox
           checked={confirmed}
           onCheckedChange={v => setConfirmed(!!v)}

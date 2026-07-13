@@ -1,15 +1,16 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { fetchMemberBadges, fetchMemberTags } from '@/lib/api-client';
+import { fetchMemberBadges } from '@/lib/api-client';
 import type {
   UserAchievement,
   UserXPLevel,
   LevelDefinition,
   AchievementType
 } from '@/types/achievements';
+import type { UserBadgeItem } from '@/types/api';
 
 /**
  * Hook to fetch user achievements via Sanic BFF API.
- * Uses member badges + tags as the source for achievement data.
+ * Uses earned member badges as the available source for achievement data.
  * TODO: Add a dedicated achievements endpoint to the Sanic API when available.
  */
 export function useAchievements(userId?: string, options?: {
@@ -31,47 +32,40 @@ export function useAchievements(userId?: string, options?: {
         };
       }
 
-      // Derive achievements from badges and tags (adapter layer)
-      const [badgesResult, tagsResult] = await Promise.all([
-        fetchMemberBadges(userId),
-        fetchMemberTags(userId),
-      ]);
-
+      // Derive achievements from earned badges until a dedicated endpoint exists.
+      // Profile tags have no earned timestamp and are not an AchievementType.
+      const badgesResult = await fetchMemberBadges(userId);
       const badges = badgesResult.badges || [];
-      const tags = tagsResult.tags || [];
 
-      // Map badges to achievement format
-      const achievements: UserAchievement[] = [
-        ...badges.map((b: any) => ({
-          id: b.id,
+      const achievements: UserAchievement[] = badges
+        .filter((badge): badge is UserBadgeItem & { earned_at: string } => Boolean(badge.earned_at))
+        .map((badge): UserAchievement => ({
+          id: badge.id,
           user_id: userId,
-          type: 'badge' as AchievementType,
-          key: b.badge_key || b.key,
-          label: b.badge_name || b.name,
-          description: b.badge_description || b.description,
-          earned_at: b.earned_at || b.created_at,
-          xp: b.xp ?? 0,
-        })),
-        ...tags.map((t: any) => ({
-          id: t.id,
-          user_id: userId,
-          type: 'tag' as AchievementType,
-          key: t.tag_key || t.key,
-          label: t.tag_value || t.value,
-          description: null,
-          earned_at: t.created_at,
-          xp: 0,
-        })),
-      ].filter((a) => !options?.type || a.type === options.type)
-       .slice(0, options?.limit);
+          achievement_type: 'badge_earned',
+          achievement_key: badge.badge_key,
+          achievement_name: badge.badge_name,
+          achievement_description: badge.badge_description,
+          achievement_icon: badge.badge_icon,
+          related_quiz_id: null,
+          related_badge_id: badge.id,
+          achievement_data: {
+            badge_category: badge.badge_category,
+            strength: badge.strength,
+          },
+          xp_awarded: 0,
+          earned_at: badge.earned_at,
+        }))
+        .filter((achievement) => !options?.type || achievement.achievement_type === options.type)
+        .slice(0, options?.limit);
 
       const by_type: Record<string, UserAchievement[]> = {};
       achievements.forEach((a) => {
-        if (!by_type[a.type]) by_type[a.type] = [];
-        by_type[a.type].push(a);
+        if (!by_type[a.achievement_type]) by_type[a.achievement_type] = [];
+        by_type[a.achievement_type].push(a);
       });
 
-      const total_xp = achievements.reduce((sum, a) => sum + (a.xp ?? 0), 0);
+      const total_xp = achievements.reduce((sum, a) => sum + a.xp_awarded, 0);
 
       return {
         achievements,

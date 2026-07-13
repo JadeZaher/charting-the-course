@@ -87,15 +87,15 @@ export default function OrientationGate() {
       {/* Loading */}
       {isLoading && (
         <div className="space-y-3">
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-16 rounded-none" />
+          <Skeleton className="h-24 rounded-none" />
+          <Skeleton className="h-24 rounded-none" />
         </div>
       )}
 
       {/* Path detection summary */}
       {!isLoading && pathData && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/40 border">
+        <div className="flex items-start gap-3 border border-strong-border bg-muted/40 p-5">
           <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           <div>
             <div className="text-sm font-medium mb-1.5 flex items-center gap-2 flex-wrap">
@@ -140,7 +140,7 @@ export default function OrientationGate() {
 
       {/* No journeys available */}
       {!isLoading && allMaps.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground border rounded-xl">
+        <div className="border border-strong-border py-12 text-center text-muted-foreground">
           No orientation journeys are available for this ETHOS yet.
         </div>
       )}

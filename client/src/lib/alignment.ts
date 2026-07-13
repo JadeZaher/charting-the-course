@@ -73,7 +73,9 @@ export function calculateAlignment(
   const DIMENSION_BONUS_MAX = 30;   // cap on dimension bonus
   const SCORE_MAX = 100;            // absolute maximum score
 
-  const totalUnique = new Set([...viewerValues, ...profileValues]).size;
+  const totalUnique = new Set(
+    Array.from(viewerValues).concat(Array.from(profileValues))
+  ).size;
   const jaccardBase = totalUnique > 0 ? (commonValues.length / totalUnique) * JACCARD_WEIGHT : 0;
   const dimensionBonus = Math.min(DIMENSION_BONUS_MAX, commonDimensions.length * DIMENSION_BONUS_PER);
   const score = Math.min(SCORE_MAX, Math.round(jaccardBase + dimensionBonus));

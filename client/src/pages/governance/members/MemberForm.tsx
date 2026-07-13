@@ -49,7 +49,7 @@ export default function MemberForm() {
       setSkillsOffered(existing.skills_offered?.join(', ') || '');
       setSkillsNeeded(existing.skills_needed?.join(', ') || '');
       setInterests(existing.interests?.join(', ') || '');
-      setSharedEcosystemIds(existing.shared_ecosystem_ids || []);
+      setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
     }
   }, [existing, isEdit]);
 
@@ -77,14 +77,11 @@ export default function MemberForm() {
       skills_offered: parseCommaSeparated(skillsOffered),
       skills_needed: parseCommaSeparated(skillsNeeded),
       interests: parseCommaSeparated(interests),
+      shared_ecosystem_ids: sharedEcosystemIds,
     };
 
     if (!isEdit && selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
-    }
-
-    if (sharedEcosystemIds.length > 0) {
-      payload.shared_ecosystem_ids = sharedEcosystemIds;
     }
 
     try {
@@ -106,17 +103,17 @@ export default function MemberForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Link href={isEdit ? `/members/${editId}` : '/members'}>
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href={isEdit ? `/members/${editId}` : '/members'}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           {isEdit ? 'Back to Member' : 'Back to Members'}
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Member' : 'New Member'}</h1>
 
       {mutationError && (
-        <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutationError as Error).message}
         </div>
       )}
@@ -198,7 +195,7 @@ export default function MemberForm() {
             <EcosystemMultiSelect
               label="Cross-Ecosystem Sharing"
               description="Select additional ecosystems this applies to."
-              primaryId={selectedEcosystem?.id ?? ''}
+              primaryId={isEdit ? existing?.ecosystem_id ?? '' : selectedEcosystem?.id ?? ''}
               sharedIds={sharedEcosystemIds}
               onPrimaryChange={() => {}}
               onSharedChange={setSharedEcosystemIds}
@@ -208,9 +205,9 @@ export default function MemberForm() {
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Member' : 'Create Member')}
               </Button>
-              <Link href={isEdit ? `/members/${editId}` : '/members'}>
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href={isEdit ? `/members/${editId}` : '/members'}>Cancel</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

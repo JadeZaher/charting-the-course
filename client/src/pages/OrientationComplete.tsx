@@ -2,6 +2,7 @@ import { useRoute } from 'wouter';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useEthosDetail } from '@/hooks/useEthos';
+import { resolveExternalUrl } from '@/lib/media';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -46,15 +47,22 @@ export default function OrientationComplete() {
   const { data: journeyMap, isLoading: mapLoading } = useJourneyMap(progress?.journey_map_id);
 
   const pkg = journeyMap?.exit_package;
+  const safeDocs = (pkg?.docs ?? []).flatMap((doc) => {
+    const url = resolveExternalUrl(doc.url);
+    return url ? [{ ...doc, url }] : [];
+  });
+  const safeTools = (pkg?.tools ?? []).flatMap((tool) => {
+    const url = resolveExternalUrl(tool.url);
+    return url ? [{ ...tool, url }] : [];
+  });
   const isLoading = ethosLoading || mapLoading;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 pb-16">
+    <div className="space-y-8 pb-16">
       {/* Celebration hero */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-2xl blur-xl" />
-        <div className="relative bg-card border rounded-2xl p-8 text-center space-y-4">
-          <div className="text-6xl select-none animate-bounce">
+      <div>
+        <div className="space-y-4 border border-strong-border bg-card p-8 text-center">
+          <div className="select-none text-6xl">
             <span role="img" aria-label="celebration">&#x1F389;</span>
           </div>
           <h1 className="text-3xl font-bold">Journey Complete!</h1>
@@ -82,7 +90,7 @@ export default function OrientationComplete() {
         <h2 className="text-xl font-semibold">What's Next?</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/governance">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="h-full cursor-pointer border-strong-border transition-colors hover:bg-muted/50 motion-reduce:transition-none">
               <CardContent className="p-6 text-center space-y-2">
                 <Scale className="h-8 w-8 mx-auto text-primary" />
                 <h3 className="font-medium">Explore Governance</h3>
@@ -91,7 +99,7 @@ export default function OrientationComplete() {
             </Card>
           </Link>
           <Link href="/proposals/new">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="h-full cursor-pointer border-strong-border transition-colors hover:bg-muted/50 motion-reduce:transition-none">
               <CardContent className="p-6 text-center space-y-2">
                 <Vote className="h-8 w-8 mx-auto text-primary" />
                 <h3 className="font-medium">Make a Proposal</h3>
@@ -100,7 +108,7 @@ export default function OrientationComplete() {
             </Card>
           </Link>
           <Link href="/profile">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="h-full cursor-pointer border-strong-border transition-colors hover:bg-muted/50 motion-reduce:transition-none">
               <CardContent className="p-6 text-center space-y-2">
                 <User className="h-8 w-8 mx-auto text-primary" />
                 <h3 className="font-medium">Set Up Your Profile</h3>
@@ -114,8 +122,8 @@ export default function OrientationComplete() {
       {/* Loading state */}
       {isLoading && (
         <div className="space-y-4">
-          <Skeleton className="h-36 rounded-xl" />
-          <Skeleton className="h-36 rounded-xl" />
+          <Skeleton className="h-36 rounded-none" />
+          <Skeleton className="h-36 rounded-none" />
         </div>
       )}
 
@@ -123,14 +131,14 @@ export default function OrientationComplete() {
       {!isLoading && pkg && (
         <>
           {/* Key docs */}
-          {pkg.docs && pkg.docs.length > 0 && (
-            <div className="border rounded-xl p-5 bg-card">
+          {safeDocs.length > 0 && (
+            <div className="border border-strong-border bg-card p-6">
               <h2 className="font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
                 <ExternalLink className="h-4 w-4" />
                 Key Resources
               </h2>
               <ul className="space-y-2">
-                {pkg.docs.map((doc, i) => (
+                {safeDocs.map((doc, i) => (
                   <li key={i}>
                     <a
                       href={doc.url}
@@ -148,20 +156,20 @@ export default function OrientationComplete() {
           )}
 
           {/* Tools & platforms */}
-          {pkg.tools && pkg.tools.length > 0 && (
-            <div className="border rounded-xl p-5 bg-card">
+          {safeTools.length > 0 && (
+            <div className="border border-strong-border bg-card p-6">
               <h2 className="font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
                 <Wrench className="h-4 w-4" />
                 Tools &amp; Platforms
               </h2>
               <div className="grid gap-2.5 sm:grid-cols-2">
-                {pkg.tools.map((tool, i) => (
+                {safeTools.map((tool, i) => (
                   <a
                     key={i}
                     href={tool.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-start gap-2.5 p-3 rounded-lg border bg-muted/30 hover:border-primary/40 hover:bg-muted/50 transition-colors"
+                    className="flex items-start gap-2.5 border border-strong-border bg-muted/30 p-4 transition-colors hover:bg-muted/50 motion-reduce:transition-none"
                   >
                     <Wrench className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
@@ -176,7 +184,7 @@ export default function OrientationComplete() {
 
           {/* Next steps */}
           {pkg.next_steps && pkg.next_steps.length > 0 && (
-            <div className="border rounded-xl p-5 bg-primary/5">
+            <div className="border border-primary bg-primary/5 p-6">
               <h2 className="font-semibold mb-3 flex items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
                 <ArrowRight className="h-4 w-4" />
                 Your Next Steps
@@ -184,7 +192,7 @@ export default function OrientationComplete() {
               <ol className="space-y-2.5">
                 {pkg.next_steps.map((step, i) => (
                   <li key={i} className="flex items-start gap-3 text-sm">
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center bg-primary text-xs font-bold text-primary-foreground">
                       {i + 1}
                     </span>
                     <span>{step}</span>

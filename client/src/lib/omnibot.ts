@@ -28,6 +28,9 @@ export async function sendOmniBotMessage(
 
 export function buildUserProfileSummary(tiles: { dimension?: string | null; content?: Record<string, unknown> }[]): string {
   if (!tiles || tiles.length === 0) return '';
-  const dims = [...new Set(tiles.map(t => t.dimension).filter(Boolean))];
+  const dimensions = tiles
+    .map((tile) => tile.dimension)
+    .filter((dimension): dimension is string => Boolean(dimension));
+  const dims = Array.from(new Set(dimensions));
   return dims.length > 0 ? `Dimensions: ${dims.join(', ')}` : '';
 }

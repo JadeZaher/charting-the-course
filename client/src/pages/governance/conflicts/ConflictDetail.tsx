@@ -18,7 +18,7 @@ const statusVariant = (status: string) => {
   }
 };
 
-const severityVariant = (severity: string) => {
+const severityVariant = (severity: string | null) => {
   switch (severity) {
     case 'critical': return 'destructive' as const;
     case 'high': return 'destructive' as const;
@@ -40,45 +40,45 @@ export default function ConflictDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load conflict</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/conflicts">
-          <Button variant="outline" className="mt-4">Back to Conflicts</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/conflicts">Back to Conflicts</Link>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Link href="/conflicts">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/conflicts">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Conflicts
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
-            <Badge variant={severityVariant(data.severity)}>{data.severity}</Badge>
+            {data.severity && <Badge variant={severityVariant(data.severity)}>{data.severity}</Badge>}
             {data.case_id && <span className="text-sm text-muted-foreground">{data.case_id}</span>}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link href={`/conflicts/${id}/edit`}>
-            <Button variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/conflicts/${id}/edit`}>
               <Pencil className="h-4 w-4 mr-1" />
               Edit
-            </Button>
-          </Link>
-          <Link href={`/conflicts/${id}/repair-agreements/new`}>
-            <Button variant="outline" size="sm">
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/conflicts/${id}/repair-agreements/new`}>
               <Plus className="h-4 w-4 mr-1" />
               Create Repair Agreement
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -100,7 +100,7 @@ export default function ConflictDetail() {
             <div>
               <dt className="text-muted-foreground">Severity</dt>
               <dd>
-                <Badge variant={severityVariant(data.severity)}>{data.severity}</Badge>
+                <Badge variant={severityVariant(data.severity)}>{data.severity || 'Unclassified'}</Badge>
               </dd>
             </div>
             <div>
@@ -116,8 +116,8 @@ export default function ConflictDetail() {
               <dd className="font-medium">{data.scope || '-'}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Facilitator</dt>
-              <dd className="font-medium">{data.facilitator || '-'}</dd>
+              <dt className="text-muted-foreground">Facilitator ID</dt>
+              <dd className="font-medium font-mono text-xs">{data.facilitator_id || '-'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Safety Flag</dt>
@@ -135,35 +135,30 @@ export default function ConflictDetail() {
         </CardContent>
       </Card>
 
-      {data.parties && (Array.isArray(data.parties) ? data.parties.length > 0 : Object.keys(data.parties).length > 0) && (
+      {data.parties && Object.keys(data.parties).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Parties</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {Array.isArray(data.parties)
-                ? data.parties.map((party: any) => (
-                    <Badge key={party.id || party.name || party} variant="secondary">
-                      {party.name || party}
-                    </Badge>
-                  ))
-                : Object.entries(data.parties).map(([key, val]) => (
-                    <Badge key={key} variant="secondary">{key}: {String(val)}</Badge>
-                  ))
-              }
+              {Object.entries(data.parties).map(([key, value]) => (
+                <Badge key={key} variant="secondary">
+                  {key}: {typeof value === 'string' ? value : JSON.stringify(value)}
+                </Badge>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {data.root_cause && (
+      {data.root_cause_category && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Root Cause</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{data.root_cause}</div>
+            <div className="whitespace-pre-wrap text-sm leading-relaxed">{data.root_cause_category}</div>
           </CardContent>
         </Card>
       )}
@@ -179,12 +174,12 @@ export default function ConflictDetail() {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Next Check-in</TableHead>
+                  <TableHead>Responsible Party</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.repair_agreements.map((ra: any) => (
+                {data.repair_agreements.map((ra) => (
                   <TableRow key={ra.id}>
                     <TableCell className="font-medium">{ra.title}</TableCell>
                     <TableCell>
@@ -192,8 +187,16 @@ export default function ConflictDetail() {
                         {ra.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{ra.due_date ? new Date(ra.due_date).toLocaleDateString() : '-'}</TableCell>
-                    <TableCell>{ra.assigned_to || '-'}</TableCell>
+                    <TableCell>
+                      {ra.checkin_30_date
+                        ? new Date(ra.checkin_30_date).toLocaleDateString()
+                        : ra.checkin_60_date
+                          ? new Date(ra.checkin_60_date).toLocaleDateString()
+                          : ra.checkin_90_date
+                            ? new Date(ra.checkin_90_date).toLocaleDateString()
+                            : '-'}
+                    </TableCell>
+                    <TableCell>{ra.responsible_party || '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

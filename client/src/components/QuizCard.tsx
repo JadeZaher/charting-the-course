@@ -40,7 +40,7 @@ export function QuizCard({
   const config = statusConfig[status];
 
   return (
-    <Card className="hover-elevate" data-testid={`card-quiz-${id}`}>
+    <Card className="border-strong-border transition-colors hover:bg-muted/40 motion-reduce:transition-none" data-testid={`card-quiz-${id}`}>
       <CardContent className="p-6">
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">

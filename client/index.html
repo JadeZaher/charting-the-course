@@ -2,12 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>CourseHub - Interactive Learning & Team Management</title>
-    <meta name="description" content="A platform designed for quiz creation, quiz answering, quiz result engine with per-user and aggregate visuals, and interactive connecting with response-based suggestions and filter building." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEOS — Governance in Practice</title>
+    <meta name="description" content="A visual workspace for learning, discovery, collaboration, and participatory governance." />
+    <meta name="theme-color" content="#F2EDE3" />
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let preference = "system";
+        try {
+          const stored = localStorage.getItem("theme");
+          if (stored === "light" || stored === "dark" || stored === "system") preference = stored;
+        } catch {}
+        const resolved = preference === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : preference;
+        root.classList.add(resolved);
+        root.dataset.theme = resolved;
+        root.style.colorScheme = resolved;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute(
+          "content",
+          resolved === "dark" ? "#000000" : "#F2EDE3",
+        );
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>

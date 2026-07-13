@@ -97,12 +97,12 @@ export default function ProposalList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Proposals</h1>
-        <Link href="/proposals/new">
-          <Button>
+        <Button asChild>
+          <Link href="/proposals/new">
             <Plus className="h-4 w-4 mr-2" />
             New Proposal
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       <FilterBar

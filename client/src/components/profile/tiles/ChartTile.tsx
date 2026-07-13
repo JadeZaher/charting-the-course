@@ -30,9 +30,9 @@ export function ChartTile({ data }: ChartTileProps) {
                 <span>{item.label}</span>
                 <span className="text-muted-foreground">{item.value}%</span>
               </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div className="h-2 overflow-hidden border border-strong-border bg-muted">
                 <div 
-                  className="h-full bg-primary rounded-full transition-all"
+                  className="h-full bg-primary transition-[width] motion-reduce:transition-none"
                   style={{ 
                     width: `${(item.value / maxValue) * 100}%`,
                     backgroundColor: item.color || undefined

@@ -341,12 +341,12 @@ export default function UserQuizHistory() {
         <p className="text-muted-foreground mb-4">
           The user you're looking for doesn't exist or you don't have permission to view them.
         </p>
-        <Link href="/admin/users">
-          <Button>
+        <Button asChild>
+          <Link href="/admin/users">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Users
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -383,9 +383,9 @@ export default function UserQuizHistory() {
 
   const getScoreColor = (percentage: number | null) => {
     if (!percentage) return 'text-muted-foreground';
-    if (percentage >= 80) return 'text-green-600';
-    if (percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    if (percentage >= 80) return 'text-success';
+    if (percentage >= 60) return 'text-warning';
+    return 'text-destructive';
   };
 
   const toggleResultSelection = (id: string) => {
@@ -431,11 +431,11 @@ export default function UserQuizHistory() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/admin/users">
-            <Button variant="ghost" size="icon">
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/admin/users">
               <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <History className="h-8 w-8" />
@@ -513,21 +513,21 @@ export default function UserQuizHistory() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <BarChart3 className="h-8 w-8 text-green-500 mx-auto mb-2" />
+            <BarChart3 className="mx-auto mb-2 h-8 w-8 text-success" />
             <p className="text-2xl font-bold">{stats.averageScore}%</p>
             <p className="text-xs text-muted-foreground">Average Score</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Award className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+            <Award className="mx-auto mb-2 h-8 w-8 text-warning" />
             <p className="text-2xl font-bold">{stats.totalBadges}</p>
             <p className="text-xs text-muted-foreground">Badges Earned</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Clock className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+            <Clock className="mx-auto mb-2 h-8 w-8 text-info" />
             <p className="text-2xl font-bold">{formatTime(stats.totalTimeSpent)}</p>
             <p className="text-xs text-muted-foreground">Total Time</p>
           </CardContent>
@@ -565,7 +565,7 @@ export default function UserQuizHistory() {
             </CardHeader>
             <CardContent>
               {quizResults.length > 0 ? (
-                <div className="rounded-md border">
+                <div className="rounded-none border-2 border-strong-border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -606,11 +606,11 @@ export default function UserQuizHistory() {
                                     {result.score}%
                                   </span>
                                   {result.score >= 80 ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    <CheckCircle2 className="h-4 w-4 text-success" />
                                   ) : result.score >= 60 ? (
-                                    <CheckCircle2 className="h-4 w-4 text-yellow-500" />
+                                    <CheckCircle2 className="h-4 w-4 text-warning" />
                                   ) : (
-                                    <XCircle className="h-4 w-4 text-red-500" />
+                                    <XCircle className="h-4 w-4 text-destructive" />
                                   )}
                                 </>
                               ) : (
@@ -700,7 +700,7 @@ export default function UserQuizHistory() {
                       </Button>
                       <CardContent className="p-4 pt-8 text-center">
                         <div 
-                          className="h-16 w-16 rounded-full flex items-center justify-center text-3xl mx-auto mb-3"
+                          className="mx-auto mb-3 flex h-16 w-16 items-center justify-center border border-strong-border text-3xl"
                           style={{ backgroundColor: `${badge.badge_color || '#6366f1'}20` }}
                         >
                           {badge.badge_icon || '🏅'}
@@ -920,17 +920,17 @@ export default function UserQuizHistory() {
                   return (
                     <div
                       key={q.name || index}
-                      className="p-4 rounded-lg border space-y-3"
+                      className="space-y-3 border border-strong-border p-5"
                     >
                       <div className="flex items-start gap-3">
                         {hasCorrectAnswer ? (
                           isCorrect ? (
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                            <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
                           ) : (
                             <XCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                           )
                         ) : (
-                          <div className="h-5 w-5 rounded-full bg-muted flex-shrink-0 mt-0.5 flex items-center justify-center text-xs">
+                          <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center border border-strong-border bg-muted text-xs">
                             {index + 1}
                           </div>
                         )}
@@ -939,7 +939,7 @@ export default function UserQuizHistory() {
                           <div className="space-y-1 text-sm">
                             <div className="flex items-start gap-2">
                               <span className="text-muted-foreground min-w-[100px]">Answer:</span>
-                              <span className={hasCorrectAnswer ? (isCorrect ? "text-green-600 font-medium" : "text-destructive font-medium") : "font-medium"}>
+                              <span className={hasCorrectAnswer ? (isCorrect ? "font-medium text-success" : "font-medium text-destructive") : "font-medium"}>
                                 {userAnswer !== undefined ? (
                                   Array.isArray(userAnswer) ? userAnswer.join(', ') : String(userAnswer)
                                 ) : (
@@ -950,7 +950,7 @@ export default function UserQuizHistory() {
                             {hasCorrectAnswer && !isCorrect && (
                               <div className="flex items-start gap-2">
                                 <span className="text-muted-foreground min-w-[100px]">Correct:</span>
-                                <span className="text-green-600 font-medium">{String(correctAnswer)}</span>
+                                <span className="font-medium text-success">{String(correctAnswer)}</span>
                               </div>
                             )}
                           </div>

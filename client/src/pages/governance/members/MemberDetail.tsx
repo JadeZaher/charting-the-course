@@ -35,9 +35,9 @@ export default function MemberDetail() {
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load member</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Link href="/members">
-          <Button variant="outline" className="mt-4">Back to Members</Button>
-        </Link>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/members">Back to Members</Link>
+        </Button>
       </div>
     );
   }
@@ -47,12 +47,12 @@ export default function MemberDetail() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <Link href="/members">
-        <Button variant="ghost" size="sm">
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/members">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Members
-        </Button>
-      </Link>
+        </Link>
+      </Button>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -69,12 +69,12 @@ export default function MemberDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/members/${id}/edit`}>
-            <Button variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/members/${id}/edit`}>
               <Pencil className="h-4 w-4 mr-1" />
               Edit
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -143,19 +143,19 @@ export default function MemberDetail() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="border border-strong-border bg-muted/50 p-4 text-center">
               <p className="text-2xl font-bold">{quiz.total_available}</p>
               <p className="text-xs text-muted-foreground">Available</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-green-500/10">
-              <p className="text-2xl font-bold text-green-600">{quiz.passed}</p>
+            <div className="border border-success bg-success/10 p-4 text-center">
+              <p className="text-2xl font-bold tabular-nums text-success">{quiz.passed}</p>
               <p className="text-xs text-muted-foreground">Passed</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-yellow-500/10">
-              <p className="text-2xl font-bold text-yellow-600">{quiz.in_progress}</p>
+            <div className="border border-warning bg-warning/10 p-4 text-center">
+              <p className="text-2xl font-bold tabular-nums text-warning">{quiz.in_progress}</p>
               <p className="text-xs text-muted-foreground">In Progress</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="border border-strong-border bg-muted/50 p-4 text-center">
               <p className="text-2xl font-bold">{quiz.not_started}</p>
               <p className="text-xs text-muted-foreground">Not Started</p>
             </div>
@@ -164,16 +164,16 @@ export default function MemberDetail() {
           {quiz.quizzes.length > 0 && (
             <div className="space-y-2 mt-4">
               {quiz.quizzes.map((q) => (
-                <div key={q.quiz_id} className="flex items-center justify-between p-3 rounded-lg border">
+                <div key={q.quiz_id} className="flex items-center justify-between border border-strong-border p-4">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {q.status === 'completed' ? (
                       q.is_passed ? (
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        <CheckCircle className="h-5 w-5 flex-shrink-0 text-success" />
                       ) : (
-                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                        <AlertCircle className="h-5 w-5 flex-shrink-0 text-destructive" />
                       )
                     ) : q.status === 'in_progress' ? (
-                      <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                      <Clock className="h-5 w-5 flex-shrink-0 text-warning" />
                     ) : (
                       <BookOpen className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                     )}
@@ -266,7 +266,7 @@ export default function MemberDetail() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {data.badges.map((badge) => (
-                <div key={badge.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                <div key={badge.id} className="flex items-center gap-3 border border-strong-border p-4">
                   {badge.badge_icon && <span className="text-2xl">{badge.badge_icon}</span>}
                   <div>
                     <p className="font-medium">{badge.badge_name}</p>

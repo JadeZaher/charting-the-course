@@ -26,7 +26,7 @@ export function StatCard({ title, value, icon: Icon, trend, className }: StatCar
               </p>
             )}
           </div>
-          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-none border-2 border-primary bg-primary/10">
             <Icon className="h-6 w-6 text-primary" />
           </div>
         </div>
