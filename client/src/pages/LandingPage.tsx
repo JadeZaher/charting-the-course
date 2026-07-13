@@ -73,6 +73,9 @@ export default function LandingPage() {
             <Button asChild variant="ghost" size="sm">
               <Link href="/about">About</Link>
             </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/governance-model">Governance Model</Link>
+            </Button>
             <ThemeToggle />
             <Button asChild size="sm">
               <Link href="/login">Enter NEOS</Link>
@@ -92,6 +95,7 @@ export default function LandingPage() {
               <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
                 NEOS is an operating system for communities that govern themselves. No kings. No tokens.
                 Just agreements, consent, and collective intelligence.
+                The core system and framework are represented in a manually accessible front and an internally reachable governance page; the AI agent is an opt-in add-on.
               </p>
             </div>
             <div className="flex flex-col items-start gap-3 sm:flex-row">
@@ -194,14 +198,15 @@ export default function LandingPage() {
           <div className="px-4 py-16 sm:px-6 lg:col-span-6 lg:px-8 lg:py-24">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em]">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
-              03 / AI-augmented
+              03 / AI add-on
             </div>
-            <h2 className="mt-8 text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl">An AI that serves the community.</h2>
+            <h2 className="mt-8 text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl">An opt-in AI assistant.</h2>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              The NEOS agent facilitates discussions, summarizes proposals, and guides participants. It never decides for you.
+              The NEOS agent is an opt-in add-on. The core governance framework and every layer are accessible without it, through the manual front and the internal governance page.
             </p>
             <ul className="mt-8 divide-y divide-border border-y border-border">
               {[
+                "Optional: the core framework is fully manual",
                 "Summarizes objections and proposals impartially",
                 "Guides new members through governance processes",
                 "Works across ecosystems while respecting local sovereignty",
@@ -217,8 +222,8 @@ export default function LandingPage() {
           <div className="border-t border-foreground bg-card p-4 sm:p-6 lg:col-span-6 lg:border-l lg:border-t-0 lg:p-8">
             <div className="flex h-full min-h-[30rem] flex-col justify-between border border-foreground">
               <div className="flex items-center justify-between border-b border-foreground p-4 text-xs font-bold uppercase tracking-[0.18em]">
-                <span>Governance assistant</span>
-                <span>Live protocol</span>
+                <span>Governance assistant (optional)</span>
+                <span>Manual protocol</span>
               </div>
               <div className="space-y-8 p-5 sm:p-8">
                 <div className="grid grid-cols-[2rem_1fr] gap-4">
@@ -237,7 +242,7 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
-              <p className="border-t border-foreground p-4 text-xs text-muted-foreground">Human authority remains final at every step.</p>
+              <p className="border-t border-foreground p-4 text-xs text-muted-foreground">Manual governance remains available at every step.</p>
             </div>
           </div>
         </section>

@@ -167,6 +167,9 @@ export default function About() {
           </Button>
           <p className="hidden text-xs font-black uppercase tracking-[0.18em] sm:block">NEOS / System brief</p>
           <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/governance-model">Governance Model</Link>
+            </Button>
             <ThemeToggle />
             <Button asChild size="sm">
               <Link href="/login">Get started</Link>

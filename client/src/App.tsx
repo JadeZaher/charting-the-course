@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
+import GovernanceModel from "@/pages/GovernanceModel";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import QuizzesOnboardingHub from "@/pages/QuizzesOnboardingHub";
@@ -402,7 +403,7 @@ function AppLayout() {
   const [location] = useLocation();
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/about', '/users/'];
+  const publicPaths = ['/login', '/about', '/governance-model', '/users/'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
   const isLandingPage = location === '/';
 
@@ -422,6 +423,7 @@ function AppLayout() {
         <Switch>
           <Route path="/login" component={Login} />
           <Route path="/about" component={About} />
+          <Route path="/governance-model" component={GovernanceModel} />
           <Route path="/users/:username" component={PublicProfile} />
           {!isAuthenticated && <Route><Redirect to="/" /></Route>}
           {isAuthenticated && <Route><Redirect to="/dashboard" /></Route>}
