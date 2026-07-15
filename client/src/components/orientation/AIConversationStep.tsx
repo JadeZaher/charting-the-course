@@ -4,7 +4,8 @@ import { sendOmniBotMessage } from '@/lib/omnibot';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, User, SendHorizontal, CheckCircle, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Bot, User, SendHorizontal, CheckCircle, Loader2, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -24,6 +25,7 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
+  const [isStub, setIsStub] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
     try {
       const resp = await sendOmniBotMessage(newMsgs, context);
       setMessages(m => [...m, resp.message]);
+      setIsStub(resp.is_stub);
       setTurnCount(t => t + 1);
     } catch {
       setMessages(m => [
@@ -58,9 +61,17 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">{step.title}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">{step.title}</h2>
+          {isStub && <Badge variant="outline">Preview</Badge>}
+        </div>
         {step.description && (
           <p className="text-muted-foreground mt-1 text-sm">{step.description}</p>
+        )}
+        {isStub && (
+          <p className="text-muted-foreground mt-1 text-xs">
+            OmniBot's conversational replies aren't connected yet — this step is optional, skip ahead anytime.
+          </p>
         )}
       </div>
 
@@ -149,6 +160,16 @@ export function AIConversationStep({ step, context, onComplete }: Props) {
       <div className="flex items-center justify-between">
         {!canComplete && (
           <p className="text-xs text-muted-foreground">Send at least one message to continue</p>
+        )}
+        {!canComplete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onComplete({ turns: turnCount, messages, skipped: true })}
+          >
+            <SkipForward className="h-3.5 w-3.5 mr-1.5" />
+            Skip for now
+          </Button>
         )}
         <Button
           className="ml-auto"

@@ -42,13 +42,14 @@ const urgencyVariant = (urgency: string | null) => {
   }
 };
 
-// Valid status transitions
+// Valid status transitions — mirrors proposals.py::_VALID_TRANSITIONS (draft->advice->consent->test->ratified, any->withdrawn).
+// The backend has no proposal "archived" status/transition, so ratified has no further transition to offer here.
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['advice', 'withdrawn'],
   advice: ['consent', 'withdrawn'],
-  consent: ['test', 'ratified', 'withdrawn'],
+  consent: ['test', 'withdrawn'],
   test: ['ratified', 'withdrawn'],
-  ratified: ['archived'],
+  ratified: [],
   withdrawn: [],
 };
 

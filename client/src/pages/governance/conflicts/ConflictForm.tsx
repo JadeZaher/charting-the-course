@@ -10,6 +10,8 @@ import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useCreateConflict } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { CONFLICT_SCOPE_OPTIONS } from '@/lib/conflict-vocab';
+import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { ArrowLeft } from 'lucide-react';
 
 const SEVERITY_OPTIONS = [
@@ -17,13 +19,6 @@ const SEVERITY_OPTIONS = [
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
   { value: 'critical', label: 'Critical' },
-];
-
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'immediate', label: 'Immediate' },
 ];
 
 export default function ConflictForm() {
@@ -189,12 +184,16 @@ export default function ConflictForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="scope">Scope</Label>
-                <Input
-                  id="scope"
-                  value={scope}
-                  onChange={(e) => setScope(e.target.value)}
-                  placeholder="Conflict scope"
-                />
+                <Select value={scope} onValueChange={setScope}>
+                  <SelectTrigger id="scope">
+                    <SelectValue placeholder="Select scope" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONFLICT_SCOPE_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

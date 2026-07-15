@@ -9,37 +9,23 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useExits } from '@/hooks/use-governance';
+import { EXIT_STATUS_OPTIONS, exitStatusVariant } from '@/lib/exit-status';
 import { Plus } from 'lucide-react';
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'initiated', label: 'Initiated' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
-
+// Matches ExitRecord.exit_type: "standard" (30d cooling-off) or "urgent" (7d)
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
-  { value: 'voluntary', label: 'Voluntary' },
-  { value: 'involuntary', label: 'Involuntary' },
-  { value: 'timeout', label: 'Timeout' },
+  { value: 'standard', label: 'Standard' },
+  { value: 'urgent', label: 'Urgent' },
 ];
 
 const FILTERS: FilterDef[] = [
-  { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS },
+  {
+    key: 'status', label: 'Status', type: 'select',
+    options: [{ value: 'all', label: 'All Statuses' }, ...EXIT_STATUS_OPTIONS],
+  },
   { key: 'exit_type', label: 'Type', type: 'select', options: TYPE_OPTIONS },
 ];
-
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'completed': return 'default' as const;
-    case 'cancelled': return 'outline' as const;
-    case 'in_progress': return 'secondary' as const;
-    case 'initiated': return 'destructive' as const;
-    default: return 'secondary' as const;
-  }
-};
 
 export default function ExitList() {
   const [, navigate] = useLocation();
@@ -112,7 +98,7 @@ export default function ExitList() {
                     <TableCell className="font-medium">{item.member_name}</TableCell>
                     <TableCell>{item.exit_type}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(item.status)}>{item.status}</Badge>
+                      <Badge variant={exitStatusVariant(item.status)}>{item.status}</Badge>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">{item.reason || '-'}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{getEcosystemName(item.ecosystem_id) || '-'}</TableCell>

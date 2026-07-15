@@ -8,16 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useAgreement, useUpdateAgreementStatus } from '@/hooks/use-governance';
 import { formatDate } from '@/lib/utils';
+import { agreementStatusVariant } from '@/lib/agreement-status';
 import { Pencil, History, ArrowLeft } from 'lucide-react';
-
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'ratified': return 'default' as const;
-    case 'draft': return 'secondary' as const;
-    case 'archived': return 'outline' as const;
-    default: return 'secondary' as const;
-  }
-};
 
 export default function AgreementDetail() {
   const [, params] = useRoute('/agreements/:id');
@@ -65,7 +57,7 @@ export default function AgreementDetail() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+            <Badge variant={agreementStatusVariant(data.status)}>{data.status}</Badge>
             <Badge variant="outline">{data.type}</Badge>
             <span className="text-sm text-muted-foreground">v{data.version}</span>
           </div>

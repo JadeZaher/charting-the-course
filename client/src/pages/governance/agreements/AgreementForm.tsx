@@ -11,16 +11,8 @@ import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useAgreement, useCreateAgreement, useUpdateAgreement } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
+import { AGREEMENT_TYPE_OPTIONS } from '@/lib/agreement-type';
 import { ArrowLeft } from 'lucide-react';
-
-const TYPE_OPTIONS = [
-  { value: 'uaf', label: 'UAF' },
-  { value: 'ecosystem', label: 'Ecosystem' },
-  { value: 'access', label: 'Access' },
-  { value: 'stewardship', label: 'Stewardship' },
-  { value: 'ethos', label: 'Ethos' },
-  { value: 'culture_code', label: 'Culture Code' },
-];
 
 const HIERARCHY_OPTIONS = [
   { value: 'foundational', label: 'Foundational' },
@@ -153,7 +145,7 @@ export default function AgreementForm() {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TYPE_OPTIONS.map(o => (
+                  {AGREEMENT_TYPE_OPTIONS.map(o => (
                     <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>

@@ -171,7 +171,6 @@ export function useResolveEmergency() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => api.resolveEmergency(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
 }
-// SPECULATIVE: built from S2 patch in flight — verify payload shape at integration
 export function useCompleteRecovery() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => api.completeEmergencyRecovery(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });

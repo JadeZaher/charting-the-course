@@ -4,6 +4,7 @@ import { sendOmniBotMessage } from '@/lib/omnibot';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Bot, User, SendHorizontal, X, Loader2, MessageCircle, Mic, MicOff } from 'lucide-react';
 import { useSpeechInput } from '@/hooks/useSpeechInput';
 import { cn } from '@/lib/utils';
@@ -12,9 +13,14 @@ interface Props {
   context?: OmniBotContext;
 }
 
+/** Local message shape — tags replies that came back as the OmniBot stub. */
+interface PanelMessage extends OmniBotMessage {
+  isStub?: boolean;
+}
+
 export function OmniBotPanel({ context }: Props) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<OmniBotMessage[]>([
+  const [messages, setMessages] = useState<PanelMessage[]>([
     {
       role: 'assistant',
       content: context?.ethos_name
@@ -24,6 +30,7 @@ export function OmniBotPanel({ context }: Props) {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const hasStubReply = messages.some(m => m.isStub);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { isListening, isSupported: isMicSupported, startListening, stopListening } = useSpeechInput({
@@ -38,14 +45,16 @@ export function OmniBotPanel({ context }: Props) {
 
   async function send() {
     if (!input.trim() || isLoading) return;
-    const userMsg: OmniBotMessage = { role: 'user', content: input.trim() };
+    const userMsg: PanelMessage = { role: 'user', content: input.trim() };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setInput('');
     setIsLoading(true);
     try {
       const resp = await sendOmniBotMessage(newMsgs, context);
-      const botMsg = resp?.message ?? { role: 'assistant' as const, content: 'Sorry, I encountered an error. Please try again.' };
+      const botMsg: PanelMessage = resp?.message
+        ? { ...resp.message, isStub: resp.is_stub }
+        : { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' };
       setMessages(m => [...m, botMsg]);
     } catch {
       setMessages(m => [
@@ -78,6 +87,11 @@ export function OmniBotPanel({ context }: Props) {
                   · {context.ethos_name}
                 </span>
               )}
+              {hasStubReply && (
+                <Badge variant="outline" className="border-primary-foreground/40 text-primary-foreground">
+                  Preview
+                </Badge>
+              )}
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -87,6 +101,12 @@ export function OmniBotPanel({ context }: Props) {
               <X className="h-4 w-4" />
             </button>
           </div>
+
+          {hasStubReply && (
+            <p className="px-3 py-1.5 text-[10px] text-muted-foreground bg-muted/50 border-b flex-shrink-0">
+              OmniBot isn't fully connected yet — replies below are placeholders.
+            </p>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
@@ -104,10 +124,12 @@ export function OmniBotPanel({ context }: Props) {
                 )}
                 <div
                   className={cn(
-                    'max-w-[80%] border-2 border-strong-border px-3 py-2 text-xs leading-relaxed',
+                    'max-w-[80%] border-2 px-3 py-2 text-xs leading-relaxed',
                     msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-sm'
-                      : 'bg-muted rounded-bl-sm',
+                      ? 'border-strong-border bg-primary text-primary-foreground rounded-br-sm'
+                      : msg.isStub
+                        ? 'border-dashed border-control-border bg-muted/50 text-muted-foreground rounded-bl-sm'
+                        : 'border-strong-border bg-muted rounded-bl-sm',
                   )}
                 >
                   {msg.content}

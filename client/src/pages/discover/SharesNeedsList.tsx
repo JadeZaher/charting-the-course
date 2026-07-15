@@ -6,17 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus } from 'lucide-react';
 import { useSharesNeeds } from '@/hooks/use-discover';
+import { SHARESNEEDS_CATEGORY_OPTIONS } from '@/lib/sharesneeds-vocab';
 
-const CATEGORY_OPTIONS = [
-  { value: 'all', label: 'All categories' },
-  { value: 'technology', label: 'Technology' },
-  { value: 'resources', label: 'Resources' },
-  { value: 'skills', label: 'Skills' },
-  { value: 'knowledge', label: 'Knowledge' },
-  { value: 'infrastructure', label: 'Infrastructure' },
-  { value: 'funding', label: 'Funding' },
-  { value: 'other', label: 'Other' },
-];
+const CATEGORY_OPTIONS = [{ value: 'all', label: 'All categories' }, ...SHARESNEEDS_CATEGORY_OPTIONS];
 
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All exchanges' },

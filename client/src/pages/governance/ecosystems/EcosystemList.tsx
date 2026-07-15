@@ -15,15 +15,11 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchDiscover } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { ECOSYSTEM_STATUS_OPTIONS } from '@/lib/ecosystem-vocab';
 import { Plus, Check, UserPlus } from 'lucide-react';
 import type { EcosystemSummary } from '@/types/api';
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'active', label: 'Active' },
-  { value: 'forming', label: 'Forming' },
-  { value: 'inactive', label: 'Inactive' },
-];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All Statuses' }, ...ECOSYSTEM_STATUS_OPTIONS];
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -96,7 +92,7 @@ export default function EcosystemList() {
 
   const { data: rawData, isLoading, error } = useEcosystems(params);
 
-  const { data: discoverData, isLoading: discoverLoading } = useQuery({
+  const { data: discoverData, isLoading: discoverLoading, error: discoverError } = useQuery({
     queryKey: ['discover', 'ecosystems', discoverSearch],
     queryFn: () => fetchDiscover({ tab: 'ecosystems', ...(discoverSearch ? { q: discoverSearch } : {}) }),
     enabled: tab === 'discover',
@@ -248,7 +244,12 @@ export default function EcosystemList() {
             </CardContent>
           </Card>
 
-          {discoverLoading ? <LoadingState message="Discovering ecosystems..." /> : (
+          {discoverLoading ? <LoadingState message="Discovering ecosystems..." /> : discoverError ? (
+            <div className="text-center py-12">
+              <p className="text-destructive">Failed to load public ecosystems</p>
+              <p className="text-sm text-muted-foreground mt-1">{(discoverError as Error).message}</p>
+            </div>
+          ) : (
             <Card>
               <CardContent className="p-0">
                 <Table>

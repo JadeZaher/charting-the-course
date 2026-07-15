@@ -39,6 +39,10 @@ Dashboard and discovery media must be content-driven. Persist the image URL plus
 
 URL handling is context-specific: use `lib/media.resolveMediaUrl` for raster images, `resolveExternalUrl` for outbound links, and the host-allowlisted `resolveMiroEmbedUrl` for Miro iframes. Never pass a generic stored URL directly between image, link, and embed contexts.
 
+## OmniBot (lib/omnibot.ts)
+
+`sendOmniBotMessage` is an intentional stub, not a bug. The real chat backend (`POST /api/v1/chat/send`) is a 29-tool governance agent — it has no persona/system-prompt override, unconditionally attaches governance tools (create_proposal, check_authority, etc.), and every reply persists to `AgentSession` with no session-type field, so orientation Q&A would both risk invoking governance tools mid-onboarding and pollute the member's real governance chat history. Until the backend grows a tool-free, session-segregated mode, `omnibot.ts` stays a stub and callers (`OmniBotPanel`, `AIConversationStep`) must branch on the `is_stub` flag and degrade honestly rather than fake a working exchange.
+
 ## Documentation and verification
 
 Keep source comments terse and local. Put design rationale and cross-component decisions in this file or `design_guidelines.md`.

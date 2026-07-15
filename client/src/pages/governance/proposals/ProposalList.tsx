@@ -9,6 +9,8 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useProposals } from '@/hooks/use-governance';
+import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
+import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { Plus } from 'lucide-react';
 
 const FILTERS: FilterDef[] = [
@@ -30,25 +32,13 @@ const FILTERS: FilterDef[] = [
     key: 'type',
     label: 'Type',
     type: 'select',
-    options: [
-      { value: 'all', label: 'All Types' },
-      { value: 'policy', label: 'Policy' },
-      { value: 'operational', label: 'Operational' },
-      { value: 'structural', label: 'Structural' },
-      { value: 'resource', label: 'Resource' },
-    ],
+    options: [{ value: 'all', label: 'All Types' }, ...PROPOSAL_TYPE_OPTIONS],
   },
   {
     key: 'urgency',
     label: 'Urgency',
     type: 'select',
-    options: [
-      { value: 'all', label: 'All Urgency' },
-      { value: 'low', label: 'Low' },
-      { value: 'medium', label: 'Medium' },
-      { value: 'high', label: 'High' },
-      { value: 'critical', label: 'Critical' },
-    ],
+    options: [{ value: 'all', label: 'All Urgency' }, ...URGENCY_OPTIONS],
   },
 ];
 

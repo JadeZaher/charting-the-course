@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/dialog';
 import { useUpdateConflict } from '@/hooks/use-governance';
 import type { ConflictDetail } from '@/types/api';
+import { URGENCY_LEVELS, type UrgencyLevel } from '@/lib/urgency';
+import { CONFLICT_SCOPE_OPTIONS } from '@/lib/conflict-vocab';
 import { Loader2, ClipboardCheck } from 'lucide-react';
 
 const SEVERITY_OPTIONS = [
@@ -23,20 +25,14 @@ const SEVERITY_OPTIONS = [
   { value: 'critical', label: 'Critical' },
 ];
 
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Low — Address in normal course' },
-  { value: 'standard', label: 'Standard — Address within cycle' },
-  { value: 'high', label: 'High — Address this week' },
-  { value: 'immediate', label: 'Immediate — Address now' },
-];
-
-const SCOPE_OPTIONS = [
-  { value: 'individual', label: 'Individual' },
-  { value: 'domain', label: 'Domain' },
-  { value: 'cross-domain', label: 'Cross-Domain' },
-  { value: 'ecosystem', label: 'Ecosystem-wide' },
-  { value: 'cross-ecosystem', label: 'Cross-Ecosystem' },
-];
+// Richer triage-context labels over the shared urgency vocabulary (lib/urgency.ts)
+const URGENCY_DESCRIPTIONS: Record<UrgencyLevel, string> = {
+  low: 'Low — Address in normal course',
+  medium: 'Medium — Address within cycle',
+  high: 'High — Address this week',
+  critical: 'Critical — Address now',
+};
+const URGENCY_OPTIONS = URGENCY_LEVELS.map((value) => ({ value, label: URGENCY_DESCRIPTIONS[value] }));
 
 const TIER_OPTIONS = [
   { value: '1', label: 'Tier 1 — Facilitated conversation' },
@@ -179,7 +175,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
                 <SelectValue placeholder="Select scope" />
               </SelectTrigger>
               <SelectContent>
-                {SCOPE_OPTIONS.map((o) => (
+                {CONFLICT_SCOPE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
               </SelectContent>

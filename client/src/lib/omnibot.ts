@@ -1,4 +1,4 @@
-// OmniBot API helper — calls the Sanic BFF API
+// OmniBot API helper — see "OmniBot" section in client/src/AGENTS.md for why this is a stub
 
 import type { OmniBotMessage, OmniBotContext } from '@/types/orientation';
 
@@ -14,9 +14,9 @@ export async function sendOmniBotMessage(
   context?: OmniBotContext,
   maxTokens = 800
 ): Promise<OmniBotResponse> {
-  // TODO: Replace with the Sanic BFF omnibot endpoint when implemented
-  // Placeholder: returns a stub response so existing UI compiles and renders
-  console.warn('OmniBot: Sanic API endpoint not yet implemented, returning stub response.');
+  // Stub: the governance chat endpoint (/api/v1/chat/send) is tool-driven and
+  // session-listed, not a clean fit for orientation Q&A — see client/src/AGENTS.md.
+  // Always returns a stub reply; UI callers must branch on `is_stub`.
   return {
     message: {
       role: 'assistant',

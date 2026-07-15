@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchMemberProfile } from '@/lib/api-client';
 import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { toStringList } from '@/lib/utils';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -207,52 +208,58 @@ export default function MemberDetail() {
       </Card>
 
       {/* Skills & Interests */}
-      {(data.skills_offered?.length || data.skills_needed?.length || data.interests?.length) && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {data.skills_offered && data.skills_offered.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Skills Offered</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {data.skills_offered.map((skill: string) => (
-                    <Badge key={skill} variant="secondary">{skill}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {data.skills_needed && data.skills_needed.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Skills Needed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {data.skills_needed.map((skill: string) => (
-                    <Badge key={skill} variant="outline">{skill}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {data.interests && data.interests.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Interests</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {data.interests.map((interest: string) => (
-                    <Badge key={interest} variant="secondary">{interest}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+      {(() => {
+        const skillsOffered = toStringList(data.skills_offered);
+        const skillsNeeded = toStringList(data.skills_needed);
+        const interests = toStringList(data.interests);
+        if (!skillsOffered.length && !skillsNeeded.length && !interests.length) return null;
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {skillsOffered.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Skills Offered</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {skillsOffered.map((skill) => (
+                      <Badge key={skill} variant="secondary">{skill}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {skillsNeeded.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Skills Needed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {skillsNeeded.map((skill) => (
+                      <Badge key={skill} variant="outline">{skill}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {interests.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Interests</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {interests.map((interest) => (
+                      <Badge key={interest} variant="secondary">{interest}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Badges */}
       {data.badges.length > 0 && (

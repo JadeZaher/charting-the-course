@@ -176,11 +176,11 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
 
-  const { data: convData, isLoading } = useConversations();
-  const { data: activeConv } = useConversation(activeId || '');
+  const { data: convData, isLoading, error: convError } = useConversations();
+  const { data: activeConv, error: activeConvError } = useConversation(activeId || '');
   const { isConnected } = useWebSocket();
   const { member } = useAuth();
-  const { data: membersData } = useMemberPicker();
+  const { data: membersData, error: membersError } = useMemberPicker();
   const createConversation = useCreateConversation();
   const sendMessageMutation = useSendMessage(activeId || '');
 
@@ -245,11 +245,21 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
 
   // On mobile-ish (non-expanded), show either list or conversation
   const showConversation = activeId && activeConv;
+  const conversationFailed = !!activeId && !activeConv && !!activeConvError;
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
+  if (convError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center px-4">
+        <p className="text-sm text-destructive">Couldn't load conversations</p>
+        <p className="text-xs text-muted-foreground mt-1">{(convError as Error).message}</p>
       </div>
     );
   }
@@ -328,7 +338,9 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
                   {m.display_name}
                 </button>
               ))}
-              {filteredMembers.length === 0 && (
+              {membersError ? (
+                <p className="text-xs text-destructive text-center py-4">Couldn't load members</p>
+              ) : filteredMembers.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">No members found</p>
               )}
             </ScrollArea>
@@ -374,6 +386,8 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
               onMessageChange={setMessageInput}
               onSend={handleSend}
             />
+          ) : conversationFailed ? (
+            <ConversationLoadError />
           ) : (
             <EmptyConversation />
           )}
@@ -402,6 +416,22 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
           onMessageChange={setMessageInput}
           onSend={handleSend}
         />
+      </div>
+    );
+  }
+
+  if (conversationFailed) {
+    return (
+      <div className="flex flex-col h-full">
+        {newConvDialog}
+        <button
+          onClick={() => setActiveId(null)}
+          className="flex items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground border-b"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back
+        </button>
+        <ConversationLoadError />
       </div>
     );
   }
@@ -586,6 +616,16 @@ function EmptyConversation() {
       <div className="text-center">
         <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
         <p className="text-sm">Select a conversation</p>
+      </div>
+    </div>
+  );
+}
+
+function ConversationLoadError() {
+  return (
+    <div className="flex-1 flex items-center justify-center text-destructive">
+      <div className="text-center">
+        <p className="text-sm">Couldn't load this conversation</p>
       </div>
     </div>
   );

@@ -66,6 +66,7 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -80,8 +81,10 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
     try {
       const result = await fetchChatSessions({ q: q || undefined, limit: 30 });
       setSessions(result.sessions);
+      setSessionsError(null);
     } catch {
-      // Silently fail — sessions are a convenience feature
+      // Non-blocking — sessions are a convenience feature — but surface a small signal for debugging.
+      setSessionsError('Couldn\'t load sessions');
     } finally {
       setSessionsLoading(false);
     }
@@ -115,8 +118,10 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
         content: m.content,
       }));
       loadSession(id, msgs, detail.skill);
+      setSessionsError(null);
     } catch {
-      // ignore
+      // Non-blocking, but surface a small signal for debugging.
+      setSessionsError('Couldn\'t open that session');
     }
   };
 
@@ -126,8 +131,10 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
       await deleteChatSession(id);
       setSessions(prev => prev.filter(s => s.id !== id));
       if (sessionId === id) clearMessages();
+      setSessionsError(null);
     } catch {
-      // ignore
+      // Non-blocking, but surface a small signal for debugging.
+      setSessionsError('Couldn\'t delete that session');
     }
   };
 
@@ -209,6 +216,9 @@ export default function ChatPanel({ embedded }: ChatPanelProps) {
           </div>
 
           {/* Session list */}
+          {sessionsError && (
+            <p className="px-3 py-1 text-[10px] text-destructive" role="status">{sessionsError}</p>
+          )}
           <ScrollArea className="flex-1">
             <div className="p-1.5 space-y-0.5">
               {sessionsLoading && sessions.length === 0 && (

@@ -23,6 +23,7 @@ export interface SkillsResponse {
 
 export interface ApiError {
   error: string;
+  detail?: string | null;
 }
 
 // Auth types
@@ -130,7 +131,7 @@ export interface RatificationRecord {
 export interface AgreementDetail extends AgreementListItem {
   shared_ecosystem_ids: string[] | null;
   text: string | null;
-  affected_parties: string[] | null;
+  affected_parties: string[] | Record<string, unknown> | null;
   parent_agreement_id: string | null;
   ratification_date: string | null;
   created_date: string | null;
@@ -296,7 +297,6 @@ export interface MemberListItem {
   display_name: string;
   current_status: string;
   profile: string | null;
-  did: string | null;
   phone: string | null;
   profile_picture: string | null;
   onboarding_status: string | null;
@@ -306,11 +306,14 @@ export interface MemberListItem {
 export interface MemberDetail extends MemberListItem {
   shared_ecosystem_ids: string[] | null;
   ecosystem_id: string;
-  skills_offered: string[] | null;
-  skills_needed: string[] | null;
-  interests: string[] | null;
+  did: string | null;
+  skills_offered: string[] | Record<string, unknown> | null;
+  skills_needed: string[] | Record<string, unknown> | null;
+  interests: string[] | Record<string, unknown> | null;
   kyc_status: string | null;
   last_governance_activity_date: string | null;
+  notes: string | null;
+  privacy: Record<string, unknown> | null;
   updated_at: string;
   onboarding: MemberOnboardingSnapshot | null;
 }
@@ -547,6 +550,10 @@ export interface QuizListItem {
   is_entry_quiz: boolean; created_at: string;
 }
 export interface QuizDetail extends QuizListItem { survey_json: Record<string, any> | null; }
+export interface QuizDomainAssignResult { success: boolean; quiz_id: string; domain_id: string; }
+export interface QuizDomainUnassignResult { success: boolean; quiz_id: string; }
+export interface QuizEcosystemAssignResult { status: string; quiz_id: string; is_entry_quiz: boolean; }
+export interface QuizEcosystemUnassignResult { status: string; quiz_id: string; }
 export interface QuizResultItem {
   id: string; quiz_id: string; member_id: string; score: number | null;
   is_passed: boolean | null; time_spent: number | null; completed_at: string | null; created_at: string;
@@ -558,6 +565,23 @@ export interface UserBadgeItem {
 export interface UserTagItem {
   id: string; tag_key: string; tag_value: string | null; tag_category: string | null; numeric_value: number | null;
 }
+
+// Orientation types (backend orientation.py journey-map list/create/update response shape;
+// distinct from the richer, partly-speculative JourneyMap in @/types/orientation)
+export interface JourneyMapSummary {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  ecosystem_id: string | null;
+  step_count: number;
+  content_sequence: Record<string, unknown>[];
+  exit_package: Record<string, unknown>;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string | null;
+}
+export interface SaveGenplanInputResult { status: string; received: boolean; }
 
 // Discover types
 export interface DiscoverQuiz {
@@ -771,4 +795,85 @@ export interface SafeguardsOverview {
   health_score: number;
   indicator_scores?: IndicatorScore[] | null;
   triggered_safeguards?: TriggeredSafeguard[] | null;
+}
+
+// ---------------------------------------------------------------------------
+// Admin CRUD + participation consent (added for hardening/completeness pass)
+// ---------------------------------------------------------------------------
+
+export interface EthosAccessStatus {
+  has_access: boolean;
+  role_in_ethos: string | null;
+  access_level: string | null;
+}
+
+export interface EthosAccessGrant {
+  id: string;
+  member_id: string;
+  member_name: string | null;
+  ecosystem_id: string;
+  role_in_ethos: string | null;
+  access_level: string | null;
+  granted_at: string;
+  granted_by: string | null;
+}
+
+export interface BadgeDefinition {
+  id: string;
+  ecosystem_id: string | null;
+  badge_key: string;
+  badge_name: string;
+  badge_description: string | null;
+  badge_category: string | null;
+  badge_icon: string | null;
+  strength: number | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Team {
+  id: string;
+  ecosystem_id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  member_count?: number;
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  member_id: string;
+  member_name: string | null;
+  role: string;
+  created_at: string;
+}
+
+export interface QuizAssignment {
+  id: string;
+  quiz_id: string;
+  quiz_title: string | null;
+  member_id: string;
+  member_name: string | null;
+  ecosystem_id: string | null;
+  assigned_by: string | null;
+  due_date: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface AppSettingResponse {
+  key: string;
+  value: Record<string, unknown> | null;
+}
+
+export interface CtcHandoffItem {
+  member_id: string;
+  ready_for_neos_den: boolean;
+  updated_at: string | null;
 }

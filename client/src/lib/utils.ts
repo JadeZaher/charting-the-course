@@ -44,6 +44,13 @@ export function formatDate(dateStr: string | null | undefined): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+/** Normalizes a list-or-dict field (backend `list | dict | None`) to a flat string list for display. */
+export function toStringList(value: string[] | Record<string, unknown> | null | undefined): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String);
+  return Object.entries(value).map(([k, v]) => (v === true ? k : `${k}: ${v}`));
+}
+
 export const APP_SETTINGS_KEYS = {
   ctcMap: 'ctc_map',
 } as const;

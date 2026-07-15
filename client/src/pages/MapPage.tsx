@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,19 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateMember } from "@/lib/api-client";
+import { updateMember, apiFetch, ApiFetchError } from "@/lib/api-client";
 import { APP_SETTINGS_KEYS } from "@/lib/utils";
 import { resolvePreziEmbedUrl, resolvePreziUrl } from "@/lib/media";
-
-const BASE_URL = import.meta.env.VITE_API_URL || '';
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as any).error || res.statusText);
-  }
-  return res.json();
-}
 import { MapPin, Edit, Plus, Loader2, ExternalLink } from "lucide-react";
 
 // ——————————————————————————————————————————————
@@ -79,15 +69,18 @@ export default function MapPage() {
   });
 
   // ——— CTC Map settings ———
-  const { data: ctcSettings, isLoading: ctcLoading } = useQuery<CtcMapSettings>({
+  // Settings absent or endpoint not implemented (404) → "not configured" defaults; only real failures error.
+  const { data: ctcSettings, isLoading: ctcLoading, error: ctcError } = useQuery<CtcMapSettings>({
     queryKey: ["ctc-map-settings"],
     queryFn: async () => {
-      // TODO: replace with Sanic settings endpoint when available
       try {
         const result = await apiFetch<any>(`/api/v1/settings?key=${APP_SETTINGS_KEYS.ctcMap}`);
         return (result?.value || { prezi_url: "", description: "" }) as CtcMapSettings;
-      } catch {
-        return { prezi_url: "", description: "" } as CtcMapSettings;
+      } catch (err) {
+        if (err instanceof ApiFetchError && err.status === 404) {
+          return { prezi_url: "", description: "" } as CtcMapSettings;
+        }
+        throw err;
       }
     },
   });
@@ -165,6 +158,13 @@ export default function MapPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading map...
           </div>
+        ) : ctcError ? (
+          <Card>
+            <CardContent className="py-6" role="alert">
+              <p className="font-bold text-destructive">The CTC goals map could not be loaded.</p>
+              <p className="text-sm text-muted-foreground mt-1">{(ctcError as Error).message}</p>
+            </CardContent>
+          </Card>
         ) : ctcUrl && ctcEmbedUrl ? (
           <div className="space-y-3">
             {ctcDescription && (

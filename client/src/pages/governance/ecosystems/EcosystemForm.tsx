@@ -9,19 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useCreateEcosystem, useUpdateEcosystem } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
+import { ECOSYSTEM_STATUS_OPTIONS, ECOSYSTEM_VISIBILITY_OPTIONS } from '@/lib/ecosystem-vocab';
 import { ArrowLeft } from 'lucide-react';
-
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'forming', label: 'Forming' },
-  { value: 'inactive', label: 'Inactive' },
-];
-
-const VISIBILITY_OPTIONS = [
-  { value: 'public', label: 'Public' },
-  { value: 'private', label: 'Private' },
-  { value: 'unlisted', label: 'Unlisted' },
-];
 
 export default function EcosystemForm() {
   const [, editParams] = useRoute('/ecosystems/:id/edit');
@@ -183,7 +172,7 @@ export default function EcosystemForm() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTIONS.map(o => (
+                    {ECOSYSTEM_STATUS_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -197,7 +186,7 @@ export default function EcosystemForm() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {VISIBILITY_OPTIONS.map(o => (
+                    {ECOSYSTEM_VISIBILITY_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
                   </SelectContent>

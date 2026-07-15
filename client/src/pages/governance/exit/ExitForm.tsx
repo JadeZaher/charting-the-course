@@ -11,10 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
 
+// Matches ExitCreateRequest.exit_type in exit.py: "standard" (30d cooling-off) or "urgent" (7d)
 const EXIT_TYPE_OPTIONS = [
-  { value: 'voluntary', label: 'Voluntary' },
-  { value: 'involuntary', label: 'Involuntary' },
-  { value: 'timeout', label: 'Timeout' },
+  { value: 'standard', label: 'Standard (30-day cooling-off)' },
+  { value: 'urgent', label: 'Urgent (7-day cooling-off)' },
 ];
 
 export default function ExitForm() {

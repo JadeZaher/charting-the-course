@@ -8,17 +8,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Search, BookOpen, Users, ListChecks, Award,
-  Shield, Loader2, Plus, Edit, Trash2, Eye, Upload, X, Image,
+  Shield, Loader2, Plus, Edit, Trash2, Eye, X,
   UserPlus, UsersRound, ClipboardList, Mail, Send, CheckCircle,
   Globe, Building2, Network, UserMinus, Bot, MessageSquare, ToggleLeft, ToggleRight,
   Settings, Map as MapIcon, Package, ArrowUpCircle, ArrowDownCircle, TrendingUp, CheckCircle2, XCircle
 } from "lucide-react";
-import { APP_SETTINGS_KEYS } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord, fetchQuizResultsAdmin } from "@/lib/api-client";
+import {
+  fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord, fetchQuizResultsAdmin,
+  fetchBadgeDefinitions, createBadgeDefinition, updateBadgeDefinition, deleteBadgeDefinition,
+  fetchTeams, createTeam, updateTeam, deleteTeam, fetchTeamMembers, addTeamMember, removeTeamMember,
+  fetchQuizAssignments, createQuizAssignment, deleteQuizAssignment,
+  fetchCtcHandoff, setNeosDenReady, fetchSetting, saveSetting,
+  listEthosAccess, grantEthosAccess, revokeEthosAccess,
+} from "@/lib/api-client";
+import { APP_SETTINGS_KEYS } from "@/lib/utils";
+import { SHARESNEEDS_CATEGORY_OPTIONS } from "@/lib/sharesneeds-vocab";
+import type { BadgeDefinition, Team, TeamMember, QuizAssignment, CtcHandoffItem, EthosAccessGrant } from "@/types/api";
 import { useSharesNeedsAdmin, useUpdateSharesNeeds, useUpdateSharesNeedsStatus, useDeleteSharesNeeds } from "@/hooks/use-discover";
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -61,6 +70,27 @@ import { useToast } from "@/hooks/use-toast";
 
 type Role = "Admin" | "Facilitator" | "Contributor" | "Viewer";
 
+// Badge definitions are emoji-only; the strength field replaces the legacy xp_reward.
+interface BadgeFormData {
+  badge_key: string;
+  badge_name: string;
+  badge_description: string;
+  badge_category: string;
+  badge_icon: string;
+  strength: number;
+  is_active: boolean;
+}
+
+const defaultBadgeForm: BadgeFormData = {
+  badge_key: "",
+  badge_name: "",
+  badge_description: "",
+  badge_category: "achievement",
+  badge_icon: "🏅",
+  strength: 1,
+  is_active: true,
+};
+
 const getRoleBadgeRole = (role?: string): Role => {
   if (!role) return "Viewer";
   return (role.charAt(0).toUpperCase() + role.slice(1)) as Role;
@@ -92,47 +122,8 @@ async function fetchQuizzes() {
   return (result as any).items || (result as any).quizzes || [];
 }
 
-// Fetch badge definitions — TODO: add endpoint to Sanic API
-async function fetchBadges() {
-  // TODO: Replace with Sanic API endpoint when badge definitions endpoint is implemented
-  return [];
-}
-
-// Fetch teams — TODO: add teams endpoint to Sanic API
-async function fetchTeams() {
-  // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
-  return [];
-}
-
-// Fetch quiz assignments — TODO: add assignments endpoint to Sanic API
-async function fetchAssignments() {
-  // TODO: Replace with Sanic API endpoint when assignments endpoint is implemented
-  return [];
-}
-
-interface BadgeFormData {
-  badge_key: string;
-  badge_name: string;
-  badge_description: string;
-  badge_category: string;
-  badge_icon: string; // emoji or image URL
-  badge_color: string;
-  xp_reward: number;
-  is_active: boolean;
-  is_featured: boolean;
-}
-
-// Check if badge icon is an emoji or URL
-const isEmojiIcon = (icon: string | null): boolean => {
-  if (!icon) return true;
-  return !icon.startsWith('http') && !icon.startsWith('/');
-};
-
-// Upload badge icon — TODO: implement file upload endpoint in Sanic API
-async function uploadBadgeIcon(_file: File, _badgeKey: string): Promise<string> {
-  // TODO: Replace with Sanic API endpoint when badge icon upload is implemented
-  throw new Error('Badge icon upload is not yet available on the Sanic API.');
-}
+// Badge definitions, teams, quiz assignments, CTC settings, and ethos-access grants are
+// wired to their Sanic endpoints via @/lib/api-client (see the respective tabs below).
 
 export default function AdminPanel() {
   // All hooks must be called at the top, before any conditional returns
@@ -147,37 +138,27 @@ export default function AdminPanel() {
   const [newRole, setNewRole] = useState("");
   const [editedPermissions, setEditedPermissions] = useState<Permission[]>([]);
   const [isEditPermissionsOpen, setIsEditPermissionsOpen] = useState(false);
+
+  // Badge management state
   const [isCreateBadgeOpen, setIsCreateBadgeOpen] = useState(false);
-  const [editingBadge, setEditingBadge] = useState<any>(null);
-  const [iconType, setIconType] = useState<'emoji' | 'image'>('emoji');
-  const [iconFile, setIconFile] = useState<File | null>(null);
-  const [iconPreview, setIconPreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [badgeForm, setBadgeForm] = useState<BadgeFormData>({
-    badge_key: '',
-    badge_name: '',
-    badge_description: '',
-    badge_category: 'achievement',
-    badge_icon: '🏅',
-    badge_color: '#6366F1',
-    xp_reward: 50,
-    is_active: true,
-    is_featured: false,
-  });
+  const [editingBadge, setEditingBadge] = useState<BadgeDefinition | null>(null);
+  const [badgeForm, setBadgeForm] = useState<BadgeFormData>(defaultBadgeForm);
 
   // Team management state
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
-  const [teamForm, setTeamForm] = useState({ name: '', description: '' });
-  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+  const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [teamForm, setTeamForm] = useState({ name: "", description: "", is_active: true });
+  const [teamMemberSearch, setTeamMemberSearch] = useState("");
+  const [teamMemberResults, setTeamMemberResults] = useState<any[]>([]);
+  const [teamMemberPick, setTeamMemberPick] = useState({ member_id: "", role: "member" });
 
-  // Assignment state
+  // Quiz assignment state
   const [isAssignQuizOpen, setIsAssignQuizOpen] = useState(false);
-  const [assignmentForm, setAssignmentForm] = useState({
-    quiz_id: '',
-    user_ids: [] as string[],
-    team_id: '',
-    due_date: '',
-  });
+  const [assignmentForm, setAssignmentForm] = useState({ quiz_id: "", member_id: "", due_date: "" });
+
+  // CTC Map settings state
+  const [ctcMapForm, setCtcMapForm] = useState({ prezi_url: "", description: "" });
+  const [ctcMapLoaded, setCtcMapLoaded] = useState(false);
 
   // Create user state
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
@@ -215,10 +196,6 @@ export default function AdminPanel() {
   const [omnibotSessionTypeFilter, setOmnibotSessionTypeFilter] = useState("all");
   const [omnibotSearch, setOmnibotSearch] = useState("");
 
-  // Settings tab state
-  const [ctcMapForm, setCtcMapForm] = useState({ prezi_url: "", description: "" });
-  const [ctcMapLoaded, setCtcMapLoaded] = useState(false);
-  const [savingCtcMap, setSavingCtcMap] = useState(false);
 
   // Shares & Needs admin state
   const [snSearch, setSnSearch] = useState("");
@@ -255,21 +232,34 @@ export default function AdminPanel() {
     enabled: isAdmin || canManageUsers,
   });
 
+  // Badge definitions query
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
     queryKey: ['admin-badges'],
-    queryFn: fetchBadges,
+    queryFn: async () => (await fetchBadgeDefinitions()).items,
     enabled: isAdmin || canManageUsers,
   });
 
+  // Teams query
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['admin-teams'],
-    queryFn: fetchTeams,
+    queryFn: async () => (await fetchTeams()).items,
     enabled: isAdmin || canManageUsers,
   });
 
+  // Team members query (for the editing team's sub-panel)
+  const { data: teamMembers = [], refetch: refetchTeamMembers } = useQuery({
+    queryKey: ['admin-team-members', editingTeam?.id],
+    queryFn: async () => {
+      if (!editingTeam?.id) return [] as TeamMember[];
+      return (await fetchTeamMembers(editingTeam.id)).items;
+    },
+    enabled: !!editingTeam?.id,
+  });
+
+  // Quiz assignments query (member-targeted)
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
-    queryKey: ['admin-assignments'],
-    queryFn: fetchAssignments,
+    queryKey: ['admin-quiz-assignments'],
+    queryFn: async () => (await fetchQuizAssignments()).items,
     enabled: isAdmin || canManageUsers,
   });
 
@@ -294,12 +284,12 @@ export default function AdminPanel() {
     enabled: !!editingEthos?.id,
   });
 
-  // ETHOS access grants query — TODO: add ethos_user_access endpoint to Sanic API
+  // ETHOS access grants query
   const { data: ethosAccessGrants = [], refetch: refetchAccessGrants } = useQuery({
     queryKey: ['admin-ethos-access', accessEthos?.id],
     queryFn: async () => {
-      // TODO: Replace with Sanic API endpoint when ethos_user_access endpoint is implemented
-      return [];
+      if (!accessEthos?.id) return [] as EthosAccessGrant[];
+      return (await listEthosAccess(accessEthos.id)).items;
     },
     enabled: !!accessEthos?.id,
   });
@@ -314,30 +304,27 @@ export default function AdminPanel() {
     enabled: isAdmin,
   });
 
-  // CTC handoff ready flags query — TODO: add ctc_handoff endpoint to Sanic API
+  // CTC handoff ready flags query (keyed by member id; absent members default to false)
   const { data: handoffData = [] } = useQuery({
     queryKey: ['admin-ctc-handoff'],
-    queryFn: async () => {
-      // TODO: Replace with Sanic API endpoint when ctc_handoff endpoint is implemented
-      return [];
-    },
+    queryFn: async () => (await fetchCtcHandoff()).items,
     enabled: (isAdmin || canManageUsers) && users.length > 0,
   });
 
   const handoffMap = useMemo(() => {
     const map: Record<string, boolean> = {};
-    for (const row of (handoffData as any[])) {
-      map[row.user_id] = row.ready_for_neos_den ?? false;
+    for (const row of (handoffData as CtcHandoffItem[])) {
+      map[row.member_id] = row.ready_for_neos_den ?? false;
     }
     return map;
   }, [handoffData]);
 
-  // CTC Map settings query — TODO: add settings endpoint to Sanic API
+  // CTC Map settings query (admin view) — loaded once into the form
   const { data: ctcMapData } = useQuery({
-    queryKey: ['admin-ctc-map-settings'],
+    queryKey: ['ctc-map-settings-admin'],
     queryFn: async () => {
-      // TODO: Replace with Sanic API endpoint when settings endpoint is implemented
-      return { prezi_url: "", description: "" };
+      const res = await fetchSetting(APP_SETTINGS_KEYS.ctcMap);
+      return (res.value as { prezi_url?: string; description?: string } | null) ?? { prezi_url: "", description: "" };
     },
     enabled: !!(isAdmin || canManageContent),
   });
@@ -346,26 +333,19 @@ export default function AdminPanel() {
       setCtcMapForm({ prezi_url: ctcMapData.prezi_url || "", description: ctcMapData.description || "" });
       setCtcMapLoaded(true);
     }
-  }, [ctcMapData]);
+  }, [ctcMapData, ctcMapLoaded]);
 
-  const saveCtcMapSettings = async () => {
-    setSavingCtcMap(true);
-    try {
-      // TODO: Replace with Sanic API endpoint when settings endpoint is implemented
-      await apiFetch('/api/v1/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: APP_SETTINGS_KEYS.ctcMap, value: ctcMapForm }),
-      });
-      queryClient.invalidateQueries({ queryKey: ['admin-ctc-map-settings'] });
+  const saveCtcMapMutation = useMutation({
+    mutationFn: async (data: { prezi_url: string; description: string }) => saveSetting(APP_SETTINGS_KEYS.ctcMap, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ctc-map-settings-admin'] });
       queryClient.invalidateQueries({ queryKey: ['ctc-map-settings'] });
       toast({ title: "Map settings saved!" });
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    } finally {
-      setSavingCtcMap(false);
-    }
-  };
+    },
+  });
 
   // Shares & Needs admin query
   const snAdminParams = useMemo(() => {
@@ -427,85 +407,6 @@ export default function AdminPanel() {
       queryClient.invalidateQueries({ queryKey: ['admin-quizzes'] });
       queryClient.invalidateQueries({ queryKey: ['admin-quiz-results-counts'] });
       toast({ title: "Quiz Deleted" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  // Badge mutations — TODO: add badge endpoints to Sanic API
-  const createBadgeMutation = useMutation({
-    mutationFn: async (_data: BadgeFormData) => {
-      // TODO: Replace with Sanic API endpoint when badge management is implemented
-      throw new Error('Badge creation not yet available on the Sanic API');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
-      setIsCreateBadgeOpen(false);
-      resetBadgeForm();
-      toast({ title: "Badge Created", description: "New badge has been created successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const updateBadgeMutation = useMutation({
-    mutationFn: async (_params: { id: string; data: Partial<BadgeFormData> }) => {
-      // TODO: Replace with Sanic API endpoint when badge management is implemented
-      throw new Error('Badge update not yet available on the Sanic API');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
-      setEditingBadge(null);
-      resetBadgeForm();
-      toast({ title: "Badge Updated", description: "Badge has been updated successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteBadgeMutation = useMutation({
-    mutationFn: async (_id: string) => {
-      // TODO: Replace with Sanic API endpoint when badge management is implemented
-      throw new Error('Badge deletion not yet available on the Sanic API');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
-      toast({ title: "Badge Deleted", description: "Badge has been deleted successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  // Team mutations — TODO: add teams endpoints to Sanic API
-  const createTeamMutation = useMutation({
-    mutationFn: async (_data: { name: string; description: string; member_ids: string[] }) => {
-      // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
-      throw new Error('Team creation not yet available on the Sanic API');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
-      setIsCreateTeamOpen(false);
-      setTeamForm({ name: '', description: '' });
-      setSelectedTeamMembers([]);
-      toast({ title: "Team Created", description: "New team has been created successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteTeamMutation = useMutation({
-    mutationFn: async (_id: string) => {
-      // TODO: Replace with Sanic API endpoint when teams endpoint is implemented
-      throw new Error('Team deletion not yet available on the Sanic API');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
-      toast({ title: "Team Deleted", description: "Team has been deleted" });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -617,10 +518,7 @@ export default function AdminPanel() {
   };
 
   const grantAccessMutation = useMutation({
-    mutationFn: async (_params: { ethos_id: string; user_id: string }) => {
-      // TODO: Replace with Sanic API endpoint when ethos_user_access endpoint is implemented
-      throw new Error('Feature not yet available');
-    },
+    mutationFn: async ({ ethos_id, member_id }: { ethos_id: string; member_id: string }) => grantEthosAccess(ethos_id, { member_id }),
     onSuccess: () => {
       refetchAccessGrants();
       setAccessUserSearch('');
@@ -628,29 +526,18 @@ export default function AdminPanel() {
       toast({ title: 'Access Granted' });
     },
     onError: (error: any) => {
-      if (error.message === 'Feature not yet available') {
-        toast({ title: 'Feature not yet available', description: 'Access grants are not yet migrated to the new backend.', variant: 'destructive' });
-      } else {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      }
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const revokeAccessMutation = useMutation({
-    mutationFn: async (_params: { ethos_id: string; user_id: string }) => {
-      // TODO: Replace with Sanic API endpoint when ethos_user_access endpoint is implemented
-      throw new Error('Feature not yet available');
-    },
+    mutationFn: async ({ ethos_id, member_id }: { ethos_id: string; member_id: string }) => revokeEthosAccess(ethos_id, member_id),
     onSuccess: () => {
       refetchAccessGrants();
       toast({ title: 'Access Revoked' });
     },
     onError: (error: any) => {
-      if (error.message === 'Feature not yet available') {
-        toast({ title: 'Feature not yet available', description: 'Access revocation is not yet migrated to the new backend.', variant: 'destructive' });
-      } else {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      }
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -696,64 +583,7 @@ export default function AdminPanel() {
     }
   };
 
-  // Quiz assignment mutations
-  const assignQuizMutation = useMutation({
-    mutationFn: async (data: { quiz_id: string; user_ids: string[]; team_id?: string; due_date?: string }) => {
-      const assignments = [];
-      
-      // Assign to individual users
-      for (const userId of data.user_ids) {
-        assignments.push({
-          quiz_id: data.quiz_id,
-          user_id: userId,
-          due_date: data.due_date || null,
-        });
-      }
-      
-      // Assign to team (will assign to all team members)
-      if (data.team_id) {
-        assignments.push({
-          quiz_id: data.quiz_id,
-          team_id: data.team_id,
-          due_date: data.due_date || null,
-        });
-      }
-      
-      if (assignments.length === 0) {
-        throw new Error('Please select at least one user or team');
-      }
-
-      // TODO: Replace with Sanic API endpoint when quiz assignments endpoint is implemented
-      await apiFetch('/api/v1/quiz-assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignments }),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-assignments'] });
-      setIsAssignQuizOpen(false);
-      setAssignmentForm({ quiz_id: '', user_ids: [], team_id: '', due_date: '' });
-      toast({ title: "Quiz Assigned", description: "Quiz has been assigned successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteAssignmentMutation = useMutation({
-    mutationFn: async (id: string) => {
-      // TODO: Replace with Sanic API endpoint when quiz assignments endpoint is implemented
-      await apiFetch(`/api/v1/quiz-assignments/${id}`, { method: 'DELETE' });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-assignments'] });
-      toast({ title: "Assignment Removed", description: "Quiz assignment has been removed" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
+  // Quiz assignments have no backend endpoint (verified: no /api/v1/quiz-assignments route exists) — see honest-disabled tab below.
 
   // Create user mutation via Sanic BFF API
   const createUserMutation = useMutation({
@@ -780,28 +610,166 @@ export default function AdminPanel() {
     },
   });
 
-  // NEOS Den ready toggle mutation — TODO: add admin-set-neos-den-ready endpoint to Sanic API
-  const setNeosDenReadyMutation = useMutation({
-    mutationFn: async (_params: { user_id: string; ready_for_neos_den: boolean }) => {
-      // TODO: Replace with Sanic API endpoint when admin-set-neos-den-ready is implemented
-      throw new Error('Feature not yet available');
+  // Badge mutations
+  const createBadgeMutation = useMutation({
+    mutationFn: async (data: BadgeFormData) => createBadgeDefinition({
+      badge_key: data.badge_key,
+      badge_name: data.badge_name,
+      badge_description: data.badge_description || null,
+      badge_category: data.badge_category || null,
+      badge_icon: data.badge_icon || null,
+      strength: data.strength,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
+      setIsCreateBadgeOpen(false);
+      setBadgeForm(defaultBadgeForm);
+      toast({ title: "Badge Created", description: "New badge has been created successfully" });
     },
-    onMutate: async ({ user_id, ready_for_neos_den }) => {
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateBadgeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: BadgeFormData }) => updateBadgeDefinition(id, {
+      badge_name: data.badge_name,
+      badge_description: data.badge_description || null,
+      badge_category: data.badge_category || null,
+      badge_icon: data.badge_icon || null,
+      strength: data.strength,
+      is_active: data.is_active,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
+      setEditingBadge(null);
+      setBadgeForm(defaultBadgeForm);
+      toast({ title: "Badge Updated", description: "Badge has been updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteBadgeMutation = useMutation({
+    mutationFn: async (id: string) => deleteBadgeDefinition(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
+      toast({ title: "Badge Deleted", description: "Badge has been deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Team mutations
+  const createTeamMutation = useMutation({
+    mutationFn: async (data: { name: string; description: string }) => createTeam({ name: data.name, description: data.description || null }),
+    onSuccess: (team) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      setEditingTeam(team);
+      toast({ title: "Team Created", description: "New team created. Add members below." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateTeamMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<{ name: string; description: string; is_active: boolean }> }) => updateTeam(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      toast({ title: "Team Updated", description: "Changes saved." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteTeamMutation = useMutation({
+    mutationFn: async (id: string) => deleteTeam(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      if (editingTeam?.id === id) { setEditingTeam(null); setIsTeamDialogOpen(false); }
+      toast({ title: "Team Deleted" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addTeamMemberMutation = useMutation({
+    mutationFn: async ({ team_id, member_id, role }: { team_id: string; member_id: string; role: string }) => addTeamMember(team_id, { member_id, role }),
+    onSuccess: () => {
+      refetchTeamMembers();
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      setTeamMemberPick({ member_id: "", role: "member" });
+      setTeamMemberSearch("");
+      setTeamMemberResults([]);
+      toast({ title: "Member Added" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removeTeamMemberMutation = useMutation({
+    mutationFn: async ({ team_id, member_id }: { team_id: string; member_id: string }) => removeTeamMember(team_id, member_id),
+    onSuccess: () => {
+      refetchTeamMembers();
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      toast({ title: "Member Removed" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Quiz assignment mutations (member-targeted)
+  const createAssignmentMutation = useMutation({
+    mutationFn: async (data: { quiz_id: string; member_id: string; due_date: string }) =>
+      createQuizAssignment({ quiz_id: data.quiz_id, member_id: data.member_id, due_date: data.due_date || null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-quiz-assignments'] });
+      setIsAssignQuizOpen(false);
+      setAssignmentForm({ quiz_id: "", member_id: "", due_date: "" });
+      toast({ title: "Quiz Assigned", description: "Quiz has been assigned successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: async (id: string) => deleteQuizAssignment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-quiz-assignments'] });
+      toast({ title: "Assignment Removed", description: "Quiz assignment has been removed" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // NEOS Den ready toggle (optimistic; keyed by member id)
+  const setNeosDenReadyMutation = useMutation({
+    mutationFn: async ({ member_id, ready }: { member_id: string; ready: boolean }) => setNeosDenReady(member_id, ready),
+    onMutate: async ({ member_id, ready }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-ctc-handoff'] });
       const previous = queryClient.getQueryData(['admin-ctc-handoff']);
       queryClient.setQueryData(['admin-ctc-handoff'], (old: any) => {
-        const rows: any[] = old ?? [];
-        const exists = rows.some((r: any) => r.user_id === user_id);
+        const rows: CtcHandoffItem[] = old ?? [];
+        const exists = rows.some((r) => r.member_id === member_id);
         if (exists) {
-          return rows.map((r: any) => r.user_id === user_id ? { ...r, ready_for_neos_den } : r);
+          return rows.map((r) => r.member_id === member_id ? { ...r, ready_for_neos_den: ready } : r);
         }
-        return [...rows, { user_id, ready_for_neos_den }];
+        return [...rows, { member_id, ready_for_neos_den: ready, updated_at: null }];
       });
       return { previous };
     },
     onError: (_err: any, _vars: any, context: any) => {
       queryClient.setQueryData(['admin-ctc-handoff'], context?.previous);
-      toast({ title: 'Feature not yet available', description: 'NEOS Den status toggle is not yet migrated to the new backend.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to update NEOS Den readiness.', variant: 'destructive' });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-ctc-handoff'] });
@@ -821,118 +789,64 @@ export default function AdminPanel() {
     return <Redirect to="/" />;
   }
 
-  const resetBadgeForm = () => {
+  const openCreateBadge = () => { setEditingBadge(null); setBadgeForm(defaultBadgeForm); setIsCreateBadgeOpen(true); };
+
+  const openEditBadge = (badge: BadgeDefinition) => {
+    setEditingBadge(badge);
     setBadgeForm({
-      badge_key: '',
-      badge_name: '',
-      badge_description: '',
-      badge_category: 'achievement',
-      badge_icon: '🏅',
-      badge_color: '#6366F1',
-      xp_reward: 50,
-      is_active: true,
-      is_featured: false,
+      badge_key: badge.badge_key,
+      badge_name: badge.badge_name,
+      badge_description: badge.badge_description || "",
+      badge_category: badge.badge_category || "achievement",
+      badge_icon: badge.badge_icon || "🏅",
+      strength: badge.strength ?? 1,
+      is_active: badge.is_active ?? true,
     });
-    setIconType('emoji');
-    setIconFile(null);
-    setIconPreview(null);
   };
 
-  const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast({ title: "Error", description: "Please select an image file", variant: "destructive" });
-        return;
-      }
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        toast({ title: "Error", description: "Image must be less than 2MB", variant: "destructive" });
-        return;
-      }
-      setIconFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setIconPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const clearIconFile = () => {
-    setIconFile(null);
-    setIconPreview(null);
-  };
-
-  const handleCreateBadge = async () => {
+  const handleSaveBadge = () => {
     if (!badgeForm.badge_key || !badgeForm.badge_name) {
       toast({ title: "Error", description: "Badge key and name are required", variant: "destructive" });
       return;
     }
-
-    let iconValue = badgeForm.badge_icon;
-
-    // If using image and file is selected, upload it first
-    if (iconType === 'image' && iconFile) {
-      try {
-        setIsUploading(true);
-        iconValue = await uploadBadgeIcon(iconFile, badgeForm.badge_key);
-      } catch (error: any) {
-        toast({ title: "Upload Error", description: error.message, variant: "destructive" });
-        setIsUploading(false);
-        return;
-      }
-      setIsUploading(false);
+    if (editingBadge) {
+      updateBadgeMutation.mutate({ id: editingBadge.id, data: badgeForm });
+    } else {
+      createBadgeMutation.mutate(badgeForm);
     }
-
-    createBadgeMutation.mutate({ ...badgeForm, badge_icon: iconValue });
   };
 
-  const handleUpdateBadge = async () => {
-    if (!editingBadge) return;
+  const openCreateTeam = () => { setEditingTeam(null); setTeamForm({ name: "", description: "", is_active: true }); setTeamMemberSearch(""); setTeamMemberResults([]); setTeamMemberPick({ member_id: "", role: "member" }); setIsTeamDialogOpen(true); };
 
-    let iconValue = badgeForm.badge_icon;
+  const openEditTeam = (team: Team) => {
+    setEditingTeam(team);
+    setTeamForm({ name: team.name || "", description: team.description || "", is_active: team.is_active ?? true });
+    setTeamMemberSearch(""); setTeamMemberResults([]); setTeamMemberPick({ member_id: "", role: "member" });
+    setIsTeamDialogOpen(true);
+  };
 
-    // If using image and new file is selected, upload it first
-    if (iconType === 'image' && iconFile) {
-      try {
-        setIsUploading(true);
-        iconValue = await uploadBadgeIcon(iconFile, badgeForm.badge_key);
-      } catch (error: any) {
-        toast({ title: "Upload Error", description: error.message, variant: "destructive" });
-        setIsUploading(false);
-        return;
-      }
-      setIsUploading(false);
+  const handleSaveTeam = () => {
+    if (!teamForm.name) {
+      toast({ title: "Error", description: "Team name is required", variant: "destructive" });
+      return;
     }
-
-    updateBadgeMutation.mutate({ id: editingBadge.id, data: { ...badgeForm, badge_icon: iconValue } });
+    if (editingTeam) {
+      updateTeamMutation.mutate({ id: editingTeam.id, data: teamForm });
+    } else {
+      createTeamMutation.mutate({ name: teamForm.name, description: teamForm.description });
+    }
   };
 
-  const handleDeleteBadge = async (badge: any) => {
-    if (!confirm(`Are you sure you want to delete "${badge.badge_name}"?`)) return;
-    deleteBadgeMutation.mutate(badge.id);
-  };
-
-  const openEditBadge = (badge: any) => {
-    setEditingBadge(badge);
-    const isEmoji = isEmojiIcon(badge.badge_icon);
-    setIconType(isEmoji ? 'emoji' : 'image');
-    setIconFile(null);
-    setIconPreview(isEmoji ? null : badge.badge_icon);
-    setBadgeForm({
-      badge_key: badge.badge_key,
-      badge_name: badge.badge_name,
-      badge_description: badge.badge_description || '',
-      badge_category: badge.badge_category || 'achievement',
-      badge_icon: badge.badge_icon || '🏅',
-      badge_color: badge.badge_color || '#6366F1',
-      xp_reward: badge.xp_reward || 50,
-      is_active: badge.is_active ?? true,
-      is_featured: badge.is_featured ?? false,
-    });
+  const searchTeamMembers = (query: string) => {
+    if (!query || query.length < 2) { setTeamMemberResults([]); return; }
+    const q = query.toLowerCase();
+    const existing = new Set((teamMembers as TeamMember[]).map((m) => m.member_id));
+    setTeamMemberResults((users as any[]).filter((u: any) =>
+      !existing.has(u.id) && (
+        u.username?.toLowerCase().includes(q) ||
+        (`${u.first_name || ''} ${u.last_name || ''}`).toLowerCase().includes(q)
+      )
+    ).slice(0, 10));
   };
 
   const filteredUsers = users.filter(
@@ -1253,9 +1167,11 @@ export default function AdminPanel() {
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={handoffMap[user.id] ?? false}
+                            disabled={setNeosDenReadyMutation.isPending}
                             onCheckedChange={(checked) =>
-                              setNeosDenReadyMutation.mutate({ user_id: user.id, ready_for_neos_den: checked })
+                              setNeosDenReadyMutation.mutate({ member_id: user.id, ready: checked })
                             }
+                            data-testid={`switch-neos-den-${user.id}`}
                           />
                           <span className="text-sm text-muted-foreground whitespace-nowrap">NEOS Den</span>
                         </div>
@@ -1347,80 +1263,12 @@ export default function AdminPanel() {
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <CardTitle>Team Management</CardTitle>
-                  <CardDescription>Create and manage teams</CardDescription>
+                  <CardDescription>Create and manage teams ({teams.length} total)</CardDescription>
                 </div>
-                <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Team
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Create New Team</DialogTitle>
-                      <DialogDescription>Create a team and add members</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Team Name</Label>
-                        <Input
-                          value={teamForm.name}
-                          onChange={(e) => setTeamForm(f => ({ ...f, name: e.target.value }))}
-                          placeholder="e.g., Marketing Team"
-                        />
-                      </div>
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea
-                          value={teamForm.description}
-                          onChange={(e) => setTeamForm(f => ({ ...f, description: e.target.value }))}
-                          placeholder="Team description..."
-                        />
-                      </div>
-                      <div>
-                        <Label>Add Members</Label>
-                        <div className="max-h-48 space-y-2 overflow-y-auto border border-strong-border p-4">
-                          {users.map((user: any) => (
-                            <label key={user.id} className="flex cursor-pointer items-center gap-2 rounded-[2px] border-2 border-strong-border p-1 hover:bg-muted/50">
-                              <input
-                                type="checkbox"
-                                checked={selectedTeamMembers.includes(user.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedTeamMembers(m => [...m, user.id]);
-                                  } else {
-                                    setSelectedTeamMembers(m => m.filter(id => id !== user.id));
-                                  }
-                                }}
-                                className="rounded-[2px] border-2 border-control-border"
-                              />
-                              <span>{user.first_name} {user.last_name}</span>
-                              <span className="text-muted-foreground text-sm">@{user.username}</span>
-                            </label>
-                          ))}
-                        </div>
-                        {selectedTeamMembers.length > 0 && (
-                          <p className="text-sm text-muted-foreground mt-2">{selectedTeamMembers.length} member(s) selected</p>
-                        )}
-                      </div>
-                      <Button 
-                        onClick={() => createTeamMutation.mutate({ 
-                          ...teamForm, 
-                          member_ids: selectedTeamMembers 
-                        })}
-                        disabled={createTeamMutation.isPending || !teamForm.name}
-                        className="w-full"
-                      >
-                        {createTeamMutation.isPending ? (
-                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
-                        ) : (
-                          <><Plus className="h-4 w-4 mr-2" /> Create Team</>
-                        )}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button onClick={openCreateTeam} data-testid="button-create-team">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Team
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1430,25 +1278,34 @@ export default function AdminPanel() {
                 </div>
               ) : teams.length > 0 ? (
                 <div className="space-y-3">
-                  {teams.map((team: any) => (
-                    <div key={team.id} className="flex items-center justify-between border border-strong-border p-5">
+                  {teams.map((team: Team) => (
+                    <div key={team.id} className="flex items-center justify-between border border-strong-border p-5" data-testid={`team-row-${team.id}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex h-10 w-10 items-center justify-center border border-primary bg-primary/10">
                           <UsersRound className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{team.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{team.name}</p>
+                            {!team.is_active && <Badge variant="outline" className="text-xs">Inactive</Badge>}
+                          </div>
                           <p className="text-sm text-muted-foreground">
-                            {team.team_members?.length || 0} member(s)
+                            {team.member_count ?? 0} member(s)
                             {team.description && ` • ${team.description}`}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEditTeam(team)} title="Manage Team" className="h-8 w-8 p-0">
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteTeamMutation.mutate(team.id)}
+                          className="h-8 w-8 p-0"
+                          disabled={deleteTeamMutation.isPending}
+                          onClick={() => { if (confirm(`Delete team "${team.name}"?`)) deleteTeamMutation.mutate(team.id); }}
+                          title="Delete Team"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -1464,6 +1321,118 @@ export default function AdminPanel() {
               )}
             </CardContent>
           </Card>
+
+          {/* Team Create/Edit Dialog */}
+          <Dialog open={isTeamDialogOpen} onOpenChange={(open) => { setIsTeamDialogOpen(open); if (!open) { setEditingTeam(null); setTeamMemberSearch(""); setTeamMemberResults([]); } }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingTeam ? `Edit: ${editingTeam.name}` : "Create New Team"}</DialogTitle>
+                <DialogDescription>{editingTeam ? "Update team details and manage members" : "Create a team, then add members"}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label>Team Name *</Label>
+                  <Input
+                    value={teamForm.name}
+                    onChange={(e) => setTeamForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g., Marketing Team"
+                  />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={teamForm.description}
+                    onChange={(e) => setTeamForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Team description..."
+                    rows={2}
+                  />
+                </div>
+                {editingTeam && (
+                  <div className="flex items-center gap-2">
+                    <Switch checked={teamForm.is_active} onCheckedChange={(v) => setTeamForm(f => ({ ...f, is_active: v }))} id="team-active" />
+                    <Label htmlFor="team-active">Is Active</Label>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end border-t pt-3">
+                  <Button variant="outline" onClick={() => setIsTeamDialogOpen(false)}>Close</Button>
+                  <Button onClick={handleSaveTeam} disabled={createTeamMutation.isPending || updateTeamMutation.isPending}>
+                    {(createTeamMutation.isPending || updateTeamMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingTeam ? "Save Changes" : "Create Team"}
+                  </Button>
+                </div>
+
+                {/* Members sub-panel (only when editing an existing team) */}
+                {editingTeam && (
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      <h3 className="font-semibold">Members</h3>
+                      <Badge variant="outline">{(teamMembers as TeamMember[]).length}</Badge>
+                    </div>
+
+                    {(teamMembers as TeamMember[]).length > 0 && (
+                      <div className="space-y-2">
+                        {(teamMembers as TeamMember[]).map((m: TeamMember) => (
+                          <div key={m.id} className="flex items-center justify-between rounded-none border-2 border-strong-border bg-muted/30 p-2">
+                            <div>
+                              <span className="font-medium">{m.member_name || m.member_id}</span>
+                              <Badge variant="outline" className="ml-2 text-xs capitalize">{m.role}</Badge>
+                            </div>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                              onClick={() => removeTeamMemberMutation.mutate({ team_id: editingTeam.id, member_id: m.member_id })}
+                              disabled={removeTeamMemberMutation.isPending}>
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add member */}
+                    <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/20 p-3">
+                      <p className="text-sm font-medium">Add Member</p>
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Search by name or username..."
+                          value={teamMemberSearch}
+                          onChange={(e) => { setTeamMemberSearch(e.target.value); searchTeamMembers(e.target.value); }}
+                        />
+                        {teamMemberResults.length > 0 && (
+                          <div className="max-h-40 overflow-y-auto border border-strong-border bg-background">
+                            {teamMemberResults.map((u: any) => (
+                              <button key={u.id} type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                                onClick={() => {
+                                  setTeamMemberPick(p => ({ ...p, member_id: u.id }));
+                                  setTeamMemberSearch([u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id);
+                                  setTeamMemberResults([]);
+                                }}>
+                                {u.avatar_url && <img src={u.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />}
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}</span>
+                                  {u.username && <span className="text-xs text-muted-foreground">@{u.username}</span>}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Role</Label>
+                        <Input placeholder="e.g. lead" value={teamMemberPick.role}
+                          onChange={(e) => setTeamMemberPick(p => ({ ...p, role: e.target.value }))} />
+                      </div>
+                      <Button size="sm" disabled={!teamMemberPick.member_id || addTeamMemberMutation.isPending}
+                        onClick={() => addTeamMemberMutation.mutate({ team_id: editingTeam.id, member_id: teamMemberPick.member_id, role: teamMemberPick.role || "member" })}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Quizzes Tab */}
@@ -1541,10 +1510,7 @@ export default function AdminPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            console.log('Viewing quiz from admin panel:', quiz.id);
-                            setLocation(`/quiz/take/${quiz.id}`);
-                          }}
+                          onClick={() => setLocation(`/quiz/take/${quiz.id}`)}
                           title="View/Preview Quiz"
                           className="h-8 w-8 p-0"
                         >
@@ -1553,10 +1519,7 @@ export default function AdminPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            console.log('Editing quiz from admin panel:', quiz.id);
-                            setLocation(`/quiz/manage?edit=${quiz.id}`);
-                          }}
+                          onClick={() => setLocation(`/quiz/manage?edit=${quiz.id}`)}
                           title="Edit Quiz"
                           className="h-8 w-8 p-0"
                         >
@@ -1596,19 +1559,19 @@ export default function AdminPanel() {
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <CardTitle>Quiz Assignments</CardTitle>
-                  <CardDescription>Assign quizzes to users and teams</CardDescription>
+                  <CardDescription>Assign quizzes to individual members</CardDescription>
                 </div>
                 <Dialog open={isAssignQuizOpen} onOpenChange={setIsAssignQuizOpen}>
                   <DialogTrigger asChild>
-                    <Button>
+                    <Button data-testid="button-assign-quiz">
                       <Send className="h-4 w-4 mr-2" />
                       Assign Quiz
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Assign Quiz</DialogTitle>
-                      <DialogDescription>Assign a quiz to users or teams</DialogDescription>
+                      <DialogDescription>Assign a quiz to a member</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
@@ -1622,57 +1585,28 @@ export default function AdminPanel() {
                           </SelectTrigger>
                           <SelectContent>
                             {quizzes.filter((q: any) => q.is_published).map((quiz: any) => (
-                              <SelectItem key={quiz.id} value={quiz.id}>
-                                {quiz.title}
-                              </SelectItem>
+                              <SelectItem key={quiz.id} value={quiz.id}>{quiz.title}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label>Assign to Team (Optional)</Label>
+                        <Label>Select Member</Label>
                         <Select
-                          value={assignmentForm.team_id || "none"}
-                          onValueChange={(v) => setAssignmentForm(f => ({ ...f, team_id: v === "none" ? "" : v }))}
+                          value={assignmentForm.member_id}
+                          onValueChange={(v) => setAssignmentForm(f => ({ ...f, member_id: v }))}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a team..." />
+                            <SelectValue placeholder="Choose a member..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No team (individual only)</SelectItem>
-                            {teams.map((team: any) => (
-                              <SelectItem key={team.id} value={team.id}>
-                                {team.name}
+                            {users.map((user: any) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || user.id}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label>Assign to Individual Users</Label>
-                        <div className="max-h-48 space-y-2 overflow-y-auto border border-strong-border p-4">
-                          {users.map((user: any) => (
-                            <label key={user.id} className="flex cursor-pointer items-center gap-2 rounded-[2px] border-2 border-strong-border p-1 hover:bg-muted/50">
-                              <input
-                                type="checkbox"
-                                checked={assignmentForm.user_ids.includes(user.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setAssignmentForm(f => ({ ...f, user_ids: [...f.user_ids, user.id] }));
-                                  } else {
-                                    setAssignmentForm(f => ({ ...f, user_ids: f.user_ids.filter(id => id !== user.id) }));
-                                  }
-                                }}
-                                className="rounded-[2px] border-2 border-control-border"
-                              />
-                              <span>{user.first_name} {user.last_name}</span>
-                              <RoleBadge role={getRoleBadgeRole(user.role)} className="text-xs ml-auto" />
-                            </label>
-                          ))}
-                        </div>
-                        {assignmentForm.user_ids.length > 0 && (
-                          <p className="text-sm text-muted-foreground mt-2">{assignmentForm.user_ids.length} user(s) selected</p>
-                        )}
                       </div>
                       <div>
                         <Label>Due Date (Optional)</Label>
@@ -1682,12 +1616,12 @@ export default function AdminPanel() {
                           onChange={(e) => setAssignmentForm(f => ({ ...f, due_date: e.target.value }))}
                         />
                       </div>
-                      <Button 
-                        onClick={() => assignQuizMutation.mutate(assignmentForm)}
-                        disabled={assignQuizMutation.isPending || !assignmentForm.quiz_id || (assignmentForm.user_ids.length === 0 && !assignmentForm.team_id)}
+                      <Button
+                        onClick={() => createAssignmentMutation.mutate(assignmentForm)}
+                        disabled={createAssignmentMutation.isPending || !assignmentForm.quiz_id || !assignmentForm.member_id}
                         className="w-full"
                       >
-                        {assignQuizMutation.isPending ? (
+                        {createAssignmentMutation.isPending ? (
                           <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Assigning...</>
                         ) : (
                           <><Send className="h-4 w-4 mr-2" /> Assign Quiz</>
@@ -1705,25 +1639,20 @@ export default function AdminPanel() {
                 </div>
               ) : assignments.length > 0 ? (
                 <div className="space-y-3">
-                  {assignments.map((assignment: any) => (
-                    <div key={assignment.id} className="flex items-center justify-between border border-strong-border p-5">
+                  {assignments.map((assignment: QuizAssignment) => (
+                    <div key={assignment.id} className="flex items-center justify-between border border-strong-border p-5" data-testid={`assignment-row-${assignment.id}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex h-10 w-10 items-center justify-center border border-info bg-info/10">
                           <ClipboardList className="h-5 w-5 text-info" />
                         </div>
                         <div>
-                          <p className="font-medium">{assignment.quiz?.title || 'Unknown Quiz'}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">{assignment.quiz_title || 'Unknown Quiz'}</p>
+                            <Badge variant="outline" className="text-xs capitalize">{assignment.status}</Badge>
+                          </div>
                           <p className="text-sm text-muted-foreground">
-                            {assignment.user ? (
-                              <>Assigned to {assignment.user.first_name} {assignment.user.last_name}</>
-                            ) : assignment.team ? (
-                              <>Assigned to team: {assignment.team.name}</>
-                            ) : (
-                              'Unknown assignment'
-                            )}
-                            {assignment.due_date && (
-                              <> • Due: {new Date(assignment.due_date).toLocaleDateString()}</>
-                            )}
+                            Assigned to {assignment.member_name || assignment.member_id}
+                            {assignment.due_date && <> • Due: {new Date(assignment.due_date).toLocaleDateString()}</>}
                           </p>
                         </div>
                       </div>
@@ -1731,7 +1660,10 @@ export default function AdminPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteAssignmentMutation.mutate(assignment.id)}
+                          className="h-8 w-8 p-0"
+                          disabled={deleteAssignmentMutation.isPending}
+                          onClick={() => { if (confirm('Remove this assignment?')) deleteAssignmentMutation.mutate(assignment.id); }}
+                          title="Remove Assignment"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -1843,13 +1775,9 @@ export default function AdminPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="skill">Skill</SelectItem>
-                    <SelectItem value="resource">Resource</SelectItem>
-                    <SelectItem value="knowledge">Knowledge</SelectItem>
-                    <SelectItem value="technology">Technology</SelectItem>
-                    <SelectItem value="infrastructure">Infrastructure</SelectItem>
-                    <SelectItem value="funding">Funding</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {SHARESNEEDS_CATEGORY_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={snStatusFilter} onValueChange={setSnStatusFilter}>
@@ -2046,191 +1974,10 @@ export default function AdminPanel() {
                   <CardTitle>Badge Management</CardTitle>
                   <CardDescription>Create and manage badge definitions ({badges.length} badges)</CardDescription>
                 </div>
-                <Dialog open={isCreateBadgeOpen} onOpenChange={setIsCreateBadgeOpen}>
-                  <DialogTrigger asChild>
-                    <Button data-testid="button-create-badge" onClick={() => { resetBadgeForm(); setIsCreateBadgeOpen(true); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Badge
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Create New Badge</DialogTitle>
-                      <DialogDescription>
-                        Define a new badge that users can earn
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Badge Key *</Label>
-                          <Input 
-                            placeholder="e.g., quiz_master" 
-                            value={badgeForm.badge_key}
-                            onChange={(e) => setBadgeForm({...badgeForm, badge_key: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Badge Name *</Label>
-                          <Input 
-                            placeholder="e.g., Quiz Master" 
-                            value={badgeForm.badge_name}
-                            onChange={(e) => setBadgeForm({...badgeForm, badge_name: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Description</Label>
-                        <Textarea 
-                          placeholder="Describe how to earn this badge..." 
-                          value={badgeForm.badge_description}
-                          onChange={(e) => setBadgeForm({...badgeForm, badge_description: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <Label>Icon Type</Label>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant={iconType === 'emoji' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => { setIconType('emoji'); clearIconFile(); }}
-                          >
-                            😀 Emoji
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={iconType === 'image' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setIconType('image')}
-                          >
-                            <Image className="h-4 w-4 mr-1" /> Image
-                          </Button>
-                        </div>
-                        
-                        {iconType === 'emoji' ? (
-                          <div className="space-y-2">
-                            <Label>Emoji Icon</Label>
-                            <Input 
-                              placeholder="🏅" 
-                              value={badgeForm.badge_icon}
-                              onChange={(e) => setBadgeForm({...badgeForm, badge_icon: e.target.value})}
-                              className="text-2xl"
-                            />
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <Label>Upload Image</Label>
-                            {iconPreview ? (
-                              <div className="flex items-center gap-3">
-                                <img 
-                                  src={iconPreview} 
-                                  alt="Badge icon preview" 
-                                  className="h-16 w-16 border border-strong-border object-cover"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={clearIconFile}
-                                >
-                                  <X className="h-4 w-4 mr-1" /> Remove
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="border-2 border-dashed border-strong-border p-5 text-center">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleIconFileChange}
-                                  className="hidden"
-                                  id="badge-icon-upload"
-                                />
-                                <label 
-                                  htmlFor="badge-icon-upload" 
-                                  className="cursor-pointer flex flex-col items-center gap-2"
-                                >
-                                  <Upload className="h-8 w-8 text-muted-foreground" />
-                                  <span className="text-sm text-muted-foreground">
-                                    Click to upload (max 2MB)
-                                  </span>
-                                </label>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Badge Color</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={badgeForm.badge_color}
-                            onChange={(e) => setBadgeForm({...badgeForm, badge_color: e.target.value})}
-                            className="w-12 h-10 p-1"
-                          />
-                          <Input 
-                            value={badgeForm.badge_color}
-                            onChange={(e) => setBadgeForm({...badgeForm, badge_color: e.target.value})}
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Category</Label>
-                          <Select value={badgeForm.badge_category} onValueChange={(v) => setBadgeForm({...badgeForm, badge_category: v})}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="achievement">Achievement</SelectItem>
-                              <SelectItem value="score">Score</SelectItem>
-                              <SelectItem value="trait">Trait</SelectItem>
-                              <SelectItem value="special">Special</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>XP Reward</Label>
-                          <Input 
-                            type="number" 
-                            value={badgeForm.xp_reward}
-                            onChange={(e) => setBadgeForm({...badgeForm, xp_reward: parseInt(e.target.value) || 0})}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={badgeForm.is_active}
-                            onChange={(e) => setBadgeForm({...badgeForm, is_active: e.target.checked})}
-                            className="rounded-[2px] border-2 border-control-border"
-                          />
-                          <span className="text-sm">Active</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={badgeForm.is_featured}
-                            onChange={(e) => setBadgeForm({...badgeForm, is_featured: e.target.checked})}
-                            className="rounded-[2px] border-2 border-control-border"
-                          />
-                          <span className="text-sm">Featured</span>
-                        </label>
-                      </div>
-                      <Button 
-                        onClick={handleCreateBadge} 
-                        className="w-full"
-                        disabled={createBadgeMutation.isPending || isUploading}
-                      >
-                        {(createBadgeMutation.isPending || isUploading) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        {isUploading ? 'Uploading...' : 'Create Badge'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button data-testid="button-create-badge" onClick={openCreateBadge}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Badge
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -2240,218 +1987,28 @@ export default function AdminPanel() {
                 </div>
               ) : badges.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {badges.map((badge: any) => (
-                    <Card key={badge.id} className={!badge.is_active ? 'opacity-50' : ''}>
+                  {badges.map((badge: BadgeDefinition) => (
+                    <Card key={badge.id} className={!badge.is_active ? 'opacity-50' : ''} data-testid={`badge-card-${badge.id}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            {isEmojiIcon(badge.badge_icon) ? (
-                              <div 
-                                className="flex h-12 w-12 items-center justify-center border border-strong-border text-2xl"
-                                style={{ backgroundColor: `${badge.badge_color}20` }}
-                              >
-                                {badge.badge_icon || '🏅'}
-                              </div>
-                            ) : (
-                              <img 
-                                src={badge.badge_icon} 
-                                alt={badge.badge_name}
-                                className="h-12 w-12 border-2 object-cover"
-                                style={{ borderColor: badge.badge_color }}
-                              />
-                            )}
+                            <div className="flex h-12 w-12 items-center justify-center border border-strong-border text-2xl">
+                              {badge.badge_icon || '🏅'}
+                            </div>
                             <div>
                               <p className="font-medium">{badge.badge_name}</p>
                               <p className="text-xs text-muted-foreground">{badge.badge_category}</p>
                             </div>
                           </div>
                           <div className="flex gap-1">
-                            <Dialog open={editingBadge?.id === badge.id} onOpenChange={(open) => !open && setEditingBadge(null)}>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditBadge(badge)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-lg">
-                                <DialogHeader>
-                                  <DialogTitle>Edit Badge</DialogTitle>
-                                  <DialogDescription>
-                                    Update badge details
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <Label>Badge Key</Label>
-                                      <Input 
-                                        value={badgeForm.badge_key}
-                                        onChange={(e) => setBadgeForm({...badgeForm, badge_key: e.target.value})}
-                                        disabled
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label>Badge Name</Label>
-                                      <Input 
-                                        value={badgeForm.badge_name}
-                                        onChange={(e) => setBadgeForm({...badgeForm, badge_name: e.target.value})}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Description</Label>
-                                    <Textarea 
-                                      value={badgeForm.badge_description}
-                                      onChange={(e) => setBadgeForm({...badgeForm, badge_description: e.target.value})}
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <Label>Icon Type</Label>
-                                    <div className="flex gap-2">
-                                      <Button
-                                        type="button"
-                                        variant={iconType === 'emoji' ? 'default' : 'outline'}
-                                        size="sm"
-                                        onClick={() => { setIconType('emoji'); clearIconFile(); }}
-                                      >
-                                        😀 Emoji
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant={iconType === 'image' ? 'default' : 'outline'}
-                                        size="sm"
-                                        onClick={() => setIconType('image')}
-                                      >
-                                        <Image className="h-4 w-4 mr-1" /> Image
-                                      </Button>
-                                    </div>
-                                    
-                                    {iconType === 'emoji' ? (
-                                      <div className="space-y-2">
-                                        <Label>Emoji Icon</Label>
-                                        <Input 
-                                          value={badgeForm.badge_icon}
-                                          onChange={(e) => setBadgeForm({...badgeForm, badge_icon: e.target.value})}
-                                          className="text-2xl"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        <Label>Upload Image</Label>
-                                        {(iconPreview || (!isEmojiIcon(badgeForm.badge_icon) && badgeForm.badge_icon)) ? (
-                                          <div className="flex items-center gap-3">
-                                            <img 
-                                              src={iconPreview || badgeForm.badge_icon} 
-                                              alt="Badge icon preview" 
-                                              className="h-16 w-16 border border-strong-border object-cover"
-                                            />
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={clearIconFile}
-                                            >
-                                              <X className="h-4 w-4 mr-1" /> Change
-                                            </Button>
-                                          </div>
-                                        ) : (
-                                          <div className="border-2 border-dashed border-strong-border p-5 text-center">
-                                            <input
-                                              type="file"
-                                              accept="image/*"
-                                              onChange={handleIconFileChange}
-                                              className="hidden"
-                                              id="badge-icon-upload-edit"
-                                            />
-                                            <label 
-                                              htmlFor="badge-icon-upload-edit" 
-                                              className="cursor-pointer flex flex-col items-center gap-2"
-                                            >
-                                              <Upload className="h-8 w-8 text-muted-foreground" />
-                                              <span className="text-sm text-muted-foreground">
-                                                Click to upload (max 2MB)
-                                              </span>
-                                            </label>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Badge Color</Label>
-                                    <div className="flex gap-2">
-                                      <Input 
-                                        type="color" 
-                                        value={badgeForm.badge_color}
-                                        onChange={(e) => setBadgeForm({...badgeForm, badge_color: e.target.value})}
-                                        className="w-12 h-10 p-1"
-                                      />
-                                      <Input 
-                                        value={badgeForm.badge_color}
-                                        onChange={(e) => setBadgeForm({...badgeForm, badge_color: e.target.value})}
-                                        className="flex-1"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <Label>Category</Label>
-                                      <Select value={badgeForm.badge_category} onValueChange={(v) => setBadgeForm({...badgeForm, badge_category: v})}>
-                                        <SelectTrigger>
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="achievement">Achievement</SelectItem>
-                                          <SelectItem value="score">Score</SelectItem>
-                                          <SelectItem value="trait">Trait</SelectItem>
-                                          <SelectItem value="special">Special</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label>XP Reward</Label>
-                                      <Input 
-                                        type="number" 
-                                        value={badgeForm.xp_reward}
-                                        onChange={(e) => setBadgeForm({...badgeForm, xp_reward: parseInt(e.target.value) || 0})}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                      <input 
-                                        type="checkbox" 
-                                        checked={badgeForm.is_active}
-                                        onChange={(e) => setBadgeForm({...badgeForm, is_active: e.target.checked})}
-                                        className="rounded-[2px] border-2 border-control-border"
-                                      />
-                                      <span className="text-sm">Active</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                      <input 
-                                        type="checkbox" 
-                                        checked={badgeForm.is_featured}
-                                        onChange={(e) => setBadgeForm({...badgeForm, is_featured: e.target.checked})}
-                                        className="rounded-[2px] border-2 border-control-border"
-                                      />
-                                      <span className="text-sm">Featured</span>
-                                    </label>
-                                  </div>
-                                  <Button 
-                                    onClick={handleUpdateBadge} 
-                                    className="w-full"
-                                    disabled={updateBadgeMutation.isPending || isUploading}
-                                  >
-                                    {(updateBadgeMutation.isPending || isUploading) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                    {isUploading ? 'Uploading...' : 'Update Badge'}
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditBadge(badge)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 text-destructive"
-                              onClick={() => handleDeleteBadge(badge)}
+                              onClick={() => { if (confirm(`Delete badge "${badge.badge_name}"?`)) deleteBadgeMutation.mutate(badge.id); }}
                               disabled={deleteBadgeMutation.isPending}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -2465,10 +2022,7 @@ export default function AdminPanel() {
                           <Badge variant={badge.is_active ? "default" : "outline"}>
                             {badge.is_active ? "Active" : "Inactive"}
                           </Badge>
-                          {badge.is_featured && (
-                            <Badge variant="secondary">Featured</Badge>
-                          )}
-                          <Badge variant="outline">+{badge.xp_reward} XP</Badge>
+                          {badge.strength != null && <Badge variant="outline">Strength {badge.strength}</Badge>}
                         </div>
                       </CardContent>
                     </Card>
@@ -2483,6 +2037,93 @@ export default function AdminPanel() {
               )}
             </CardContent>
           </Card>
+
+          {/* Badge Create/Edit Dialog */}
+          <Dialog
+            open={isCreateBadgeOpen || !!editingBadge}
+            onOpenChange={(open) => { if (!open) { setIsCreateBadgeOpen(false); setEditingBadge(null); setBadgeForm(defaultBadgeForm); } }}
+          >
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{editingBadge ? "Edit Badge" : "Create New Badge"}</DialogTitle>
+                <DialogDescription>{editingBadge ? "Update badge details" : "Define a new badge that members can earn"}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Badge Key *</Label>
+                    <Input
+                      placeholder="e.g., quiz_master"
+                      value={badgeForm.badge_key}
+                      onChange={(e) => setBadgeForm({ ...badgeForm, badge_key: e.target.value })}
+                      disabled={!!editingBadge}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Badge Name *</Label>
+                    <Input
+                      placeholder="e.g., Quiz Master"
+                      value={badgeForm.badge_name}
+                      onChange={(e) => setBadgeForm({ ...badgeForm, badge_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    placeholder="Describe how to earn this badge..."
+                    value={badgeForm.badge_description}
+                    onChange={(e) => setBadgeForm({ ...badgeForm, badge_description: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Emoji Icon</Label>
+                  <Input
+                    placeholder="🏅"
+                    value={badgeForm.badge_icon}
+                    onChange={(e) => setBadgeForm({ ...badgeForm, badge_icon: e.target.value })}
+                    className="text-2xl"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={badgeForm.badge_category} onValueChange={(v) => setBadgeForm({ ...badgeForm, badge_category: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="achievement">Achievement</SelectItem>
+                        <SelectItem value="score">Score</SelectItem>
+                        <SelectItem value="trait">Trait</SelectItem>
+                        <SelectItem value="special">Special</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Strength</Label>
+                    <Input
+                      type="number"
+                      value={badgeForm.strength}
+                      onChange={(e) => setBadgeForm({ ...badgeForm, strength: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                {editingBadge && (
+                  <div className="flex items-center gap-2">
+                    <Switch checked={badgeForm.is_active} onCheckedChange={(v) => setBadgeForm({ ...badgeForm, is_active: v })} id="badge-active" />
+                    <Label htmlFor="badge-active">Active</Label>
+                  </div>
+                )}
+                <Button
+                  onClick={handleSaveBadge}
+                  className="w-full"
+                  disabled={createBadgeMutation.isPending || updateBadgeMutation.isPending}
+                >
+                  {(createBadgeMutation.isPending || updateBadgeMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  {editingBadge ? "Update Badge" : "Create Badge"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ETHOS Tab */}
@@ -2823,9 +2464,9 @@ export default function AdminPanel() {
                     <p className="text-sm text-muted-foreground">No users have been granted access yet.</p>
                   ) : (
                     <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {(ethosAccessGrants as any[]).map((g: any) => {
-                        const profile = users.find((u: any) => u.id === g.user_id);
-                        const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.username || g.user_id;
+                      {(ethosAccessGrants as EthosAccessGrant[]).map((g: EthosAccessGrant) => {
+                        const profile = users.find((u: any) => u.id === g.member_id);
+                        const displayName = g.member_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.username || g.member_id;
                         return (
                           <div key={g.id} className="flex items-center justify-between rounded-none border-2 border-strong-border bg-muted/30 p-2">
                             <div>
@@ -2833,7 +2474,7 @@ export default function AdminPanel() {
                               {profile?.username && <span className="text-muted-foreground text-xs ml-2">@{profile.username}</span>}
                             </div>
                             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
-                              onClick={() => revokeAccessMutation.mutate({ ethos_id: accessEthos.id, user_id: g.user_id })}
+                              onClick={() => revokeAccessMutation.mutate({ ethos_id: accessEthos.id, member_id: g.member_id })}
                               disabled={revokeAccessMutation.isPending}>
                               <UserMinus className="h-4 w-4" />
                             </Button>
@@ -2857,7 +2498,7 @@ export default function AdminPanel() {
                       {accessUserResults.map((u: any) => (
                         <button key={u.id} type="button"
                           className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between"
-                          onClick={() => grantAccessMutation.mutate({ ethos_id: accessEthos.id, user_id: u.id })}
+                          onClick={() => grantAccessMutation.mutate({ ethos_id: accessEthos.id, member_id: u.id })}
                           disabled={grantAccessMutation.isPending}>
                           <span>{u.username || u.display_name} {u.email && <span className="text-muted-foreground">({u.email})</span>}</span>
                           <UserPlus className="h-3 w-3 text-muted-foreground" />
@@ -3049,18 +2690,14 @@ export default function AdminPanel() {
                     <Textarea
                       id="ctc-description"
                       value={ctcMapForm.description}
-                      onChange={(e) =>
-                        setCtcMapForm((f) => ({ ...f, description: e.target.value }))
-                      }
+                      onChange={(e) => setCtcMapForm((f) => ({ ...f, description: e.target.value }))}
                       placeholder="Brief description shown above the map..."
                       rows={3}
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button onClick={saveCtcMapSettings} disabled={savingCtcMap}>
-                      {savingCtcMap ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
+                    <Button onClick={() => saveCtcMapMutation.mutate(ctcMapForm)} disabled={saveCtcMapMutation.isPending}>
+                      {saveCtcMapMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                       Save Map Settings
                     </Button>
                   </div>

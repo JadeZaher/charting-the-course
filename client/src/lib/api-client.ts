@@ -1,18 +1,31 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizResultItem, UserBadgeItem, UserTagItem, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+/** Fetch error carrying the HTTP status so consumers can branch without string-matching .message. */
+export class ApiFetchError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiFetchError';
+    this.status = status;
+  }
+}
+
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     credentials: 'include',
     ...options,
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || res.statusText);
+    throw new ApiFetchError(body.error || res.statusText, res.status);
   }
-  return res.json();
+  // 204/empty bodies (e.g. DELETE endpoints) have nothing for res.json() to parse.
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
 export function fetchHealth(): Promise<HealthResponse> {
@@ -210,10 +223,10 @@ export function updateDomain(id: string, data: Record<string, any>): Promise<Dom
 export function fetchDomainQuizzes(domainId: string): Promise<{ items: QuizListItem[]; total: number }> {
   return apiFetch<{ items: QuizListItem[]; total: number }>(`/api/v1/domains/${domainId}/quizzes`);
 }
-export function assignQuizToDomain(domainId: string, quizId: string, isEntryQuiz: boolean): Promise<any> {
+export function assignQuizToDomain(domainId: string, quizId: string, isEntryQuiz: boolean): Promise<QuizDomainAssignResult> {
   return apiFetch(`/api/v1/domains/${domainId}/quizzes/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId, is_entry_quiz: isEntryQuiz }) });
 }
-export function unassignQuizFromDomain(domainId: string, quizId: string): Promise<any> {
+export function unassignQuizFromDomain(domainId: string, quizId: string): Promise<QuizDomainUnassignResult> {
   return apiFetch(`/api/v1/domains/${domainId}/quizzes/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId }) });
 }
 
@@ -276,10 +289,10 @@ export function requestJoinEcosystem(id: string): Promise<{ status: string; mess
 export function fetchEcosystemQuizzes(ecosystemId: string): Promise<{ quizzes: QuizListItem[] }> {
   return apiFetch<{ quizzes: QuizListItem[] }>(`/api/v1/ecosystems/${ecosystemId}/quizzes`);
 }
-export function assignQuizToEcosystem(ecosystemId: string, quizId: string, isEntryQuiz: boolean): Promise<any> {
+export function assignQuizToEcosystem(ecosystemId: string, quizId: string, isEntryQuiz: boolean): Promise<QuizEcosystemAssignResult> {
   return apiFetch(`/api/v1/ecosystems/${ecosystemId}/quizzes/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId, is_entry_quiz: isEntryQuiz }) });
 }
-export function unassignQuizFromEcosystem(ecosystemId: string, quizId: string): Promise<any> {
+export function unassignQuizFromEcosystem(ecosystemId: string, quizId: string): Promise<QuizEcosystemUnassignResult> {
   return apiFetch(`/api/v1/ecosystems/${ecosystemId}/quizzes/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId }) });
 }
 
@@ -422,7 +435,6 @@ export function declareEmergency(data: Record<string, any>): Promise<EmergencySt
 export function resolveEmergency(id: string): Promise<EmergencyStateDetail> {
   return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
 }
-// SPECULATIVE: built from S2 patch in flight — verify payload shape at integration
 export function completeEmergencyRecovery(id: string): Promise<EmergencyStateDetail> {
   return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/complete-recovery`, { method: 'POST' });
 }
@@ -507,9 +519,9 @@ export function generateCompliance(): Promise<ComplianceSummary> {
 }
 
 // Orientation API
-export function fetchEthosJourneyMaps(ethos_id: string, includeInactive = false): Promise<any[]> {
+export function fetchEthosJourneyMaps(ethos_id: string, includeInactive = false): Promise<JourneyMapSummary[]> {
   const qs = includeInactive ? '?include_inactive=true' : '';
-  return apiFetch<any[]>(`/api/v1/orientation/ethos/${ethos_id}/journey-maps${qs}`);
+  return apiFetch<JourneyMapSummary[]>(`/api/v1/orientation/ethos/${ethos_id}/journey-maps${qs}`);
 }
 
 export function fetchOrientationProgress(ethos_id: string): Promise<UserJourneyProgress> {
@@ -524,17 +536,17 @@ export function saveOrientationProgress(ethos_id: string, data: any): Promise<Pi
   });
 }
 
-export function saveGenplanInput(data: any): Promise<any> {
-  return apiFetch<any>('/api/v1/orientation/genplan-input', {
+export function saveGenplanInput(data: any): Promise<SaveGenplanInputResult> {
+  return apiFetch<SaveGenplanInputResult>('/api/v1/orientation/genplan-input', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
 }
-export function createJourneyMap(ecosystemId: string, data: Record<string, any>): Promise<any> {
+export function createJourneyMap(ecosystemId: string, data: Record<string, any>): Promise<JourneyMapSummary> {
   return apiFetch(`/api/v1/orientation/ethos/${ecosystemId}/journey-maps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
-export function updateJourneyMap(journeyMapId: string, data: Record<string, any>): Promise<any> {
+export function updateJourneyMap(journeyMapId: string, data: Record<string, any>): Promise<JourneyMapSummary> {
   return apiFetch(`/api/v1/orientation/journey-maps/${journeyMapId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export function deleteJourneyMap(journeyMapId: string): Promise<{ ok: boolean; message: string }> {
@@ -588,6 +600,137 @@ export function fetchDomainQuizResults(domainId: string): Promise<{ items: (Quiz
 }
 
 // AI Assist API
-export function aiAssist(data: { field_label: string; field_context: string; current_text: string; action: 'generate' | 'improve' }): Promise<{ text: string }> {
+export function aiAssist(data: { field_label: string; field_context: string; current_text: string; action: 'generate' | 'improve'; user_prompt?: string }): Promise<{ text: string }> {
   return apiFetch<{ text: string }>('/api/v1/ai/assist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+// ---------------------------------------------------------------------------
+// Ethos access & participation consent
+// ---------------------------------------------------------------------------
+
+const jsonBody = (data: unknown): RequestInit => ({
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data),
+});
+
+export function fetchEthosAccess(ecosystemId: string): Promise<EthosAccessStatus> {
+  return apiFetch<EthosAccessStatus>(`/api/v1/ethos/${ecosystemId}/access/me`);
+}
+
+export function consentEthosAccess(ecosystemId: string): Promise<EthosAccessStatus> {
+  return apiFetch<EthosAccessStatus>(`/api/v1/ethos/${ecosystemId}/access/consent`, { method: 'POST' });
+}
+
+export function listEthosAccess(ecosystemId: string): Promise<{ items: EthosAccessGrant[]; total: number }> {
+  return apiFetch<{ items: EthosAccessGrant[]; total: number }>(`/api/v1/ethos/${ecosystemId}/access`);
+}
+
+export function grantEthosAccess(ecosystemId: string, data: { member_id: string; role_in_ethos?: string; access_level?: string }): Promise<EthosAccessGrant> {
+  return apiFetch<EthosAccessGrant>(`/api/v1/ethos/${ecosystemId}/access`, jsonBody(data));
+}
+
+export function revokeEthosAccess(ecosystemId: string, memberId: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/v1/ethos/${ecosystemId}/access/${memberId}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// Badge definitions (admin catalog)
+// ---------------------------------------------------------------------------
+
+export function fetchBadgeDefinitions(): Promise<{ items: BadgeDefinition[]; total: number }> {
+  return apiFetch<{ items: BadgeDefinition[]; total: number }>('/api/v1/badges');
+}
+
+export function createBadgeDefinition(data: { badge_key: string; badge_name: string; badge_description?: string | null; badge_category?: string | null; badge_icon?: string | null; strength?: number | null; ecosystem_id?: string | null }): Promise<BadgeDefinition> {
+  return apiFetch<BadgeDefinition>('/api/v1/badges', jsonBody(data));
+}
+
+export function updateBadgeDefinition(id: string, data: Record<string, unknown>): Promise<BadgeDefinition> {
+  return apiFetch<BadgeDefinition>(`/api/v1/badges/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+export function deleteBadgeDefinition(id: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/v1/badges/${id}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// Teams
+// ---------------------------------------------------------------------------
+
+export function fetchTeams(): Promise<{ items: Team[]; total: number }> {
+  return apiFetch<{ items: Team[]; total: number }>('/api/v1/teams');
+}
+
+export function createTeam(data: { name: string; description?: string | null; ecosystem_id?: string }): Promise<Team> {
+  return apiFetch<Team>('/api/v1/teams', jsonBody(data));
+}
+
+export function updateTeam(id: string, data: Record<string, unknown>): Promise<Team> {
+  return apiFetch<Team>(`/api/v1/teams/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+
+export function deleteTeam(id: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/v1/teams/${id}`, { method: 'DELETE' });
+}
+
+export function fetchTeamMembers(teamId: string): Promise<{ items: TeamMember[]; total: number }> {
+  return apiFetch<{ items: TeamMember[]; total: number }>(`/api/v1/teams/${teamId}/members`);
+}
+
+export function addTeamMember(teamId: string, data: { member_id: string; role?: string }): Promise<TeamMember> {
+  return apiFetch<TeamMember>(`/api/v1/teams/${teamId}/members`, jsonBody(data));
+}
+
+export function removeTeamMember(teamId: string, memberId: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/v1/teams/${teamId}/members/${memberId}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// Quiz assignments (member-targeted)
+// ---------------------------------------------------------------------------
+
+export function fetchQuizAssignments(memberId?: string): Promise<{ items: QuizAssignment[]; total: number }> {
+  const qs = memberId ? `?member_id=${memberId}` : '';
+  return apiFetch<{ items: QuizAssignment[]; total: number }>(`/api/v1/quiz-assignments${qs}`);
+}
+
+export function createQuizAssignment(data: { quiz_id: string; member_id: string; due_date?: string | null }): Promise<QuizAssignment> {
+  return apiFetch<QuizAssignment>('/api/v1/quiz-assignments', jsonBody(data));
+}
+
+export function deleteQuizAssignment(id: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/v1/quiz-assignments/${id}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// App settings (key/value)
+// ---------------------------------------------------------------------------
+
+export function fetchSetting(key: string): Promise<AppSettingResponse> {
+  return apiFetch<AppSettingResponse>(`/api/v1/settings?key=${encodeURIComponent(key)}`);
+}
+
+export function saveSetting(key: string, value: Record<string, unknown>): Promise<AppSettingResponse> {
+  return apiFetch<AppSettingResponse>('/api/v1/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) });
+}
+
+// ---------------------------------------------------------------------------
+// CTC → NEOS Den handoff readiness
+// ---------------------------------------------------------------------------
+
+export function fetchCtcHandoff(): Promise<{ items: CtcHandoffItem[]; total: number }> {
+  return apiFetch<{ items: CtcHandoffItem[]; total: number }>('/api/v1/admin/ctc-handoff');
+}
+
+export function setNeosDenReady(memberId: string, ready: boolean): Promise<CtcHandoffItem> {
+  return apiFetch<CtcHandoffItem>(`/api/v1/admin/ctc-handoff/${memberId}`, jsonBody({ ready_for_neos_den: ready }));
+}
+
+// ---------------------------------------------------------------------------
+// Member invite
+// ---------------------------------------------------------------------------
+
+export function resendMemberInvite(memberId: string): Promise<{ success: boolean; message?: string; resent_at?: string }> {
+  return apiFetch<{ success: boolean; message?: string; resent_at?: string }>(`/api/v1/members/${memberId}/resend-invite`, { method: 'POST' });
 }

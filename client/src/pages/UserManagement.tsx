@@ -25,17 +25,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
-import { fetchMembers, updateMember } from "@/lib/api-client";
+import { fetchMembers, updateMember, resendMemberInvite } from "@/lib/api-client";
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as any).error || res.statusText);
-  }
-  return res.json();
-}
 import {
   Dialog,
   DialogContent,
@@ -179,6 +170,20 @@ export default function UserManagement() {
     },
   });
 
+  const resendInviteMutation = useMutation({
+    mutationFn: async (userId: string) => resendMemberInvite(userId),
+    onSuccess: (result) => {
+      toast({ title: "Invite re-sent", description: result.message || undefined });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend invite",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (permLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -276,19 +281,33 @@ export default function UserManagement() {
   const handleBulkArchive = async (archive: boolean) => {
     setBulkActionPending(true);
     const ids = Array.from(selectedIds);
+    const failedIds: string[] = [];
     for (const userId of ids) {
-      await updateMember(userId, { is_archived: archive }).catch(console.error);
+      try {
+        await updateMember(userId, { is_archived: archive });
+      } catch (err) {
+        console.error(err);
+        failedIds.push(userId);
+      }
     }
     setBulkActionPending(false);
-    setSelectedIds(new Set());
     setBulkArchiveConfirm(false);
     setBulkRestoreConfirm(false);
     queryClient.invalidateQueries({ queryKey: ["admin-users-management"] });
-    toast({
-      title: archive
-        ? `${ids.length} user${ids.length !== 1 ? "s" : ""} archived`
-        : `${ids.length} user${ids.length !== 1 ? "s" : ""} restored`,
-    });
+
+    const succeeded = ids.length - failedIds.length;
+    const verb = archive ? "archived" : "restored";
+    if (failedIds.length === 0) {
+      setSelectedIds(new Set());
+      toast({ title: `${succeeded} user${succeeded !== 1 ? "s" : ""} ${verb}` });
+    } else {
+      setSelectedIds(new Set(failedIds));
+      toast({
+        title: `${verb === "archived" ? "Archived" : "Restored"} ${succeeded} of ${ids.length}; ${failedIds.length} failed`,
+        description: "Failed users remain selected — retry when ready.",
+        variant: "destructive",
+      });
+    }
   };
 
   // ——— CSV export ———
@@ -324,28 +343,6 @@ export default function UserManagement() {
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: `Exported ${rows.length} users as CSV` });
-  };
-
-  // ——— Resend invite ———
-  const handleResendInvite = async (user: UserProfile) => {
-    try {
-      // TODO: Replace with Sanic API endpoint when invite management is implemented
-      await apiFetch('/api/v1/members/resend-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id }),
-      });
-      toast({
-        title: "Invite resent",
-        description: `An invitation email has been sent to ${user.username || getDisplayName(user)}.`,
-      });
-    } catch (err: any) {
-      toast({
-        title: "Resend failed",
-        description: err.message || "Could not resend invite.",
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -592,8 +589,9 @@ export default function UserManagement() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="Resend Invite Email"
-                            onClick={() => handleResendInvite(user)}
+                            title="Resend Invite"
+                            disabled={resendInviteMutation.isPending}
+                            onClick={() => resendInviteMutation.mutate(user.id)}
                             data-testid={`button-invite-${user.id}`}
                           >
                             <Mail className="h-4 w-4" />

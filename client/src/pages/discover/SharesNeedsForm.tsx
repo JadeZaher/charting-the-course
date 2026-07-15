@@ -11,17 +11,8 @@ import { useCreateSharesNeeds } from '@/hooks/use-discover';
 import { useDomains } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
+import { SHARESNEEDS_CATEGORY_OPTIONS } from '@/lib/sharesneeds-vocab';
 import { ArrowLeft } from 'lucide-react';
-
-const CATEGORY_OPTIONS = [
-  { value: 'technology', label: 'Technology' },
-  { value: 'resources', label: 'Resources' },
-  { value: 'skills', label: 'Skills' },
-  { value: 'knowledge', label: 'Knowledge' },
-  { value: 'infrastructure', label: 'Infrastructure' },
-  { value: 'funding', label: 'Funding' },
-  { value: 'other', label: 'Other' },
-];
 
 const VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Public' },
@@ -157,7 +148,7 @@ export default function SharesNeedsForm() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORY_OPTIONS.map(o => (
+                    {SHARESNEEDS_CATEGORY_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
                   </SelectContent>

@@ -6,33 +6,34 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useExit, useUpdateExitStatus } from '@/hooks/use-governance';
+import { exitStatusVariant } from '@/lib/exit-status';
 import { ArrowLeft } from 'lucide-react';
 
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'completed': return 'default' as const;
-    case 'cancelled': return 'outline' as const;
-    case 'in_progress': return 'secondary' as const;
-    case 'initiated': return 'destructive' as const;
-    default: return 'secondary' as const;
-  }
-};
-
+// Backend creates new exits at status='declared'; every non-terminal status must have an entry here
+// or newly-created records show zero action buttons. completed/cancelled are terminal (no further transitions).
 const TRANSITIONS: Record<string, { label: string; status: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }[]> = {
-  initiated: [
-    { label: 'Begin Processing', status: 'in_progress', variant: 'secondary' },
+  declared: [
+    { label: 'Begin Cooling-Off', status: 'cooling_off', variant: 'secondary' },
     { label: 'Cancel', status: 'cancelled', variant: 'outline' },
   ],
-  in_progress: [
+  cooling_off: [
+    { label: 'Begin Unwinding', status: 'unwinding', variant: 'secondary' },
+    { label: 'Cancel', status: 'cancelled', variant: 'outline' },
+  ],
+  unwinding: [
     { label: 'Mark Completed', status: 'completed', variant: 'default' },
     { label: 'Cancel', status: 'cancelled', variant: 'outline' },
   ],
 };
 
 const TRANSITION_MESSAGES: Record<string, { title: string; description: string }> = {
-  in_progress: {
-    title: 'Begin processing this exit?',
-    description: 'This will start the exit process including commitment unwinding and role reassignment. The member will be notified.',
+  cooling_off: {
+    title: 'Begin the cooling-off period?',
+    description: 'This starts the mandatory cooling-off period before unwinding begins. The member will be notified.',
+  },
+  unwinding: {
+    title: 'Begin unwinding this exit?',
+    description: 'This will start commitment unwinding and role reassignment. The member will be notified.',
   },
   cancelled: {
     title: 'Cancel this exit?',
@@ -70,7 +71,7 @@ export default function ExitDetail() {
   const handleConfirmTransition = async () => {
     if (!pendingTransition) return;
     try {
-      await updateStatusMutation.mutateAsync({ status: pendingTransition.status });
+      await updateStatusMutation.mutateAsync({ new_status: pendingTransition.status });
     } catch {
       // Error handled by mutation state
     } finally {
@@ -93,7 +94,7 @@ export default function ExitDetail() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Exit: {data.member_name}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+            <Badge variant={exitStatusVariant(data.status)}>{data.status}</Badge>
             <span className="text-sm text-muted-foreground">{data.exit_type}</span>
           </div>
         </div>
@@ -159,7 +160,7 @@ export default function ExitDetail() {
             <div>
               <dt className="text-muted-foreground">Status</dt>
               <dd>
-                <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+                <Badge variant={exitStatusVariant(data.status)}>{data.status}</Badge>
               </dd>
             </div>
             <div>

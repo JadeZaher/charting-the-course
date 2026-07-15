@@ -9,41 +9,21 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useAgreements } from '@/hooks/use-governance';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { AGREEMENT_STATUS_OPTIONS, agreementStatusVariant } from '@/lib/agreement-status';
+import { AGREEMENT_TYPE_OPTIONS } from '@/lib/agreement-type';
 import { Plus } from 'lucide-react';
 
 const FILTERS: FilterDef[] = [
   {
     key: 'type', label: 'Type', type: 'select',
-    options: [
-      { value: 'all', label: 'All Types' },
-      { value: 'uaf', label: 'UAF' },
-      { value: 'ecosystem', label: 'Ecosystem' },
-      { value: 'access', label: 'Access' },
-      { value: 'stewardship', label: 'Stewardship' },
-      { value: 'ethos', label: 'Ethos' },
-      { value: 'culture_code', label: 'Culture Code' },
-    ],
+    options: [{ value: 'all', label: 'All Types' }, ...AGREEMENT_TYPE_OPTIONS],
   },
   {
     key: 'status', label: 'Status', type: 'select',
-    options: [
-      { value: 'all', label: 'All Statuses' },
-      { value: 'draft', label: 'Draft' },
-      { value: 'ratified', label: 'Ratified' },
-      { value: 'archived', label: 'Archived' },
-    ],
+    options: [{ value: 'all', label: 'All Statuses' }, ...AGREEMENT_STATUS_OPTIONS],
   },
   { key: 'domain', label: 'Domain', type: 'text', placeholder: 'Domain...' },
 ];
-
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'ratified': return 'default';
-    case 'draft': return 'secondary';
-    case 'archived': return 'outline';
-    default: return 'secondary';
-  }
-};
 
 export default function AgreementList() {
   const [, navigate] = useLocation();
@@ -117,7 +97,7 @@ export default function AgreementList() {
                       <Badge variant="outline">{a.type}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(a.status)}>{a.status}</Badge>
+                      <Badge variant={agreementStatusVariant(a.status)}>{a.status}</Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {getEcosystemName(a.ecosystem_id) || '-'}

@@ -12,6 +12,7 @@ import { useMember, useCreateMember, useUpdateMember } from '@/hooks/use-governa
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
+import { toStringList } from '@/lib/utils';
 
 const PROFILE_OPTIONS = [
   { value: 'co_creator', label: 'Co-Creator' },
@@ -46,9 +47,9 @@ export default function MemberForm() {
       setDisplayName(existing.display_name || '');
       setProfile(existing.profile || '');
       setPhone(existing.phone || '');
-      setSkillsOffered(existing.skills_offered?.join(', ') || '');
-      setSkillsNeeded(existing.skills_needed?.join(', ') || '');
-      setInterests(existing.interests?.join(', ') || '');
+      setSkillsOffered(toStringList(existing.skills_offered).join(', '));
+      setSkillsNeeded(toStringList(existing.skills_needed).join(', '));
+      setInterests(toStringList(existing.interests).join(', '));
       setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
     }
   }, [existing, isEdit]);

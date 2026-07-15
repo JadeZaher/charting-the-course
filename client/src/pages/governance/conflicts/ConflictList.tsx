@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useConflicts } from '@/hooks/use-governance';
+import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { Plus } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -29,18 +30,13 @@ const SEVERITY_OPTIONS = [
   { value: 'critical', label: 'Critical' },
 ];
 
-const URGENCY_OPTIONS = [
-  { value: 'all', label: 'All Urgencies' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'immediate', label: 'Immediate' },
-];
-
 const FILTERS: FilterDef[] = [
   { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS },
   { key: 'severity', label: 'Severity', type: 'select', options: SEVERITY_OPTIONS },
-  { key: 'urgency', label: 'Urgency', type: 'select', options: URGENCY_OPTIONS },
+  {
+    key: 'urgency', label: 'Urgency', type: 'select',
+    options: [{ value: 'all', label: 'All Urgencies' }, ...URGENCY_OPTIONS],
+  },
 ];
 
 const statusVariant = (status: string) => {

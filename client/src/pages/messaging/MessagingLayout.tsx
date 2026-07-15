@@ -15,7 +15,7 @@ export default function MessagingLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
 
-  const { data: convData, isLoading } = useConversations();
+  const { data: convData, isLoading, error } = useConversations();
   const { data: activeConv } = useConversation(activeId || '');
   const { isConnected } = useWebSocket();
   const { member } = useAuth();
@@ -37,6 +37,15 @@ export default function MessagingLayout() {
   };
 
   if (isLoading) return <LoadingState message="Loading conversations..." />;
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive">Failed to load conversations</p>
+        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">

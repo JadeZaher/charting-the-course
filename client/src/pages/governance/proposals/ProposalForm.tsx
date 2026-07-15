@@ -11,26 +11,15 @@ import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useProposal, useCreateProposal, useUpdateProposal } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
+import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
+import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { ArrowLeft } from 'lucide-react';
-
-const TYPE_OPTIONS = [
-  { value: 'policy', label: 'Policy' },
-  { value: 'operational', label: 'Operational' },
-  { value: 'structural', label: 'Structural' },
-  { value: 'resource', label: 'Resource' },
-];
 
 const DECISION_TYPE_OPTIONS = [
   { value: 'consent', label: 'Consent' },
+  { value: 'consensus', label: 'Consensus' },
   { value: 'advice', label: 'Advice' },
   { value: 'autocratic', label: 'Autocratic' },
-];
-
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
 ];
 
 export default function ProposalForm() {
@@ -153,7 +142,7 @@ export default function ProposalForm() {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TYPE_OPTIONS.map(o => (
+                    {PROPOSAL_TYPE_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
                   </SelectContent>

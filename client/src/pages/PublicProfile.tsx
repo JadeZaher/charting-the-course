@@ -10,13 +10,13 @@ import {
   Lock, Check, Settings, ChevronRight, Award, Edit
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TileGrid, ProfileTile } from "@/components/profile/tiles";
-import { calculateAlignment, createAlignmentTile } from "@/lib/alignment";
+import type { ProfileTile } from "@/components/profile/tiles";
 import { useAuth } from "@/contexts/AuthContext";
-import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
+import { getDimensionConfig } from "@/lib/dimensions";
 import { fetchMember, fetchMemberBadges, fetchMemberTags, fetchMemberQuizHistory } from "@/lib/api-client";
 import { iconMap } from "@/components/profile/tiles/BadgeTile";
 import { resolveExternalUrl, resolveMediaUrl } from "@/lib/media";
+import type { UserBadgeItem } from "@/types/api";
 
 interface PublicProfileData {
   profile: {
@@ -35,31 +35,12 @@ interface PublicProfileData {
     created_at: string;
     profile_dimensions?: Record<string, any>;
   } | null;
-  badges: Array<{
-    id: string;
-    badge_key: string;
-    badge_name: string;
-    badge_description: string | null;
-    badge_icon: string | null;
-    badge_color: string | null;
-    badge_category: string | null;
-    earned_at: string;
-  }>;
+  badges: UserBadgeItem[];
   tags: Array<{
     id: string;
     tag_key: string;
     tag_value: string;
     dimension: string | null;
-  }>;
-  tiles: ProfileTile[];
-  agreements: Array<{
-    id: string;
-    agreement_key: string;
-    agreement_statement: string;
-    agreement_category: string | null;
-    source_quiz_id: string;
-    quiz_title?: string;
-    created_at: string;
   }>;
   quizResults: Array<{
     id: string;
@@ -271,12 +252,6 @@ export default function PublicProfile() {
         survey_json: r.quiz?.survey_json ?? r.survey_json,
       }));
 
-      // Agreements - TODO: fetch from Sanic API when agreements per-member endpoint is available
-      const agreements: any[] = [];
-
-      // Profile tiles - TODO: fetch from Sanic API when member tiles endpoint is available
-      const tiles: ProfileTile[] = [];
-
       const privacy: PublicProfileData['privacy'] = (memberData as any).privacy
         ? {
             is_profile_public: (memberData as any).privacy.is_profile_public ?? true,
@@ -287,13 +262,10 @@ export default function PublicProfile() {
           }
         : null;
 
-      return { profile, badges, tags, tiles, agreements, quizResults, privacy };
+      return { profile, badges, tags, quizResults, privacy };
     },
     enabled: !!username,
   });
-
-  // Viewer tiles for alignment — TODO: fetch from Sanic API when tiles endpoint is available
-  const viewerTiles: ProfileTile[] = [];
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -309,14 +281,8 @@ export default function PublicProfile() {
     }
   };
 
-  // Calculate alignment if viewer is logged in and not viewing own profile
   const isViewingOwnProfile = user?.id === data?.profile?.id;
-  const alignment = (!isViewingOwnProfile && viewerTiles && viewerTiles.length > 0 && data?.tiles && data.tiles.length > 0)
-    ? calculateAlignment(viewerTiles, data.tiles)
-    : null;
-    
-  const alignmentTile = alignment ? createAlignmentTile(alignment) : null;
-  
+
   // Helper to extract values from profile dimensions JSON
   const extractValues = (obj: any): string[] => {
     const results: string[] = [];
@@ -331,15 +297,6 @@ export default function PublicProfile() {
     }
     return results;
   };
-
-  // Merge legacy badges and tags into tiles for unified display
-  const mergedTiles = useMemo(() => {
-    if (!data?.profile) return [];
-
-    // Legacy badges are no longer converted to tiles for this view.
-    // The "Badges & Achievements" section will now only show tile-based badges.
-    return [...(data.tiles || [])];
-  }, [data]);
 
   // Convert legacy tags to tiles grouped by dimension
   const legacyTilesByDimension = useMemo(() => {
@@ -454,31 +411,8 @@ export default function PublicProfile() {
   const displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || 'Anonymous';
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
   
-  const allTiles = mergedTiles;
-  const badgeTiles = allTiles.filter(t => t.tile_type === 'badge');
-  const insightTiles = allTiles.filter(t => t.tile_type !== 'badge');
-
-  const displayInsightTiles = alignmentTile ? [alignmentTile, ...insightTiles] : insightTiles;
-  const tilesByDimension = (displayInsightTiles || []).reduce((acc, tile) => {
-    const dim = tile.dimension || 'general';
-    if (!acc[dim]) {
-      acc[dim] = [];
-    }
-    acc[dim].push(tile);
-    return acc;
-  }, {} as Record<string, ProfileTile[]>);
-
-  const dimensionOrder = Object.keys(DIMENSION_CONFIGS);
-  const sortedDimensions = Object.keys(tilesByDimension).sort((a, b) => {
-    const indexA = dimensionOrder.indexOf(a);
-    const indexB = dimensionOrder.indexOf(b);
-    if (indexA === -1 && indexB === -1) return a.localeCompare(b); // both are custom
-    if (indexA === -1) return 1; // custom dimensions at the end
-    if (indexB === -1) return -1;
-    return indexA - indexB;
-  });
-  const showBadgesSection = badgeTiles.length > 0;
-  const showInsightsSection = displayInsightTiles.length > 0;
+  const badges = data.badges || [];
+  const showBadgesSection = badges.length > 0;
   const hasSocialLinks = Object.values(socialLinks).some(Boolean);
   const hasLegacyTiles = Object.keys(legacyTilesByDimension).length > 0;
   
@@ -560,19 +494,19 @@ export default function PublicProfile() {
                   )}
                   
                   {/* Badge icons row */}
-                  {badgeTiles.length > 0 && (
+                  {badges.length > 0 && (
                     <div className="mt-5 flex flex-wrap items-center gap-1.5">
-                      {badgeTiles.slice(0, 6).map(tile => {
-                        const iconKey = (tile.content.badge_icon as string || 'award').toLowerCase();
+                      {badges.slice(0, 6).map(badge => {
+                        const iconKey = (badge.badge_icon || 'award').toLowerCase();
                         const IconComponent = iconMap[iconKey] || Award;
                         return (
-                          <span key={tile.id} className="inline-flex h-8 w-8 items-center justify-center border border-foreground bg-background" title={tile.title}>
+                          <span key={badge.id} className="inline-flex h-8 w-8 items-center justify-center border border-foreground bg-background" title={badge.badge_name}>
                             <IconComponent className="h-4 w-4" aria-hidden="true" />
                           </span>
                         );
                       })}
-                      {badgeTiles.length > 6 && (
-                        <span className="ml-1 text-xs font-black">+{badgeTiles.length - 6}</span>
+                      {badges.length > 6 && (
+                        <span className="ml-1 text-xs font-black">+{badges.length - 6}</span>
                       )}
                     </div>
                   )}
@@ -647,22 +581,20 @@ export default function PublicProfile() {
         {showBadgesSection && (
           <CrystalCard>
             <div className="p-5 sm:p-8">
-              <SectionLabel icon={Award} title={`Badges & Achievements (${badgeTiles.length})`} />
+              <SectionLabel icon={Award} title={`Badges & Achievements (${badges.length})`} />
               <div className="grid grid-cols-2 gap-px border border-foreground bg-foreground sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-                
-                {/* New Badge Tiles */}
-                {badgeTiles.map(tile => {
-                  const iconKey = (tile.content.badge_icon as string || 'award').toLowerCase();
+                {badges.map(badge => {
+                  const iconKey = (badge.badge_icon || 'award').toLowerCase();
                   const IconComponent = iconMap[iconKey] || Award;
-                  
+
                   return (
                     <div
-                      key={tile.id}
+                      key={badge.id}
                       className="flex min-h-32 flex-col items-start justify-between bg-card p-4 transition-colors hover:bg-muted motion-reduce:transition-none"
-                      title={(tile.content.badge_description as string) || tile.title}
+                      title={badge.badge_description || badge.badge_name}
                     >
                       <IconComponent className="mb-5 h-7 w-7" aria-hidden="true" />
-                      <span className="line-clamp-2 text-left text-[10px] font-black uppercase tracking-[0.12em]">{tile.title}</span>
+                      <span className="line-clamp-2 text-left text-[10px] font-black uppercase tracking-[0.12em]">{badge.badge_name}</span>
                     </div>
                   );
                 })}
@@ -670,41 +602,9 @@ export default function PublicProfile() {
             </div>
           </CrystalCard>
         )}
-
-        {/* Profile Insights Section - Grouped by Dimension */}
-        {showInsightsSection && (
-          <div className="space-y-4">
-            {isLoading ? (
-              <CrystalCard>
-                <div className="p-8 text-center text-muted-foreground">
-                  <LoaderIcon className="mx-auto mb-2 h-6 w-6 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                  Loading insights...
-                </div>
-              </CrystalCard>
-            ) : sortedDimensions.map(dim => {
-              const config = getDimensionConfig(dim);
-              const tiles = tilesByDimension[dim];
-              if (!tiles || tiles.length === 0) return null;
-
-              return (
-                <CrystalCard key={dim}>
-                  <div className="p-5 sm:p-8">
-                    <SectionLabel icon={config.icon} title={config.title} />
-                    <div className="[&_.grid]:grid-cols-1 [&_.grid]:md:grid-cols-2 [&_.grid]:lg:grid-cols-3 [&_h3]:font-black [&_h3]:uppercase [&_h3]:tracking-tight [&_p]:text-muted-foreground">
-                      <TileGrid 
-                        tiles={tiles} 
-                        isOwner={false}
-                      />
-                    </div>
-                  </div>
-                </CrystalCard>
-              );
-            })}
-          </div>
-        )}
         
             {/* Empty State */}
-            {!showBadgesSection && !hasLegacyTiles && !showInsightsSection && !profile.bio && (
+            {!showBadgesSection && !hasLegacyTiles && !profile.bio && (
               <CrystalCard>
                 <div className="grid min-h-56 place-items-center p-8 text-center sm:p-12">
                   <div>
