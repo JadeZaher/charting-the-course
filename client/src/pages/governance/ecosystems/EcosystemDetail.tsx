@@ -14,14 +14,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements } from '@/hooks/use-governance';
+import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements, useProposals } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {
   Pencil, ArrowLeft, UserPlus, Lock, FileText, Check, Clock, ClipboardList, Eye,
-  Link2Off, Map, Plus, Trash2, X, Handshake, ArrowUpDown,
+  Link2Off, Map, Plus, Trash2, X, Handshake, ArrowUpDown, Globe2, Vote,
 } from 'lucide-react';
 import {
   fetchEcosystemQuizzes,
@@ -269,6 +269,15 @@ export default function EcosystemDetail() {
   const allEcoAgreements = (agreementsData?.items ?? []).filter((a: any) => a.ecosystem_id === id);
   const visibleAgreements = isMember ? allEcoAgreements : allEcoAgreements.filter((a: any) => a.hierarchy_level === 'ecosystem');
 
+  // Governance stamp: derived from the current top-level agreement, never fabricated
+  const governanceStamp = visibleAgreements
+    .filter((a: any) => a.status === 'active')
+    .sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''))[0] ?? null;
+  // Open proposals: members-only fetch, mirrors agreements gating
+  const { data: proposalsData } = useProposals(isMember ? {} : false);
+  const openProposals = (proposalsData?.items ?? [])
+    .filter((p: any) => p.ecosystem_id === id && !['adopted', 'rejected', 'withdrawn', 'expired'].includes(p.status));
+
   if (isLoading) return <LoadingState message="Loading ecosystem..." />;
 
   if (error || !data) {
@@ -331,6 +340,20 @@ export default function EcosystemDetail() {
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Governance stamp strip */}
+      <div className="rounded-none border-2 border-strong-border p-3 text-sm">
+        {governanceStamp ? (
+          <dl className="flex flex-wrap gap-x-6 gap-y-1">
+            <div><dt className="inline text-muted-foreground">Agreement: </dt><dd className="inline font-medium">{governanceStamp.title}</dd></div>
+            <div><dt className="inline text-muted-foreground">Version: </dt><dd className="inline font-medium">{governanceStamp.version}</dd></div>
+            <div><dt className="inline text-muted-foreground">Status: </dt><dd className="inline font-medium">{governanceStamp.status}</dd></div>
+            <div><dt className="inline text-muted-foreground">Review due: </dt><dd className="inline font-medium">{governanceStamp.review_date ? new Date(governanceStamp.review_date).toLocaleDateString() : 'not scheduled'}</dd></div>
+          </dl>
+        ) : (
+          <p className="text-muted-foreground">Governance profile incomplete — no active ecosystem agreement on record.</p>
+        )}
       </div>
 
       {data.description && (
@@ -396,6 +419,66 @@ export default function EcosystemDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Domains (members only) */}
+      {isMember && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2"><Globe2 className="h-5 w-5" />Domains</CardTitle>
+              <Button asChild size="sm" variant="outline"><Link href="/domains">View all</Link></Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {snLoading ? (
+              <p className="text-sm text-muted-foreground">Loading domains...</p>
+            ) : ecoDomains.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No domains documented yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {ecoDomains.map(d => (
+                  <Link key={d.id} href={`/domains/${d.id}`} className="block rounded-none border-2 border-strong-border p-3 transition-colors hover:bg-accent">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{d.domain_id}</span>
+                      <Badge variant={d.status === 'active' ? 'default' : 'secondary'} className="text-xs">{d.status}</Badge>
+                    </div>
+                    {d.purpose && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{d.purpose}</p>}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Open Proposals (members only) */}
+      {isMember && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2"><Vote className="h-5 w-5" />Open Proposals</CardTitle>
+              <Button asChild size="sm" variant="outline"><Link href="/proposals">View all</Link></Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {openProposals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No open proposals.</p>
+            ) : (
+              <div className="space-y-2">
+                {openProposals.slice(0, 5).map((p: any) => (
+                  <Link key={p.id} href={`/proposals/${p.id}`} className="block rounded-none border-2 border-strong-border p-3 transition-colors hover:bg-accent">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{p.title}</span>
+                      <Badge variant={p.status === 'active' ? 'default' : 'secondary'} className="text-xs">{p.status}</Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{p.type}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Ethos / Journey Map Management (members only) */}
       {isMember && (
