@@ -54,19 +54,19 @@ function JoinButton({ ecosystemId, isMember }: { ecosystemId: string; isMember: 
         e.stopPropagation();
         try {
           await joinMutation.mutateAsync();
-          toast({ title: 'Joined!', description: 'You have joined this ecosystem.' });
+          toast({ title: 'Orientation requested', description: 'Orientation requested — this does not make you a member yet.' });
           await refreshSession();
         } catch (err) {
-          toast({ title: 'Failed to join', description: (err as Error).message, variant: 'destructive' });
+          toast({ title: 'Orientation request failed', description: (err as Error).message, variant: 'destructive' });
         }
       }}
     >
       {joinMutation.isSuccess ? (
-        <><Check className="h-3 w-3" /> Joined</>
+        <><Check className="h-3 w-3" /> Requested</>
       ) : joinMutation.isPending ? (
-        'Joining...'
+        'Requesting...'
       ) : (
-        <><UserPlus className="h-3 w-3" /> Join</>
+        <><UserPlus className="h-3 w-3" /> Request to begin orientation</>
       )}
     </Button>
   );

@@ -294,7 +294,7 @@ export default function EcosystemDetail() {
     try {
       const result = await joinMutation.mutateAsync();
       setJoinRequested(true);
-      toast({ title: 'Join request sent', description: result.message || 'Your request to join has been submitted.' });
+      toast({ title: 'Join request sent', description: `${result.message || 'Your request to join has been submitted.'} This does not make you a member yet.` });
       await refreshSession();
     } catch (err) {
       const message = (err as Error).message;
@@ -333,10 +333,10 @@ export default function EcosystemDetail() {
               <Link href={`/ecosystems/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
             </Button>
           ) : joinRequested || joinMutation.isSuccess ? (
-            <Button variant="outline" size="sm" disabled><Clock className="h-4 w-4 mr-1" />Join Requested</Button>
+            <Button variant="outline" size="sm" disabled><Clock className="h-4 w-4 mr-1" />Orientation requested</Button>
           ) : (
             <Button size="sm" onClick={handleJoin} disabled={joinMutation.isPending}>
-              <UserPlus className="h-4 w-4 mr-1" />{joinMutation.isPending ? 'Requesting...' : 'Request to Join'}
+              <UserPlus className="h-4 w-4 mr-1" />{joinMutation.isPending ? 'Requesting...' : 'Request to begin orientation'}
             </Button>
           )}
         </div>

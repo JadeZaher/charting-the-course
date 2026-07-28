@@ -50,8 +50,32 @@ const CEREMONY_STEPS = [
 ];
 
 function hasConsented(value: OnboardingSectionConsent | undefined): boolean {
-  return typeof value === 'boolean' ? value : value?.consented ?? false;
+  // only explicit consent completes a section — stand_aside/object do not
+  if (typeof value === 'boolean') return value;
+  return Boolean(value?.consented && value?.position === 'consent');
 }
+
+type SectionPosition = 'consent' | 'stand_aside' | 'object' | 'pending';
+
+function getSectionPosition(value: OnboardingSectionConsent | undefined): SectionPosition {
+  if (typeof value === 'boolean') return value ? 'consent' : 'pending';
+  if (!value) return 'pending';
+  if (value.consented && value.position === 'consent') return 'consent';
+  if (value.position === 'stand_aside') return 'stand_aside';
+  if (value.position === 'object') return 'object';
+  return 'pending';
+}
+
+function getObjectionText(value: OnboardingSectionConsent | undefined): string | null {
+  return typeof value === 'object' && value ? value.objection_text : null;
+}
+
+const POSITION_BADGE: Record<SectionPosition, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  consent: { label: 'Consented', variant: 'default' },
+  stand_aside: { label: 'Stood aside', variant: 'secondary' },
+  object: { label: 'Objected', variant: 'destructive' },
+  pending: { label: 'Pending', variant: 'outline' },
+};
 
 export default function OnboardingCeremony() {
   const [, params] = useRoute('/onboarding/:memberId/ceremony');
@@ -148,8 +172,9 @@ export default function OnboardingCeremony() {
                 style={{ width: `${completionPct}%` }}
               />
             </div>
+            {/* stand_aside/object must not advance lifecycle — server enforcement pending H5 */}
             <p className="text-xs text-muted-foreground">
-              {completedSections.length} of {CEREMONY_STEPS.length} sections completed
+              {completedSections.length} of {CEREMONY_STEPS.length} sections consented
             </p>
           </div>
         </CardContent>
@@ -158,6 +183,8 @@ export default function OnboardingCeremony() {
       {/* Steps */}
       {CEREMONY_STEPS.map((step, index) => {
         const completed = isSectionComplete(step.key);
+        const position = getSectionPosition(data.section_consents[step.key]);
+        const sectionObjection = getObjectionText(data.section_consents[step.key]);
         const isSubmitting = submittingSection === step.key;
 
         return (
@@ -174,9 +201,12 @@ export default function OnboardingCeremony() {
                     Step {index + 1}: {step.title}
                   </CardTitle>
                 </div>
-                <Badge variant={completed ? 'default' : 'outline'}>
-                  {completed ? 'Consented' : 'Pending'}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant={POSITION_BADGE[position].variant}>{POSITION_BADGE[position].label}</Badge>
+                  {position === 'object' && sectionObjection && (
+                    <p className="text-xs text-muted-foreground max-w-[16rem] text-right">{sectionObjection}</p>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -267,6 +297,26 @@ export default function OnboardingCeremony() {
               withdraw consent on any section. This ensures that consent is fully informed and voluntary.
               Your facilitator will confirm the final onboarding once the cooling-off period has passed.
             </p>
+            {(data.cooling_off_start || data.cooling_off_end || data.consent_date) && (
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-border pt-3 text-sm">
+                {data.cooling_off_start && (
+                  <div><dt className="text-xs text-muted-foreground">Window opened</dt><dd className="font-medium">{new Date(data.cooling_off_start).toLocaleDateString()}</dd></div>
+                )}
+                {data.cooling_off_end && (
+                  <div><dt className="text-xs text-muted-foreground">Window closes</dt><dd className="font-medium">{new Date(data.cooling_off_end).toLocaleDateString()}</dd></div>
+                )}
+                {data.consent_date && (
+                  <div><dt className="text-xs text-muted-foreground">Consent recorded</dt><dd className="font-medium">{new Date(data.consent_date).toLocaleDateString()}</dd></div>
+                )}
+              </dl>
+            )}
+            {data.cooling_off_end && (
+              <p className="text-sm font-medium">
+                {new Date() < new Date(data.cooling_off_end)
+                  ? `Consent unlocks ${new Date(data.cooling_off_end).toLocaleDateString()}`
+                  : 'Reflection complete'}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
