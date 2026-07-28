@@ -80,7 +80,7 @@ function collectStrings(value: unknown): string[] {
 }
 
 function unique(values: string[]) {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
 function latestAttempt(attempts: PublicProfileQuizAttempt[]) {
@@ -207,11 +207,11 @@ export default function PublicProfile() {
       ecosystems.set(ecosystemKey, ecosystem);
     }
 
-    return [...ecosystems.entries()]
+    return Array.from(ecosystems.entries())
       .map(([id, ecosystem]) => ({
         id,
         name: ecosystem.name,
-        domains: [...ecosystem.domains.entries()]
+        domains: Array.from(ecosystem.domains.entries())
           .map(([domainId, domain]) => ({ id: domainId, ...domain }))
           .sort((a, b) => a.name.localeCompare(b.name)),
       }))
@@ -592,7 +592,7 @@ export default function PublicProfile() {
                           {domain.name}
                         </h4>
                         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          {domain.quizzes.map((quiz) => (
+                          {domain.quizzes.map((quiz: PublicProfileQuizResult) => (
                             <QuizCard key={quiz.quiz.id} item={quiz} />
                           ))}
                         </div>

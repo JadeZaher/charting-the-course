@@ -492,7 +492,7 @@ export function fetchSharesNeeds(params?: Record<string, string>): Promise<Pagin
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch<PaginatedResponse<SharesNeeds>>(`/api/v1/discover/shares-needs${qs}`);
 }
-export function fetchSharesNeedsAdmin(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeeds> & { stats: { total: number; shares: number; needs: number; active: number; fulfilled: number; withdrawn: number } }> {
+export function fetchSharesNeedsAdmin(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeeds> & { stats: { total: number; shares: number; needs: number; solutions: number; active: number; fulfilled: number; withdrawn: number } }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch(`/api/v1/discover/shares-needs/admin${qs}`);
 }

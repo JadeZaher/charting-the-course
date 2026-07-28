@@ -59,7 +59,7 @@ const EMPTY_FORM: ProfileForm = {
 };
 
 function splitList(value: string) {
-  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+  return Array.from(new Set(value.split(",").map((item) => item.trim()).filter(Boolean)));
 }
 
 function newProject(): PublicProfileProject {
@@ -180,8 +180,39 @@ export default function Profile() {
       return;
     }
 
-    const normalizedProjects = projects
-      .filter((project) => project.name.trim())
+    const username = form.username.trim();
+    if (username && !/^[A-Za-z0-9_]{3,50}$/.test(username)) {
+      toast({
+        title: "Username is invalid",
+        description: "Use 3–50 letters, numbers, or underscores.",
+        variant: "destructive",
+      });
+      document.getElementById("profile-username")?.focus();
+      return;
+    }
+
+    const meaningfulProjects = projects.filter((project) =>
+      [
+        project.name,
+        project.description,
+        project.url,
+        project.role,
+        project.started_at,
+        project.ended_at,
+      ].some((value) => Boolean(value?.trim())),
+    );
+    const unnamedProject = meaningfulProjects.find((project) => !project.name.trim());
+    if (unnamedProject) {
+      toast({
+        title: "Project name is required",
+        description: "Name the project before saving its details.",
+        variant: "destructive",
+      });
+      document.getElementById(`project-name-${unnamedProject.id}`)?.focus();
+      return;
+    }
+
+    const normalizedProjects = meaningfulProjects
       .map((project) => ({
         ...project,
         name: project.name.trim(),
@@ -192,22 +223,27 @@ export default function Profile() {
         ended_at: project.ended_at || null,
       }));
 
-    updateProfile.mutate({
+    const socialLinks = { ...(data?.profile.social_links ?? {}) };
+    const linkedin = form.linkedin.trim();
+    const github = form.github.trim();
+    if (linkedin) socialLinks.linkedin = linkedin;
+    else delete socialLinks.linkedin;
+    if (github) socialLinks.github = github;
+    else delete socialLinks.github;
+    const payload: Record<string, unknown> = {
       display_name: displayName,
-      username: form.username.trim() || null,
       headline: form.headline.trim() || null,
       bio: form.bio.trim() || null,
       location: form.location.trim() || null,
       website: form.website.trim() || null,
       profile_picture: form.profilePicture.trim() || null,
-      social_links: {
-        linkedin: form.linkedin.trim(),
-        github: form.github.trim(),
-      },
+      social_links: socialLinks,
       skills: splitList(form.skills),
       interests: splitList(form.interests),
       projects: normalizedProjects,
-    });
+    };
+    if (username) payload.username = username;
+    updateProfile.mutate(payload);
   };
 
   const handleCopy = async () => {
@@ -326,9 +362,15 @@ export default function Profile() {
                   id="profile-username"
                   value={form.username}
                   onChange={(event) => setField("username", event.target.value)}
-                  maxLength={100}
-                  placeholder="public-handle"
+                  minLength={3}
+                  maxLength={50}
+                  pattern="[A-Za-z0-9_]{3,50}"
+                  aria-describedby="profile-username-help"
+                  placeholder="public_handle"
                 />
+                <p id="profile-username-help" className="text-xs text-muted-foreground">
+                  3–50 letters, numbers, or underscores.
+                </p>
               </div>
             </div>
 

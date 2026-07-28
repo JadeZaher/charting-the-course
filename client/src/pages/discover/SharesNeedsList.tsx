@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useSharesNeeds } from '@/hooks/use-discover';
 import { SHARESNEEDS_CATEGORY_OPTIONS } from '@/lib/sharesneeds-vocab';
+import type { PaginatedResponse, SharesNeeds } from '@/types/api';
 
 const CATEGORY_OPTIONS = [{ value: 'all', label: 'All categories' }, ...SHARESNEEDS_CATEGORY_OPTIONS];
 
@@ -37,19 +38,31 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
   const [, navigate] = useLocation();
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [visibleData, setVisibleData] = useState<PaginatedResponse<SharesNeeds> | null>(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [typeFilter, categoryFilter, searchProp]);
 
   const params = useMemo(() => {
-    const next: Record<string, string> = { per_page: '24' };
+    const next: Record<string, string> = { page: String(page), per_page: '24' };
     if (typeFilter !== 'all') next.type = typeFilter;
     if (categoryFilter !== 'all') next.category = categoryFilter;
     if (searchProp.trim()) next.q = searchProp.trim();
     return next;
-  }, [typeFilter, categoryFilter, searchProp]);
+  }, [typeFilter, categoryFilter, page, searchProp]);
 
-  const { data, isLoading, error } = useSharesNeeds(params);
-  const items = data?.items ?? [];
+  const { data, isLoading, isFetching, error } = useSharesNeeds(params);
+  useEffect(() => {
+    if (data) setVisibleData(data);
+  }, [data]);
+  const renderedData = data ?? visibleData;
+  const items = renderedData?.items ?? [];
+  const total = renderedData?.total ?? 0;
+  const lastPage = Math.max(1, Math.ceil(total / 24));
 
-  if (isLoading) {
+  if (isLoading && !visibleData) {
     return (
       <div className="space-y-5" aria-label="Loading shares and needs">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,11 +89,11 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" aria-busy={isFetching}>
       <div className="grid gap-5 border-b-2 border-strong-border pb-6 lg:grid-cols-12 lg:items-end">
         <div className="lg:col-span-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Capacity exchange</p>
-          <h2 className="mt-2 text-3xl font-black tracking-[-0.035em]">{items.length} live signals</h2>
+          <h2 className="mt-2 text-3xl font-black tracking-[-0.035em]">{total} live signals</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:col-span-5">
           <div>
@@ -139,7 +152,7 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
               <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
                 <div>
                   <p className={`text-xs font-black uppercase tracking-[0.18em] ${item.type === 'share' ? 'text-success' : item.type === 'need' ? 'text-link' : 'text-warning'}`}>
-                    {typeLabel(item.type)} / {String(index + 1).padStart(2, '0')}
+                    {typeLabel(item.type)} / {String((page - 1) * 24 + index + 1).padStart(2, '0')}
                   </p>
                   <h3 className="mt-3 text-xl font-black leading-tight tracking-[-0.025em]">{item.title}</h3>
                 </div>
@@ -174,6 +187,37 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
             </article>
           ))}
         </div>
+      )}
+
+      {total > 24 && (
+        <nav className="flex items-center justify-between border-t-2 border-strong-border pt-5" aria-label="Signal pages">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-none"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            Previous
+          </Button>
+          <p
+            className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground"
+            aria-live="polite"
+          >
+            Page {page} of {lastPage}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-none"
+            disabled={page >= lastPage}
+            onClick={() => setPage((current) => Math.min(lastPage, current + 1))}
+          >
+            Next
+            <ChevronRight className="ml-2 h-4 w-4" aria-hidden="true" />
+          </Button>
+        </nav>
       )}
     </div>
   );
