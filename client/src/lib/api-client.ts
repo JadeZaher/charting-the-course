@@ -141,8 +141,14 @@ export function createAgreement(data: Record<string, any>): Promise<AgreementDet
 export function updateAgreement(id: string, data: Record<string, any>): Promise<AgreementDetail> {
   return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
-export function updateAgreementStatus(id: string, status: string): Promise<AgreementDetail> {
-  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+export function updateAgreementStatus(id: string, data: { status: string; evidence?: string }): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function attestAgreementConsent(id: string, attestation: string): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attestation }) });
+}
+export function withdrawAgreementConsent(id: string, reason: string): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/consent`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) });
 }
 export function fetchAgreementHistory(id: string): Promise<AgreementHistory> {
   return apiFetch<AgreementHistory>(`/api/v1/agreements/${id}/history`);
@@ -519,6 +525,9 @@ export function fetchCollaboration(id: string): Promise<Collaboration> {
 }
 export function createCollaboration(data: Record<string, any>): Promise<Collaboration> {
   return apiFetch<Collaboration>('/api/v1/discover/collaborations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function activateCollaboration(id: string): Promise<Collaboration> {
+  return apiFetch<Collaboration>(`/api/v1/discover/collaborations/${id}/activate`, { method: 'POST' });
 }
 
 // Compliance API

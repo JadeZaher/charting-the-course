@@ -17,9 +17,10 @@ const STATUS_OPTIONS = [
 
 const TIER_OPTIONS = [
   { value: 'all', label: 'All tiers' },
-  { value: 'exploratory', label: 'Exploratory' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'deep', label: 'Deep' },
+  { value: 'observe', label: 'Observe' },
+  { value: 'cooperate', label: 'Cooperate' },
+  { value: 'federate', label: 'Federate' },
+  { value: 'integrate', label: 'Integrate' },
 ];
 
 function statusTone(status: string) {

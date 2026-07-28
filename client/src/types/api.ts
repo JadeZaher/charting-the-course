@@ -128,6 +128,30 @@ export interface RatificationRecord {
   date: string | null;
 }
 
+export interface AgreementCeremony {
+  id: string;
+  stage: string;
+  outcome: string;
+  evidence: string | null;
+  completed_at: string;
+}
+
+export interface AgreementConsentSummary {
+  required: number;
+  consented: number;
+  outstanding: number;
+  complete: boolean;
+}
+
+export interface AgreementMemberConsent {
+  id: string;
+  member_id: string;
+  agreement_version: string;
+  attested_at: string;
+  withdrawn_at: string | null;
+  alignment_awarded: number;
+}
+
 export interface AgreementDetail extends AgreementListItem {
   shared_ecosystem_ids: string[] | null;
   text: string | null;
@@ -137,6 +161,13 @@ export interface AgreementDetail extends AgreementListItem {
   created_date: string | null;
   updated_at: string;
   ratification_records: RatificationRecord[];
+  ceremonies: AgreementCeremony[];
+  requires_explicit_consent: boolean;
+  prerequisite_scopes: string[];
+  prerequisite_domain_ids: string[];
+  alignment_points: number;
+  consent_summary: AgreementConsentSummary | null;
+  current_member_consent: AgreementMemberConsent | null;
 }
 
 export interface AmendmentRecord {
@@ -746,6 +777,8 @@ export interface Collaboration {
   status: string;
   engagement_tier: string;
   terms: Record<string, any> | null;
+  required_agreement_ids?: string[];
+  awaiting_ecosystem_id?: string;
   linked_shares_needs: Record<string, any> | null;
   started_date: string | null;
   review_date: string | null;

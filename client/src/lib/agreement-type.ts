@@ -15,6 +15,9 @@ export const AGREEMENT_TYPES = [
   'role_definition',
   'domain_contract',
   'guideline',
+  'constitutional',
+  'operational',
+  'resource',
 ] as const;
 
 export type AgreementType = (typeof AGREEMENT_TYPES)[number];
@@ -33,6 +36,9 @@ const AGREEMENT_TYPE_LABELS: Record<AgreementType, string> = {
   role_definition: 'Role Definition',
   domain_contract: 'Domain Contract',
   guideline: 'Guideline',
+  constitutional: 'Constitutional',
+  operational: 'Operational',
+  resource: 'Resource',
 };
 
 /** Human-readable agreement type, including a safe value for future records. */

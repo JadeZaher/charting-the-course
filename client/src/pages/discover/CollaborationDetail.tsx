@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, ArrowRight, Calendar, Clock, FileText, Link2 } from 'lucide-react';
-import { useCollaboration } from '@/hooks/use-discover';
+import { useActivateCollaboration, useCollaboration } from '@/hooks/use-discover';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -18,8 +18,8 @@ const statusVariant = (status: string) => {
 
 const tierVariant = (tier: string) => {
   switch (tier) {
-    case 'deep': return 'default' as const;
-    case 'formal': return 'secondary' as const;
+    case 'integrate': return 'default' as const;
+    case 'federate': return 'secondary' as const;
     default: return 'outline' as const;
   }
 };
@@ -34,6 +34,7 @@ export default function CollaborationDetail() {
   const id = params?.id ?? '';
 
   const { data: collab, isLoading, error } = useCollaboration(id);
+  const activateMutation = useActivateCollaboration(id);
 
   if (isLoading) {
     return (
@@ -88,6 +89,11 @@ export default function CollaborationDetail() {
           <Badge variant={tierVariant(collab.engagement_tier)} className="capitalize text-sm px-3 py-1">
             {collab.engagement_tier}
           </Badge>
+          {collab.status === 'proposed' && (
+            <Button size="sm" onClick={() => activateMutation.mutate()} disabled={activateMutation.isPending}>
+              {activateMutation.isPending ? 'Activating…' : 'Activate collaboration'}
+            </Button>
+          )}
         </div>
 
         {/* Domain path */}
@@ -107,6 +113,12 @@ export default function CollaborationDetail() {
           )}
         </div>
       </div>
+
+      {activateMutation.error && (
+        <div className="border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+          {(activateMutation.error as Error).message}
+        </div>
+      )}
 
       {/* Overview card */}
       <Card>
@@ -159,6 +171,19 @@ export default function CollaborationDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{termsText}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {(collab.required_agreement_ids?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Agreement prerequisites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              This collaboration was proposed only after the required agreement consents were verified.
+            </p>
           </CardContent>
         </Card>
       )}

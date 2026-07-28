@@ -36,6 +36,10 @@ export function useCreateCollaboration() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: api.createCollaboration, onSuccess: () => qc.invalidateQueries({ queryKey: ['collaborations'] }) });
 }
+export function useActivateCollaboration(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.activateCollaboration(id), onSuccess: (data) => { qc.setQueryData(['collaborations', id], data); qc.invalidateQueries({ queryKey: ['collaborations'] }); } });
+}
 
 // Compliance hooks
 export function useComplianceLatest() {

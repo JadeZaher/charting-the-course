@@ -3,12 +3,15 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useAgreement, useUpdateAgreementStatus } from '@/hooks/use-governance';
+import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useWithdrawAgreementConsent } from '@/hooks/use-governance';
 import { formatDate } from '@/lib/utils';
-import { agreementStatusVariant } from '@/lib/agreement-status';
+import { agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
+import { agreementTypeLabel } from '@/lib/agreement-type';
 import { Pencil, History, ArrowLeft } from 'lucide-react';
 
 export default function AgreementDetail() {
@@ -17,7 +20,12 @@ export default function AgreementDetail() {
   const [, navigate] = useLocation();
   const { data, isLoading, error } = useAgreement(id);
   const statusMutation = useUpdateAgreementStatus(id);
+  const consentMutation = useAttestAgreementConsent(id);
+  const withdrawalMutation = useWithdrawAgreementConsent(id);
   const [statusChanging, setStatusChanging] = useState(false);
+  const [ceremonyEvidence, setCeremonyEvidence] = useState('');
+  const [attestation, setAttestation] = useState('I have read and explicitly consent to this agreement.');
+  const [withdrawalReason, setWithdrawalReason] = useState('');
 
   if (isLoading) return <LoadingState message="Loading agreement..." />;
 
@@ -36,11 +44,19 @@ export default function AgreementDetail() {
   const handleStatusChange = async (newStatus: string) => {
     setStatusChanging(true);
     try {
-      await statusMutation.mutateAsync(newStatus);
+      await statusMutation.mutateAsync({
+        status: newStatus,
+        evidence: ceremonyEvidence.trim() || undefined,
+      });
     } finally {
       setStatusChanging(false);
     }
   };
+
+  const currentConsent = data.current_member_consent;
+  const hasCurrentConsent = !!currentConsent && !currentConsent.withdrawn_at;
+  const consentSummary = data.consent_summary;
+  const nextCeremony = ({ draft: 'advice', advice: 'consent', consent: 'test', test: 'active' } as Record<string, string>)[data.status];
 
   return (
     <div className="space-y-6">
@@ -57,8 +73,8 @@ export default function AgreementDetail() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={agreementStatusVariant(data.status)}>{data.status}</Badge>
-            <Badge variant="outline">{data.type}</Badge>
+            <Badge variant={agreementStatusVariant(data.status)}>{agreementStatusLabel(data.status)}</Badge>
+            <Badge variant="outline">{agreementTypeLabel(data.type)}</Badge>
             <span className="text-sm text-muted-foreground">v{data.version}</span>
           </div>
         </div>
@@ -84,10 +100,7 @@ export default function AgreementDetail() {
               {data.status === 'draft' && <SelectItem value="advice">Advice</SelectItem>}
               {data.status === 'advice' && <SelectItem value="consent">Consent</SelectItem>}
               {data.status === 'consent' && (
-                <>
-                  <SelectItem value="test">Test</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                </>
+                <SelectItem value="test">Begin Test Ceremony</SelectItem>
               )}
               {data.status === 'test' && <SelectItem value="active">Active</SelectItem>}
               {data.status === 'active' && <SelectItem value="under_review">Under Review</SelectItem>}
@@ -102,6 +115,12 @@ export default function AgreementDetail() {
           </Select>
         </div>
       </div>
+
+      {statusMutation.error && (
+        <div className="border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+          {(statusMutation.error as Error).message}
+        </div>
+      )}
 
       {/* Metadata */}
       <Card>
@@ -162,6 +181,123 @@ export default function AgreementDetail() {
           </dl>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Consent & Participation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground">Consent required</p>
+              <p className="font-medium">{data.requires_explicit_consent ? 'Yes' : 'No'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Consent progress</p>
+              <p className="font-medium">
+                {consentSummary ? `${consentSummary.consented} of ${consentSummary.required}` : 'Not started'}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Alignment earned</p>
+              <p className="font-medium">+{data.alignment_points} when you consent</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Participation gates</p>
+              <p className="font-medium capitalize">
+                {data.prerequisite_scopes.length ? data.prerequisite_scopes.join(', ') : 'None'}
+              </p>
+            </div>
+          </div>
+
+          {nextCeremony && (
+            <div className="space-y-2 border-t border-border pt-4">
+              <Label htmlFor="ceremony-evidence">{agreementStatusLabel(nextCeremony)} ceremony evidence *</Label>
+              <Textarea
+                id="ceremony-evidence"
+                value={ceremonyEvidence}
+                onChange={(event) => setCeremonyEvidence(event.target.value)}
+                placeholder="Record the participants, evidence, and outcome for this governance ceremony."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">This lifecycle transition is blocked until documented evidence is recorded.</p>
+            </div>
+          )}
+
+          {data.requires_explicit_consent && (
+            <div className="space-y-3 border-t border-border pt-4">
+              {hasCurrentConsent ? (
+                <>
+                  <p className="text-sm font-medium">
+                    You consented to v{currentConsent.agreement_version} on {formatDate(currentConsent.attested_at)}.
+                    {currentConsent.alignment_awarded > 0 && ` Alignment: +${currentConsent.alignment_awarded}.`}
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="withdrawal-reason">Withdraw consent</Label>
+                    <Textarea
+                      id="withdrawal-reason"
+                      value={withdrawalReason}
+                      onChange={(event) => setWithdrawalReason(event.target.value)}
+                      placeholder="Explain your reasoned withdrawal (required)."
+                      rows={2}
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={withdrawalReason.trim().length < 3 || withdrawalMutation.isPending}
+                      onClick={() => withdrawalMutation.mutate(withdrawalReason.trim())}
+                    >
+                      Withdraw Consent
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Label htmlFor="agreement-attestation">Your explicit consent</Label>
+                  <Textarea
+                    id="agreement-attestation"
+                    value={attestation}
+                    onChange={(event) => setAttestation(event.target.value)}
+                    rows={3}
+                  />
+                  <Button
+                    type="button"
+                    disabled={attestation.trim().length < 8 || consentMutation.isPending}
+                    onClick={() => consentMutation.mutate(attestation.trim())}
+                  >
+                    Record My Consent
+                  </Button>
+                </>
+              )}
+              {(consentMutation.error || withdrawalMutation.error) && (
+                <p className="text-sm text-destructive" role="alert">
+                  {((consentMutation.error || withdrawalMutation.error) as Error).message}
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {data.ceremonies.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Governance Ceremonies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {data.ceremonies.map((ceremony) => (
+                <div key={ceremony.id} className="border border-border p-3 text-sm">
+                  <p className="font-medium capitalize">{ceremony.stage}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(ceremony.completed_at)}</p>
+                  {ceremony.evidence && <p className="mt-2 text-muted-foreground">{ceremony.evidence}</p>}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Full text */}
       {data.text && (

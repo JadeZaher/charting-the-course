@@ -22,7 +22,15 @@ export function useUpdateAgreement(id: string) {
 }
 export function useUpdateAgreementStatus(id: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (status: string) => api.updateAgreementStatus(id, status), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+  return useMutation({ mutationFn: (data: { status: string; evidence?: string }) => api.updateAgreementStatus(id, data), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+}
+export function useAttestAgreementConsent(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (attestation: string) => api.attestAgreementConsent(id, attestation), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+}
+export function useWithdrawAgreementConsent(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (reason: string) => api.withdrawAgreementConsent(id, reason), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
 }
 export function useRollbackAgreement(id: string) {
   const qc = useQueryClient();

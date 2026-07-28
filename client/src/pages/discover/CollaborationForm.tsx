@@ -13,9 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 
 const TIER_OPTIONS = [
-  { value: 'exploratory', label: 'Exploratory — early conversations' },
-  { value: 'formal', label: 'Formal — structured agreement' },
-  { value: 'deep', label: 'Deep — tight integration' },
+  { value: 'observe', label: 'Observe — learn before committing' },
+  { value: 'cooperate', label: 'Cooperate — coordinate a shared outcome' },
+  { value: 'federate', label: 'Federate — align governance across domains' },
+  { value: 'integrate', label: 'Integrate — operate as a tightly coupled partnership' },
 ];
 
 export default function CollaborationForm() {
@@ -30,7 +31,7 @@ export default function CollaborationForm() {
   const [targetDomainId, setTargetDomainId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [engagementTier, setEngagementTier] = useState('exploratory');
+  const [engagementTier, setEngagementTier] = useState('cooperate');
   const [terms, setTerms] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 

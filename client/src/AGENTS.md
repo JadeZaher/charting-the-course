@@ -56,3 +56,12 @@ URL handling is context-specific: use `lib/media.resolveMediaUrl` for raster ima
 Keep source comments terse and local. Put design rationale and cross-component decisions in this file or `design_guidelines.md`.
 
 Before handing off UI changes, verify keyboard navigation, focus, both resolved themes, reduced motion, narrow layouts, and representative empty/loading/error/data states. Run the repository's integrated lint/type/test sweep once after all related edits are complete.
+
+## Agreement participation ceremonies
+
+The agreement form declares whether individual consent is required, the
+participation scopes it gates, and the alignment credit. The detail view is the
+member-facing ceremony surface: it records personal attestation, shows consent
+progress, collects test evidence before activation, and permits a reasoned
+withdrawal. Keep its labels and select values aligned with the backend
+agreement vocabulary; presentation cannot bypass the API lifecycle.

@@ -1,5 +1,5 @@
 // Agreement lifecycle — single source of truth for status options + badge styling.
-// Mirrors agreements.py::_VALID_TRANSITIONS: draft -> advice -> consent -> test/active
+// Mirrors agreements.py::_VALID_TRANSITIONS: draft -> advice -> consent -> test
 // -> active -> under_review -> sunset/active -> archived. Keep in sync with that map.
 
 export const AGREEMENT_STATUSES = [
