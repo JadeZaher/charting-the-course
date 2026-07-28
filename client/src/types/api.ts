@@ -327,11 +327,16 @@ export interface MemberListItem {
   ecosystem_id: string;
   display_name: string;
   current_status: string;
+  role: 'user' | 'mod' | 'admin' | 'owner';
   profile: string | null;
   phone: string | null;
   profile_picture: string | null;
   onboarding_status: string | null;
   created_at: string;
+}
+
+export interface RoleUpdateRequest {
+  role: 'user' | 'mod' | 'admin' | 'owner';
 }
 
 export interface MemberDetail extends MemberListItem {
