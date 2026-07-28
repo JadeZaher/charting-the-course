@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchComplianceLatest, fetchComplianceHistory, generateCompliance } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,16 +9,6 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { Loader2, RefreshCw, CheckCircle2, AlertTriangle, XCircle, ClipboardList, ShieldCheck } from 'lucide-react';
 import type { ComplianceSummary } from '@/types/api';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
-
-async function complianceFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || res.statusText);
-  }
-  return res.json();
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,7 +51,46 @@ function ScoreBadge({ score }: { score: number | null | undefined }) {
   return <Badge className="border-destructive bg-destructive/10 text-destructive">Poor</Badge>;
 }
 
-function EmptyState({ onGenerate, isGenerating }: { onGenerate: () => void; isGenerating: boolean }) {
+// always-rendered auditor guidance: what the summary reads and how to run it
+function AuditRequirementsCard() {
+  const inputs = [
+    ['Agreements', 'Published, ratified agreement text and versions — the audit scores coverage against them.'],
+    ['Domains', 'Documented domains with purpose and status — scored under domain health.'],
+    ['Proposals', 'Current proposal activity — stale or stuck proposals surface as issues.'],
+    ['Open conflicts', 'Unresolved conflicts — factored into flagged issues.'],
+  ] as const;
+  const steps = [
+    'Publish and ratify the ecosystem\'s agreements; document its domains.',
+    'Bring proposals and conflicts up to date.',
+    'Select the ecosystem and choose Generate summary. Server synthesis can take a minute — the page updates when it completes.',
+    'Review the overall score, agreement coverage, domain health, and flagged issues with stewards.',
+    'Record follow-ups through a governance health audit (Safeguards) and re-generate after governance changes.',
+  ] as const;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">What a compliance audit needs</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <ul className="space-y-2 text-sm">
+          {inputs.map(([label, desc]) => (
+            <li key={label} className="flex items-start gap-2">
+              <ClipboardList className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <span><span className="font-medium">{label}:</span> {desc}</span>
+            </li>
+          ))}
+        </ul>
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+          {steps.map((s) => <li key={s}>{s}</li>)}
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyState({ onGenerate, isGenerating, errorMessage, generateError, onRetry }: {
+  onGenerate: () => void; isGenerating: boolean; errorMessage?: string; generateError?: string; onRetry: () => void;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
       <ClipboardList className="h-12 w-12 text-muted-foreground" />
@@ -68,9 +98,20 @@ function EmptyState({ onGenerate, isGenerating }: { onGenerate: () => void; isGe
       <p className="text-muted-foreground max-w-sm">
         Generate a compliance summary to see how your ecosystem is tracking against its governance agreements and domains.
       </p>
-      <Button onClick={onGenerate} disabled={isGenerating}>
+      {errorMessage && (
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive max-w-md" role="alert">
+          {errorMessage}
+          <Button onClick={onRetry} variant="outline" size="sm" className="ml-3 min-h-11">Retry</Button>
+        </div>
+      )}
+      {generateError && (
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive max-w-md" role="alert">
+          {generateError}
+        </div>
+      )}
+      <Button onClick={onGenerate} disabled={isGenerating} className="min-h-11">
         {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-        Generate Summary
+        {isGenerating ? 'Generating (can take a minute)...' : 'Generate Summary'}
       </Button>
     </div>
   );
@@ -87,27 +128,23 @@ export default function ComplianceDashboard() {
 
   const ecosystemId = selected?.id;
 
-  const { data: latest, isLoading, error } = useQuery<ComplianceSummary>({
+  // server scopes to the selected ecosystem cookie — no param needed
+  const { data: latest, isLoading, error, refetch } = useQuery<ComplianceSummary>({
     queryKey: ['compliance', 'latest', ecosystemId],
-    queryFn: () => complianceFetch<ComplianceSummary>(`/api/v1/compliance/latest?ecosystem_id=${ecosystemId}`),
+    queryFn: () => fetchComplianceLatest(),
     enabled: !!ecosystemId,
     retry: false,
   });
 
   const { data: history } = useQuery<ComplianceSummary[]>({
     queryKey: ['compliance', 'history', ecosystemId],
-    queryFn: () => complianceFetch<ComplianceSummary[]>(`/api/v1/compliance/history?ecosystem_id=${ecosystemId}`),
+    queryFn: () => fetchComplianceHistory({ per_page: '25' }).then(r => r.items),
     enabled: !!ecosystemId && historyOpen,
     retry: false,
   });
 
   const generateMutation = useMutation({
-    mutationFn: () =>
-      complianceFetch<ComplianceSummary>('/api/v1/compliance/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ecosystem_id: ecosystemId }),
-      }),
+    mutationFn: () => generateCompliance(ecosystemId ? { ecosystem_id: ecosystemId } : undefined),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compliance', 'latest', ecosystemId] });
       qc.invalidateQueries({ queryKey: ['compliance', 'history', ecosystemId] });
@@ -137,11 +174,19 @@ export default function ComplianceDashboard() {
   const issueList = extractIssueList(latest?.flagged_issues ?? null);
 
   if (!hasData) {
+    const latestError = error && !(error as Error).message?.toLowerCase().includes('no compliance summary')
+      ? (error as Error).message : undefined;
     return (
-      <EmptyState
-        onGenerate={() => generateMutation.mutate()}
-        isGenerating={generateMutation.isPending}
-      />
+      <div className="space-y-6">
+        <EmptyState
+          onGenerate={() => generateMutation.mutate()}
+          isGenerating={generateMutation.isPending}
+          errorMessage={latestError}
+          generateError={generateMutation.isError ? (generateMutation.error?.message || 'Generation failed — the server may still be processing; retry shortly.') : undefined}
+          onRetry={() => refetch()}
+        />
+        <AuditRequirementsCard />
+      </div>
     );
   }
 
@@ -341,6 +386,8 @@ export default function ComplianceDashboard() {
           </Card>
         )}
       </div>
+
+      <AuditRequirementsCard />
 
       {/* Version fingerprint */}
       {latest.version_fingerprint && (

@@ -531,15 +531,20 @@ export function activateCollaboration(id: string): Promise<Collaboration> {
 }
 
 // Compliance API
-export function fetchComplianceLatest(): Promise<ComplianceSummary> {
-  return apiFetch<ComplianceSummary>('/api/v1/compliance/latest');
+export function fetchComplianceLatest(params?: Record<string, string>): Promise<ComplianceSummary> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<ComplianceSummary>(`/api/v1/compliance/latest${qs}`);
 }
 export function fetchComplianceHistory(params?: Record<string, string>): Promise<PaginatedResponse<ComplianceSummary>> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch<PaginatedResponse<ComplianceSummary>>(`/api/v1/compliance/history${qs}`);
 }
-export function generateCompliance(): Promise<ComplianceSummary> {
-  return apiFetch<ComplianceSummary>('/api/v1/compliance/generate', { method: 'POST' });
+export function generateCompliance(data?: Record<string, unknown>): Promise<ComplianceSummary> {
+  return apiFetch<ComplianceSummary>('/api/v1/compliance/generate', {
+    method: 'POST',
+    headers: data ? { 'Content-Type': 'application/json' } : undefined,
+    body: data ? JSON.stringify(data) : undefined,
+  });
 }
 
 // Orientation API

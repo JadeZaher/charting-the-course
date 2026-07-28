@@ -131,7 +131,8 @@ export default function SafeguardsDashboard() {
     );
   }
 
-  const healthScore = data?.health_score ?? 0;
+  // null when no audits exist — never render a fabricated 0
+  const healthScore = data?.health_score ?? null;
   const latestAudit = data?.latest_audit;
   const recentAudits = data?.recent_audits ?? [];
   const indicatorScores = data?.indicator_scores ?? latestAudit?.indicator_scores ?? [];
@@ -178,6 +179,11 @@ export default function SafeguardsDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {healthScore === null ? (
+            <p className="text-sm text-muted-foreground">
+              No governance audit data yet — request your first audit to compute a health score.
+            </p>
+          ) : (
           <div className="flex items-center gap-4">
             <div>
               <div className="text-4xl font-bold">
@@ -199,12 +205,16 @@ export default function SafeguardsDashboard() {
               </Badge>
             )}
           </div>
+          )}
         </CardContent>
       </Card>
 
       {/* GHI Indicator Cards */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Governance Health Indicators</h2>
+        <h2 className="text-lg font-semibold">Governance Health Indicators</h2>
+        <p className="text-sm text-muted-foreground mb-3">
+          Standard GHI thresholds; scores appear after the first completed audit.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {GHI_INDICATORS.map((indicator) => (
             <IndicatorCard

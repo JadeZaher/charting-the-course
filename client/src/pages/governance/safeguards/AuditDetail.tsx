@@ -54,18 +54,22 @@ const TRIGGER_TYPE_LABELS: Record<string, string> = {
 export default function AuditDetail() {
   const [, params] = useRoute('/safeguards/audits/:id');
   const id = params?.id ?? '';
-  const { data, isLoading, error } = useAudit(id);
+  const { data, isLoading, error, refetch } = useAudit(id);
 
   if (isLoading) return <LoadingState message="Loading audit..." />;
 
   if (error || !data) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 space-y-2">
         <p className="text-destructive">Failed to load audit</p>
         <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Button asChild variant="outline" className="mt-4">
-          <Link href="/safeguards/audits">Back to Audits</Link>
-        </Button>
+        <p className="text-xs text-muted-foreground">The audit may belong to an ecosystem outside your current selection.</p>
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <Button variant="outline" onClick={() => refetch()} className="min-h-11">Retry</Button>
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href="/safeguards/audits">Back to Audits</Link>
+          </Button>
+        </div>
       </div>
     );
   }
