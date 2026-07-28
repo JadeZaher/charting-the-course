@@ -10,12 +10,6 @@ interface Props {
   featured?: boolean;
 }
 
-function alignmentTone(score: number) {
-  if (score >= 70) return 'text-success';
-  if (score >= 40) return 'text-warning';
-  return 'text-muted-foreground';
-}
-
 export function EthosCard({ ethos, featured = false }: Props) {
   const imageUrl = resolveMediaUrl(ethos.image_url);
   const description = ethos.tagline ?? ethos.description;
@@ -62,14 +56,8 @@ export function EthosCard({ ethos, featured = false }: Props) {
               </Link>
             </h3>
           </div>
-          {ethos.alignment_score !== undefined && (
-            <div className="shrink-0 text-right">
-              <p className={`text-2xl font-black tabular-nums ${alignmentTone(ethos.alignment_score)}`}>
-                {ethos.alignment_score}%
-              </p>
-              <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">Aligned</p>
-            </div>
-          )}
+          {/* raw score suppressed until coverage/versioned matching ships — guide §8 foundation */}
+          <p className="shrink-0 text-xs text-muted-foreground">Fit estimate — not yet calculated</p>
         </div>
 
         {description && (
