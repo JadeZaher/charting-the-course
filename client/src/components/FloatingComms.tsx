@@ -65,9 +65,9 @@ export function FloatingComms() {
   const { data: convData } = useConversations();
   const totalUnread = (convData?.conversations || []).reduce((sum, c) => sum + c.unread_count, 0);
 
-  // Hide on comms page where full messaging + agent are available
-  const isCommsPage = window.location.pathname.startsWith('/comms');
-  if (isCommsPage) return null;
+  // Hide on the messaging page where full messaging + agent are available
+  const isMessagingPage = window.location.pathname.startsWith('/messaging');
+  if (isMessagingPage) return null;
 
   return (
     <div className={cn('fixed z-50 flex flex-col items-end gap-3', isMobile ? 'bottom-4 right-4' : 'bottom-6 right-6')}>
