@@ -17,7 +17,7 @@ export function useSkills(layer?: number) {
 }
 
 export function useDashboardSummary(selectedEcosystemIds: readonly string[]) {
-  const ecosystemIds = [...new Set(selectedEcosystemIds)].sort();
+  const ecosystemIds = Array.from(new Set(selectedEcosystemIds)).sort();
 
   return useQuery({
     queryKey: ['dashboard', 'summary', ecosystemIds],

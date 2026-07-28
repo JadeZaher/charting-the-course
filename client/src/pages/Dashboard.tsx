@@ -96,7 +96,7 @@ export default function Dashboard() {
   const { member } = useAuth();
   const { selected, selectedIds, ecosystems, isAll, isMulti } = useEcosystem();
   const { canManageContent } = usePermissions();
-  const ecosystemIds = [...new Set(selectedIds)].sort();
+  const ecosystemIds = Array.from(new Set(selectedIds)).sort();
   const ecosystemScope = ecosystemIds.join(',');
   const summaryQuery = useDashboardSummary(ecosystemIds);
   const adviceQuery = useProposals(ecosystemScope ? { phase: 'advice', ecosystem_ids: ecosystemScope } : false);
@@ -133,6 +133,8 @@ export default function Dashboard() {
     ...(adviceQuery.data?.items ?? []).map((proposal) => ({ ...proposal, phase: 'Advice' })),
     ...(consentQuery.data?.items ?? []).map((proposal) => ({ ...proposal, phase: 'Consent' })),
   ];
+  const pendingActionCount =
+    (adviceQuery.data?.total ?? 0) + (consentQuery.data?.total ?? 0);
 
   const quickActions = [
     { label: 'Draft proposal', detail: 'Open a governance change', href: '/proposals/new' },
@@ -224,8 +226,8 @@ export default function Dashboard() {
               <p className="text-xs font-black uppercase tracking-[0.18em] text-warning">02 / Decision queue</p>
               <h2 id="attention-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Needs your attention.</h2>
             </div>
-            <span className="text-4xl font-black tabular-nums" aria-label={`${pendingActions.length} pending actions`}>
-              {pendingActions.length}
+            <span className="text-4xl font-black tabular-nums" aria-label={`${pendingActionCount} pending actions`}>
+              {pendingActionCount}
             </span>
           </div>
 
