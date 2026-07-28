@@ -11,6 +11,7 @@ import { resolveExternalUrl, resolveMediaUrl } from '@/lib/media';
 import type { DiscoverEcosystem } from '@/types/api';
 import SharesNeedsList from './SharesNeedsList';
 import CollaborationsList from './CollaborationsList';
+import SolutionsCatalogue from './SolutionsCatalogue';
 
 function formatFoundedDate(value: string | null) {
   if (!value) return null;
@@ -214,14 +215,17 @@ export default function DiscoverHub() {
           />
         </div>
         <p className="text-sm leading-6 text-muted-foreground lg:col-span-4">
-          Search applies to the active index. Switch views to move from organizations to resources or working relationships.
+          Search applies to the active index. Switch views to move across organizations, your portfolio, resources, and working relationships.
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid h-auto w-full grid-cols-1 rounded-none border-2 border-strong-border bg-transparent p-0 sm:grid-cols-3">
+        <TabsList className="grid h-auto w-full grid-cols-1 rounded-none border-2 border-strong-border bg-transparent p-0 sm:grid-cols-4">
           <TabsTrigger value="ecosystems" className="min-h-12 rounded-none border-b border-border px-4 font-black uppercase tracking-[0.12em] sm:border-b-0 sm:border-r">
             Ecosystems
+          </TabsTrigger>
+          <TabsTrigger value="solutions" className="min-h-12 rounded-none border-b border-border px-4 font-black uppercase tracking-[0.12em] sm:border-b-0 sm:border-r">
+            Solutions
           </TabsTrigger>
           <TabsTrigger value="shares-needs" className="min-h-12 rounded-none border-b border-border px-4 font-black uppercase tracking-[0.12em] sm:border-b-0 sm:border-r">
             Shares + needs
@@ -233,6 +237,13 @@ export default function DiscoverHub() {
 
         <TabsContent value="ecosystems" className="mt-8">
           <EcosystemsTab search={search} />
+        </TabsContent>
+        <TabsContent value="solutions" className="mt-8">
+          <SolutionsCatalogue
+            search={search}
+            onBrowseEcosystems={() => setActiveTab('ecosystems')}
+            onBrowseExchanges={() => setActiveTab('shares-needs')}
+          />
         </TabsContent>
         <TabsContent value="shares-needs" className="mt-8">
           <SharesNeedsList searchProp={search} />
