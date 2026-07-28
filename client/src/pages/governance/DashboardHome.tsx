@@ -72,8 +72,8 @@ function ActivityFeedItem({ item }: { item: ActivityItem }) {
 }
 
 export default function GovernanceDashboard() {
-  const { data, isLoading, error } = useDashboardSummary();
-  const { selected } = useEcosystem();
+  const { selected, selectedIds } = useEcosystem();
+  const { data, isLoading, error } = useDashboardSummary(selectedIds);
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
 
   if (isLoading) return <LoadingState message="Loading dashboard..." />;

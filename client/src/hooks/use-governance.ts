@@ -30,8 +30,8 @@ export function useRollbackAgreement(id: string) {
 }
 
 // Proposal hooks
-export function useProposals(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['proposals', params], queryFn: () => api.fetchProposals(params), staleTime: 30_000 });
+export function useProposals(params?: Record<string, string> | false) {
+  return useQuery({ queryKey: ['proposals', params], queryFn: () => api.fetchProposals(params || undefined), enabled: params !== false, staleTime: 30_000 });
 }
 export function useProposal(id: string) {
   return useQuery({ queryKey: ['proposals', id], queryFn: () => api.fetchProposal(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });

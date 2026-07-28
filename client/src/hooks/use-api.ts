@@ -16,10 +16,13 @@ export function useSkills(layer?: number) {
   });
 }
 
-export function useDashboardSummary() {
+export function useDashboardSummary(selectedEcosystemIds: readonly string[]) {
+  const ecosystemIds = [...new Set(selectedEcosystemIds)].sort();
+
   return useQuery({
-    queryKey: ['dashboard', 'summary'],
-    queryFn: fetchDashboardSummary,
+    queryKey: ['dashboard', 'summary', ecosystemIds],
+    queryFn: () => fetchDashboardSummary(ecosystemIds),
+    enabled: ecosystemIds.length > 0,
     staleTime: 30_000,
   });
 }
