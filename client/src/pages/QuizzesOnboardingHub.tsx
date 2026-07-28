@@ -158,16 +158,16 @@ export default function QuizzesOnboardingHub() {
             />
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {quizzesLoading ? (
-              <Card>
+              <Card className="col-span-full">
                 <CardContent className="p-12 text-center">
                   <p className="text-muted-foreground">Loading quizzes...</p>
                 </CardContent>
               </Card>
             ) : filteredRegular.length > 0 ? (
               filteredRegular.map((quiz) => (
-                <Card key={quiz.id}>
+                <Card key={quiz.id} className="h-full">
                   <CardHeader>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -207,7 +207,7 @@ export default function QuizzesOnboardingHub() {
                 </Card>
               ))
             ) : (
-              <Card>
+              <Card className="col-span-full">
                 <CardContent className="p-12 text-center">
                   <p className="text-muted-foreground">
                     {searchQuery ? "No quizzes match your search" : "No quizzes available yet."}
@@ -222,16 +222,16 @@ export default function QuizzesOnboardingHub() {
           <p className="text-sm text-muted-foreground">
             Entry quizzes are required to join or participate in specific ecosystems or domains.
           </p>
-          <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {quizzesLoading ? (
-              <Card>
+              <Card className="col-span-full">
                 <CardContent className="p-12 text-center">
                   <p className="text-muted-foreground">Loading entry quizzes...</p>
                 </CardContent>
               </Card>
             ) : entryQuizzes.length > 0 ? (
               entryQuizzes.map((quiz) => (
-                <Card key={quiz.id}>
+                <Card key={quiz.id} className="h-full">
                   <CardHeader>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -272,7 +272,7 @@ export default function QuizzesOnboardingHub() {
                 </Card>
               ))
             ) : (
-              <Card>
+              <Card className="col-span-full">
                 <CardContent className="p-12 text-center">
                   <p className="text-muted-foreground">No entry quizzes available.</p>
                 </CardContent>
@@ -294,16 +294,16 @@ export default function QuizzesOnboardingHub() {
             </Button>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {onboardingLoading ? (
-              <Card>
+              <Card className="col-span-full">
                 <CardContent className="p-12 text-center">
                   <p className="text-muted-foreground">Loading onboarding data...</p>
                 </CardContent>
               </Card>
             ) : onboardings && onboardings.length > 0 ? (
               onboardings.slice(0, 10).map((o) => (
-                <Card key={o.member_id}>
+                <Card key={o.member_id} className="h-full">
                   <CardHeader className="py-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -330,7 +330,7 @@ export default function QuizzesOnboardingHub() {
                 </Card>
               ))
             ) : (
-              <Card>
+              <Card className="col-span-full">
                 <CardContent className="p-12 text-center">
                   <p className="text-muted-foreground">No onboarding processes found.</p>
                 </CardContent>

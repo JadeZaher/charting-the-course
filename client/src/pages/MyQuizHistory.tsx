@@ -119,11 +119,11 @@ export default function MyQuizHistory() {
           {isLoading ? (
             <p className="text-muted-foreground text-center py-8">Loading your quiz history...</p>
           ) : displayedResults && displayedResults.length > 0 ? (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {displayedResults.map((result) => (
-                <Link key={result.id} href={`/quiz/results/${result.id}`}>
+                <Link key={result.id} href={`/quiz/results/${result.id}`} className="block h-full">
                   <div
-                    className="flex cursor-pointer items-center justify-between border border-strong-border p-5 transition-colors hover:bg-muted/50 motion-reduce:transition-none"
+                    className="flex h-full cursor-pointer items-center justify-between border-2 border-strong-border bg-card p-5 transition-colors hover:bg-muted/50 motion-reduce:transition-none"
                     data-testid={`quiz-result-${result.id}`}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -191,7 +191,7 @@ export default function MyQuizHistory() {
               {hasMore && (
                 <Button 
                   variant="outline" 
-                  className="w-full mt-4"
+                  className="col-span-full mt-4 w-full"
                   onClick={() => setShowAll(true)}
                   data-testid="button-show-all"
                 >

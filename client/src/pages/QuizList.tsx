@@ -80,16 +80,16 @@ export default function QuizList() {
         />
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {isLoading ? (
-          <Card>
+          <Card className="col-span-full">
             <CardContent className="p-12 text-center">
               <p className="text-muted-foreground">Loading quizzes...</p>
             </CardContent>
           </Card>
         ) : filteredQuizzes && filteredQuizzes.length > 0 ? (
           filteredQuizzes.map((quiz) => (
-            <Card key={quiz.id} data-testid={`card-quiz-${quiz.id}`}>
+            <Card key={quiz.id} className="h-full" data-testid={`card-quiz-${quiz.id}`}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -137,14 +137,14 @@ export default function QuizList() {
             </Card>
           ))
         ) : error ? (
-          <Card>
+          <Card className="col-span-full">
             <CardContent className="p-12 text-center">
               <p className="text-destructive font-medium mb-2">Failed to load quizzes</p>
               <p className="text-muted-foreground text-sm">{(error as Error).message}</p>
             </CardContent>
           </Card>
         ) : (
-          <Card>
+          <Card className="col-span-full">
             <CardContent className="p-12 text-center">
               <p className="text-muted-foreground">
                 {searchQuery
