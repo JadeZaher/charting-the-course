@@ -89,8 +89,8 @@ export function useMemberOnboarding(memberId: string) {
 }
 
 // Domain hooks
-export function useDomains(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['domains', params], queryFn: () => api.fetchDomains(params), staleTime: 30_000 });
+export function useDomains(params?: Record<string, string> | false) {
+  return useQuery({ queryKey: ['domains', params], queryFn: () => api.fetchDomains(params || undefined), enabled: params !== false, staleTime: 30_000 });
 }
 export function useDomain(id: string) {
   return useQuery({ queryKey: ['domains', id], queryFn: () => api.fetchDomain(id), enabled: !!id, staleTime: 30_000 });

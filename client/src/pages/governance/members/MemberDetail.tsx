@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMemberProfile } from '@/lib/api-client';
-import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield } from 'lucide-react';
+import { useDomains } from '@/hooks/use-governance';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield, Network, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toStringList } from '@/lib/utils';
 
@@ -29,6 +31,10 @@ export default function MemberDetail() {
     enabled: !!id,
   });
 
+  const ecosystemName = useEcosystemName();
+  const { data: domainsData } = useDomains(data?.ecosystem_id ? { ecosystem_id: data.ecosystem_id } : false);
+  const domains = domainsData?.items ?? [];
+
   if (isLoading) return <LoadingState message="Loading member profile..." />;
 
   if (error || !data) {
@@ -45,6 +51,8 @@ export default function MemberDetail() {
 
   const quiz = data.quiz_summary;
   const completionPct = quiz.total_available > 0 ? Math.round((quiz.completed / quiz.total_available) * 100) : 0;
+  // steward representation unverified — match id, member_id, or display name
+  const stewarded = domains.filter(d => d.current_steward && [data.id, data.member_id, data.display_name].includes(d.current_steward));
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -113,13 +121,78 @@ export default function MemberDetail() {
               <dt className="text-muted-foreground">Last Updated</dt>
               <dd className="font-medium">{new Date(data.updated_at).toLocaleDateString()}</dd>
             </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      {/* Ecosystems */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Network className="h-5 w-5" />
+            Ecosystems
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt className="text-muted-foreground">Primary</dt>
+              <dd className="font-medium">{ecosystemName(data.ecosystem_id) ?? data.ecosystem_id}</dd>
+            </div>
+          </dl>
+          {data.shared_ecosystem_ids && data.shared_ecosystem_ids.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {data.shared_ecosystem_ids.map((ecoId) => (
+                <Badge key={ecoId} variant="outline">{ecosystemName(ecoId) ?? ecoId}</Badge>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">Per-ecosystem role tiers arrive with the role model (H4).</p>
+        </CardContent>
+      </Card>
+
+      {/* Domains Stewarded */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Domains Stewarded</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stewarded.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {stewarded.map((d) => (
+                <Link key={d.id} href={`/domains/${d.id}`} className="inline-flex items-center min-h-11">
+                  <Badge variant="outline">{d.domain_id ?? d.id}</Badge>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No domains stewarded.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             {data.last_governance_activity_date && (
               <div>
-                <dt className="text-muted-foreground">Last Governance Activity</dt>
+                <dt className="text-muted-foreground">Last governance activity</dt>
                 <dd className="font-medium">{new Date(data.last_governance_activity_date).toLocaleDateString()}</dd>
               </div>
             )}
+            <div>
+              <dt className="text-muted-foreground">Member since</dt>
+              <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
+            </div>
           </dl>
+          <p className="text-xs text-muted-foreground">Full activity timeline — pending backend.</p>
         </CardContent>
       </Card>
 

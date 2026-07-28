@@ -82,9 +82,13 @@ export default function MemberList() {
             <Link href={`/members/${m.id}`} aria-label={`View member: ${m.display_name}`}>
               <div className="flex items-start justify-between gap-3">
                 <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Member</p><h2 className="mt-1 text-lg font-semibold">{m.display_name}</h2></div>
-                <Badge variant={statusVariant(m.current_status)}>{m.current_status}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={statusVariant(m.current_status)}>{m.current_status}</Badge>
+                  {m.onboarding_status && <Badge variant="outline">{m.onboarding_status}</Badge>}
+                </div>
               </div>
               <div className="mt-4"><Badge variant="outline">{m.profile || 'No profile'}</Badge></div>
+              <p className="mt-2 text-xs text-muted-foreground">Joined {new Date(m.created_at).toLocaleDateString()}</p>
               <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm">
                 <div><dt className="text-xs text-muted-foreground">Member ID</dt><dd className="mt-1 font-medium">{m.member_id}</dd></div>
                 <div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(m.created_at).toLocaleDateString()}</dd></div>
