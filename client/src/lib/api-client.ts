@@ -107,8 +107,9 @@ export function fetchOAuthProviders(): Promise<{ providers: OAuthProvider[] }> {
   return apiFetch<{ providers: OAuthProvider[] }>('/api/v1/auth/oauth/providers');
 }
 
-export function getOAuthUrl(provider: string): Promise<{ url: string }> {
-  return apiFetch<{ url: string }>(`/api/v1/auth/oauth/${provider}`);
+export function getOAuthUrl(provider: string, frontendOrigin: string): Promise<{ url: string }> {
+  const params = new URLSearchParams({ origin: frontendOrigin });
+  return apiFetch<{ url: string }>(`/api/v1/auth/oauth/${encodeURIComponent(provider)}?${params}`);
 }
 
 // Ecosystem API

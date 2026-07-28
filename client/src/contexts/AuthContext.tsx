@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithOAuth = useCallback(async (provider: string) => {
     setError(null);
     try {
-      const { url } = await getOAuthUrl(provider);
+      const { url } = await getOAuthUrl(provider, window.location.origin);
       const safeUrl = resolveExternalUrl(url);
       if (!safeUrl) throw new Error('OAuth provider returned an invalid URL');
       // Redirect to OAuth provider — callback will set cookie and redirect back

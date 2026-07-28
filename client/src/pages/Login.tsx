@@ -52,6 +52,7 @@ export default function Login() {
       const messages: Record<string, string> = {
         oauth_denied: "OAuth sign-in was cancelled.",
         oauth_failed: "OAuth sign-in failed. Please try again.",
+        oauth_state_invalid: "OAuth sign-in expired or was invalid. Please try again.",
         unknown_provider: "Unknown OAuth provider.",
         no_ecosystem: "No ecosystem configured on the server.",
       };
