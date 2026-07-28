@@ -354,6 +354,102 @@ export interface MemberProfileResponse extends MemberDetail {
   tags: UserTagItem[];
 }
 
+export interface PublicProfileProject {
+  id: string;
+  name: string;
+  description: string | null;
+  url: string | null;
+  role: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface PublicProfileDomain {
+  id: string;
+  domain_id: string;
+  purpose: string | null;
+  role: string;
+  status: string;
+  joined_date: string | null;
+  member_id: string;
+  ecosystem: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface PublicProfileMembership {
+  id: string;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+  location: string | null;
+  website: string | null;
+  membership: {
+    id: string;
+    member_id: string;
+    status: string;
+    profile: string | null;
+    skills_offered: string[] | Record<string, unknown> | null;
+    skills_needed: string[] | Record<string, unknown> | null;
+    interests: string[] | Record<string, unknown> | null;
+    created_at: string;
+  };
+}
+
+export interface PublicProfileQuizAttempt {
+  id: string;
+  score: number | null;
+  is_passed: boolean | null;
+  time_spent: number | null;
+  result_metadata: Record<string, unknown> | null;
+  completed_at: string | null;
+}
+
+export interface PublicProfileQuizResult {
+  quiz: {
+    id: string;
+    title: string;
+    description: string | null;
+    mode: string;
+  };
+  domain: {
+    id: string;
+    domain_id: string;
+    purpose: string | null;
+  } | null;
+  ecosystem: {
+    id: string;
+    name: string;
+  } | null;
+  results: PublicProfileQuizAttempt[];
+}
+
+export interface PublicProfileResponse {
+  profile: {
+    id: string;
+    username: string | null;
+    display_name: string;
+    profile_picture: string | null;
+    headline: string | null;
+    bio: string | null;
+    location: string | null;
+    website: string | null;
+    social_links: Record<string, string>;
+    skills: string[];
+    interests: string[];
+    projects: PublicProfileProject[];
+    created_at: string;
+  };
+  ecosystems: PublicProfileMembership[];
+  domains: PublicProfileDomain[];
+  quiz_results: PublicProfileQuizResult[];
+  badges: (UserBadgeItem & { member_id: string })[];
+  tags: (UserTagItem & { member_id: string })[];
+  publications: SharesNeeds[];
+  is_owner: boolean;
+}
+
 export interface OnboardingSectionPosition {
   consented: boolean;
   position: string | null;
@@ -624,7 +720,11 @@ export interface SharesNeeds {
   id: string;
   ecosystem_id: string;
   domain_id: string;
-  type: 'share' | 'need';
+  author_member_id: string | null;
+  author_user_id?: string | null;
+  author_name?: string | null;
+  author_username?: string | null;
+  type: 'share' | 'need' | 'solution';
   title: string;
   description: string | null;
   category: string | null;

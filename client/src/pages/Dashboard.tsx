@@ -96,9 +96,11 @@ export default function Dashboard() {
   const { member } = useAuth();
   const { selected, selectedIds, ecosystems, isAll, isMulti } = useEcosystem();
   const { canManageContent } = usePermissions();
-  const summaryQuery = useDashboardSummary();
-  const adviceQuery = useProposals({ status: 'advice' });
-  const consentQuery = useProposals({ status: 'consent' });
+  const ecosystemIds = [...new Set(selectedIds)].sort();
+  const ecosystemScope = ecosystemIds.join(',');
+  const summaryQuery = useDashboardSummary(ecosystemIds);
+  const adviceQuery = useProposals(ecosystemScope ? { phase: 'advice', ecosystem_ids: ecosystemScope } : false);
+  const consentQuery = useProposals(ecosystemScope ? { phase: 'consent', ecosystem_ids: ecosystemScope } : false);
   const scopedEcosystem = selectedIds.length === 1 ? selected : null;
 
   const sharesNeedsQuery = useQuery({
@@ -115,6 +117,7 @@ export default function Dashboard() {
   const sharesNeeds = sharesNeedsQuery.data?.items ?? [];
   const sharesCount = sharesNeeds.filter((item) => item.type === 'share').length;
   const needsCount = sharesNeeds.filter((item) => item.type === 'need').length;
+  const solutionsCount = sharesNeeds.filter((item) => item.type === 'solution').length;
   const quizCount = quizzesQuery.data?.quizzes?.length ?? 0;
   const statCards = summaryQuery.data?.cards ?? [];
   const recentActivity = summaryQuery.data?.activity ?? [];
@@ -291,19 +294,20 @@ export default function Dashboard() {
           {!scopedEcosystem ? (
             <div className="p-8 sm:p-10">
               <p className="text-xl font-black tracking-tight">Narrow the lens to one ecosystem.</p>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Shares, needs, and quizzes are local records. Select one ecosystem in the header to inspect them without mixing contexts.</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Shares, needs, solutions, and quizzes are local records. Select one ecosystem in the header to inspect them without mixing contexts.</p>
             </div>
           ) : sharesNeedsQuery.isLoading || quizzesQuery.isLoading ? (
-            <div className="grid gap-px bg-border sm:grid-cols-3" aria-label="Loading ecosystem activity">
-              {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-44 rounded-none" />)}
+            <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading ecosystem activity">
+              {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-44 rounded-none" />)}
             </div>
           ) : sharesNeedsQuery.error || quizzesQuery.error ? (
             <div className="p-8" role="alert"><p className="font-bold text-destructive">Local ecosystem activity could not be loaded.</p></div>
           ) : (
-            <div className="grid gap-px bg-border sm:grid-cols-3">
+            <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: 'Shares', value: sharesCount, detail: 'Resources offered', href: '/discover' },
                 { label: 'Needs', value: needsCount, detail: 'Requests in the network', href: '/discover' },
+                { label: 'Solutions', value: solutionsCount, detail: 'Published approaches', href: '/discover' },
                 { label: 'Quizzes', value: quizCount, detail: 'Learning pathways', href: '/quizzes' },
               ].map((item) => (
                 <Link key={item.label} href={item.href} className="group min-h-44 bg-card p-6 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

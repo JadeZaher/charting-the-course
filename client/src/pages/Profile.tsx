@@ -1,1039 +1,774 @@
-import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Award,
+  BriefcaseBusiness,
+  Check,
+  Clipboard,
+  ExternalLink,
+  GraduationCap,
+  Loader2,
+  MapPin,
+  Network,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { RoleBadge } from "@/components/RoleBadge";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Edit, Save, X, CheckCircle, Clock, FileText, Loader2 as LoaderIcon,
-  Lock, Eye, EyeOff, Copy, Link2, Share2, Sparkles
-} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { fetchMemberProfile, updateMember } from "@/lib/api-client";
-import jsPDF from "jspdf";
-import { TileGrid, ProfileTile } from "@/components/profile/tiles";
-import { DIMENSION_CONFIGS, getDimensionConfig } from "@/lib/dimensions";
+import { fetchMyPublicProfile, updateMyPublicProfile } from "@/lib/api-client";
+import { resolveMediaUrl } from "@/lib/media";
+import type { PublicProfileProject, PublicProfileResponse, SharesNeeds } from "@/types/api";
 
-interface ProfileDimensions {
-  [key: string]: any;
+interface ProfileForm {
+  displayName: string;
+  username: string;
+  headline: string;
+  bio: string;
+  location: string;
+  website: string;
+  profilePicture: string;
+  linkedin: string;
+  github: string;
+  skills: string;
+  interests: string;
 }
 
-interface UserPrivacySettings {
-  isProfilePublic?: boolean;
-  showBadges?: boolean;
-  showTags?: boolean;
-  showQuizResults?: boolean;
-  allowDiscovery?: boolean;
-  sharedDimensions?: string[];
+const EMPTY_FORM: ProfileForm = {
+  displayName: "",
+  username: "",
+  headline: "",
+  bio: "",
+  location: "",
+  website: "",
+  profilePicture: "",
+  linkedin: "",
+  github: "",
+  skills: "",
+  interests: "",
+};
+
+function splitList(value: string) {
+  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
 }
 
+function newProject(): PublicProfileProject {
+  return {
+    id:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `project-${Date.now()}`,
+    name: "",
+    description: null,
+    url: null,
+    role: null,
+    started_at: null,
+    ended_at: null,
+  };
+}
+
+function publicationLabel(type: SharesNeeds["type"]) {
+  if (type === "share") return "Share";
+  if (type === "need") return "Need";
+  return "Solution";
+}
 
 export default function Profile() {
-  const { member } = useAuth();
-  const { legacyRole } = usePermissions();
-  const role = legacyRole || 'viewer';
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [bio, setBio] = useState("");
   const { toast } = useToast();
+  const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
+  const [projects, setProjects] = useState<PublicProfileProject[]>([]);
+  const [copied, setCopied] = useState(false);
 
-  // Location form state
-  const [isEditingLocation, setIsEditingLocation] = useState(false);
-  const [locationForm, setLocationForm] = useState({
-    continentsVisited: [] as string[],
-    travelFrequency: "",
-    travelMotivation: [] as string[],
-    locationPrivacy: "",
-    identitySensitivity: "",
-    meetupPreferences: [] as string[],
-    communityActivities: [] as string[],
+  const { data, isLoading, error } = useQuery<PublicProfileResponse>({
+    queryKey: ["my-public-profile"],
+    queryFn: fetchMyPublicProfile,
   });
 
-  // Contact form state
-  const [isEditingContact, setIsEditingContact] = useState(false);
-  const [contactForm, setContactForm] = useState({
-    preferredMethods: [] as string[],
-    communicationStyle: "",
-    responseTime: "",
-    energizingMethods: [] as string[],
-    drainingMethods: [] as string[],
-    boundaries: [] as string[],
-    privacyLevel: "",
-  });
+  useEffect(() => {
+    if (!data) return;
+    setForm({
+      displayName: data.profile.display_name,
+      username: data.profile.username ?? "",
+      headline: data.profile.headline ?? "",
+      bio: data.profile.bio ?? "",
+      location: data.profile.location ?? "",
+      website: data.profile.website ?? "",
+      profilePicture: data.profile.profile_picture ?? "",
+      linkedin: data.profile.social_links.linkedin ?? "",
+      github: data.profile.social_links.github ?? "",
+      skills: data.profile.skills.join(", "),
+      interests: data.profile.interests.join(", "),
+    });
+    setProjects(data.profile.projects);
+  }, [data]);
 
-
-  // Fetch profile tiles — TODO: add /api/v1/members/:id/tiles endpoint to Sanic API
-  const { data: profileTiles = [], isLoading: isLoadingTiles } = useQuery<ProfileTile[]>({
-    queryKey: ['profile-tiles', member?.id],
-    queryFn: async () => {
-      // TODO: Replace with Sanic API endpoint when profile tiles endpoint is implemented
-      return [] as ProfileTile[];
+  const updateProfile = useMutation({
+    mutationFn: updateMyPublicProfile,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["my-public-profile"], updated);
+      queryClient.invalidateQueries({ queryKey: ["public-profile"] });
+      toast({
+        title: "Public profile saved",
+        description: "Your changes are now visible to other users.",
+      });
     },
-    enabled: !!member?.id,
-  });
-
-  // Toggle tile visibility mutation — TODO: implement when tiles endpoint exists
-  const toggleTileVisibilityMutation = useMutation({
-    mutationFn: async (_params: { tileId: string; isVisible: boolean }) => {
-      // TODO: Replace with Sanic API endpoint when profile tiles endpoint is implemented
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile-tiles'] });
+    onError: (updateError: Error) => {
+      toast({
+        title: "Profile could not be saved",
+        description: updateError.message,
+        variant: "destructive",
+      });
     },
   });
 
-  const handleToggleTileVisibility = (tileId: string, isVisible: boolean) => {
-    toggleTileVisibilityMutation.mutate({ tileId, isVisible });
-  };
+  const domainsByEcosystem = useMemo(() => {
+    const grouped = new Map<string, PublicProfileResponse["domains"]>();
+    for (const domain of data?.domains ?? []) {
+      const domains = grouped.get(domain.ecosystem.id) ?? [];
+      domains.push(domain);
+      grouped.set(domain.ecosystem.id, domains);
+    }
+    return grouped;
+  }, [data]);
 
-  const { data: profileData, isLoading: isLoadingProfile } = useQuery({
-    queryKey: ['my-profile-data', member?.id],
-    queryFn: () => fetchMemberProfile(member!.id),
-    enabled: !!member?.id,
-  });
+  const completedQuizCount = data?.quiz_results.reduce(
+    (total, group) => total + group.results.length,
+    0,
+  ) ?? 0;
 
-  const quizSummary = profileData?.quiz_summary;
-  const badges = profileData?.badges ?? [];
-  const tags = profileData?.tags ?? [];
-  const privacyRaw = (profileData as any)?.privacy ?? null;
-  const privacy: UserPrivacySettings | null = privacyRaw
-    ? {
-        isProfilePublic: privacyRaw.is_profile_public ?? privacyRaw.isProfilePublic,
-        showBadges: privacyRaw.show_badges ?? privacyRaw.showBadges,
-        showTags: privacyRaw.show_tags ?? privacyRaw.showTags,
-        showQuizResults: privacyRaw.show_quiz_results ?? privacyRaw.showQuizResults,
-        allowDiscovery: privacyRaw.allow_discovery ?? privacyRaw.allowDiscovery,
-        sharedDimensions: privacyRaw.shared_dimensions ?? privacyRaw.sharedDimensions ?? [],
-      }
+  const profileHandle = data?.profile.username || data?.profile.id;
+  const publicProfilePath = profileHandle
+    ? `/users/${encodeURIComponent(profileHandle)}`
     : null;
 
-  const updatePrivacyMutation = useMutation({
-    mutationFn: async (updates: Partial<UserPrivacySettings>) => {
-      if (!member?.id) throw new Error('Not authenticated');
+  const setField = (field: keyof ProfileForm, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
 
-      // Map camelCase privacy keys to snake_case for the API
-      const dbUpdates: Record<string, any> = {};
-      if (updates.isProfilePublic !== undefined) dbUpdates.is_profile_public = updates.isProfilePublic;
-      if (updates.showBadges !== undefined) dbUpdates.show_badges = updates.showBadges;
-      if (updates.showTags !== undefined) dbUpdates.show_tags = updates.showTags;
-      if (updates.showQuizResults !== undefined) dbUpdates.show_quiz_results = updates.showQuizResults;
-      if (updates.allowDiscovery !== undefined) dbUpdates.allow_discovery = updates.allowDiscovery;
-      if (updates.sharedDimensions !== undefined) dbUpdates.shared_dimensions = updates.sharedDimensions;
+  const setProjectField = (
+    id: string,
+    field: keyof PublicProfileProject,
+    value: string,
+  ) => {
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === id ? { ...project, [field]: value || null } : project,
+      ),
+    );
+  };
 
-      // TODO: Replace with a dedicated privacy endpoint when available in the Sanic API
-      await updateMember(member.id, { privacy: dbUpdates });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-profile-data'] });
+  const handleSave = (event: React.FormEvent) => {
+    event.preventDefault();
+    const displayName = form.displayName.trim();
+    if (!displayName) {
       toast({
-        title: "Privacy Updated",
-        description: "Your privacy settings have been saved.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update privacy settings.",
+        title: "Display name is required",
+        description: "Add the name you want other members to see.",
         variant: "destructive",
       });
-    },
-  });
-
-  const updateLocationMutation = useMutation({
-    mutationFn: async (data: typeof locationForm) => {
-      if (!member?.id) throw new Error('Not authenticated');
-      // TODO: Replace with Sanic API endpoint when location preferences endpoint is implemented
-      toast({ title: "Note", description: "Location preferences saved locally" });
-    },
-    onSuccess: () => {
-      setIsEditingLocation(false);
-      toast({
-        title: "Location Updated",
-        description: "Your location preferences have been saved.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update location preferences.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateContactMutation = useMutation({
-    mutationFn: async (data: typeof contactForm) => {
-      if (!member?.id) throw new Error('Not authenticated');
-      // TODO: Replace with Sanic API endpoint when contact preferences endpoint is implemented
-      toast({ title: "Note", description: "Contact preferences saved locally" });
-    },
-    onSuccess: () => {
-      setIsEditingContact(false);
-      toast({
-        title: "Contact Updated",
-        description: "Your contact preferences have been saved.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update contact preferences.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handlePrivacyToggle = (field: keyof UserPrivacySettings, value: boolean) => {
-    updatePrivacyMutation.mutate({ [field]: value });
-  };
-
-  const handleDimensionToggle = (dimension: string, checked: boolean) => {
-    const currentDimensions = privacy?.sharedDimensions || [];
-    const updatedDimensions = checked
-      ? [...currentDimensions, dimension]
-      : currentDimensions.filter(d => d !== dimension);
-    updatePrivacyMutation.mutate({ sharedDimensions: updatedDimensions });
-  };
-
-  // Populate location form when profile data loads
-  useEffect(() => {
-    // Location data would come from profile if stored there
-  }, [profileData]);
-
-  // Populate contact form when profile data loads
-  useEffect(() => {
-    // Contact data would come from profile if stored there
-  }, [profileData]);
-
-  // Helper to convert comma-separated string to array
-  const stringToArray = (str: string): string[] => {
-    return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
-  };
-
-  // Helper to convert array to comma-separated string
-  const arrayToString = (arr: string[]): string => {
-    return arr.join(', ');
-  };
-
-  const handleSaveLocation = () => {
-    updateLocationMutation.mutate(locationForm);
-  };
-
-  const handleCancelLocation = () => {
-    setLocationForm({
-      continentsVisited: [],
-      travelFrequency: "",
-      travelMotivation: [],
-      locationPrivacy: "",
-      identitySensitivity: "",
-      meetupPreferences: [],
-      communityActivities: [],
-    });
-    setIsEditingLocation(false);
-  };
-
-  const handleSaveContact = () => {
-    updateContactMutation.mutate(contactForm);
-  };
-
-  const handleCancelContact = () => {
-    setContactForm({
-      preferredMethods: [],
-      communicationStyle: "",
-      responseTime: "",
-      energizingMethods: [],
-      drainingMethods: [],
-      boundaries: [],
-      privacyLevel: "",
-    });
-    setIsEditingContact(false);
-  };
-
-  const completedQuizzes = quizSummary?.quizzes.filter(q => q.status === 'completed') ?? [];
-
-  // Get profile data for display
-  const firstName = (profileData as any)?.first_name || '';
-  const lastName = (profileData as any)?.last_name || '';
-  const userEmail = member?.display_name || '';
-  const userBio = (profileData as any)?.bio || '';
-  const avatarUrl = (profileData as any)?.avatar_url || '';
-  const username = profileData?.username || '';
-  const userCreatedAt = profileData?.created_at;
-
-  const handleSave = async () => {
-    if (!member?.id) return;
-
-    try {
-      await updateMember(member.id, {
-        display_name: name,
-        bio: bio,
-      });
-      queryClient.invalidateQueries({ queryKey: ['my-profile-data'] });
-      setIsEditing(false);
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been successfully updated.",
-      });
-    } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update profile.",
-        variant: "destructive",
-      });
+      return;
     }
-  };
 
-  const handleCancel = () => {
-    setName(displayName);
-    setBio(displayBio === "No bio added yet." ? "" : displayBio);
-    setIsEditing(false);
-  };
+    const normalizedProjects = projects
+      .filter((project) => project.name.trim())
+      .map((project) => ({
+        ...project,
+        name: project.name.trim(),
+        description: project.description?.trim() || null,
+        role: project.role?.trim() || null,
+        url: project.url?.trim() || null,
+        started_at: project.started_at || null,
+        ended_at: project.ended_at || null,
+      }));
 
-  const handleCopyProfileLink = () => {
-    if (!member?.id) return;
-    const profileUrl = `${window.location.origin}/users/${username || member.id}`;
-    navigator.clipboard.writeText(profileUrl);
-    toast({
-      title: "Link Copied",
-      description: "Your profile link has been copied to clipboard.",
+    updateProfile.mutate({
+      display_name: displayName,
+      username: form.username.trim() || null,
+      headline: form.headline.trim() || null,
+      bio: form.bio.trim() || null,
+      location: form.location.trim() || null,
+      website: form.website.trim() || null,
+      profile_picture: form.profilePicture.trim() || null,
+      social_links: {
+        linkedin: form.linkedin.trim(),
+        github: form.github.trim(),
+      },
+      skills: splitList(form.skills),
+      interests: splitList(form.interests),
+      projects: normalizedProjects,
     });
   };
 
-  const handleShareProfile = async () => {
-    if (!member?.id) return;
-    const profileUrl = `${window.location.origin}/users/${username || member.id}`;
-    
-    // Try native share API first
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${displayName}'s Profile`,
-          text: `Check out ${displayName}'s profile on Charting the Course`,
-          url: profileUrl,
-        });
-        toast({
-          title: "Shared Successfully",
-          description: "Your profile has been shared.",
-        });
-      } catch (error) {
-        // User cancelled or error occurred, do nothing
-        if ((error as Error).name !== 'AbortError') {
-          console.error('Error sharing:', error);
-        }
-      }
-    } else {
-      // Fallback to copy
-      handleCopyProfileLink();
-    }
+  const handleCopy = async () => {
+    if (!publicProfilePath) return;
+    await navigator.clipboard.writeText(`${window.location.origin}${publicProfilePath}`);
+    setCopied(true);
+    toast({ title: "Profile link copied" });
+    window.setTimeout(() => setCopied(false), 2000);
   };
 
-  const [isExporting, setIsExporting] = useState(false);
+  if (isLoading) {
+    return (
+      <div className="grid min-h-72 place-items-center border border-foreground bg-card">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin motion-reduce:animate-none" />
+          <p className="text-xs font-black uppercase tracking-[0.16em]">Loading profile</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleExportPDF = async () => {
-    setIsExporting(true);
-    
-    try {
-      // Initialize PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15;
-      let yPos = margin;
+  if (error || !data) {
+    return (
+      <Card className="rounded-none border-destructive">
+        <CardHeader>
+          <CardTitle>Profile unavailable</CardTitle>
+          <CardDescription>
+            {(error as Error)?.message || "Your public profile could not be loaded."}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-      // Colors matching public profile theme
-      const bgColor: [number, number, number] = [15, 23, 42]; // slate-900
-      const primaryColor: [number, number, number] = [6, 182, 212]; // cyan-500
-      const textColor: [number, number, number] = [255, 255, 255];
-      const mutedColor: [number, number, number] = [148, 163, 184]; // slate-400
-      const cardColor: [number, number, number] = [30, 41, 59]; // slate-800
-      const accentColor: [number, number, number] = [20, 184, 166]; // teal-500
-
-      // Safe text helper to avoid null/undefined issues
-      const safeText = (text: string | null | undefined, maxLen?: number): string => {
-        const t = String(text || '');
-        return maxLen ? t.slice(0, maxLen) : t;
-      };
-
-      // Background
-      pdf.setFillColor(...bgColor);
-      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-
-      // Header Section
-      pdf.setFillColor(...cardColor);
-      pdf.rect(margin, yPos, pageWidth - margin * 2, 55, 'F');
-
-      // Avatar placeholder (circle)
-      pdf.setFillColor(...primaryColor);
-      pdf.circle(margin + 22, yPos + 27, 17, 'F');
-      
-      // Initials in avatar
-      const initials = `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase() || '?';
-      pdf.setTextColor(...textColor);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(initials, margin + 22, yPos + 31, { align: 'center' });
-
-      // Name
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      const displayNamePDF = `${firstName || ''} ${lastName || ''}`.trim() || 'User';
-      pdf.text(displayNamePDF, margin + 48, yPos + 18);
-
-      // Headline
-      const headline = (profileData as any)?.headline;
-      if (headline) {
-        pdf.setFontSize(9);
-        pdf.setTextColor(...primaryColor);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(safeText(headline, 55), margin + 48, yPos + 26);
-      }
-
-      // Role & Username
-      pdf.setFontSize(8);
-      pdf.setTextColor(...mutedColor);
-      const roleDisplay = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
-      pdf.text(`@${username || 'user'} - ${roleDisplay}`, margin + 48, yPos + 34);
-
-      // Stats row (simplified - no gamification)
-      const statsY = yPos + 45;
-      pdf.setFontSize(12);
-      pdf.setTextColor(...accentColor);
-      pdf.setFont('helvetica', 'bold');
-      const completedQuizCount = completedQuizzes?.length || 0;
-      pdf.text(`${completedQuizCount} Quizzes Completed`, margin + 48, statsY);
-
-      yPos += 62;
-
-      // Bio Section
-      const bio = (profileData as any)?.bio || userBio;
-      if (bio && bio.trim()) {
-        pdf.setFillColor(...cardColor);
-        pdf.rect(margin, yPos, pageWidth - margin * 2, 22, 'F');
-        
-        pdf.setFontSize(8);
-        pdf.setTextColor(...textColor);
-        pdf.setFont('helvetica', 'normal');
-        const bioLines = pdf.splitTextToSize(safeText(bio), pageWidth - margin * 2 - 10);
-        pdf.text(bioLines.slice(0, 2), margin + 5, yPos + 8);
-        yPos += 27;
-      }
-
-      // Badges Section
-      if (badges.length > 0) {
-        pdf.setFillColor(...cardColor);
-        pdf.rect(margin, yPos, pageWidth - margin * 2, 40, 'F');
-        
-        pdf.setFontSize(10);
-        pdf.setTextColor(...primaryColor);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(`Badges & Achievements (${badges.length})`, margin + 5, yPos + 10);
-        
-        pdf.setFontSize(7);
-        pdf.setTextColor(...textColor);
-        pdf.setFont('helvetica', 'normal');
-        
-        let badgeX = margin + 5;
-        let badgeY = yPos + 18;
-        badges.slice(0, 10).forEach((badge, i) => {
-          const badgeName = safeText(badge?.badge_name, 15) || 'Badge';
-          pdf.text(`* ${badgeName}`, badgeX, badgeY);
-          badgeX += 45;
-          if ((i + 1) % 4 === 0) {
-            badgeX = margin + 5;
-            badgeY += 10;
-          }
-        });
-        yPos += 45;
-      }
-
-      // Tags Section
-      if (tags.length > 0) {
-        pdf.setFillColor(...cardColor);
-        pdf.rect(margin, yPos, pageWidth - margin * 2, 30, 'F');
-        
-        pdf.setFontSize(10);
-        pdf.setTextColor(...primaryColor);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(`Profile Tags (${tags.length})`, margin + 5, yPos + 10);
-        
-        pdf.setFontSize(7);
-        pdf.setTextColor(...textColor);
-        pdf.setFont('helvetica', 'normal');
-        
-        const tagTexts = tags.slice(0, 10).map(t => safeText(t?.tag_value)).filter(Boolean);
-        const tagsLine = tagTexts.join(' | ');
-        pdf.text(safeText(tagsLine, 100), margin + 5, yPos + 20);
-        yPos += 35;
-      }
-
-      // Quiz Results Section
-      const quizList = completedQuizzes || [];
-      if (quizList.length > 0) {
-        pdf.setFillColor(...cardColor);
-        pdf.rect(margin, yPos, pageWidth - margin * 2, 45, 'F');
-        
-        pdf.setFontSize(10);
-        pdf.setTextColor(...primaryColor);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(`Recent Quiz Results (${quizList.length})`, margin + 5, yPos + 10);
-        
-        let quizY = yPos + 20;
-        quizList.slice(0, 4).forEach((quiz) => {
-          if (!quiz) return;
-          const score = typeof quiz.score === 'number' ? quiz.score : 0;
-          const scoreColor: [number, number, number] = score >= 80 ? [16, 185, 129] : score >= 60 ? [245, 158, 11] : [239, 68, 68];
-          
-          pdf.setFontSize(9);
-          pdf.setTextColor(...scoreColor);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(`${score}%`, margin + 5, quizY);
-          
-          pdf.setFontSize(8);
-          pdf.setTextColor(...mutedColor);
-          pdf.setFont('helvetica', 'normal');
-          pdf.text(safeText(quiz.quiz_title || 'Quiz', 30), margin + 22, quizY);
-          const completedDate = quiz.completed_at ? new Date(quiz.completed_at).toLocaleDateString() : '';
-          if (completedDate) {
-            pdf.text(`Completed ${completedDate}`, margin + 22, quizY + 4);
-          }
-          quizY += 12;
-        });
-        yPos += 50;
-      }
-
-
-      // Footer
-      pdf.setFontSize(7);
-      pdf.setTextColor(...mutedColor);
-      pdf.text(`Charting the Course - Profile exported on ${new Date().toLocaleDateString()}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
-
-      // Save PDF
-      const safeUsername = (username || member?.id || 'export').replace(/[^a-zA-Z0-9]/g, '-');
-      const fileName = `profile-${safeUsername}-${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
-
-      toast({
-        title: "Profile Exported!",
-        description: `Your profile has been saved as ${fileName}`,
-      });
-    } catch (error: any) {
-      console.error('PDF export error:', error);
-      toast({
-        title: "Export Failed",
-        description: error?.message || "Failed to generate PDF. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const displayName = `${firstName} ${lastName}`.trim() || userEmail || "";
-  const displayBio = userBio || "No bio added yet.";
-
-  const getRoleBadgeRole = (roleKey?: string): "Admin" | "Facilitator" | "Contributor" | "Viewer" => {
-    if (!roleKey) return "Viewer";
-    return (roleKey.charAt(0).toUpperCase() + roleKey.slice(1)) as "Admin" | "Facilitator" | "Contributor" | "Viewer";
-  };
-
-  const profileDimensions = (profileData as any)?.profile_dimensions as ProfileDimensions | undefined;
-
-  const getTagsForDimension = (dimension: keyof ProfileDimensions) => {
-    if (!profileDimensions || !profileDimensions[dimension]) return [];
-    const dimData = profileDimensions[dimension];
-    
-    const extractValues = (obj: any): (string | number)[] => {
-      const results: (string | number)[] = [];
-      
-      if (typeof obj === 'string' || typeof obj === 'number') {
-        results.push(obj);
-      } else if (Array.isArray(obj)) {
-        obj.forEach(item => {
-          results.push(...extractValues(item));
-        });
-      } else if (obj && typeof obj === 'object') {
-        Object.values(obj).forEach(value => {
-          results.push(...extractValues(value));
-        });
-      }
-      
-      return results;
-    };
-    
-    return extractValues(dimData);
-  };
-
-  // Merge legacy badges and tags into tiles for unified display
-  const mergedTiles = useMemo(() => {
-    const legacyTiles: ProfileTile[] = [];
-    const timestamp = new Date().toISOString();
-
-    // Convert legacy badges to tiles
-    if (badges.length > 0) {
-      badges.forEach(badge => {
-        legacyTiles.push({
-          id: `legacy-badge-${badge.id}`,
-          user_id: member?.id || '',
-          submission_id: 'legacy',
-          tile_type: 'badge',
-          dimension: 'general',
-          title: badge.badge_name,
-          content: {
-            badge_key: badge.badge_key,
-            badge_description: badge.badge_description,
-            badge_category: badge.badge_category
-          },
-          display_order: 0,
-          is_visible: true,
-          created_at: timestamp,
-          updated_at: timestamp
-        });
-      });
-    }
-
-    // Convert legacy tags to list tiles (grouped by dimension)
-    if (tags.length > 0) {
-      // Simple grouping - in reality tags might not have dimension column in this interface
-      // so we'll put them in 'general' or try to infer
-      legacyTiles.push({
-        id: 'legacy-tags-general',
-        user_id: member?.id || '',
-        submission_id: 'legacy',
-        tile_type: 'list',
-        dimension: 'general',
-        title: 'Profile Tags',
-        content: {
-          items: tags.map(t => ({ label: t.tag_key, value: t.tag_value }))
-        },
-        display_order: 999,
-        is_visible: true,
-        created_at: timestamp,
-        updated_at: timestamp
-      });
-    }
-
-    return [...(profileTiles || []), ...legacyTiles];
-  }, [profileTiles, badges, tags, member?.id]);
-
-  const tilesByDimension = mergedTiles.reduce((acc, tile) => {
-    const dim = tile.dimension || 'general';
-    if (!acc[dim]) {
-      acc[dim] = [];
-    }
-    acc[dim].push(tile);
-    return acc;
-  }, {} as Record<string, ProfileTile[]>);
-
-  const dimensionOrder = Object.keys(DIMENSION_CONFIGS);
-  const sortedDimensions = Object.keys(tilesByDimension).sort((a, b) => {
-    const indexA = dimensionOrder.indexOf(a);
-    const indexB = dimensionOrder.indexOf(b);
-    if (indexA === -1 && indexB === -1) return a.localeCompare(b); // both are custom
-    if (indexA === -1) return 1; // custom dimensions at the end
-    if (indexB === -1) return -1;
-    return indexA - indexB;
-  });
+  const avatarUrl = resolveMediaUrl(data.profile.profile_picture);
+  const initials =
+    data.profile.display_name
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <form onSubmit={handleSave} className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-foreground pb-6">
         <div>
-          <h1 className="text-3xl font-bold">Profile</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your account and track your learning journey
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
+            Member record
+          </p>
+          <h1 className="mt-2 text-4xl font-black uppercase tracking-[-0.04em]">Your profile</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Your profile is always public to other users. Keep your biography, skills, projects,
+            memberships, and published work current.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={isExporting}
-            data-testid="button-export-pdf"
-          >
-            {isExporting ? (
-              <>
-                <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
-              </>
+        <div className="flex flex-wrap gap-2">
+          {publicProfilePath && (
+            <Button asChild type="button" variant="outline">
+              <Link href={publicProfilePath}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View public profile
+              </Link>
+            </Button>
+          )}
+          <Button type="submit" disabled={updateProfile.isPending}>
+            {updateProfile.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <>
-                <FileText className="h-4 w-4 mr-2" />
-                Export PDF
-              </>
+              <Save className="mr-2 h-4 w-4" />
             )}
+            Save profile
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-start gap-6 flex-wrap">
-            <Avatar className="h-24 w-24">
-              <AvatarImage src={avatarUrl} />
-              <AvatarFallback className="text-2xl">
-                {displayName.split(' ').map(n => n[0]).join('') || "?"}
-              </AvatarFallback>
-            </Avatar>
-
-            <div className="flex-1 space-y-4">
-              {isEditing ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter your name"
-                      data-testid="input-profile-name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Input
-                      id="bio"
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder="Tell us about yourself"
-                      data-testid="input-profile-bio"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSave} size="sm" data-testid="button-save-profile">
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button onClick={handleCancel} size="sm" variant="outline" data-testid="button-cancel-edit">
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <h2 className="text-2xl font-bold" data-testid="text-profile-name">{displayName}</h2>
-                    <p className="text-muted-foreground">{userEmail}</p>
-                  </div>
-                  <p className="text-sm">{displayBio}</p>
-                  <div className="flex gap-4 flex-wrap items-center">
-                    <RoleBadge role={getRoleBadgeRole(role)} />
-                    {userCreatedAt && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span>Joined {new Date(userCreatedAt).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                    <Button 
-                      onClick={() => {
-                        setName(displayName || "");
-                        setBio(displayBio || "");
-                        setIsEditing(true);
-                      }} 
-                      size="sm" 
-                      variant="outline" 
-                      data-testid="button-edit-profile"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                  </div>
-                </>
-              )}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+        <Card className="rounded-none border-foreground">
+          <CardHeader className="border-b border-foreground">
+            <CardTitle className="flex items-center gap-2">
+              <UserRound className="h-5 w-5" />
+              Public identity
+            </CardTitle>
+            <CardDescription>The introduction every profile visitor will see.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-6">
+            <div className="flex items-center gap-4 border border-border p-4">
+              <Avatar className="h-20 w-20 rounded-none border border-foreground">
+                <AvatarImage src={avatarUrl ?? ""} alt="" />
+                <AvatarFallback className="rounded-none bg-foreground text-xl font-black text-background">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="font-black">{data.profile.display_name}</p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {data.profile.headline || "Add a headline that describes your work."}
+                </p>
+              </div>
             </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="profile-name">Display name</Label>
+                <Input
+                  id="profile-name"
+                  value={form.displayName}
+                  onChange={(event) => setField("displayName", event.target.value)}
+                  maxLength={255}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-username">Username</Label>
+                <Input
+                  id="profile-username"
+                  value={form.username}
+                  onChange={(event) => setField("username", event.target.value)}
+                  maxLength={100}
+                  placeholder="public-handle"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profile-headline">Headline</Label>
+              <Input
+                id="profile-headline"
+                value={form.headline}
+                onChange={(event) => setField("headline", event.target.value)}
+                maxLength={255}
+                placeholder="Community builder · Researcher · Systems designer"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profile-bio">Biography</Label>
+              <Textarea
+                id="profile-bio"
+                value={form.bio}
+                onChange={(event) => setField("bio", event.target.value)}
+                maxLength={4000}
+                rows={7}
+                placeholder="Share your background, focus, and the kind of work you want to do with others."
+              />
+              <p className="text-right text-xs text-muted-foreground">{form.bio.length}/4000</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="profile-location">Location</Label>
+                <div className="relative">
+                  <MapPin className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="profile-location"
+                    value={form.location}
+                    onChange={(event) => setField("location", event.target.value)}
+                    className="pl-9"
+                    maxLength={255}
+                    placeholder="Denver, Colorado"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-avatar">Profile image URL</Label>
+                <Input
+                  id="profile-avatar"
+                  type="url"
+                  value={form.profilePicture}
+                  onChange={(event) => setField("profilePicture", event.target.value)}
+                  maxLength={500}
+                  placeholder="https://…"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="rounded-none border-foreground">
+            <CardHeader className="border-b border-foreground">
+              <CardTitle>Public profile link</CardTitle>
+              <CardDescription>This page cannot be made private.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={publicProfilePath ? `${window.location.origin}${publicProfilePath}` : ""}
+                  aria-label="Public profile URL"
+                />
+                <Button type="button" variant="outline" size="icon" onClick={handleCopy}>
+                  {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                  <span className="sr-only">Copy public profile link</span>
+                </Button>
+              </div>
+              <div className="border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Authentication details, phone numbers, private notes, and raw quiz answers are never
+                included on this page.
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-none border-foreground">
+            <CardHeader className="border-b border-foreground">
+              <CardTitle>Links</CardTitle>
+              <CardDescription>Professional profiles and a primary website.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="profile-website">Website</Label>
+                <Input
+                  id="profile-website"
+                  type="url"
+                  value={form.website}
+                  onChange={(event) => setField("website", event.target.value)}
+                  maxLength={500}
+                  placeholder="https://your-site.example"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-linkedin">LinkedIn</Label>
+                <Input
+                  id="profile-linkedin"
+                  type="url"
+                  value={form.linkedin}
+                  onChange={(event) => setField("linkedin", event.target.value)}
+                  maxLength={500}
+                  placeholder="https://linkedin.com/in/…"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-github">GitHub</Label>
+                <Input
+                  id="profile-github"
+                  type="url"
+                  value={form.github}
+                  onChange={(event) => setField("github", event.target.value)}
+                  maxLength={500}
+                  placeholder="https://github.com/…"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Card className="rounded-none border-foreground">
+        <CardHeader className="border-b border-foreground">
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Skills & interests
+          </CardTitle>
+          <CardDescription>Use comma-separated terms so they remain easy to scan.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-6 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="profile-skills">Skills</Label>
+            <Textarea
+              id="profile-skills"
+              value={form.skills}
+              onChange={(event) => setField("skills", event.target.value)}
+              rows={4}
+              placeholder="Facilitation, Data analysis, Community governance"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="profile-interests">Interests</Label>
+            <Textarea
+              id="profile-interests"
+              value={form.interests}
+              onChange={(event) => setField("interests", event.target.value)}
+              rows={4}
+              placeholder="Bioregionalism, Shared infrastructure, Cooperative finance"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Profile Link Section */}
-      <Card data-testid="card-profile-link">
-            <CardHeader>
+      <Card className="rounded-none border-foreground">
+        <CardHeader className="border-b border-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
               <CardTitle className="flex items-center gap-2">
-                <Link2 className="h-5 w-5" />
-                Profile Link
+                <BriefcaseBusiness className="h-5 w-5" />
+                Projects
               </CardTitle>
-              <CardDescription>Share your profile with others</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex-1 min-w-0">
+              <CardDescription className="mt-1">
+                Add current and past work as a LinkedIn-style project record.
+              </CardDescription>
+            </div>
+            <Button type="button" variant="outline" onClick={() => setProjects((items) => [...items, newProject()])}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add project
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-6">
+          {projects.length ? (
+            projects.map((project, index) => (
+              <fieldset key={project.id} className="space-y-4 border border-border p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <legend className="text-xs font-black uppercase tracking-[0.15em]">
+                    Project {String(index + 1).padStart(2, "0")}
+                  </legend>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setProjects((items) => items.filter((item) => item.id !== project.id))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Remove {project.name || "project"}</span>
+                  </Button>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor={`project-name-${project.id}`}>Project name</Label>
                     <Input
-                      value={member?.id ? `${window.location.origin}/users/${username || member.id}` : ''}
-                      readOnly
-                      className="text-sm"
-                      data-testid="input-profile-url"
+                      id={`project-name-${project.id}`}
+                      value={project.name}
+                      onChange={(event) => setProjectField(project.id, "name", event.target.value)}
+                      maxLength={255}
+                      placeholder="Project or initiative"
                     />
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCopyProfileLink}
-                    data-testid="button-copy-link"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleShareProfile}
-                    data-testid="button-share-profile"
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Others can visit this link to view your public profile based on your privacy settings.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Profile Insights Section - Grouped by Dimension */}
-          <div className="space-y-6">
-            {isLoadingTiles ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  <LoaderIcon className="h-6 w-6 animate-spin mx-auto mb-2" />
-                  Loading insights...
-                </CardContent>
-              </Card>
-            ) : sortedDimensions.map(dim => {
-              const config = getDimensionConfig(dim);
-              const tiles = tilesByDimension[dim];
-              if (!tiles || tiles.length === 0) return null;
-
-              return (
-                <Card key={dim} data-testid={`card-dimension-${dim}`}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <config.icon className="h-5 w-5" />
-                      {config.title}
-                    </CardTitle>
-                    <CardDescription>
-                      Insights related to your {config.title.toLowerCase()}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <TileGrid 
-                      tiles={tiles} 
-                      isOwner={true}
-                      onToggleVisibility={handleToggleTileVisibility}
-                      showHidden={true}
+                  <div className="space-y-2">
+                    <Label htmlFor={`project-role-${project.id}`}>Your role</Label>
+                    <Input
+                      id={`project-role-${project.id}`}
+                      value={project.role ?? ""}
+                      onChange={(event) => setProjectField(project.id, "role", event.target.value)}
+                      maxLength={255}
+                      placeholder="Co-founder, contributor, researcher"
                     />
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* Quiz Progress & Results */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <CardTitle>Quiz Progress</CardTitle>
-                  <CardDescription>
-                    {quizSummary ? `${quizSummary.completed} of ${quizSummary.total_available} completed (${quizSummary.passed} passed)` : 'Track your learning journey'}
-                  </CardDescription>
+                  </div>
                 </div>
-                {completedQuizzes.length > 5 && (
-                  <Button asChild variant="outline" size="sm" data-testid="button-view-all-history">
-                    <Link href="/my-quiz-history">
-                      View All
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingProfile ? (
-                <p className="text-muted-foreground text-center py-8">Loading quiz progress...</p>
-              ) : quizSummary && quizSummary.quizzes.length > 0 ? (
-                <div className="space-y-3">
-                  {quizSummary.quizzes.map((q) => (
-                    <div
-                      key={q.quiz_id}
-                      className="flex items-center justify-between border border-strong-border p-5"
-                      data-testid={`quiz-status-${q.quiz_id}`}
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {q.status === 'completed' ? (
-                          <CheckCircle className={`h-5 w-5 flex-shrink-0 ${q.is_passed ? 'text-chart-3' : 'text-destructive'}`} />
-                        ) : q.status === 'in_progress' ? (
-                          <Clock className="h-5 w-5 flex-shrink-0 text-warning" />
-                        ) : (
-                          <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <div className="space-y-2">
+                  <Label htmlFor={`project-description-${project.id}`}>Description</Label>
+                  <Textarea
+                    id={`project-description-${project.id}`}
+                    value={project.description ?? ""}
+                    onChange={(event) =>
+                      setProjectField(project.id, "description", event.target.value)
+                    }
+                    maxLength={2000}
+                    rows={3}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor={`project-url-${project.id}`}>Project URL</Label>
+                    <Input
+                      id={`project-url-${project.id}`}
+                      type="url"
+                      value={project.url ?? ""}
+                      onChange={(event) => setProjectField(project.id, "url", event.target.value)}
+                      maxLength={500}
+                      placeholder="https://…"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`project-start-${project.id}`}>Started</Label>
+                    <Input
+                      id={`project-start-${project.id}`}
+                      type="date"
+                      value={project.started_at ?? ""}
+                      onChange={(event) =>
+                        setProjectField(project.id, "started_at", event.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`project-end-${project.id}`}>Ended</Label>
+                    <Input
+                      id={`project-end-${project.id}`}
+                      type="date"
+                      value={project.ended_at ?? ""}
+                      onChange={(event) =>
+                        setProjectField(project.id, "ended_at", event.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </fieldset>
+            ))
+          ) : (
+            <div className="border border-dashed border-foreground p-8 text-center">
+              <p className="font-black">No projects added yet.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add a project to show what you have built or contributed to.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card className="rounded-none border-foreground">
+          <CardHeader className="border-b border-foreground">
+            <CardTitle className="flex items-center gap-2">
+              <Network className="h-5 w-5" />
+              Ecosystems & domains
+            </CardTitle>
+            <CardDescription>Memberships are managed by each ecosystem.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-6">
+            {data.ecosystems.length ? (
+              data.ecosystems.map((ecosystem) => {
+                const domains = domainsByEcosystem.get(ecosystem.id) ?? [];
+                return (
+                  <article key={ecosystem.id} className="border border-border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-black">{ecosystem.name}</h3>
+                        {ecosystem.location && (
+                          <p className="mt-1 text-xs text-muted-foreground">{ecosystem.location}</p>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{q.quiz_title}</p>
-                          {q.completed_at && (
-                            <p className="text-sm text-muted-foreground">
-                              Completed {new Date(q.completed_at).toLocaleDateString()}
-                            </p>
-                          )}
-                          {q.status === 'in_progress' && (
-                            <p className="text-sm text-warning">In progress</p>
-                          )}
-                          {q.status === 'not_started' && (
-                            <p className="text-sm text-muted-foreground">Not started</p>
-                          )}
-                        </div>
                       </div>
-                      {q.score !== null && (
-                        <Badge variant={q.is_passed ? "default" : "destructive"}>
-                          {q.score}%
+                      {ecosystem.membership.profile && (
+                        <Badge variant="outline" className="capitalize">
+                          {ecosystem.membership.profile.replaceAll("_", " ")}
                         </Badge>
                       )}
                     </div>
-                  ))}
-                  <Link href="/my-quiz-history">
-                    <div className="text-center pt-2">
-                      <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid="link-view-all-history">
-                        View All History
-                      </Button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {domains.length ? (
+                        domains.map((domain) => (
+                          <Badge key={domain.id} variant="secondary">
+                            {domain.domain_id} · {domain.role}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No active domains</span>
+                      )}
                     </div>
-                  </Link>
-                </div>
-              ) : (
-                <div className="text-center py-8 space-y-2">
-                  <p className="text-muted-foreground">
-                    No quizzes available yet
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Start taking quizzes to build your profile!
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </article>
+                );
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground">No ecosystem memberships yet.</p>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Privacy Settings Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                Privacy Settings
-              </CardTitle>
-              <CardDescription>
-                Control what information is visible to other users
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1">
-                  <Label className="text-base">Make Profile Public</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow others to view your profile page
-                  </p>
-                </div>
-                <Switch
-                  checked={privacy?.isProfilePublic || false}
-                  onCheckedChange={(checked) => handlePrivacyToggle('isProfilePublic', checked)}
-                  data-testid="switch-profile-public"
-                />
+        <Card className="rounded-none border-foreground">
+          <CardHeader className="border-b border-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5" />
+                  Quiz achievements
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {data.quiz_results.length} quizzes · {completedQuizCount} completed attempts
+                </CardDescription>
               </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1">
-                  <Label className="text-base">Show Badges</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow others to see your earned badges
-                  </p>
-                </div>
-                <Switch
-                  checked={privacy?.showBadges || false}
-                  onCheckedChange={(checked) => handlePrivacyToggle('showBadges', checked)}
-                  data-testid="switch-show-badges"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1">
-                  <Label className="text-base">Show Tags</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Display your profile tags publicly
-                  </p>
-                </div>
-                <Switch
-                  checked={privacy?.showTags || false}
-                  onCheckedChange={(checked) => handlePrivacyToggle('showTags', checked)}
-                  data-testid="switch-show-tags"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1">
-                  <Label className="text-base">Show Quiz Results</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Let others see which quizzes you've completed and your scores
-                  </p>
-                </div>
-                <Switch
-                  checked={privacy?.showQuizResults || false}
-                  onCheckedChange={(checked) => handlePrivacyToggle('showQuizResults', checked)}
-                  data-testid="switch-show-quiz-results"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1">
-                  <Label className="text-base">Allow Discovery</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Let others discover you based on similar or opposite profile traits
-                  </p>
-                </div>
-                <Switch
-                  checked={privacy?.allowDiscovery || false}
-                  onCheckedChange={(checked) => handlePrivacyToggle('allowDiscovery', checked)}
-                  data-testid="switch-allow-discovery"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Profile Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Preview</CardTitle>
-              <CardDescription>
-                See how your profile appears to others
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                data-testid="button-preview-profile"
-                onClick={() => {
-                  const profileHandle = username || member?.id;
-                  if (!profileHandle) return;
-                  const profileUrl = `/users/${encodeURIComponent(profileHandle)}`;
-                  window.open(profileUrl, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Preview Public Profile
+              <Button asChild type="button" variant="outline" size="sm">
+                <Link href="/my-quiz-history">View history</Link>
               </Button>
-              {!privacy?.isProfilePublic && (
-                <p className="text-center text-xs text-warning">
-                  Your profile is currently private. Enable "Make Profile Public" above to allow others to view it.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-    </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-6">
+            {data.quiz_results.length ? (
+              data.quiz_results.slice(0, 6).map((group) => (
+                <div key={group.quiz.id} className="flex items-start justify-between gap-4 border border-border p-4">
+                  <div>
+                    <h3 className="font-black">{group.quiz.title}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {[group.ecosystem?.name, group.domain?.domain_id]
+                        .filter(Boolean)
+                        .join(" · ") || "Network-wide"}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{group.results.length}</Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No completed quizzes yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="rounded-none border-foreground">
+        <CardHeader className="border-b border-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Your shares, needs & solutions
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Public active signals are included on your profile.
+              </CardDescription>
+            </div>
+            <Button asChild type="button">
+              <Link href="/discover/shares-needs/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Publish
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {data.publications.length ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {data.publications.map((publication) => (
+                <article key={publication.id} className="border border-border p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="font-black">{publication.title}</h3>
+                    <Badge variant="outline">{publicationLabel(publication.type)}</Badge>
+                  </div>
+                  {publication.description && (
+                    <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">
+                      {publication.description}
+                    </p>
+                  )}
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    {[publication.ecosystem_name, publication.domain_name]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="border border-dashed border-foreground p-8 text-center">
+              <p className="font-black">You have not published a signal yet.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Share a capability, name a need, or publish a solution.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-none border-foreground">
+        <CardHeader className="border-b border-foreground">
+          <CardTitle className="flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            Badges
+          </CardTitle>
+          <CardDescription>Achievements earned across your ecosystem memberships.</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {data.badges.length ? (
+            <div className="flex flex-wrap gap-2">
+              {data.badges.map((badge) => (
+                <Badge key={badge.id} variant="secondary" title={badge.badge_description ?? undefined}>
+                  {badge.badge_name}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No badges earned yet.</p>
+          )}
+        </CardContent>
+      </Card>
+    </form>
   );
 }

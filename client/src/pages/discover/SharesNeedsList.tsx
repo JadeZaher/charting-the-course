@@ -14,12 +14,19 @@ const TYPE_OPTIONS = [
   { value: 'all', label: 'All exchanges' },
   { value: 'share', label: 'Shares' },
   { value: 'need', label: 'Needs' },
+  { value: 'solution', label: 'Solutions' },
 ];
 
 function statusTone(status: string) {
   if (status === 'active') return 'text-success';
   if (status === 'expired') return 'text-destructive';
   return 'text-muted-foreground';
+}
+
+function typeLabel(type: 'share' | 'need' | 'solution') {
+  if (type === 'share') return 'Offers';
+  if (type === 'need') return 'Seeks';
+  return 'Solution';
 }
 
 interface Props {
@@ -118,11 +125,11 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Open capacity</p>
           <h3 className="mt-3 text-3xl font-black tracking-tight">No matching signals yet.</h3>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Publish a resource you can share or name a need the wider network could meet.
+            Publish a resource you can share, name a need, or offer a solution the wider network can use.
           </p>
           <Button className="mt-6 rounded-none" variant="outline" onClick={() => navigate('/discover/shares-needs/new')}>
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-            Add share or need
+            Add share, need, or solution
           </Button>
         </div>
       ) : (
@@ -131,8 +138,8 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
             <article key={item.id} className="flex min-h-64 flex-col border-2 border-strong-border bg-card p-5 sm:p-6">
               <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
                 <div>
-                  <p className={`text-xs font-black uppercase tracking-[0.18em] ${item.type === 'share' ? 'text-success' : 'text-link'}`}>
-                    {item.type === 'share' ? 'Offers' : 'Seeks'} / {String(index + 1).padStart(2, '0')}
+                  <p className={`text-xs font-black uppercase tracking-[0.18em] ${item.type === 'share' ? 'text-success' : item.type === 'need' ? 'text-link' : 'text-warning'}`}>
+                    {typeLabel(item.type)} / {String(index + 1).padStart(2, '0')}
                   </p>
                   <h3 className="mt-3 text-xl font-black leading-tight tracking-[-0.025em]">{item.title}</h3>
                 </div>

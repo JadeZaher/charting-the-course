@@ -22,6 +22,7 @@ function EcosystemSharesNeedsSection({ ecosystem }: { ecosystem: EthosSummary })
   const items = query.data?.items ?? [];
   const shares = items.filter((item) => item.type === 'share').length;
   const needs = items.filter((item) => item.type === 'need').length;
+  const solutions = items.filter((item) => item.type === 'solution').length;
 
   if (query.isLoading) {
     return <Skeleton className="h-64 rounded-none border-2 border-border" />;
@@ -37,7 +38,7 @@ function EcosystemSharesNeedsSection({ ecosystem }: { ecosystem: EthosSummary })
 
   return (
     <section className="border-2 border-strong-border bg-card" aria-labelledby={`exchange-${ecosystem.id}`}>
-      <div className="grid gap-px border-b-2 border-strong-border bg-border sm:grid-cols-[1fr_auto_auto]">
+      <div className="grid gap-px border-b-2 border-strong-border bg-border sm:grid-cols-[1fr_auto_auto_auto]">
         <div className="bg-card p-5">
           <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-muted-foreground">Exchange index</p>
           <h3 id={`exchange-${ecosystem.id}`} className="mt-2 text-xl font-black tracking-tight">{ecosystem.name}</h3>
@@ -50,16 +51,20 @@ function EcosystemSharesNeedsSection({ ecosystem }: { ecosystem: EthosSummary })
           <p className="text-3xl font-black tabular-nums text-link">{needs}</p>
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Needs</p>
         </div>
+        <div className="min-w-28 bg-card p-5">
+          <p className="text-3xl font-black tabular-nums text-warning">{solutions}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Solutions</p>
+        </div>
       </div>
 
       {items.length === 0 ? (
-        <p className="p-6 text-sm leading-6 text-muted-foreground">No shares or needs have been posted for this ecosystem.</p>
+        <p className="p-6 text-sm leading-6 text-muted-foreground">No shares, needs, or solutions have been posted for this ecosystem.</p>
       ) : (
         <div className="grid gap-px bg-border md:grid-cols-2 xl:grid-cols-3">
           {items.slice(0, 6).map((item) => (
             <article key={item.id} className="min-h-44 bg-card p-5">
-              <p className={`text-[0.65rem] font-black uppercase tracking-[0.16em] ${item.type === 'share' ? 'text-success' : 'text-link'}`}>
-                {item.type === 'share' ? 'Offers' : 'Seeks'}
+              <p className={`text-[0.65rem] font-black uppercase tracking-[0.16em] ${item.type === 'share' ? 'text-success' : item.type === 'need' ? 'text-link' : 'text-warning'}`}>
+                {item.type === 'share' ? 'Offers' : item.type === 'need' ? 'Seeks' : 'Solution'}
               </p>
               <h4 className="mt-3 font-black leading-snug">{item.title}</h4>
               {item.description && <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.description}</p>}
@@ -225,7 +230,7 @@ export default function Discover() {
         <section aria-labelledby="exchange-index-title" className="space-y-5">
           <div className="border-b border-border pb-3">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">02 / Exchange</p>
-            <h2 id="exchange-index-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Shares and needs.</h2>
+            <h2 id="exchange-index-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Shares, needs, and solutions.</h2>
           </div>
           {displayEthos.map((ethos) => <EcosystemSharesNeedsSection key={ethos.id} ecosystem={ethos} />)}
         </section>

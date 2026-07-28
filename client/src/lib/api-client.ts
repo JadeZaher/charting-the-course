@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -122,8 +122,9 @@ export function fetchEcosystem(id: string): Promise<EcosystemDetail> {
 }
 
 // Dashboard API
-export function fetchDashboardSummary(): Promise<DashboardSummary> {
-  return apiFetch<DashboardSummary>('/api/v1/dashboard/summary');
+export function fetchDashboardSummary(ecosystemIds: readonly string[]): Promise<DashboardSummary> {
+  const params = new URLSearchParams({ ecosystem_ids: ecosystemIds.join(',') });
+  return apiFetch<DashboardSummary>(`/api/v1/dashboard/summary?${params}`);
 }
 
 // Agreements API
@@ -205,6 +206,19 @@ export function fetchMemberOnboarding(memberId: string): Promise<OnboardingState
 }
 export function fetchMemberProfile(memberId: string): Promise<MemberProfileResponse> {
   return apiFetch<MemberProfileResponse>(`/api/v1/members/${memberId}/profile`);
+}
+export function fetchPublicProfile(identifier: string): Promise<PublicProfileResponse> {
+  return apiFetch<PublicProfileResponse>(`/api/v1/profiles/${encodeURIComponent(identifier)}`);
+}
+export function fetchMyPublicProfile(): Promise<PublicProfileResponse> {
+  return apiFetch<PublicProfileResponse>('/api/v1/profiles/me');
+}
+export function updateMyPublicProfile(data: Record<string, unknown>): Promise<PublicProfileResponse> {
+  return apiFetch<PublicProfileResponse>('/api/v1/profiles/me', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
 }
 
 // Domains API

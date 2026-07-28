@@ -28,13 +28,13 @@ export default function SharesNeedsForm() {
   const { data: domainsData } = useDomains({ per_page: '100' });
   const domains = domainsData?.items ?? [];
 
-  const [type, setType] = useState<'share' | 'need'>('share');
+  const [type, setType] = useState<'share' | 'need' | 'solution'>('share');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [capacity, setCapacity] = useState('');
   const [domainId, setDomainId] = useState('');
-  const [visibility, setVisibility] = useState('ecosystem');
+  const [visibility, setVisibility] = useState('public');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
@@ -65,7 +65,7 @@ export default function SharesNeedsForm() {
 
     try {
       await createMutation.mutateAsync(payload);
-      toast({ title: 'Created', description: 'Your share/need has been posted.' });
+      toast({ title: 'Published', description: `Your ${type} is now available.` });
       navigate('/discover');
     } catch {
       // Error handled by mutation state
@@ -81,7 +81,7 @@ export default function SharesNeedsForm() {
         </Link>
       </Button>
 
-      <h1 className="text-3xl font-bold">Add Share / Need</h1>
+      <h1 className="text-3xl font-bold">Publish a Share, Need, or Solution</h1>
 
       {createMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
@@ -97,8 +97,8 @@ export default function SharesNeedsForm() {
               <Label>Type *</Label>
               <RadioGroup
                 value={type}
-                onValueChange={(v) => setType(v as 'share' | 'need')}
-                className="flex gap-6"
+                onValueChange={(v) => setType(v as 'share' | 'need' | 'solution')}
+                className="grid gap-3 sm:grid-cols-3"
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="share" id="type-share" />
@@ -112,6 +112,12 @@ export default function SharesNeedsForm() {
                     Need — requesting something
                   </Label>
                 </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="solution" id="type-solution" />
+                  <Label htmlFor="type-solution" className="cursor-pointer font-normal">
+                    Solution — publishing an approach
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
 
@@ -122,7 +128,13 @@ export default function SharesNeedsForm() {
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={type === 'share' ? 'e.g. Offering technical expertise in data engineering' : 'e.g. Need graphic design support'}
+                placeholder={
+                  type === 'share'
+                    ? 'e.g. Offering technical expertise in data engineering'
+                    : type === 'need'
+                      ? 'e.g. Need graphic design support'
+                      : 'e.g. A reusable process for community onboarding'
+                }
               />
               {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
             </div>
@@ -202,7 +214,7 @@ export default function SharesNeedsForm() {
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Posting...' : 'Post Share / Need'}
+                {createMutation.isPending ? 'Publishing...' : `Publish ${type}`}
               </Button>
               <Button asChild variant="outline">
                 <Link href="/discover">Cancel</Link>

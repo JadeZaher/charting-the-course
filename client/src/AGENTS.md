@@ -27,6 +27,14 @@ The route contract is:
 - `/explore` and `/discover/hub` redirect to `/discover`.
 - Ethos and orientation routes belong to the Solutions navigation state.
 
+## Public member profiles
+
+`/users/:identifier` is an always-public, whitelisted member record. It consumes the purpose-built profiles API rather than member-detail endpoints so authentication data, contact details, private notes, and raw quiz answers cannot leak into the public surface.
+
+Platform-wide biography, links, skills, interests, and projects belong to the user profile. Ecosystem roles and domain participation remain membership records and are aggregated for display. Completed quizzes are grouped by their effective ecosystem and domain; ecosystem-wide quizzes use an explicit general bucket. Shares, needs, and solutions appear only when they are active, public, and authored by that user.
+
+`/profile` is the owner editor for the same contract. Do not reintroduce page-level profile visibility controls: individual operational records may retain their own visibility, but the member profile itself is public.
+
 ## Component boundaries
 
 Shared interaction and geometry belong in `components/ui`; page files should compose primitives instead of restyling their internals. Preserve Radix semantics, keyboard behavior, and accessible names when changing presentation.
