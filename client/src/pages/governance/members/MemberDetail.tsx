@@ -114,10 +114,6 @@ export default function MemberDetail() {
               <dd className="font-medium">{data.onboarding_status || '-'}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Created</dt>
-              <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
-            </div>
-            <div>
               <dt className="text-muted-foreground">Last Updated</dt>
               <dd className="font-medium">{new Date(data.updated_at).toLocaleDateString()}</dd>
             </div>

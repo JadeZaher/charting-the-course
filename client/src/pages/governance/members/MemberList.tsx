@@ -88,7 +88,6 @@ export default function MemberList() {
                 </div>
               </div>
               <div className="mt-4"><Badge variant="outline">{m.profile || 'No profile'}</Badge></div>
-              <p className="mt-2 text-xs text-muted-foreground">Joined {new Date(m.created_at).toLocaleDateString()}</p>
               <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm">
                 <div><dt className="text-xs text-muted-foreground">Member ID</dt><dd className="mt-1 font-medium">{m.member_id}</dd></div>
                 <div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(m.created_at).toLocaleDateString()}</dd></div>
