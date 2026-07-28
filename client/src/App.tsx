@@ -21,12 +21,11 @@ import Dashboard from "@/pages/Dashboard";
 import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
 import QuizResults from "@/pages/QuizResults";
-import Profile from "@/pages/Profile";
+import MePage from "@/pages/me/MePage";
 import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
-import MyQuizHistory from "@/pages/MyQuizHistory";
 import { lazy, Suspense } from "react";
 const DiscoverHub = lazy(() => import("@/pages/discover/DiscoverHub"));
 const SharesNeedsForm = lazy(() => import("@/pages/discover/SharesNeedsForm"));
@@ -54,7 +53,6 @@ import MessagingLayout from '@/pages/messaging/MessagingLayout';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 import { FloatingComms } from "@/components/FloatingComms";
 import ComplianceDashboard from '@/pages/compliance/ComplianceDashboard';
-import NotificationPreferences from '@/pages/settings/NotificationPreferences';
 
 // Loading spinner component
 function LoadingScreen() {
@@ -241,14 +239,17 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={QuizManagement} requiredPermission="canManageContent" />
       </Route>
       
-      {/* Profile - all authenticated users */}
-      <Route path="/profile">
-        <ProtectedRoute component={Profile} />
+      {/* Me — member-owned surface: profile, notifications, quiz history */}
+      <Route path="/me">
+        <ProtectedRoute component={MePage} />
       </Route>
-      
-      {/* My Quiz History - all authenticated users */}
+
+      {/* Legacy member-surface paths — folded into /me */}
+      <Route path="/profile">
+        <Redirect to="/me" />
+      </Route>
       <Route path="/my-quiz-history">
-        <ProtectedRoute component={MyQuizHistory} />
+        <Redirect to="/me" />
       </Route>
 
       {/* Discover Hub — cross-ecosystem collaboration */}
@@ -376,9 +377,9 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={ComplianceDashboard} />
       </Route>
 
-      {/* Settings */}
+      {/* Notification settings — folded into /me */}
       <Route path="/settings/notifications">
-        <ProtectedRoute component={NotificationPreferences} />
+        <Redirect to="/me" />
       </Route>
 
       {/* Fallback to public routes for unmatched paths */}

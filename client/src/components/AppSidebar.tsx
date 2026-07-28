@@ -40,7 +40,6 @@ import {
   ShieldCheck,
   ClipboardCheck,
   ChevronDown,
-  Bell,
   MessageSquare,
   Package,
 } from "lucide-react";
@@ -60,8 +59,8 @@ const menuItems = [
     icon: Compass,
   },
   {
-    title: "Profile",
-    url: "/profile",
+    title: "Me",
+    url: "/me",
     icon: User,
   },
 ];
@@ -300,6 +299,10 @@ export function AppSidebar() {
                 if (item.url === '/discover') {
                   isActive = isActive || location.startsWith('/discover/') || location.startsWith('/ethos/') || location.startsWith('/orientation/');
                 }
+                // legacy member-surface paths redirect to /me
+                if (item.url === '/me') {
+                  isActive = isActive || location === '/profile' || location === '/my-quiz-history' || location.startsWith('/settings/');
+                }
                 return (
                   <SidebarMenuItem key={item.title}>
                     <MenuItemWithTooltip
@@ -397,20 +400,6 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Settings</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <MenuItemWithTooltip
-                  item={{ title: "Notifications", url: "/settings/notifications", icon: Bell }}
-                  isActive={location === '/settings/notifications'}
-                  isCollapsed={isCollapsed}
-                />
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className={`border-t-2 border-sidebar-border ${isCollapsed ? 'p-0.5' : 'p-4'}`}>
