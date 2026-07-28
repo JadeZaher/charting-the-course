@@ -307,7 +307,7 @@ export default function PublicProfile() {
             </span>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline" className="border-foreground">
-                <Link href="/profile">
+                <Link href="/me">
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit profile
                 </Link>

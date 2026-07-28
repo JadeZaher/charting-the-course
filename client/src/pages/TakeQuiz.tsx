@@ -139,9 +139,9 @@ export default function TakeQuiz() {
             <p className="text-destructive">
               {error ? (error as Error).message : "Quiz not found"}
             </p>
-            <Button onClick={() => setLocation("/quizzes")} data-testid="button-back">
+            <Button onClick={() => setLocation("/onboarding")} data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Quizzes
+              Back to Onboarding
             </Button>
           </CardContent>
         </Card>
@@ -155,7 +155,7 @@ export default function TakeQuiz() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setLocation("/quizzes")}
+          onClick={() => setLocation("/onboarding")}
           data-testid="button-back-to-list"
         >
           <ArrowLeft className="h-4 w-4" />

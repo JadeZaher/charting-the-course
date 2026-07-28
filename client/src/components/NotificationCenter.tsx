@@ -60,9 +60,9 @@ export function NotificationCenter() {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-sm">Notifications</h3>
             <Button asChild variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
-              <Link href="/settings/notifications">
+              <Link href="/me">
                 <Settings className="h-3.5 w-3.5" />
-                <span className="sr-only">Notification settings</span>
+                <span className="sr-only">Your profile</span>
               </Link>
             </Button>
           </div>

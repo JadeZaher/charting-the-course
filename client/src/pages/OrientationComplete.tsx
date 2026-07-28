@@ -89,11 +89,11 @@ export default function OrientationComplete() {
       <div className="space-y-4 mt-8">
         <h2 className="text-xl font-semibold">What's Next?</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/governance">
+          <Link href="/ecosystems">
             <Card className="h-full cursor-pointer border-strong-border transition-colors hover:bg-muted/50 motion-reduce:transition-none">
               <CardContent className="p-6 text-center space-y-2">
                 <Scale className="h-8 w-8 mx-auto text-primary" />
-                <h3 className="font-medium">Explore Governance</h3>
+                <h3 className="font-medium">Explore Ecosystems</h3>
                 <p className="text-sm text-muted-foreground">See active proposals and agreements</p>
               </CardContent>
             </Card>
@@ -107,7 +107,7 @@ export default function OrientationComplete() {
               </CardContent>
             </Card>
           </Link>
-          <Link href="/profile">
+          <Link href="/me">
             <Card className="h-full cursor-pointer border-strong-border transition-colors hover:bg-muted/50 motion-reduce:transition-none">
               <CardContent className="p-6 text-center space-y-2">
                 <User className="h-8 w-8 mx-auto text-primary" />

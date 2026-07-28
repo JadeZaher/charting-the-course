@@ -212,8 +212,8 @@ export default function MyQuizHistory() {
                   Start taking quizzes to build your profile!
                 </p>
               </div>
-              <Button onClick={() => setLocation("/quizzes")} data-testid="button-browse-quizzes">
-                Browse Quizzes
+              <Button onClick={() => setLocation("/onboarding")} data-testid="button-browse-quizzes">
+                Start Onboarding
               </Button>
             </div>
           )}

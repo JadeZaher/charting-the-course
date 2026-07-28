@@ -464,10 +464,10 @@ export default function QuizResults() {
           {isGradedQuiz ? "Retake Quiz" : "Take Again"}
         </Button>
         <Button 
-          onClick={() => setLocation("/quizzes")}
+          onClick={() => setLocation("/onboarding")}
           data-testid="button-browse-quizzes"
         >
-          Browse Quizzes
+          Start Onboarding
         </Button>
       </div>
     </div>
