@@ -65,7 +65,10 @@ const menuItems = [
   },
 ];
 
-const governanceGroups = [
+// tier: member = always visible (member rights); steward = platform perms or any ecosystem membership
+type GovernanceItem = { title: string; url: string; icon: any; tier?: "member" | "steward" };
+
+const governanceGroups: { label: string; defaultOpen: boolean; items: GovernanceItem[] }[] = [
   {
     label: "Active Governance",
     defaultOpen: true,
@@ -89,11 +92,11 @@ const governanceGroups = [
     label: "Safety & Integrity",
     defaultOpen: false,
     items: [
-      { title: "Conflicts", url: "/conflicts", icon: AlertTriangle },
-      { title: "Emergency", url: "/emergency", icon: Siren },
-      { title: "Exit", url: "/exit", icon: DoorOpen },
-      { title: "Safeguards", url: "/safeguards", icon: ShieldCheck },
-      { title: "Compliance", url: "/compliance", icon: ClipboardCheck },
+      { title: "Conflicts", url: "/conflicts", icon: AlertTriangle, tier: "member" },
+      { title: "Emergency", url: "/emergency", icon: Siren, tier: "steward" },
+      { title: "Exit", url: "/exit", icon: DoorOpen, tier: "member" },
+      { title: "Safeguards", url: "/safeguards", icon: ShieldCheck, tier: "steward" },
+      { title: "Compliance", url: "/compliance", icon: ClipboardCheck, tier: "steward" },
     ],
   },
 ];
@@ -226,6 +229,7 @@ export function AppSidebar() {
 
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
 
   const displayName = member?.display_name || 'User';
 
@@ -318,14 +322,15 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {governanceGroups.map((group) => {
-          // tier-gated: platform perms proxy until per-ecosystem role tiers land
-          if (group.label === "Safety & Integrity" && !(isAdmin || canManageUsers || canManageContent)) {
-            return null;
-          }
+          // tier-gated: member-right items always visible; steward items proxy via membership until H4 role tiers
+          const items =
+            group.label === "Safety & Integrity"
+              ? group.items.filter((item) => item.tier === "member" || hasStewardAccess)
+              : group.items;
           return (
             <CollapsibleGovernanceGroup
               key={group.label}
-              group={group}
+              group={{ ...group, items }}
               location={location}
               isCollapsed={isCollapsed}
             />
