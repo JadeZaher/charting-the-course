@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
-  BookOpen,
   User,
   Settings,
   LogOut,
@@ -29,8 +28,6 @@ import {
   Loader2,
   Users,
   Compass,
-  MapPin,
-  Map,
   FileText,
   Vote,
   Globe2,
@@ -46,7 +43,6 @@ import {
   Bell,
   MessageSquare,
   Package,
-  Layers3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -64,24 +60,9 @@ const menuItems = [
     icon: Compass,
   },
   {
-    title: "Solutions",
-    url: "/solutions",
-    icon: Layers3,
-  },
-  {
-    title: "Quizzes & Onboarding",
-    url: "/quizzes",
-    icon: BookOpen,
-  },
-  {
     title: "Profile",
     url: "/profile",
     icon: User,
-  },
-  {
-    title: "Map",
-    url: "/map",
-    icon: MapPin,
   },
 ];
 
@@ -90,7 +71,6 @@ const governanceGroups = [
     label: "Active Governance",
     defaultOpen: true,
     items: [
-      { title: "Dashboard", url: "/governance", icon: LayoutDashboard },
       { title: "Agreements", url: "/agreements", icon: FileText },
       { title: "Proposals", url: "/proposals", icon: Vote },
       { title: "Decisions", url: "/decisions", icon: Scale },
@@ -119,9 +99,9 @@ const governanceGroups = [
   },
 ];
 
-// Communications — split view with AI chat + messaging
+// Messaging — /comms and /chat redirect here
 const commsItems = [
-  { title: "Communications", url: "/comms", icon: MessageSquare },
+  { title: "Messaging", url: "/messaging", icon: MessageSquare },
 ];
 
 
@@ -143,11 +123,6 @@ const adminItems = [
     title: "Manage Users",
     url: "/admin/users",
     icon: Users,
-  },
-  {
-    title: "Journey Maps",
-    url: "/admin/journey-maps",
-    icon: Map,
   },
   {
     title: "Admin Panel",
@@ -246,7 +221,7 @@ function CollapsibleGovernanceGroup({
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { member, logout } = useAuth();
-  const { canManageContent, canManageUsers, isAdmin, canAccessDiscover } = usePermissions();
+  const { canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state } = useSidebar();
   const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
 
@@ -289,7 +264,7 @@ export function AppSidebar() {
       <SidebarContent>
         {!isCollapsed && ecosystems.length > 1 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Ecosystems / Scope</SidebarGroupLabel>
+            <SidebarGroupLabel>Current ecosystem</SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="flex flex-col gap-1 px-1">
                 {ecosystems.map((eco) => {
@@ -320,15 +295,10 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                if (item.url === '/solutions' && !canAccessDiscover) return null;
-
                 let isActive = location === item.url;
                 if (item.url === '/dashboard') isActive = isActive || location === '/';
                 if (item.url === '/discover') {
-                  isActive = isActive || location.startsWith('/discover/');
-                }
-                if (item.url === '/solutions') {
-                  isActive = isActive || location.startsWith('/ethos/') || location.startsWith('/orientation/');
+                  isActive = isActive || location.startsWith('/discover/') || location.startsWith('/ethos/') || location.startsWith('/orientation/');
                 }
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -344,14 +314,20 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {governanceGroups.map((group) => (
-          <CollapsibleGovernanceGroup
-            key={group.label}
-            group={group}
-            location={location}
-            isCollapsed={isCollapsed}
-          />
-        ))}
+        {governanceGroups.map((group) => {
+          // tier-gated: platform perms proxy until per-ecosystem role tiers land
+          if (group.label === "Safety & Integrity" && !(isAdmin || canManageUsers || canManageContent)) {
+            return null;
+          }
+          return (
+            <CollapsibleGovernanceGroup
+              key={group.label}
+              group={group}
+              location={location}
+              isCollapsed={isCollapsed}
+            />
+          );
+        })}
 
         <SidebarGroup>
           <SidebarGroupLabel>Communication</SidebarGroupLabel>
@@ -359,7 +335,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {commsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
+                  <SidebarMenuButton asChild isActive={location === '/messaging' || location.startsWith('/comms') || location.startsWith('/chat')}>
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -400,8 +376,6 @@ export function AppSidebar() {
                   let isActive = false;
                   if (item.url === '/admin/users') {
                     isActive = location.startsWith('/admin/users');
-                  } else if (item.url === '/admin/journey-maps') {
-                    isActive = location.startsWith('/admin/journey-maps');
                   } else if (item.url === '/admin') {
                     isActive = location === '/admin';
                   } else {

@@ -22,10 +22,16 @@ The authenticated shell owns the global header, sidebar, skip link, and `.route-
 
 The route contract is:
 
+- Navigation is two-mode: Explore (/discover, /ethos, /orientation) vs Ecosystem (scoped to the current ecosystem).
 - `/discover` renders `pages/discover/DiscoverHub`.
-- `/solutions` renders the former `pages/Discover` catalogue.
+- `/solutions` redirects to `/discover` (the former `pages/Discover` catalogue is removed from the nav).
+- `/map` redirects to `/discover`.
+- `/quizzes` redirects to `/onboarding`; `/quiz/take/:id`, `/quiz/results/:id`, and `/quiz/manage` remain.
+- `/comms` and `/chat` redirect to `/messaging`.
+- `/governance` redirects to `/ecosystems`.
 - `/explore` and `/discover/hub` redirect to `/discover`.
-- Ethos and orientation routes belong to the Solutions navigation state.
+- Journey-map admin routes (`/admin/journey-maps*`) redirect to `/onboarding` — journey maps are being folded into onboarding flows.
+- Ethos and orientation routes belong to the Explore navigation state.
 
 ## Public member profiles
 

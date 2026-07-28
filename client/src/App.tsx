@@ -18,7 +18,6 @@ import About from "@/pages/About";
 import GovernanceModel from "@/pages/GovernanceModel";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
-import QuizzesOnboardingHub from "@/pages/QuizzesOnboardingHub";
 import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
 import QuizResults from "@/pages/QuizResults";
@@ -34,16 +33,11 @@ const SharesNeedsForm = lazy(() => import("@/pages/discover/SharesNeedsForm"));
 const CollaborationForm = lazy(() => import("@/pages/discover/CollaborationForm"));
 const CollaborationDetail = lazy(() => import("@/pages/discover/CollaborationDetail"));
 import NotFound from "@/pages/not-found";
-import MapPage from "@/pages/MapPage";
-import JourneyMapList from "@/pages/JourneyMapList";
-import JourneyMapEditor from "@/pages/JourneyMapEditor";
 // Orientation Portal pages
-import Solutions from "@/pages/Discover";
 import EthosDetail from "@/pages/EthosDetail";
 import OrientationGate from "@/pages/OrientationGate";
 import OrientationJourney from "@/pages/OrientationJourney";
 import OrientationComplete from "@/pages/OrientationComplete";
-import GovernanceDashboard from "@/pages/governance/DashboardHome";
 import { AgreementList, AgreementDetail, AgreementForm, AgreementHistory } from '@/pages/governance/agreements';
 import { ProposalList, ProposalDetail, ProposalForm } from '@/pages/governance/proposals';
 import { MemberList, MemberDetail, MemberForm } from '@/pages/governance/members';
@@ -57,8 +51,6 @@ import { EmergencyDashboard, EmergencyDetail } from '@/pages/governance/emergenc
 import { ExitList, ExitDetail, ExitForm } from '@/pages/governance/exit';
 import { SafeguardsDashboard, AuditList, AuditDetail } from '@/pages/governance/safeguards';
 import MessagingLayout from '@/pages/messaging/MessagingLayout';
-import ChatPanel from '@/pages/chat/ChatPanel';
-import CommsPage from '@/pages/communications/CommsPage';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 import { FloatingComms } from "@/components/FloatingComms";
 import ComplianceDashboard from '@/pages/compliance/ComplianceDashboard';
@@ -192,9 +184,9 @@ function AuthenticatedRoutes() {
       {/* About page (also accessible when authenticated) */}
       <Route path="/about" component={About} />
 
-      {/* Governance dashboard */}
+      {/* Governance dashboard — folded into ecosystems */}
       <Route path="/governance">
-        <ProtectedRoute component={GovernanceDashboard} />
+        <Redirect to="/ecosystems" />
       </Route>
 
       {/* Agreement routes */}
@@ -233,9 +225,9 @@ function AuthenticatedRoutes() {
         <Redirect to="/discover" />
       </Route>
 
-      {/* Quiz & Onboarding hub */}
+      {/* Quiz & Onboarding hub — folded into onboarding */}
       <Route path="/quizzes">
-        <ProtectedRoute component={QuizzesOnboardingHub} />
+        <Redirect to="/onboarding" />
       </Route>
       <Route path="/quiz/take/:id">
         <ProtectedRoute component={TakeQuiz} />
@@ -278,9 +270,9 @@ function AuthenticatedRoutes() {
         <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={DiscoverHub} /></Suspense>
       </Route>
 
-      {/* Solutions catalogue and orientation journeys */}
+      {/* Solutions catalogue — folded into discover; orientation journeys remain */}
       <Route path="/solutions">
-        <ProtectedRoute component={Solutions} />
+        <Redirect to="/discover" />
       </Route>
       <Route path="/ethos/:slug">
         <ProtectedRoute component={EthosDetail} />
@@ -298,20 +290,20 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={OrientationGate} />
       </Route>
 
-      {/* Map page - all authenticated users */}
+      {/* Map page — folded into discover */}
       <Route path="/map">
-        <ProtectedRoute component={MapPage} />
+        <Redirect to="/discover" />
       </Route>
 
-      {/* Journey Map Builder - requires canManageContent */}
+      {/* Journey Map Builder — folded into onboarding flows */}
       <Route path="/admin/journey-maps/new">
-        <ProtectedRoute component={JourneyMapEditor} requiredPermission="canManageContent" />
+        <Redirect to="/onboarding" />
       </Route>
       <Route path="/admin/journey-maps/:id">
-        <ProtectedRoute component={JourneyMapEditor} requiredPermission="canManageContent" />
+        <Redirect to="/onboarding" />
       </Route>
       <Route path="/admin/journey-maps">
-        <ProtectedRoute component={JourneyMapList} requiredPermission="canManageContent" />
+        <Redirect to="/onboarding" />
       </Route>
 
       {/* Admin panel - requires canManageUsers permission */}
@@ -374,10 +366,10 @@ function AuthenticatedRoutes() {
       <Route path="/safeguards/audits"><ProtectedRoute component={AuditList} /></Route>
       <Route path="/safeguards"><ProtectedRoute component={SafeguardsDashboard} /></Route>
 
-      {/* Communications — split view with AI chat + messaging */}
-      <Route path="/comms"><ProtectedRoute component={CommsPage} /></Route>
+      {/* Messaging — /comms and /chat are legacy entries */}
+      <Route path="/comms"><Redirect to="/messaging" /></Route>
       <Route path="/messaging"><ProtectedRoute component={MessagingLayout} /></Route>
-      <Route path="/chat"><ProtectedRoute component={ChatPanel} /></Route>
+      <Route path="/chat"><Redirect to="/messaging" /></Route>
 
       {/* Compliance */}
       <Route path="/compliance">

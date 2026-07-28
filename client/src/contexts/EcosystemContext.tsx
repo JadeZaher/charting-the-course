@@ -69,7 +69,7 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedIds, queryClient]);
 
-  // Initialize from cookie or all ecosystems
+  // Initialize from cookie or first ecosystem
   useEffect(() => {
     if (ecosystems.length === 0) return;
 
@@ -79,10 +79,9 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     if (validIds.length > 0) {
       setSelectedIds(validIds);
     } else {
-      // Default to all ecosystems
-      const allIds = ecosystems.map(e => e.id);
-      setSelectedIds(allIds);
-      setSelectedCookie(allIds);
+      // Default to a single current ecosystem
+      setSelectedIds([ecosystems[0].id]);
+      setSelectedCookie([ecosystems[0].id]);
     }
   }, [ecosystems]);
 
