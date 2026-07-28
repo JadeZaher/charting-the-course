@@ -1,8 +1,7 @@
-import { useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
@@ -36,7 +35,6 @@ const statusVariant = (status: string) => {
 };
 
 export default function DecisionList() {
-  const [, navigate] = useLocation();
   const list = useGovernanceList({ entity: 'decisions', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
@@ -69,48 +67,19 @@ export default function DecisionList() {
         onSearchChange={list.setSearch}
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Record ID</TableHead>
-                <TableHead>Holding</TableHead>
-                <TableHead>Domain</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ecosystem</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    No decisions found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.items.map((d) => (
-                  <TableRow
-                    key={d.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/decisions/${d.id}`)}
-                  >
-                    <TableCell className="font-medium">{d.record_id}</TableCell>
-                    <TableCell className="max-w-[300px] truncate">{d.holding}</TableCell>
-                    <TableCell>{d.domain || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(d.ecosystem_id) || '-'}</TableCell>
-                    <TableCell>{d.date ? new Date(d.date).toLocaleDateString() : '-'}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <CollectionGrid aria-label="Decisions">
+        {data?.items.length === 0 ? (
+          <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No decisions found</div>
+        ) : data?.items.map((d) => (
+          <CollectionCard key={d.id} asChild>
+            <Link href={`/decisions/${d.id}`} aria-label={`View decision: ${d.record_id}`}>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Decision record</p><h2 className="mt-1 text-lg font-semibold">{d.record_id}</h2></div><Badge variant={statusVariant(d.status)}>{d.status}</Badge></div>
+              <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">{d.holding}</p>
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Domain</dt><dd className="mt-1 font-medium">{d.domain || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Date</dt><dd className="mt-1 font-medium">{d.date ? new Date(d.date).toLocaleDateString() : '-'}</dd></div><div className="col-span-2"><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(d.ecosystem_id) || '-'}</dd></div></dl>
+            </Link>
+          </CollectionCard>
+        ))}
+      </CollectionGrid>
 
       {totalPages > 1 && (
         <Pagination>

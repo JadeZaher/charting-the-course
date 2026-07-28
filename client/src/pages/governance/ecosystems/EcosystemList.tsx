@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystems, useRequestJoinEcosystem } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
@@ -73,7 +73,6 @@ function JoinButton({ ecosystemId, isMember }: { ecosystemId: string; isMember: 
 }
 
 export default function EcosystemList() {
-  const [, navigate] = useLocation();
   const [tab, setTab] = useState('mine');
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
@@ -158,44 +157,16 @@ export default function EcosystemList() {
             </div>
           ) : (
             <>
-              <Card>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Members</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data?.items.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                            No ecosystems found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        data?.items.map((e) => (
-                          <TableRow
-                            key={e.id}
-                            className="cursor-pointer"
-                            onClick={() => navigate(`/ecosystems/${e.id}`)}
-                          >
-                            <TableCell className="font-medium">{e.name}</TableCell>
-                            <TableCell>{e.location || '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant={statusVariant(e.status)}>{e.status}</Badge>
-                            </TableCell>
-                            <TableCell>{e.member_count ?? '-'}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              <CollectionGrid aria-label="Your ecosystems">
+                {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No ecosystems found</div> : data?.items.map((e) => (
+                  <CollectionCard key={e.id} asChild>
+                    <Link href={`/ecosystems/${e.id}`} aria-label={`View ecosystem: ${e.name}`}>
+                      <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ecosystem</p><h2 className="mt-1 text-lg font-semibold">{e.name}</h2></div><Badge variant={statusVariant(e.status)}>{e.status}</Badge></div>
+                      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Location</dt><dd className="mt-1 font-medium">{e.location || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Members</dt><dd className="mt-1 font-medium">{e.member_count ?? '-'}</dd></div></dl>
+                    </Link>
+                  </CollectionCard>
+                ))}
+              </CollectionGrid>
 
               {totalPages > 1 && (
                 <Pagination>
@@ -250,48 +221,17 @@ export default function EcosystemList() {
               <p className="text-sm text-muted-foreground mt-1">{(discoverError as Error).message}</p>
             </div>
           ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Members</TableHead>
-                      <TableHead>Membership</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {discoverEcosystems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          {discoverSearch ? 'No ecosystems match your search' : 'No public ecosystems available'}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      discoverEcosystems.map((e: any) => (
-                        <TableRow
-                          key={e.id}
-                          className="cursor-pointer"
-                          onClick={() => navigate(`/ecosystems/${e.id}`)}
-                        >
-                          <TableCell className="font-medium">{e.name}</TableCell>
-                          <TableCell>{e.location || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant={statusVariant(e.status)}>{e.status}</Badge>
-                          </TableCell>
-                          <TableCell>{e.member_count ?? '-'}</TableCell>
-                          <TableCell>
-                            <JoinButton ecosystemId={e.id} isMember={memberEcoIds.has(e.id)} />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <CollectionGrid aria-label="Public ecosystems">
+              {discoverEcosystems.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">{discoverSearch ? 'No ecosystems match your search' : 'No public ecosystems available'}</div> : discoverEcosystems.map((e: any) => (
+                <CollectionCard key={e.id}>
+                  <Link href={`/ecosystems/${e.id}`} className="block focus-visible:outline-none" aria-label={`View ecosystem: ${e.name}`}>
+                    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Public ecosystem</p><h2 className="mt-1 text-lg font-semibold">{e.name}</h2></div><Badge variant={statusVariant(e.status)}>{e.status}</Badge></div>
+                    <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Location</dt><dd className="mt-1 font-medium">{e.location || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Members</dt><dd className="mt-1 font-medium">{e.member_count ?? '-'}</dd></div></dl>
+                  </Link>
+                  <div className="mt-5 border-t border-border pt-4"><JoinButton ecosystemId={e.id} isMember={memberEcoIds.has(e.id)} /></div>
+                </CollectionCard>
+              ))}
+            </CollectionGrid>
           )}
         </TabsContent>
       </Tabs>

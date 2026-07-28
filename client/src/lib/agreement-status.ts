@@ -28,6 +28,11 @@ const AGREEMENT_STATUS_LABELS: Record<AgreementStatus, string> = {
   archived: 'Archived',
 };
 
+/** Human-readable agreement lifecycle status, including a safe future fallback. */
+export function agreementStatusLabel(status: string): string {
+  return AGREEMENT_STATUS_LABELS[status as AgreementStatus] ?? status;
+}
+
 /** Filter/select options for the Agreement status field, typed to AgreementStatus. */
 export const AGREEMENT_STATUS_OPTIONS: { value: AgreementStatus; label: string }[] =
   AGREEMENT_STATUSES.map((value) => ({ value, label: AGREEMENT_STATUS_LABELS[value] }));

@@ -1,9 +1,8 @@
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
@@ -47,7 +46,6 @@ const healthColorClass = (health: string) => {
 };
 
 export default function AuditList() {
-  const [, navigate] = useLocation();
   const list = useGovernanceList({ entity: 'audits', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
@@ -94,71 +92,19 @@ export default function AuditList() {
         onSearchChange={list.setSearch}
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Auditor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Health</TableHead>
-                <TableHead>Scope</TableHead>
-                <TableHead>Trigger</TableHead>
-                <TableHead>Ecosystem</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Completed</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
-                    <div className="space-y-2">
-                      <p className="text-muted-foreground">No audits found</p>
-                      <p className="text-xs text-muted-foreground">
-                        Governance audits help track the health of your ecosystem's decision-making processes.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.items.map((audit) => (
-                  <TableRow
-                    key={audit.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/safeguards/audits/${audit.id}`)}
-                  >
-                    <TableCell className="font-medium">{audit.auditor}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(audit.status)}>{audit.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {audit.overall_health ? (
-                        <Badge className={healthColorClass(audit.overall_health)}>
-                          {audit.overall_health}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{audit.audit_scope || '—'}</TableCell>
-                    <TableCell>
-                      {audit.trigger_type ? (
-                        <Badge variant="outline" className="text-xs">{audit.trigger_type}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(audit.ecosystem_id) || '-'}</TableCell>
-                    <TableCell>{new Date(audit.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>{audit.completed_at ? new Date(audit.completed_at).toLocaleDateString() : '-'}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <CollectionGrid aria-label="Audit history">
+        {data?.items.length === 0 ? (
+          <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center"><p className="text-muted-foreground">No audits found</p><p className="mt-2 text-xs text-muted-foreground">Governance audits help track the health of your ecosystem's decision-making processes.</p></div>
+        ) : data?.items.map((audit) => (
+          <CollectionCard key={audit.id} asChild>
+            <Link href={`/safeguards/audits/${audit.id}`} aria-label={`View audit by ${audit.auditor}`}>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Governance audit</p><h2 className="mt-1 text-lg font-semibold">{audit.auditor}</h2></div><Badge variant={statusVariant(audit.status)}>{audit.status}</Badge></div>
+              <div className="mt-4 flex flex-wrap gap-2">{audit.overall_health && <Badge className={healthColorClass(audit.overall_health)}>{audit.overall_health}</Badge>}{audit.trigger_type && <Badge variant="outline">{audit.trigger_type}</Badge>}</div>
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div className="col-span-2"><dt className="text-xs text-muted-foreground">Scope</dt><dd className="mt-1 font-medium">{audit.audit_scope || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(audit.created_at).toLocaleDateString()}</dd></div><div><dt className="text-xs text-muted-foreground">Completed</dt><dd className="mt-1 font-medium">{audit.completed_at ? new Date(audit.completed_at).toLocaleDateString() : '-'}</dd></div><div className="col-span-2"><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(audit.ecosystem_id) || '-'}</dd></div></dl>
+            </Link>
+          </CollectionCard>
+        ))}
+      </CollectionGrid>
 
       {totalPages > 1 && (
         <Pagination>

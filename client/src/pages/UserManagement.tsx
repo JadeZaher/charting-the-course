@@ -43,14 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { CollectionCard, CollectionGrid } from "@/components/governance/shared/CollectionGrid";
 import {
   Popover,
   PopoverContent,
@@ -505,117 +498,24 @@ export default function UserManagement() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : filteredUsers.length > 0 ? (
-            <div className="overflow-x-auto rounded-none border-2 border-strong-border">
-              <Table className="min-w-[720px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Select all"
-                      />
-                    </TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Legacy Role</TableHead>
-                    <TableHead>Permissions</TableHead>
-                    <TableHead className="hidden md:table-cell">Quizzes</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id} className={user.isArchived ? 'opacity-60' : ''}>
-                      <TableCell className="w-10">
-                        <Checkbox
-                          checked={selectedIds.has(user.id)}
-                          onCheckedChange={() => toggleSelectUser(user.id)}
-                          aria-label={`Select ${getDisplayName(user)}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={user.avatar_url || ''} />
-                            <AvatarFallback className="text-xs">
-                              {getInitials(user)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{getDisplayName(user)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              @{user.username || 'no-username'}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <RoleBadge role={getRoleBadgeRole(user.role)} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.permissions.length > 0 ? (
-                            user.permissions.map(perm => (
-                              <Badge key={perm} variant="outline" className="text-xs">
-                                {PERMISSION_LABELS[perm]}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No permissions</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="secondary">
-                          {user.quiz_count}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button asChild variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}>
-                            <Link href={`/admin/users/${user.id}/history`}>
-                              <History className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            title="Edit Permissions"
-                            onClick={() => handleEditPermissions(user)}
-                            data-testid={`button-edit-${user.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Resend Invite"
-                            disabled={resendInviteMutation.isPending}
-                            onClick={() => resendInviteMutation.mutate(user.id)}
-                            data-testid={`button-invite-${user.id}`}
-                          >
-                            <Mail className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={user.isArchived ? "Restore User" : "Archive User"}
-                            onClick={() => handleArchiveUser(user)}
-                            data-testid={`button-archive-${user.id}`}
-                          >
-                            {user.isArchived ? (
-                              <ArchiveRestore className="h-4 w-4" />
-                            ) : (
-                              <Archive className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <CollectionGrid aria-label="Users">
+              <div className="col-span-full flex items-center gap-2 border-b-2 border-strong-border pb-3 text-sm">
+                <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="Select all users" />
+                <span>Select all {filteredUsers.length} users</span>
+              </div>
+              {filteredUsers.map((user) => (
+                <CollectionCard key={user.id} className={user.isArchived ? 'opacity-60' : undefined}>
+                  <div className="flex items-start gap-3">
+                    <Checkbox checked={selectedIds.has(user.id)} onCheckedChange={() => toggleSelectUser(user.id)} aria-label={`Select ${getDisplayName(user)}`} />
+                    <Avatar className="h-10 w-10"><AvatarImage src={user.avatar_url || ''} /><AvatarFallback className="text-xs">{getInitials(user)}</AvatarFallback></Avatar>
+                    <div className="min-w-0 flex-1"><p className="font-medium">{getDisplayName(user)}</p><p className="text-xs text-muted-foreground">@{user.username || 'no-username'}</p></div>
+                    <RoleBadge role={getRoleBadgeRole(user.role)} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-1">{user.permissions.length > 0 ? user.permissions.map(perm => <Badge key={perm} variant="outline" className="text-xs">{PERMISSION_LABELS[perm]}</Badge>) : <span className="text-xs text-muted-foreground">No permissions</span>}</div>
+                  <div className="mt-5 flex items-center justify-between border-t border-border pt-4"><Badge variant="secondary">{user.quiz_count} quizzes</Badge><div className="flex items-center gap-1"><Button asChild variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}><Link href={`/admin/users/${user.id}/history`}><History className="h-4 w-4" /></Link></Button><Button variant="ghost" size="icon" title="Edit Permissions" onClick={() => handleEditPermissions(user)} data-testid={`button-edit-${user.id}`}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title="Resend Invite" disabled={resendInviteMutation.isPending} onClick={() => resendInviteMutation.mutate(user.id)} data-testid={`button-invite-${user.id}`}><Mail className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title={user.isArchived ? "Restore User" : "Archive User"} onClick={() => handleArchiveUser(user)} data-testid={`button-archive-${user.id}`}>{user.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</Button></div></div>
+                </CollectionCard>
+              ))}
+            </CollectionGrid>
           ) : (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

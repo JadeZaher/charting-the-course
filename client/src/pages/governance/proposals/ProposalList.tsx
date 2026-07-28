@@ -1,9 +1,8 @@
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
@@ -64,7 +63,6 @@ const urgencyVariant = (urgency: string | null) => {
 };
 
 export default function ProposalList() {
-  const [, navigate] = useLocation();
   const list = useGovernanceList({ entity: 'proposals', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
@@ -103,52 +101,17 @@ export default function ProposalList() {
         onSearchChange={list.setSearch}
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Proposer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Urgency</TableHead>
-                <TableHead>Domain</TableHead>
-                <TableHead>Ecosystem</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No proposals found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.items.map((p) => (
-                  <TableRow
-                    key={p.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/proposals/${p.id}`)}
-                  >
-                    <TableCell className="font-medium">{p.title}</TableCell>
-                    <TableCell>{p.proposer || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(p.status)}>{p.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {p.urgency ? <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge> : '-'}
-                    </TableCell>
-                    <TableCell>{p.affected_domain || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(p.ecosystem_id) || '-'}</TableCell>
-                    <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <CollectionGrid aria-label="Proposals">
+        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No proposals found</div> : data?.items.map((p) => (
+          <CollectionCard key={p.id} asChild>
+            <Link href={`/proposals/${p.id}`} aria-label={`View proposal: ${p.title}`}>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Proposal</p><h2 className="mt-1 text-lg font-semibold">{p.title}</h2></div><Badge variant={statusVariant(p.status)}>{p.status}</Badge></div>
+              <div className="mt-4 flex flex-wrap gap-2">{p.urgency && <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge>}<Badge variant="outline">{p.affected_domain || 'No domain'}</Badge></div>
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Proposer</dt><dd className="mt-1 font-medium">{p.proposer || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(p.created_at).toLocaleDateString()}</dd></div><div className="col-span-2"><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(p.ecosystem_id) || '-'}</dd></div></dl>
+            </Link>
+          </CollectionCard>
+        ))}
+      </CollectionGrid>
 
       {totalPages > 1 && (
         <Pagination>

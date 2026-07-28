@@ -1,10 +1,8 @@
-import { useLocation } from 'wouter';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
@@ -61,8 +59,6 @@ const severityVariant = (severity: string) => {
 };
 
 export default function ConflictList() {
-  const [, navigate] = useLocation();
-
   const list = useGovernanceList({ entity: 'conflicts', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
@@ -102,52 +98,17 @@ export default function ConflictList() {
         searchPlaceholder="Search..."
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Case ID</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>Urgency</TableHead>
-                <TableHead>Ecosystem</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No conflicts found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.items.map((c) => (
-                  <TableRow
-                    key={c.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/conflicts/${c.id}`)}
-                  >
-                    <TableCell className="font-medium">{c.case_id}</TableCell>
-                    <TableCell>{c.title}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {c.severity ? <Badge variant={severityVariant(c.severity)}>{c.severity}</Badge> : '-'}
-                    </TableCell>
-                    <TableCell>{c.urgency}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(c.ecosystem_id) || '-'}</TableCell>
-                    <TableCell>{new Date(c.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <CollectionGrid aria-label="Conflicts">
+        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No conflicts found</div> : data?.items.map((c) => (
+          <CollectionCard key={c.id} asChild>
+            <Link href={`/conflicts/${c.id}`} aria-label={`View conflict: ${c.title}`}>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.case_id}</p><h2 className="mt-1 text-lg font-semibold">{c.title}</h2></div><Badge variant={statusVariant(c.status)}>{c.status}</Badge></div>
+              <div className="mt-4 flex flex-wrap gap-2">{c.severity && <Badge variant={severityVariant(c.severity)}>{c.severity}</Badge>}<Badge variant="outline">{c.urgency}</Badge></div>
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(c.ecosystem_id) || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(c.created_at).toLocaleDateString()}</dd></div></dl>
+            </Link>
+          </CollectionCard>
+        ))}
+      </CollectionGrid>
 
       {totalPages > 1 && (
         <Pagination>

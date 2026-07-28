@@ -1,9 +1,8 @@
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
@@ -28,8 +27,6 @@ const FILTERS: FilterDef[] = [
 ];
 
 export default function ExitList() {
-  const [, navigate] = useLocation();
-
   const list = useGovernanceList({ entity: 'exits', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
@@ -68,48 +65,17 @@ export default function ExitList() {
         onSearchChange={list.setSearch}
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Ecosystem</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    No exits found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.items.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/exit/${item.id}`)}
-                  >
-                    <TableCell className="font-medium">{item.member_name}</TableCell>
-                    <TableCell>{item.exit_type}</TableCell>
-                    <TableCell>
-                      <Badge variant={exitStatusVariant(item.status)}>{item.status}</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate">{item.reason || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{getEcosystemName(item.ecosystem_id) || '-'}</TableCell>
-                    <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <CollectionGrid aria-label="Exits">
+        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No exits found</div> : data?.items.map((item) => (
+          <CollectionCard key={item.id} asChild>
+            <Link href={`/exit/${item.id}`} aria-label={`View exit for ${item.member_name}`}>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.exit_type} exit</p><h2 className="mt-1 text-lg font-semibold">{item.member_name}</h2></div><Badge variant={exitStatusVariant(item.status)}>{item.status}</Badge></div>
+              <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">{item.reason || 'No reason recorded.'}</p>
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(item.ecosystem_id) || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(item.created_at).toLocaleDateString()}</dd></div></dl>
+            </Link>
+          </CollectionCard>
+        ))}
+      </CollectionGrid>
 
       {totalPages > 1 && (
         <Pagination>

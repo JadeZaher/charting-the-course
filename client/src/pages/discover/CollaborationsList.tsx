@@ -56,9 +56,9 @@ export default function CollaborationsList({ searchProp = '' }: Props) {
             <Skeleton key={index} className="h-14 rounded-none border-2 border-border" />
           ))}
         </div>
-        <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-36 rounded-none border-2 border-border" />
+            <Skeleton key={index} className="h-64 rounded-none border-2 border-border" />
           ))}
         </div>
       </div>
@@ -132,50 +132,54 @@ export default function CollaborationsList({ searchProp = '' }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {items.map((item, index) => (
-            <article key={item.id} className="border-2 border-strong-border bg-card">
+            <article key={item.id} className="h-full border-2 border-strong-border bg-card">
               <Link
                 href={`/discover/collaborations/${item.id}`}
-                className="group grid gap-5 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6 lg:grid-cols-12 lg:items-center"
+                className="group flex h-full flex-col gap-5 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
               >
-                <div className="lg:col-span-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground group-hover:text-background/75">
                     C-{String(index + 1).padStart(2, '0')}
                   </p>
                   <p className={`mt-2 text-xs font-black uppercase tracking-[0.14em] group-hover:text-background ${statusTone(item.status)}`}>
                     {item.status}
                   </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-none capitalize group-hover:border-background group-hover:text-background">
+                    {item.engagement_tier}
+                  </Badge>
                 </div>
 
-                <div className="lg:col-span-4">
+                <div>
+                  <h3 className="text-xl font-black tracking-tight">{item.title}</h3>
+                  {item.description && (
+                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground group-hover:text-background/80">{item.description}</p>
+                  )}
+                </div>
+
+                <div className="grid gap-4 border-t border-border pt-4 group-hover:border-background/40 sm:grid-cols-2">
+                  <div>
                   <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground group-hover:text-background/75">Source</p>
                   <p className="mt-1 font-black">{item.source_domain_name ?? item.source_domain_id}</p>
                   {item.source_ecosystem_name && (
                     <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">{item.source_ecosystem_name}</p>
                   )}
-                </div>
+                  </div>
 
-                <div className="lg:col-span-4">
+                  <div>
                   <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground group-hover:text-background/75">Target</p>
                   <p className="mt-1 font-black">{item.target_domain_name ?? item.target_domain_id}</p>
                   {item.target_ecosystem_name && (
                     <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">{item.target_ecosystem_name}</p>
                   )}
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 lg:col-span-2 lg:justify-end">
-                  <Badge variant="outline" className="rounded-none capitalize group-hover:border-background group-hover:text-background">
-                    {item.engagement_tier}
-                  </Badge>
+                <div className="mt-auto flex items-center justify-end border-t border-border pt-4 group-hover:border-background/40">
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" />
-                </div>
-
-                <div className="border-t border-border pt-4 group-hover:border-background/40 lg:col-span-12">
-                  <h3 className="text-lg font-black tracking-tight">{item.title}</h3>
-                  {item.description && (
-                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground group-hover:text-background/80">{item.description}</p>
-                  )}
                 </div>
               </Link>
             </article>

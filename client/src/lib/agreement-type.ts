@@ -35,6 +35,11 @@ const AGREEMENT_TYPE_LABELS: Record<AgreementType, string> = {
   guideline: 'Guideline',
 };
 
+/** Human-readable agreement type, including a safe value for future records. */
+export function agreementTypeLabel(type: string): string {
+  return AGREEMENT_TYPE_LABELS[type as AgreementType] ?? type;
+}
+
 /** Select/filter options for the Agreement type field, typed to AgreementType. */
 export const AGREEMENT_TYPE_OPTIONS: { value: AgreementType; label: string }[] =
   AGREEMENT_TYPES.map((value) => ({ value, label: AGREEMENT_TYPE_LABELS[value] }));

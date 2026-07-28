@@ -13,14 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -170,7 +162,7 @@ export default function JourneyMapList() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="rounded-none border-2 border-strong-border shadow-none">
         <CardContent className="pt-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -207,13 +199,15 @@ export default function JourneyMapList() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
+      <section aria-label="Journey maps">
           {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading journey maps...</div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading journey maps">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-72 animate-pulse border-2 border-strong-border bg-muted" />
+              ))}
+            </div>
           ) : filteredMaps.length === 0 ? (
-            <div className="p-12 text-center">
+            <div className="border-2 border-dashed border-strong-border p-12 text-center">
               <Map className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-medium mb-1">No journey maps found</h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -229,102 +223,86 @@ export default function JourneyMapList() {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>ETHOS</TableHead>
-                  <TableHead>Sector Alignment</TableHead>
-                  <TableHead className="text-center">Steps</TableHead>
-                  <TableHead className="text-center">Active</TableHead>
-                  <TableHead className="text-center">Default</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMaps.map((map) => (
-                  <TableRow key={map.id}>
-                    <TableCell>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredMaps.map((map) => (
+                <Card key={map.id} className="flex h-full flex-col rounded-none border-2 border-strong-border bg-card shadow-none">
+                  <CardHeader className="gap-3 border-b-2 border-strong-border p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <CardTitle className="text-xl font-black tracking-tight">{map.title}</CardTitle>
+                        <CardDescription className="mt-1 truncate font-mono text-xs">{map.slug}</CardDescription>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2" aria-label="Journey map status">
+                        {map.is_active ? (
+                          <CheckCircle className="h-4 w-4 text-success" aria-label="Active" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-muted-foreground" aria-label="Inactive" />
+                        )}
+                        {map.is_default && <Star className="h-4 w-4 fill-warning text-warning" aria-label="Default journey" />}
+                      </div>
+                    </div>
+                    {map.ethos ? (
+                      <Badge variant="outline" className="w-fit rounded-none">{map.ethos.name}</Badge>
+                    ) : (
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">No ETHOS assigned</p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col gap-5 p-5">
+                    <div>
+                      <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Sector alignment</p>
+                      {(map.sector_alignment?.length ?? 0) > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {map.sector_alignment!.map((sector) => (
+                            <Badge key={sector} variant="secondary" className="rounded-none text-xs">{sector}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">No sector alignment</p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 border-y border-border py-4">
                       <div>
-                        <p className="font-medium">{map.title}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{map.slug}</p>
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Steps</p>
+                        <p className="mt-1 text-lg font-black">{Array.isArray(map.content_sequence) ? map.content_sequence.length : 0}</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {map.ethos ? (
-                        <Badge variant="outline">{map.ethos.name}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {(map.sector_alignment || []).slice(0, 2).map((s) => (
-                          <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-                        ))}
-                        {(map.sector_alignment || []).length > 2 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{(map.sector_alignment || []).length - 2}
-                          </Badge>
-                        )}
-                        {!(map.sector_alignment?.length) && (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
+                      <div>
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Status</p>
+                        <p className="mt-1 text-sm font-black">{map.is_active ? "Active" : "Inactive"}</p>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline">
-                        {Array.isArray(map.content_sequence) ? map.content_sequence.length : 0}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {map.is_active ? (
-                        <CheckCircle className="mx-auto h-4 w-4 text-success" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-muted-foreground mx-auto" />
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {map.is_default ? (
-                        <Star className="mx-auto h-4 w-4 fill-warning text-warning" />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLocation(`/admin/journey-maps/${map.id}`)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => duplicateMutation.mutate(map.id)}
-                          disabled={duplicateMutation.isPending}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(map)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                    <div className="mt-auto flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        className="min-h-11 rounded-none"
+                        onClick={() => setLocation(`/admin/journey-maps/${map.id}`)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="min-h-11 min-w-11 rounded-none p-0"
+                        onClick={() => duplicateMutation.mutate(map.id)}
+                        disabled={duplicateMutation.isPending}
+                        aria-label={`Duplicate ${map.title}`}
+                      >
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="min-h-11 min-w-11 rounded-none p-0 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(map)}
+                        aria-label={`Deactivate ${map.title}`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
-        </CardContent>
-      </Card>
+      </section>
 
       {/* Soft Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>

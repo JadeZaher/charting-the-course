@@ -24,14 +24,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 import { useToast } from "@/hooks/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { CollectionCard, CollectionGrid } from "@/components/governance/shared/CollectionGrid";
 import {
   Tabs,
   TabsContent,
@@ -565,89 +558,15 @@ export default function UserQuizHistory() {
             </CardHeader>
             <CardContent>
               {quizResults.length > 0 ? (
-                <div className="rounded-none border-2 border-strong-border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12"></TableHead>
-                        <TableHead>Quiz</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead className="hidden md:table-cell">Time Spent</TableHead>
-                        <TableHead>Completed</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {quizResults.map((result) => (
-                        <TableRow key={result.id} className={selectedResults.has(result.id) ? 'bg-muted/50' : ''}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedResults.has(result.id)}
-                              onCheckedChange={() => toggleResultSelection(result.id)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">
-                                {result.quiz?.title || 'Unknown Quiz'}
-                              </p>
-                              {result.quiz?.description && (
-                                <p className="text-xs text-muted-foreground line-clamp-1">
-                                  {result.quiz.description}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {result.score !== null ? (
-                                <>
-                                  <span className={`font-bold ${getScoreColor(result.score)}`}>
-                                    {result.score}%
-                                  </span>
-                                  {result.score >= 80 ? (
-                                    <CheckCircle2 className="h-4 w-4 text-success" />
-                                  ) : result.score >= 60 ? (
-                                    <CheckCircle2 className="h-4 w-4 text-warning" />
-                                  ) : (
-                                    <XCircle className="h-4 w-4 text-destructive" />
-                                  )}
-                                </>
-                              ) : (
-                                <Badge variant="outline">No Score</Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            {result.time_spent ? formatTime(result.time_spent) : '-'}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(result.completed_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setSelectedResult(result)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setDeleteResultDialog(result)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <CollectionGrid aria-label="Quiz history">
+                  {quizResults.map((result) => (
+                    <CollectionCard key={result.id} className={selectedResults.has(result.id) ? 'bg-muted' : undefined}>
+                      <div className="flex items-start gap-3"><Checkbox checked={selectedResults.has(result.id)} onCheckedChange={() => toggleResultSelection(result.id)} aria-label={`Select ${result.quiz?.title || 'quiz result'}`} /><div className="min-w-0 flex-1"><p className="font-medium">{result.quiz?.title || 'Unknown Quiz'}</p>{result.quiz?.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{result.quiz.description}</p>}</div><div className="flex items-center gap-1"><Button variant="ghost" size="sm" onClick={() => setSelectedResult(result)} aria-label={`View ${result.quiz?.title || 'quiz result'}`}><Eye className="h-4 w-4" /></Button><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteResultDialog(result)} aria-label={`Delete ${result.quiz?.title || 'quiz result'}`}><Trash2 className="h-4 w-4" /></Button></div></div>
+                      <div className="mt-4 flex items-center gap-2">{result.score !== null ? <><span className={`font-bold ${getScoreColor(result.score)}`}>{result.score}%</span>{result.score >= 80 ? <CheckCircle2 className="h-4 w-4 text-success" /> : result.score >= 60 ? <CheckCircle2 className="h-4 w-4 text-warning" /> : <XCircle className="h-4 w-4 text-destructive" />}</> : <Badge variant="outline">No Score</Badge>}</div>
+                      <dl className="mt-5 grid grid-cols-2 gap-x-4 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Time spent</dt><dd className="mt-1 font-medium">{result.time_spent ? formatTime(result.time_spent) : '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Completed</dt><dd className="mt-1 font-medium">{new Date(result.completed_at).toLocaleDateString()}</dd></div></dl>
+                    </CollectionCard>
+                  ))}
+                </CollectionGrid>
               ) : (
                 <div className="text-center py-12">
                   <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
