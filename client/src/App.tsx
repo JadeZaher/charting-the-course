@@ -52,6 +52,7 @@ import { SafeguardsDashboard, AuditList, AuditDetail } from '@/pages/governance/
 import MessagingLayout from '@/pages/messaging/MessagingLayout';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 import { FloatingComms } from "@/components/FloatingComms";
+import { RouteGuidePanel } from "@/components/RouteGuidePanel";
 import ComplianceDashboard from '@/pages/compliance/ComplianceDashboard';
 
 // Loading spinner component
@@ -451,6 +452,7 @@ function AppLayout() {
         </div>
       </div>
       <FloatingComms />
+      <RouteGuidePanel />
     </SidebarProvider>
   );
 }
