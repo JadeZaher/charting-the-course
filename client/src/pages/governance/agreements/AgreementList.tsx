@@ -72,21 +72,17 @@ export default function AgreementList() {
             <CollectionCard key={a.id} asChild>
               <Link href={`/agreements/${a.id}`} aria-label={`View agreement: ${a.title}`}>
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Agreement</p>
-                    <h2 className="mt-1 text-lg font-semibold leading-tight">{a.title}</h2>
-                  </div>
+                  <h2 className="text-lg font-semibold leading-tight">{a.title}</h2>
                   <Badge variant={agreementStatusVariant(a.status)}>{agreementStatusLabel(a.status)}</Badge>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <Badge variant="outline">{agreementTypeLabel(a.type)}</Badge>
-                  <Badge variant="outline">Version {a.version}</Badge>
+                  <Badge variant="outline">v{a.version}</Badge>
+                  {a.domain && <Badge variant="outline">{a.domain}</Badge>}
                 </div>
-                <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm">
-                  <div><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(a.ecosystem_id) || '-'}</dd></div>
-                  <div><dt className="text-xs text-muted-foreground">Domain</dt><dd className="mt-1 font-medium">{a.domain || '-'}</dd></div>
-                  <div className="col-span-2"><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(a.created_at).toLocaleDateString()}</dd></div>
-                </dl>
+                <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                  {getEcosystemName(a.ecosystem_id) || 'Unknown ecosystem'} · Created {new Date(a.created_at).toLocaleDateString()}
+                </p>
               </Link>
             </CollectionCard>
           ))

@@ -105,9 +105,17 @@ export default function ProposalList() {
         {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No proposals found</div> : data?.items.map((p) => (
           <CollectionCard key={p.id} asChild>
             <Link href={`/proposals/${p.id}`} aria-label={`View proposal: ${p.title}`}>
-              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Proposal</p><h2 className="mt-1 text-lg font-semibold">{p.title}</h2></div><Badge variant={statusVariant(p.status)}>{p.status}</Badge></div>
-              <div className="mt-4 flex flex-wrap gap-2">{p.urgency && <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge>}<Badge variant="outline">{p.affected_domain || 'No domain'}</Badge></div>
-              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Proposer</dt><dd className="mt-1 font-medium">{p.proposer || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(p.created_at).toLocaleDateString()}</dd></div><div className="col-span-2"><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(p.ecosystem_id) || '-'}</dd></div></dl>
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-lg font-semibold leading-tight">{p.title}</h2>
+                <Badge variant={statusVariant(p.status)}>{p.status}</Badge>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {p.urgency && <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge>}
+                <Badge variant="outline">{p.affected_domain || 'No domain'}</Badge>
+              </div>
+              <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                {p.proposer || 'Unknown proposer'} · {getEcosystemName(p.ecosystem_id) || 'Unknown ecosystem'} · {new Date(p.created_at).toLocaleDateString()}
+              </p>
             </Link>
           </CollectionCard>
         ))}

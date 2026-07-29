@@ -18,7 +18,7 @@ import { ACTStepper } from '@/components/governance/ACTStepper';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Pencil, ArrowLeft, Check, X, Award, Trash2 } from 'lucide-react';
+import { Pencil, ArrowLeft, Check, X, Award, Trash2, CircleAlert } from 'lucide-react';
 import type { AdviceLog, ConsentRecord, TestReport } from '@/types/api';
 
 const statusVariant = (status: string) => {
@@ -555,6 +555,7 @@ export default function ProposalDetail() {
   const statusMutation = useUpdateProposalStatus(id);
   const [statusChanging, setStatusChanging] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   if (isLoading) return <LoadingState message="Loading proposal..." />;
 
@@ -571,6 +572,14 @@ export default function ProposalDetail() {
   }
 
   const validNextStatuses = VALID_TRANSITIONS[data.status] ?? [];
+  const canConduct = data.caller_can_conduct ?? false;
+
+  // The single participation action this phase asks of the caller, if any.
+  const phaseAction = ({
+    advice: { tab: 'advice', cta: 'Share Advice', text: 'This proposal is gathering advice. Your perspective shapes the final decision.' },
+    consent: { tab: 'consent', cta: 'Record Your Position', text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' },
+    test: { tab: 'test', cta: 'Submit a Test Report', text: 'The proposal is being tried in practice. Report observations against the success criteria.' },
+  } as Record<string, { tab: string; cta: string; text: string }>)[data.status];
 
   const handleStatusChange = async (newStatus: string) => {
     if (['withdrawn', 'archived'].includes(newStatus)) {
@@ -636,7 +645,7 @@ export default function ProposalDetail() {
               Edit
             </Link>
           </Button>
-          {validNextStatuses.length > 0 && (
+          {validNextStatuses.length > 0 && canConduct && (
             <Select onValueChange={handleStatusChange} disabled={statusChanging}>
               <SelectTrigger className="w-[160px] h-9">
                 <SelectValue placeholder="Change Status" />
@@ -676,49 +685,35 @@ export default function ProposalDetail() {
       {/* ACT Process Stepper */}
       <ACTStepper currentStatus={data.status} />
 
-      {/* Metadata */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+      {/* Next action — what this phase asks of the caller */}
+      {phaseAction && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-2 border-warning bg-warning/10 p-4">
+          <div className="flex items-start gap-3 flex-1">
+            <CircleAlert className="h-5 w-5 shrink-0 text-warning mt-0.5" />
             <div>
-              <dt className="text-muted-foreground">Proposer</dt>
-              <dd className="font-medium">{data.proposer || '-'}</dd>
+              <p className="font-bold text-sm">Your input is needed in the {data.status} phase</p>
+              <p className="text-sm text-muted-foreground">{phaseAction.text}</p>
             </div>
-            <div>
-              <dt className="text-muted-foreground">Affected Domain</dt>
-              <dd className="font-medium">{data.affected_domain || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Decision Type</dt>
-              <dd className="font-medium">{data.decision_type || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Advice Deadline</dt>
-              <dd className="font-medium">{formatDate(data.advice_deadline)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Consent Deadline</dt>
-              <dd className="font-medium">{formatDate(data.consent_deadline)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Test Duration</dt>
-              <dd className="font-medium">{data.test_duration || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Created</dt>
-              <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Last Updated</dt>
-              <dd className="font-medium">{new Date(data.updated_at).toLocaleDateString()}</dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
+          </div>
+          <Button size="sm" onClick={() => setActiveTab(phaseAction.tab)}>
+            {phaseAction.cta}
+          </Button>
+        </div>
+      )}
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview">
+      {!canConduct && (
+        <div className="flex items-center gap-3 border-2 border-strong-border bg-muted p-4">
+          <CircleAlert className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            You are not a member of this proposal's ecosystem, so lifecycle controls are unavailable.
+          </p>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 min-w-0">
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -775,7 +770,52 @@ export default function ProposalDetail() {
         <TabsContent value="test">
           <TestTab testReports={data.test_reports} proposalId={id} proposalStatus={data.status} />
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </div>
+
+        {/* Rail column */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 gap-4 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Proposer</dt>
+                  <dd className="font-medium">{data.proposer || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Affected Domain</dt>
+                  <dd className="font-medium">{data.affected_domain || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Decision Type</dt>
+                  <dd className="font-medium">{data.decision_type || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Advice Deadline</dt>
+                  <dd className="font-medium">{formatDate(data.advice_deadline)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Consent Deadline</dt>
+                  <dd className="font-medium">{formatDate(data.consent_deadline)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Test Duration</dt>
+                  <dd className="font-medium">{data.test_duration || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Created</dt>
+                  <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Last Updated</dt>
+                  <dd className="font-medium">{new Date(data.updated_at).toLocaleDateString()}</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

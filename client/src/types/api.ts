@@ -168,6 +168,8 @@ export interface AgreementDetail extends AgreementListItem {
   alignment_points: number;
   consent_summary: AgreementConsentSummary | null;
   current_member_consent: AgreementMemberConsent | null;
+  caller_role: string | null;
+  caller_can_conduct: boolean;
 }
 
 export interface AmendmentRecord {
@@ -311,6 +313,8 @@ export interface ProposalDetail extends ProposalListItem {
   advice_logs: AdviceLog[];
   consent_records: ConsentRecord[];
   test_reports: TestReport[];
+  caller_role: string | null;
+  caller_can_conduct: boolean;
 }
 
 export interface PaginatedResponse<T> {
