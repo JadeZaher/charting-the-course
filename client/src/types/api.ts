@@ -162,6 +162,18 @@ export interface ActPolicy {
   test_cases: string[];
 }
 
+// Agent token for MCP access (minted per user, session-scoped). The
+// plaintext token is only present in the mint response.
+export interface AgentToken {
+  id: string;
+  label: string;
+  created_at: string | null;
+  expires_at: string | null;
+  revoked: boolean;
+  last_used_at: string | null;
+  token?: string;
+}
+
 export interface ActGates {
   policy: ActPolicy;
   policy_source?: 'proposal' | 'agreement' | 'default';
@@ -1093,4 +1105,25 @@ export interface CtcHandoffItem {
   member_id: string;
   ready_for_neos_den: boolean;
   updated_at: string | null;
+}
+
+// Member decisions — one member's personal decision about a subject
+// (agreement, proposal, share, or need), doubling as a follow-up task.
+// Distinct from DecisionRecord (the ecosystem artifact ledger): these are
+// user-owned and only readable/editable by their owner.
+export type MemberDecisionState = 'intended' | 'in_progress' | 'done' | 'follow_up' | 'dropped';
+
+export type MemberDecisionSubjectType = 'agreement' | 'proposal' | 'share' | 'need';
+
+export interface MemberDecision {
+  id: string;
+  ecosystem_id: string;
+  subject_type: MemberDecisionSubjectType;
+  subject_id: string;
+  decision: string;
+  state: MemberDecisionState;
+  notes: string | null;
+  subject_title: string | null;
+  created_at: string;
+  updated_at: string;
 }

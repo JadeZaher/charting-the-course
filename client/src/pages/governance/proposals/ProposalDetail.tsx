@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ACTStepper } from '@/components/governance/ACTStepper';
 import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
+import { RecordDecisionAction } from '@/components/governance/RecordDecisionDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -787,6 +788,23 @@ export default function ProposalDetail() {
         {/* Rail column */}
         <div className="space-y-6">
           {data.gates && <ActGatesPanel gates={data.gates} status={data.status} />}
+          {data.status === 'ratified' && (
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Your Decision</CardTitle></CardHeader>
+              <CardContent>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  This proposal has been ratified. Record your personal decision about it — it stays
+                  yours and doubles as a follow-up task.
+                </p>
+                <RecordDecisionAction
+                  subjectType="proposal"
+                  subjectId={id}
+                  subjectTitle={data.title}
+                  actionLabel="Record your decision"
+                />
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>
             <CardContent>

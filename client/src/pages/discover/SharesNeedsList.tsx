@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useSharesNeeds } from '@/hooks/use-discover';
 import { SHARESNEEDS_CATEGORY_OPTIONS } from '@/lib/sharesneeds-vocab';
+import { RecordDecisionAction } from '@/components/governance/RecordDecisionDialog';
 import type { PaginatedResponse, SharesNeeds } from '@/types/api';
 
 const CATEGORY_OPTIONS = [{ value: 'all', label: 'All categories' }, ...SHARESNEEDS_CATEGORY_OPTIONS];
@@ -184,6 +185,19 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
                   <dd className="mt-1 font-semibold">{item.capacity ?? 'Open'}</dd>
                 </div>
               </dl>
+
+              {item.status === 'active' && (item.type === 'share' || item.type === 'need') && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <RecordDecisionAction
+                    subjectType={item.type}
+                    subjectId={item.id}
+                    subjectTitle={item.title}
+                    actionLabel={item.type === 'share' ? 'Use' : 'Serve'}
+                    triggerVariant="outline"
+                    triggerSize="sm"
+                  />
+                </div>
+              )}
             </article>
           ))}
         </div>

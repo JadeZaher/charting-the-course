@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useDomain } from '@/hooks/use-governance';
+import { useDomain, useJoinDomainParticipation } from '@/hooks/use-governance';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {

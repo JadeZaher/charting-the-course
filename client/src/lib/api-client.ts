@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -253,6 +253,9 @@ export function assignQuizToDomain(domainId: string, quizId: string, isEntryQuiz
 export function unassignQuizFromDomain(domainId: string, quizId: string): Promise<QuizDomainUnassignResult> {
   return apiFetch(`/api/v1/domains/${domainId}/quizzes/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quiz_id: quizId }) });
 }
+export function joinDomainParticipation(domainId: string): Promise<{ status: string; domain_id: string; member_id: string; role: string }> {
+  return apiFetch<{ status: string; domain_id: string; member_id: string; role: string }>(`/api/v1/domains/${domainId}/participation`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'member' }) });
+}
 
 // Decisions API
 export function fetchDecisions(params?: Record<string, string>): Promise<PaginatedResponse<DecisionListItem>> {
@@ -261,6 +264,22 @@ export function fetchDecisions(params?: Record<string, string>): Promise<Paginat
 }
 export function fetchDecision(id: string): Promise<DecisionDetail> {
   return apiFetch<DecisionDetail>(`/api/v1/decisions/${id}`);
+}
+
+// My decisions API (member-owned decisions about agreements/proposals/shares/needs)
+// Collection routes carry a trailing slash (Sanic blueprint prefix + "/"), same as agent-tokens.
+export function fetchMyDecisions(params?: Record<string, string>): Promise<{ items: MemberDecision[] }> {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return apiFetch<{ items: MemberDecision[] }>(`/api/v1/my-decisions/${qs}`);
+}
+export function createMyDecision(data: { subject_type: string; subject_id: string; decision: string; notes?: string }): Promise<MemberDecision> {
+  return apiFetch<MemberDecision>('/api/v1/my-decisions/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function updateMyDecision(id: string, data: { decision?: string; state?: MemberDecisionState; notes?: string | null }): Promise<MemberDecision> {
+  return apiFetch<MemberDecision>(`/api/v1/my-decisions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function deleteMyDecision(id: string): Promise<{ deleted: boolean; id: string }> {
+  return apiFetch<{ deleted: boolean; id: string }>(`/api/v1/my-decisions/${id}`, { method: DELETE });
 }
 
 // Onboarding API
@@ -428,7 +447,7 @@ export function fetchChatSession(id: string): Promise<ChatSessionDetail> {
   return apiFetch<ChatSessionDetail>(`/api/v1/chat/sessions/${id}`);
 }
 
-export function deleteChatSession(id: string): Promise<{ ok: boolean }> {
+export function deleteChatSession(id: string): Promise<{ deleted: boolean; id: string }> {
   return apiFetch<{ ok: boolean }>(`/api/v1/chat/sessions/${id}`, { method: 'DELETE' });
 }
 
@@ -531,6 +550,21 @@ export function createCollaboration(data: Record<string, any>): Promise<Collabor
 }
 export function activateCollaboration(id: string): Promise<Collaboration> {
   return apiFetch<Collaboration>(`/api/v1/discover/collaborations/${id}/activate`, { method: 'POST' });
+}
+
+// Agent tokens (MCP access)
+export function fetchAgentTokens(): Promise<{ items: AgentToken[] }> {
+  return apiFetch<{ items: AgentToken[] }>('/api/v1/agent-tokens/');
+}
+export function mintAgentToken(data: { label?: string; expires_in_days?: number }): Promise<AgentToken> {
+  return apiFetch<AgentToken>('/api/v1/agent-tokens/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+export function revokeAgentToken(id: string): Promise<AgentToken> {
+  return apiFetch<AgentToken>(`/api/v1/agent-tokens/${id}`, { method: 'DELETE' });
 }
 
 // Compliance API

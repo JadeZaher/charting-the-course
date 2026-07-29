@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
+import { RecordDecisionAction } from '@/components/governance/RecordDecisionDialog';
 import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useWithdrawAgreementConsent, useRecordAgreementCeremony } from '@/hooks/use-governance';
 import { formatDate } from '@/lib/utils';
 import { agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
@@ -384,6 +385,25 @@ export default function AgreementDetail() {
         {/* Rail column */}
         <div className="space-y-6">
           {data.gates && <ActGatesPanel gates={data.gates} status={data.status} />}
+          {data.status === 'active' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Your Decision</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  This agreement is active. Record your personal decision about it — it stays yours
+                  and doubles as a follow-up task.
+                </p>
+                <RecordDecisionAction
+                  subjectType="agreement"
+                  subjectId={id}
+                  subjectTitle={data.title}
+                  actionLabel="Record your decision"
+                />
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Details</CardTitle>

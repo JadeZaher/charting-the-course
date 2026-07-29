@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/lib/api-client';
-import type { CeremonyConsentRequest } from '@/types/api';
+import type { CeremonyConsentRequest, MemberDecisionState } from '@/types/api';
 
 // Agreement hooks
 export function useAgreements(params?: Record<string, string> | false) {
@@ -107,6 +107,10 @@ export function useUpdateDomain(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: Record<string, any>) => api.updateDomain(id, data), onSuccess: (data) => { qc.setQueryData(['domains', id], data); qc.invalidateQueries({ queryKey: ['domains'] }); } });
 }
+export function useJoinDomainParticipation(domainId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.joinDomainParticipation(domainId), onSuccess: () => { qc.invalidateQueries({ queryKey: ['domains'] }); qc.invalidateQueries({ queryKey: ['domains', domainId] }); } });
+}
 
 // Decision hooks
 export function useDecisions(params?: Record<string, string>) {
@@ -114,6 +118,23 @@ export function useDecisions(params?: Record<string, string>) {
 }
 export function useDecision(id: string) {
   return useQuery({ queryKey: ['decisions', id], queryFn: () => api.fetchDecision(id), enabled: !!id, staleTime: 30_000 });
+}
+
+// My decisions hooks (member-owned decision substrate)
+export function useMyDecisions(params?: Record<string, string>) {
+  return useQuery({ queryKey: ['my-decisions', params], queryFn: () => api.fetchMyDecisions(params), staleTime: 30_000 });
+}
+export function useCreateMyDecision() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.createMyDecision, onSuccess: () => qc.invalidateQueries({ queryKey: ['my-decisions'] }) });
+}
+export function useUpdateMyDecision() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, data }: { id: string; data: { decision?: string; state?: MemberDecisionState; notes?: string | null } }) => api.updateMyDecision(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['my-decisions'] }) });
+}
+export function useDeleteMyDecision() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.deleteMyDecision(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['my-decisions'] }) });
 }
 
 // Onboarding hooks
@@ -230,6 +251,19 @@ export function useNotificationPreferences() {
 export function useUpdateNotificationPreferences() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (types: Record<string, boolean>) => api.updateNotificationPreferences(types), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
+}
+
+// Agent tokens (MCP access)
+export function useAgentTokens() {
+  return useQuery({ queryKey: ['agent-tokens'], queryFn: () => api.fetchAgentTokens(), staleTime: 30_000 });
+}
+export function useMintAgentToken() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: { label?: string; expires_in_days?: number }) => api.mintAgentToken(data), onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-tokens'] }) });
+}
+export function useRevokeAgentToken() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.revokeAgentToken(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-tokens'] }) });
 }
 
 // Member status transition
