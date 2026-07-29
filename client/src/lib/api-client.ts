@@ -150,6 +150,9 @@ export function attestAgreementConsent(id: string, attestation: string): Promise
 export function withdrawAgreementConsent(id: string, reason: string): Promise<AgreementDetail> {
   return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/consent`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) });
 }
+export function recordAgreementCeremony(id: string, data: { stage: string; note: string }): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/ceremonies`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
 export function fetchAgreementHistory(id: string): Promise<AgreementHistory> {
   return apiFetch<AgreementHistory>(`/api/v1/agreements/${id}/history`);
 }

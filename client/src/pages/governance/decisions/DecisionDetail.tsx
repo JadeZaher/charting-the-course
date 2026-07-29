@@ -182,10 +182,30 @@ export default function DecisionDetail() {
             {data.artifact_reference && (
               <div>
                 <p className="text-xs text-muted-foreground">Artifact</p>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {data.artifact_reference}
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {data.source_proposal_id ? (
+                    <Link href={`/proposals/${data.source_proposal_id}`} className={chipLinkClass} aria-label={`View source proposal: ${data.artifact_reference}`}>
+                      {data.artifact_reference}
+                    </Link>
+                  ) : data.source_agreement_id ? (
+                    <Link href={`/agreements/${data.source_agreement_id}`} className={chipLinkClass} aria-label={`View source agreement: ${data.artifact_reference}`}>
+                      {data.artifact_reference}
+                    </Link>
+                  ) : (
+                    <span className="text-sm font-medium">{data.artifact_reference}</span>
+                  )}
                   {data.artifact_type && <Badge variant="outline">{humanize(data.artifact_type)}</Badge>}
-                </p>
+                </div>
+                {data.artifact_type === 'commitment' && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Commitment artifact produced by the agreement completing its ACT process.
+                  </p>
+                )}
+                {data.artifact_type === 'proposal' && data.source_proposal_id && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Decision artifact produced by the proposal completing the ACT process.
+                  </p>
+                )}
               </div>
             )}
 
@@ -206,9 +226,37 @@ export default function DecisionDetail() {
               </dl>
             )}
 
-            <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-              Direct links to source proposals and resulting agreements, shares, and needs arrive with the receipt schema (H1).
+            {!data.source_proposal_id && !data.source_agreement_id && (
+              <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                Artifacts minted by the ACT process link directly to their source proposal or agreement.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {data.participants.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Commitments</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              the recorded positions of the members bound by this decision
             </p>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {data.participants.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-2 border-2 border-strong-border px-3 py-2">
+                  <span className="text-sm font-medium">{p.name}</span>
+                  {p.role && <Badge variant="outline" className="text-xs">{humanize(p.role)}</Badge>}
+                  {p.position && (
+                    <Badge variant={p.position === 'consent' ? 'secondary' : 'outline'} className="ml-auto text-xs">
+                      {humanize(p.position)}
+                    </Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

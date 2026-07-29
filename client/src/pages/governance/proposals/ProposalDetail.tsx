@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ACTStepper } from '@/components/governance/ACTStepper';
+import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -124,15 +125,17 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus }: { adviceLogs: Adv
   const { member } = useAuth();
   const [content, setContent] = useState('');
   const [concerns, setConcerns] = useState('');
+  const [newRound, setNewRound] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const displayName = member?.display_name ?? 'Unknown';
     if (!content.trim()) return;
     try {
-      await submitAdvice.mutateAsync({ advisor: displayName, content: content.trim(), concerns: concerns.trim() || null });
+      await submitAdvice.mutateAsync({ advisor: displayName, content: content.trim(), concerns: concerns.trim() || null, new_round: newRound });
       setContent('');
       setConcerns('');
+      setNewRound(false);
       toast({ title: 'Advice submitted', description: 'Your advice has been recorded.' });
     } catch {
       // Error handled by mutation state
@@ -159,6 +162,14 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus }: { adviceLogs: Adv
                 <Label htmlFor="advice-concerns">Concerns</Label>
                 <AITextarea id="advice-concerns" value={concerns} onChange={(e) => setConcerns(e.target.value)} placeholder="Any concerns..." rows={2} fieldLabel="Concerns" fieldContext="Concerns or potential issues with a governance proposal" />
               </div>
+              {adviceLogs.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Checkbox id="advice-new-round" checked={newRound} onCheckedChange={(v) => setNewRound(v === true)} />
+                  <Label htmlFor="advice-new-round" className="text-sm font-normal">
+                    Open a new advice round with this entry (counts toward the declared minimum)
+                  </Label>
+                </div>
+              )}
               <Button type="submit" disabled={submitAdvice.isPending}>
                 {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
               </Button>
@@ -775,6 +786,7 @@ export default function ProposalDetail() {
 
         {/* Rail column */}
         <div className="space-y-6">
+          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} />}
           <Card>
             <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>
             <CardContent>

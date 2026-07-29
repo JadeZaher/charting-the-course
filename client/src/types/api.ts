@@ -152,6 +152,40 @@ export interface AgreementMemberConsent {
   alignment_awarded: number;
 }
 
+// ACT gate declaration (made at the proposal/agreement level) and its
+// live evaluation. Gate sub-fields differ slightly between proposals and
+// agreements, so they are optional.
+export interface ActPolicy {
+  min_advice_rounds: number;
+  consent_required: boolean;
+  consent_quorum: number | null;
+  test_cases: string[];
+}
+
+export interface ActGates {
+  policy: ActPolicy;
+  advice: { met: boolean; rounds: number; required_rounds: number };
+  consent: {
+    met: boolean;
+    required: boolean;
+    positions?: number;
+    quorum?: number | null;
+    open_objections?: number;
+    consented?: number;
+    outstanding?: number;
+  };
+  test: {
+    met: boolean;
+    declared_cases: string[];
+    cases_met?: string[];
+    cases_missing?: string[];
+    reports?: number;
+    evidence?: number;
+    required_evidence?: number;
+  };
+  complete: boolean;
+}
+
 export interface AgreementDetail extends AgreementListItem {
   shared_ecosystem_ids: string[] | null;
   text: string | null;
@@ -168,6 +202,10 @@ export interface AgreementDetail extends AgreementListItem {
   alignment_points: number;
   consent_summary: AgreementConsentSummary | null;
   current_member_consent: AgreementMemberConsent | null;
+  act_policy: ActPolicy | null;
+  gates: ActGates | null;
+  auto_transitions?: string[];
+  decision_record_id?: string;
   caller_role: string | null;
   caller_can_conduct: boolean;
 }
@@ -310,6 +348,10 @@ export interface ProposalDetail extends ProposalListItem {
   consent_deadline: string | null;
   test_duration: string | null;
   updated_at: string;
+  act_policy: ActPolicy | null;
+  gates: ActGates | null;
+  auto_transitions?: string[];
+  decision_record_id?: string;
   advice_logs: AdviceLog[];
   consent_records: ConsentRecord[];
   test_reports: TestReport[];
@@ -566,7 +608,32 @@ export interface DecisionListItem {
   precedent_level: string | null;
   status: string;
   source_skill: string | null;
+  artifact_type: string | null;
   created_at: string;
+}
+
+export interface DecisionParticipant {
+  id: string;
+  name: string;
+  role: string | null;
+  position: string | null;
+}
+
+export interface DecisionDissentRecord {
+  id: string;
+  objector: string;
+  objection: string | null;
+  resolution: string | null;
+  notes: string | null;
+}
+
+export interface DecisionSemanticTag {
+  id: string;
+  topic: Record<string, unknown> | null;
+  affected_parties: Record<string, unknown> | null;
+  ecosystem_scope: string | null;
+  urgency_at_time: string | null;
+  related_precedents: Record<string, unknown> | null;
 }
 
 export interface DecisionDetail extends DecisionListItem {
@@ -575,8 +642,9 @@ export interface DecisionDetail extends DecisionListItem {
   obiter_dicta: string | null;
   deliberation_summary: string | null;
   source_layer: number | null;
-  artifact_type: string | null;
   artifact_reference: string | null;
+  source_proposal_id: string | null;
+  source_agreement_id: string | null;
   overruled_by: string | null;
   superseded_by: string | null;
   related_records: Record<string, unknown> | null;
@@ -586,6 +654,9 @@ export interface DecisionDetail extends DecisionListItem {
   verification_by: string | null;
   verification_date: string | null;
   updated_at: string;
+  dissent_records: DecisionDissentRecord[];
+  participants: DecisionParticipant[];
+  semantic_tags: DecisionSemanticTag[];
 }
 
 // Conflict types

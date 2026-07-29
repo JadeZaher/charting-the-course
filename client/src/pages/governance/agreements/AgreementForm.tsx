@@ -56,6 +56,8 @@ export default function AgreementForm() {
   const [prerequisiteScopes, setPrerequisiteScopes] = useState<string[]>([]);
   const [prerequisiteDomainIds, setPrerequisiteDomainIds] = useState<string[]>([]);
   const [alignmentPoints, setAlignmentPoints] = useState('5');
+  const [minAdviceRounds, setMinAdviceRounds] = useState('1');
+  const [actTestCases, setActTestCases] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -72,6 +74,11 @@ export default function AgreementForm() {
       setPrerequisiteScopes(existing.prerequisite_scopes ?? []);
       setPrerequisiteDomainIds(existing.prerequisite_domain_ids ?? []);
       setAlignmentPoints(String(existing.alignment_points ?? 5));
+      const policy = existing.act_policy;
+      if (policy) {
+        setMinAdviceRounds(String(policy.min_advice_rounds ?? 1));
+        setActTestCases((policy.test_cases ?? []).join('\n'));
+      }
     }
   }, [existing, isEdit]);
 
@@ -107,6 +114,12 @@ export default function AgreementForm() {
       prerequisite_scopes: prerequisiteScopes,
       prerequisite_domain_ids: prerequisiteDomainIds,
       alignment_points: Number(alignmentPoints) || 0,
+      act_policy: {
+        min_advice_rounds: Math.max(0, parseInt(minAdviceRounds, 10) || 0),
+        consent_required: true,
+        consent_quorum: null,
+        test_cases: actTestCases.split('\n').map((c) => c.trim()).filter(Boolean),
+      },
     };
 
     if (!isEdit && selectedEcosystem) {
@@ -266,6 +279,37 @@ export default function AgreementForm() {
                 <p className="mt-1 text-muted-foreground">
                   The agreement cannot complete its consent ceremony until every participating member has personally attested.
                 </p>
+              </div>
+
+              <div className="space-y-3 border-2 border-strong-border p-4">
+                <div>
+                  <p className="text-sm font-medium">ACT Gates</p>
+                  <p className="text-xs text-muted-foreground">
+                    Declared at the agreement level: the advice rounds and test evidence this agreement
+                    must complete. Status moves automatically when the conditions are met.
+                    {isEdit && existing && !['draft', 'advice'].includes(existing.status) && (
+                      <span className="block mt-1 text-warning">Gates apply on save only while the agreement is in draft or advice.</span>
+                    )}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="min_advice_rounds">Minimum advice rounds</Label>
+                    <Input id="min_advice_rounds" type="number" min={0} value={minAdviceRounds} onChange={(e) => setMinAdviceRounds(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="act_test_cases">Declared test cases (one per line)</Label>
+                  <AITextarea
+                    id="act_test_cases"
+                    value={actTestCases}
+                    onChange={(e) => setActTestCases(e.target.value)}
+                    placeholder={"Pilot completed in one domain\nReview notes logged to the decision record"}
+                    rows={3}
+                    fieldLabel="Declared test cases"
+                    fieldContext="Test evidence an agreement must produce during its test stage before it can be activated"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

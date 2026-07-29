@@ -24,6 +24,14 @@ const SOURCE_LAYER_FILTER: FilterDef = { key: 'source_layer', label: 'Source Lay
   { value: 'local', label: 'Local' },
 ]};
 
+const ARTIFACT_TYPE_FILTER: FilterDef = { key: 'artifact_type', label: 'Artifact', type: 'select', options: [
+  { value: 'all', label: 'All Artifacts' },
+  { value: 'proposal', label: 'Proposal' },
+  { value: 'commitment', label: 'Commitment' },
+  { value: 'agreement', label: 'Agreement' },
+  { value: 'decision', label: 'Decision' },
+]};
+
 const statusVariant = (status: string) => {
   switch (status) {
     case 'recorded': return 'default' as const;
@@ -53,6 +61,7 @@ export default function DecisionList() {
       STATUS_FILTER,
       { key: 'domain', label: 'Domain', type: 'select', options: domainOptions },
       SOURCE_LAYER_FILTER,
+      ARTIFACT_TYPE_FILTER,
     ];
   }, [domainsData]);
 
@@ -106,6 +115,11 @@ export default function DecisionList() {
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {d.domain && <Badge variant="outline">{d.domain}</Badge>}
                 {d.precedent_level && <Badge variant="secondary">{humanize(d.precedent_level)}</Badge>}
+                {d.artifact_type && (
+                  <Badge variant={d.artifact_type === 'commitment' ? 'default' : 'outline'}>
+                    {humanize(d.artifact_type)}
+                  </Badge>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {d.date ? `Decided ${new Date(d.date).toLocaleDateString()}` : 'Date not recorded'}
                 </span>

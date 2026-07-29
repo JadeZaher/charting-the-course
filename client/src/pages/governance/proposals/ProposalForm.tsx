@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { ArrowLeft } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const DECISION_TYPE_OPTIONS = [
   { value: 'consent', label: 'Consent' },
@@ -44,6 +45,10 @@ export default function ProposalForm() {
   const [rationale, setRationale] = useState('');
   const [adviceDeadline, setAdviceDeadline] = useState('');
   const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
+  const [minAdviceRounds, setMinAdviceRounds] = useState('1');
+  const [consentRequired, setConsentRequired] = useState(true);
+  const [consentQuorum, setConsentQuorum] = useState('');
+  const [testCases, setTestCases] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -58,6 +63,13 @@ export default function ProposalForm() {
       setRationale(existing.rationale || '');
       setAdviceDeadline(existing.advice_deadline || '');
       setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
+      const policy = existing.act_policy;
+      if (policy) {
+        setMinAdviceRounds(String(policy.min_advice_rounds ?? 1));
+        setConsentRequired(policy.consent_required ?? true);
+        setConsentQuorum(policy.consent_quorum != null ? String(policy.consent_quorum) : '');
+        setTestCases((policy.test_cases ?? []).join('\n'));
+      }
     }
   }, [existing, isEdit]);
 
@@ -86,6 +98,12 @@ export default function ProposalForm() {
       rationale: rationale || null,
       advice_deadline: adviceDeadline || null,
       shared_ecosystem_ids: sharedEcosystemIds,
+      act_policy: {
+        min_advice_rounds: Math.max(0, parseInt(minAdviceRounds, 10) || 0),
+        consent_required: consentRequired,
+        consent_quorum: consentQuorum.trim() ? Math.max(1, parseInt(consentQuorum, 10) || 1) : null,
+        test_cases: testCases.split('\n').map((c) => c.trim()).filter(Boolean),
+      },
     };
 
     if (!isEdit && selectedEcosystem) {
@@ -196,6 +214,47 @@ export default function ProposalForm() {
                 <Label htmlFor="advice_deadline">Advice Deadline</Label>
                 <Input id="advice_deadline" type="date" value={adviceDeadline} onChange={(e) => setAdviceDeadline(e.target.value)} />
               </div>
+            </div>
+
+            <div className="space-y-3 border-2 border-strong-border p-4">
+              <div>
+                <p className="text-sm font-medium">ACT Gates</p>
+                <p className="text-xs text-muted-foreground">
+                  Declare the conditions between each step of the Advice-Consent-Test process.
+                  The status moves automatically when these conditions are met.
+                  {isEdit && existing && !['draft', 'advice'].includes(existing.status) && (
+                    <span className="block mt-1 text-warning">Locked — gates can only be redeclared while the proposal is in draft or advice.</span>
+                  )}
+                </p>
+              </div>
+              <fieldset disabled={isEdit && existing ? !['draft', 'advice'].includes(existing.status) : false} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="min_advice_rounds">Minimum advice rounds</Label>
+                    <Input id="min_advice_rounds" type="number" min={0} value={minAdviceRounds} onChange={(e) => setMinAdviceRounds(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="consent_quorum">Consent quorum (optional)</Label>
+                    <Input id="consent_quorum" type="number" min={1} value={consentQuorum} onChange={(e) => setConsentQuorum(e.target.value)} placeholder="All positions" />
+                  </div>
+                  <div className="flex items-end gap-2 pb-2">
+                    <Checkbox id="consent_required" checked={consentRequired} onCheckedChange={(v) => setConsentRequired(v === true)} />
+                    <Label htmlFor="consent_required" className="text-sm font-normal">Consent round required</Label>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="test_cases">Declared test cases (one per line)</Label>
+                  <AITextarea
+                    id="test_cases"
+                    value={testCases}
+                    onChange={(e) => setTestCases(e.target.value)}
+                    placeholder={"Participation rate above 60% of eligible members\nNo unresolved objections during test period"}
+                    rows={3}
+                    fieldLabel="Declared test cases"
+                    fieldContext="Success criteria a governance proposal must demonstrate during its test phase before it can be ratified"
+                  />
+                </div>
+              </fieldset>
             </div>
 
             <div className="space-y-2">

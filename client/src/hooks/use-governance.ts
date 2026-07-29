@@ -32,6 +32,10 @@ export function useWithdrawAgreementConsent(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (reason: string) => api.withdrawAgreementConsent(id, reason), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
 }
+export function useRecordAgreementCeremony(id: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: { stage: string; note: string }) => api.recordAgreementCeremony(id, data), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+}
 export function useRollbackAgreement(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (versionId: string) => api.rollbackAgreement(id, versionId), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); qc.invalidateQueries({ queryKey: ['agreements', id, 'history'] }); } });

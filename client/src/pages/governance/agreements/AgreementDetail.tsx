@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useWithdrawAgreementConsent } from '@/hooks/use-governance';
+import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
+import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useWithdrawAgreementConsent, useRecordAgreementCeremony } from '@/hooks/use-governance';
 import { formatDate } from '@/lib/utils';
 import { agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
 import { agreementTypeLabel } from '@/lib/agreement-type';
@@ -24,8 +25,10 @@ export default function AgreementDetail() {
   const statusMutation = useUpdateAgreementStatus(id);
   const consentMutation = useAttestAgreementConsent(id);
   const withdrawalMutation = useWithdrawAgreementConsent(id);
+  const ceremonyMutation = useRecordAgreementCeremony(id);
   const [statusChanging, setStatusChanging] = useState(false);
   const [ceremonyEvidence, setCeremonyEvidence] = useState('');
+  const [actNote, setActNote] = useState('');
   const [attestation, setAttestation] = useState('I have read and explicitly consent to this agreement.');
   const [withdrawalReason, setWithdrawalReason] = useState('');
 
@@ -60,6 +63,19 @@ export default function AgreementDetail() {
   const consentSummary = data.consent_summary;
   const nextCeremony = ({ draft: 'advice', advice: 'consent', consent: 'test', test: 'active' } as Record<string, string>)[data.status];
   const canConduct = data.caller_can_conduct ?? false;
+  const isMember = data.caller_role != null;
+  const canRecordActEvidence = isMember && (data.status === 'advice' || data.status === 'test');
+  const declaredTestCases = data.act_policy?.test_cases ?? [];
+
+  const handleRecordActEvidence = async () => {
+    if (actNote.trim().length < 3) return;
+    try {
+      await ceremonyMutation.mutateAsync({ stage: data.status, note: actNote.trim() });
+      setActNote('');
+    } catch {
+      // Error surfaced via ceremonyMutation.error
+    }
+  };
   const needsMyConsent =
     data.requires_explicit_consent && !hasCurrentConsent && CONSENT_OPEN_STATUSES.includes(data.status);
   const consentPending =
@@ -292,6 +308,59 @@ export default function AgreementDetail() {
             </CardContent>
           </Card>
 
+          {canRecordActEvidence && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  {data.status === 'advice' ? 'Record an Advice Round' : 'Submit Test Evidence'}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {data.status === 'advice'
+                    ? 'Each recorded round counts toward the declared minimum. The consent ceremony opens automatically when it is met.'
+                    : 'Each evidence record counts toward the declared test cases. Activation happens automatically when all are evidenced.'}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {data.status === 'test' && declaredTestCases.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Declared test cases</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+                      {declaredTestCases.map((c) => <li key={c}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="act-evidence-note">
+                    {data.status === 'advice' ? 'Round summary *' : 'Evidence note *'}
+                  </Label>
+                  <Textarea
+                    id="act-evidence-note"
+                    value={actNote}
+                    onChange={(event) => setActNote(event.target.value)}
+                    placeholder={data.status === 'advice'
+                      ? 'Summarize the advice gathered in this round and any text changes made.'
+                      : 'Name the declared test case and describe the observed evidence.'}
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  disabled={actNote.trim().length < 3 || ceremonyMutation.isPending}
+                  onClick={handleRecordActEvidence}
+                >
+                  {ceremonyMutation.isPending
+                    ? 'Recording...'
+                    : data.status === 'advice' ? 'Record Advice Round' : 'Submit Evidence'}
+                </Button>
+                {ceremonyMutation.error && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {(ceremonyMutation.error as Error).message}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {data.ceremonies.length > 0 && (
             <Card>
               <CardHeader>
@@ -314,6 +383,7 @@ export default function AgreementDetail() {
 
         {/* Rail column */}
         <div className="space-y-6">
+          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} />}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Details</CardTitle>
