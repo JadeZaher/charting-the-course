@@ -78,7 +78,12 @@ export function ActGatesPanel({ gates, status }: { gates: ActGates; status: stri
         )}
 
         <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-          Declared at the record level. Status moves automatically when the conditions are met
+          {gates.policy_source === 'agreement'
+            ? 'Gates inherited from the governing agreement. '
+            : gates.policy_source === 'default'
+              ? 'Default gates (none declared). '
+              : 'Gates declared at this record. '}
+          Status moves automatically when the conditions are met
           {status === 'ratified' || status === 'active' ? ' — the process is complete and its decision artifact is recorded.' : '.'}
         </p>
       </CardContent>

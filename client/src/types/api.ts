@@ -164,6 +164,7 @@ export interface ActPolicy {
 
 export interface ActGates {
   policy: ActPolicy;
+  policy_source?: 'proposal' | 'agreement' | 'default';
   advice: { met: boolean; rounds: number; required_rounds: number };
   consent: {
     met: boolean;
@@ -349,7 +350,10 @@ export interface ProposalDetail extends ProposalListItem {
   test_duration: string | null;
   updated_at: string;
   act_policy: ActPolicy | null;
+  own_act_policy: ActPolicy | null;
   gates: ActGates | null;
+  governing_agreement_id: string | null;
+  governing_agreement: { id: string; agreement_id: string; title: string } | null;
   auto_transitions?: string[];
   decision_record_id?: string;
   advice_logs: AdviceLog[];

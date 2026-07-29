@@ -804,6 +804,16 @@ export default function ProposalDetail() {
                   <dd className="font-medium">{data.decision_type || '-'}</dd>
                 </div>
                 <div>
+                  <dt className="text-muted-foreground">Governing Agreement</dt>
+                  <dd className="font-medium">
+                    {data.governing_agreement ? (
+                      <Link href={`/agreements/${data.governing_agreement.id}`} className="underline underline-offset-2 hover:text-primary">
+                        {data.governing_agreement.title}
+                      </Link>
+                    ) : '-'}
+                  </dd>
+                </div>
+                <div>
                   <dt className="text-muted-foreground">Advice Deadline</dt>
                   <dd className="font-medium">{formatDate(data.advice_deadline)}</dd>
                 </div>

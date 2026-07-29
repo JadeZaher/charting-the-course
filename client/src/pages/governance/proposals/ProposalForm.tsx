@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
-import { useProposal, useCreateProposal, useUpdateProposal } from '@/hooks/use-governance';
+import { useProposal, useCreateProposal, useUpdateProposal, useAgreements } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
 import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
@@ -49,7 +49,10 @@ export default function ProposalForm() {
   const [consentRequired, setConsentRequired] = useState(true);
   const [consentQuorum, setConsentQuorum] = useState('');
   const [testCases, setTestCases] = useState('');
+  const [governingAgreementId, setGoverningAgreementId] = useState('');
+  const [declareGates, setDeclareGates] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { data: agreementsData } = useAgreements({ per_page: '100' });
 
   useEffect(() => {
     if (existing && isEdit) {
@@ -63,7 +66,10 @@ export default function ProposalForm() {
       setRationale(existing.rationale || '');
       setAdviceDeadline(existing.advice_deadline || '');
       setSharedEcosystemIds(existing.shared_ecosystem_ids ?? []);
-      const policy = existing.act_policy;
+      setGoverningAgreementId(existing.governing_agreement_id ?? '');
+      const stored = existing.own_act_policy;
+      setDeclareGates(stored != null);
+      const policy = stored ?? existing.act_policy;
       if (policy) {
         setMinAdviceRounds(String(policy.min_advice_rounds ?? 1));
         setConsentRequired(policy.consent_required ?? true);
@@ -98,12 +104,15 @@ export default function ProposalForm() {
       rationale: rationale || null,
       advice_deadline: adviceDeadline || null,
       shared_ecosystem_ids: sharedEcosystemIds,
-      act_policy: {
-        min_advice_rounds: Math.max(0, parseInt(minAdviceRounds, 10) || 0),
-        consent_required: consentRequired,
-        consent_quorum: consentQuorum.trim() ? Math.max(1, parseInt(consentQuorum, 10) || 1) : null,
-        test_cases: testCases.split('\n').map((c) => c.trim()).filter(Boolean),
-      },
+      act_policy: declareGates
+        ? {
+            min_advice_rounds: Math.max(0, parseInt(minAdviceRounds, 10) || 0),
+            consent_required: consentRequired,
+            consent_quorum: consentQuorum.trim() ? Math.max(1, parseInt(consentQuorum, 10) || 1) : null,
+            test_cases: testCases.split('\n').map((c) => c.trim()).filter(Boolean),
+          }
+        : null,
+      governing_agreement_id: governingAgreementId || null,
     };
 
     if (!isEdit && selectedEcosystem) {
@@ -220,41 +229,71 @@ export default function ProposalForm() {
               <div>
                 <p className="text-sm font-medium">ACT Gates</p>
                 <p className="text-xs text-muted-foreground">
-                  Declare the conditions between each step of the Advice-Consent-Test process.
-                  The status moves automatically when these conditions are met.
+                  Gates are inherited from the governing agreement by default; declare them on this
+                  proposal only to override. The status moves automatically when the conditions are met.
                   {isEdit && existing && !['draft', 'advice'].includes(existing.status) && (
                     <span className="block mt-1 text-warning">Locked — gates can only be redeclared while the proposal is in draft or advice.</span>
                   )}
                 </p>
               </div>
-              <fieldset disabled={isEdit && existing ? !['draft', 'advice'].includes(existing.status) : false} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="min_advice_rounds">Minimum advice rounds</Label>
-                    <Input id="min_advice_rounds" type="number" min={0} value={minAdviceRounds} onChange={(e) => setMinAdviceRounds(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="consent_quorum">Consent quorum (optional)</Label>
-                    <Input id="consent_quorum" type="number" min={1} value={consentQuorum} onChange={(e) => setConsentQuorum(e.target.value)} placeholder="All positions" />
-                  </div>
-                  <div className="flex items-end gap-2 pb-2">
-                    <Checkbox id="consent_required" checked={consentRequired} onCheckedChange={(v) => setConsentRequired(v === true)} />
-                    <Label htmlFor="consent_required" className="text-sm font-normal">Consent round required</Label>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="test_cases">Declared test cases (one per line)</Label>
-                  <AITextarea
-                    id="test_cases"
-                    value={testCases}
-                    onChange={(e) => setTestCases(e.target.value)}
-                    placeholder={"Participation rate above 60% of eligible members\nNo unresolved objections during test period"}
-                    rows={3}
-                    fieldLabel="Declared test cases"
-                    fieldContext="Success criteria a governance proposal must demonstrate during its test phase before it can be ratified"
-                  />
-                </div>
-              </fieldset>
+              {(() => {
+                const locked = isEdit && existing ? !['draft', 'advice'].includes(existing.status) : false;
+                return (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="governing_agreement">Governing agreement</Label>
+                      <Select value={governingAgreementId || 'none'} onValueChange={(v) => setGoverningAgreementId(v === 'none' ? '' : v)} disabled={locked}>
+                        <SelectTrigger id="governing_agreement">
+                          <SelectValue placeholder="None — use default gates" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None — use default gates</SelectItem>
+                          {(agreementsData?.items ?? []).map((a) => (
+                            <SelectItem key={a.id} value={a.id}>{a.title} ({a.agreement_id})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        The agreement (e.g. the decision-making protocol) whose declared gates this proposal follows.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="declare_gates" checked={declareGates} onCheckedChange={(v) => setDeclareGates(v === true)} disabled={locked} />
+                      <Label htmlFor="declare_gates" className="text-sm font-normal">
+                        Declare gates on this proposal (override the inherited gates)
+                      </Label>
+                    </div>
+                    <fieldset disabled={locked || !declareGates} className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="min_advice_rounds">Minimum advice rounds</Label>
+                          <Input id="min_advice_rounds" type="number" min={0} value={minAdviceRounds} onChange={(e) => setMinAdviceRounds(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="consent_quorum">Consent quorum (optional)</Label>
+                          <Input id="consent_quorum" type="number" min={1} value={consentQuorum} onChange={(e) => setConsentQuorum(e.target.value)} placeholder="All positions" />
+                        </div>
+                        <div className="flex items-end gap-2 pb-2">
+                          <Checkbox id="consent_required" checked={consentRequired} onCheckedChange={(v) => setConsentRequired(v === true)} />
+                          <Label htmlFor="consent_required" className="text-sm font-normal">Consent round required</Label>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="test_cases">Declared test cases (one per line)</Label>
+                        <AITextarea
+                          id="test_cases"
+                          value={testCases}
+                          onChange={(e) => setTestCases(e.target.value)}
+                          placeholder={"Participation rate above 60% of eligible members\nNo unresolved objections during test period"}
+                          rows={3}
+                          fieldLabel="Declared test cases"
+                          fieldContext="Success criteria a governance proposal must demonstrate during its test phase before it can be ratified"
+                        />
+                      </div>
+                    </fieldset>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="space-y-2">
