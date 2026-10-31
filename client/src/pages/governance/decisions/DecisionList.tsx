@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { domainOptionLabel } from '@/lib/domain-label';
 import { Link } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -55,7 +56,7 @@ export default function DecisionList() {
     for (const d of domainsData?.items ?? []) {
       if (seen.has(d.domain_id)) continue;
       seen.add(d.domain_id);
-      domainOptions.push({ value: d.domain_id, label: d.domain_id });
+      domainOptions.push({ value: d.domain_id, label: domainOptionLabel(d) });
     }
     return [
       STATUS_FILTER,

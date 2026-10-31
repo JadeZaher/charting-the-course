@@ -11,19 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Redirect, useLocation, useSearch } from "wouter";
 import { hasSavedIdentity, getSavedDid } from "@/lib/did-auth";
-import { resolveInternalPath } from "@/lib/media";
+import { DEFAULT_DESTINATION, safeRedirect } from "@/lib/post-login-redirect";
+import { CONSENT_GATE_PATH } from "@/lib/member-status";
 
 type AuthMode = "did" | "password" | "register";
 
-const DEFAULT_DESTINATION = "/dashboard";
 const POST_LOGIN_REDIRECT_KEY = "neos:post-login-redirect";
-
-/** Same-origin in-app path to land on after sign-in; anything else becomes the dashboard. */
-export function safeRedirect(raw: string | null | undefined): string {
-  const path = resolveInternalPath(raw);
-  if (!path || /^\/login(?:[/?#]|$)/.test(path)) return DEFAULT_DESTINATION;
-  return path;
-}
 
 /** Destination stashed before an OAuth round-trip, returned once and then cleared. */
 export function takeStashedRedirect(): string | null {
@@ -69,6 +62,7 @@ export default function Login() {
     oauthProviders,
     isLoading: isAuthLoading,
     isAuthenticated,
+    pendingConsents,
     error: authError,
   } = useAuth();
 
@@ -110,9 +104,9 @@ export default function Login() {
     }
   }, [search, toast]);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated; a membership behind the consent gate goes to the gate first.
   if (isAuthenticated && !isAuthLoading) {
-    return <Redirect to={redirectTarget} replace />;
+    return <Redirect to={pendingConsents.length ? CONSENT_GATE_PATH : redirectTarget} replace />;
   }
 
   const handleDIDLogin = async (e: React.FormEvent) => {
@@ -121,12 +115,12 @@ export default function Login() {
     stashRedirect(null);
 
     try {
-      await login(displayName || undefined);
+      const outcome = await login(displayName || undefined);
       toast({
         title: "Login Successful",
         description: "Welcome to NEOS!",
       });
-      setLocation(redirectTarget, { replace: true });
+      setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
     } catch (err) {
       toast({
         title: "Authentication Failed",
@@ -145,12 +139,12 @@ export default function Login() {
     stashRedirect(null);
 
     try {
-      await loginWithCredentials(username, password);
+      const outcome = await loginWithCredentials(username, password);
       toast({
         title: "Login Successful",
         description: "Welcome to NEOS!",
       });
-      setLocation(redirectTarget, { replace: true });
+      setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
     } catch (err) {
       toast({
         title: "Authentication Failed",
@@ -188,12 +182,14 @@ export default function Login() {
     stashRedirect(null);
 
     try {
-      await register(username, password, regDisplayName || undefined);
+      const outcome = await register(username, password, regDisplayName || undefined);
       toast({
         title: "Account Created",
-        description: "Welcome to NEOS!",
+        description: outcome.consentRequired
+          ? "One more step: read and consent to your ecosystem's agreements."
+          : "Welcome to NEOS!",
       });
-      setLocation(redirectTarget, { replace: true });
+      setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
     } catch (err) {
       toast({
         title: "Registration Failed",

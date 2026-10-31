@@ -1,3 +1,7 @@
+import { resolveInternalPath } from './internal-path';
+
+export { resolveInternalPath };
+
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 const RASTER_DATA_URL = /^data:image\/(?:avif|gif|jpeg|png|webp);/i;
 
@@ -9,23 +13,6 @@ export function resolveExternalUrl(value?: string | null): string | undefined {
     const parsed = new URL(url.startsWith('//') ? `https:${url}` : url);
     return parsed.protocol === 'https:' || parsed.protocol === 'http:'
       ? parsed.toString()
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function resolveInternalPath(value?: string | null): string | undefined {
-  const path = value?.trim();
-  if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
-    return undefined;
-  }
-
-  try {
-    const base = new URL('https://neos.local');
-    const parsed = new URL(path, base);
-    return parsed.origin === base.origin
-      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
       : undefined;
   } catch {
     return undefined;

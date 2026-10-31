@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { fetchMyPublicProfile, updateMyPublicProfile } from "@/lib/api-client";
 import { resolveMediaUrl } from "@/lib/media";
+import { domainCode, domainLabel } from "@/lib/domain-label";
 import type { PublicProfileProject, PublicProfileResponse, SharesNeeds } from "@/types/api";
 
 interface ProfileForm {
@@ -684,8 +685,8 @@ export default function Profile() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {domains.length ? (
                         domains.map((domain) => (
-                          <Badge key={domain.id} variant="secondary">
-                            {domain.domain_id} · {domain.role}
+                          <Badge key={domain.id} variant="secondary" title={domainCode(domain) ?? undefined}>
+                            {domainLabel(domain)} · {domain.role}
                           </Badge>
                         ))
                       ) : (
@@ -725,7 +726,7 @@ export default function Profile() {
                   <div>
                     <h3 className="font-black">{group.quiz.title}</h3>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {[group.ecosystem?.name, group.domain?.domain_id]
+                      {[group.ecosystem?.name, group.domain ? domainLabel(group.domain) : null]
                         .filter(Boolean)
                         .join(" · ") || "Network-wide"}
                     </p>

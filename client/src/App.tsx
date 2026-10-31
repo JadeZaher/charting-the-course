@@ -23,6 +23,7 @@ import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
 import QuizResults from "@/pages/QuizResults";
 import MePage from "@/pages/me/MePage";
+import ConsentGatePage from "@/pages/ConsentGatePage";
 import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import UserManagement from "@/pages/UserManagement";
@@ -265,6 +266,11 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={MePage} />
       </Route>
 
+      {/* Agreement-consent gate for pending memberships (CONSENT_GATE_PATH; the OAuth callback lands here) */}
+      <Route path="/welcome/consent">
+        <ProtectedRoute component={ConsentGatePage} />
+      </Route>
+
       {/* Legacy member-surface paths — folded into /me */}
       <Route path="/profile">
         <Redirect to="/me" />
@@ -413,15 +419,17 @@ function AuthenticatedRoutes() {
 
 // Main app layout with authentication
 function AppLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, pendingConsents } = useAuth();
   const [location, navigate] = useLocation();
   useFocusMainOnNavigate(location);
 
   // OAuth returns to /dashboard; resume the deep link stashed before leaving (see Login.tsx).
   // Keyed on auth state only: it runs once per sign-in, not on every navigation.
+  // A newcomer behind the consent gate stays on the gate (the callback sent them there).
   useEffect(() => {
     if (isLoading || !isAuthenticated) return;
     const destination = takeStashedRedirect();
+    if (pendingConsents.length) return;
     if (destination && destination !== location) navigate(destination, { replace: true });
   }, [isAuthenticated, isLoading]);
 

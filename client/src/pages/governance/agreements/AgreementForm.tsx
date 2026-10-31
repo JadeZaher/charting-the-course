@@ -13,6 +13,7 @@ import { useAgreement, useCreateAgreement, useDomains, useUpdateAgreement } from
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
 import { AGREEMENT_TYPE_OPTIONS } from '@/lib/agreement-type';
+import { domainOptionLabel } from '@/lib/domain-label';
 import { ArrowLeft } from 'lucide-react';
 
 const HIERARCHY_OPTIONS = [
@@ -358,7 +359,7 @@ export default function AgreementForm() {
                                     : ids.filter((domainId) => domainId !== eligibleDomain.id)
                                 ))}
                               />
-                              <Label htmlFor={`prerequisite-domain-${eligibleDomain.id}`}>{eligibleDomain.domain_id}</Label>
+                              <Label htmlFor={`prerequisite-domain-${eligibleDomain.id}`}>{domainOptionLabel(eligibleDomain)}</Label>
                             </div>
                           );
                         })}

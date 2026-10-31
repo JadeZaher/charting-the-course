@@ -12,6 +12,7 @@ import type { DiscoverEcosystem } from '@/types/api';
 import SharesNeedsList from './SharesNeedsList';
 import CollaborationsList from './CollaborationsList';
 import SolutionsCatalogue from './SolutionsCatalogue';
+import { type DiscoverTab, discoverTabFromQuery, discoverTabHref, isDiscoverTab } from './discover-tabs';
 
 function formatFoundedDate(value: string | null) {
   if (!value) return null;
@@ -184,30 +185,15 @@ function EcosystemsTab({ search }: { search: string }) {
   );
 }
 
-const DISCOVER_TABS = ['ecosystems', 'solutions', 'shares-needs', 'collaborations'] as const;
-type DiscoverTab = (typeof DISCOVER_TABS)[number];
-const DEFAULT_TAB: DiscoverTab = 'ecosystems';
-
-function isDiscoverTab(value: string | null): value is DiscoverTab {
-  return value !== null && (DISCOVER_TABS as readonly string[]).includes(value);
-}
-
 export default function DiscoverHub() {
   const [search, setSearch] = useState('');
-  // The active tab lives in ?tab= so links (e.g. after publishing a share) can open it and reloads keep it.
+  // The active tab lives in ?tab= (see discover-tabs.ts).
   const queryString = useSearch();
   const [location, navigate] = useLocation();
-  const activeTab = useMemo<DiscoverTab>(() => {
-    const requested = new URLSearchParams(queryString).get('tab');
-    return isDiscoverTab(requested) ? requested : DEFAULT_TAB;
-  }, [queryString]);
+  const activeTab = useMemo<DiscoverTab>(() => discoverTabFromQuery(queryString), [queryString]);
   const setActiveTab = (tab: string) => {
     if (!isDiscoverTab(tab) || tab === activeTab) return;
-    const params = new URLSearchParams(queryString);
-    if (tab === DEFAULT_TAB) params.delete('tab');
-    else params.set('tab', tab);
-    const nextQuery = params.toString();
-    navigate(nextQuery ? `${location}?${nextQuery}` : location, { replace: true });
+    navigate(discoverTabHref(location, queryString, tab), { replace: true });
   };
 
   return (

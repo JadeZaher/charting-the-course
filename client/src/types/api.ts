@@ -48,15 +48,32 @@ export interface AuthChallengeResponse {
   challenge: string;
 }
 
+export interface RequiredAgreement {
+  id: string;
+  title: string;
+  version: string | null;
+}
+
+/** A membership still behind its ecosystem's agreement-consent gate. */
+export interface PendingConsentGate {
+  ecosystem_id: string;
+  ecosystem_name: string;
+  required_agreements: RequiredAgreement[];
+}
+
 export interface AuthVerifyResponse {
   success: boolean;
   display_name: string;
   member: MemberSummary;
+  /** Present when the call created a membership (register, first DID sign-in). */
+  status?: 'consent_required' | 'joined';
+  required_agreements?: RequiredAgreement[];
 }
 
 export interface AuthMeResponse {
   member: MemberSummary;
   ecosystems: EcosystemSummary[];
+  pending_consents?: PendingConsentGate[];
 }
 
 // Ecosystem types
@@ -477,6 +494,8 @@ export interface PublicProfileProject {
 export interface PublicProfileDomain {
   id: string;
   domain_id: string;
+  /** Server-derived label: name, else the purpose's "Name — " prefix, else domain_id. */
+  display_name?: string | null;
   purpose: string | null;
   role: string;
   status: string;
@@ -526,6 +545,7 @@ export interface PublicProfileQuizResult {
   domain: {
     id: string;
     domain_id: string;
+    display_name?: string | null;
     purpose: string | null;
   } | null;
   ecosystem: {

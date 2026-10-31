@@ -10,6 +10,7 @@ import { useCreateCollaboration } from '@/hooks/use-discover';
 import { useDomains } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
+import { domainOptionLabel } from '@/lib/domain-label';
 import { ArrowLeft } from 'lucide-react';
 
 const TIER_OPTIONS = [
@@ -120,7 +121,7 @@ export default function CollaborationForm() {
                   </SelectTrigger>
                   <SelectContent>
                     {domains.map(d => (
-                      <SelectItem key={d.id} value={d.id}>{d.domain_id}</SelectItem>
+                      <SelectItem key={d.id} value={d.id}>{domainOptionLabel(d)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -136,7 +137,7 @@ export default function CollaborationForm() {
                   </SelectTrigger>
                   <SelectContent>
                     {domains.map(d => (
-                      <SelectItem key={d.id} value={d.id}>{d.domain_id}</SelectItem>
+                      <SelectItem key={d.id} value={d.id}>{domainOptionLabel(d)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

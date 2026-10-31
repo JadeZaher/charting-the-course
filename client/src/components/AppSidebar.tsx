@@ -44,6 +44,7 @@ import {
   Package,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
 
@@ -427,7 +428,7 @@ export function AppSidebar() {
             <TooltipContent side="right">
               <p className="font-medium">{displayName}</p>
               {member?.current_status && (
-                <p className="text-xs text-muted-foreground">{member.current_status}</p>
+                <p className="text-xs text-muted-foreground">{memberStatusLabel(member.current_status)}</p>
               )}
             </TooltipContent>
           </Tooltip>
@@ -440,9 +441,13 @@ export function AppSidebar() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
-              {member?.current_status && (
-                <p className="text-xs text-muted-foreground">{member.current_status}</p>
-              )}
+              {member?.current_status === "pending_consent" ? (
+                <Link href={CONSENT_GATE_PATH} className="text-xs font-medium text-link underline underline-offset-2">
+                  {memberStatusLabel(member.current_status)}
+                </Link>
+              ) : member?.current_status ? (
+                <p className="text-xs text-muted-foreground">{memberStatusLabel(member.current_status)}</p>
+              ) : null}
             </div>
           </div>
         )}

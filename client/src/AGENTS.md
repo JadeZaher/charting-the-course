@@ -44,9 +44,13 @@ On mobile the sidebar is a sheet; `AppSidebar` closes it whenever the location c
 
 ## Sign-in redirect contract
 
-`pages/Login.tsx` reads `?redirect=` from the raw `window.location.search` (wouter's `useSearch()` unescapes it, which would split a nested `&`) and passes it through `safeRedirect`: only same-origin in-app paths (`resolveInternalPath`: starts with `/`, not `//`, no backslash) that are not `/login…` are honoured; anything else becomes `/dashboard`. Every sign-in path (password, register, DID, already-authenticated visit) lands on that target with `replace`.
+`pages/Login.tsx` reads `?redirect=` from the raw `window.location.search` (wouter's `useSearch()` unescapes it, which would split a nested `&`) and passes it through `safeRedirect` (`lib/post-login-redirect.ts`): only same-origin in-app paths that are not `/login…` are honoured; anything else becomes `/dashboard`. `resolveInternalPath` (`lib/internal-path.ts`, re-exported by `lib/media.ts`) requires a leading `/`, no `//`, no backslash, and also rejects a path that only becomes `//host` after URL normalisation (`/.//evil.example`, `/%2e//evil.example`); `LinkifiedText` likewise treats a same-origin URL whose path starts with `//` as external. Every sign-in path (password, register, DID, already-authenticated visit) lands on that target with `replace`, unless the member is behind the consent gate (below).
 
 OAuth cannot carry the parameter: the backend callback always returns to `/dashboard`. Before leaving, `handleOAuth` stashes the target in `sessionStorage["neos:post-login-redirect"]`; `AppLayout` consumes it once (`takeStashedRedirect`) when the session becomes authenticated. Non-OAuth submits clear the stash first so a stale OAuth attempt cannot redirect a later password sign-in.
+
+## Sign-up consent gate
+
+A self sign-up joins the server's default ecosystem behind its agreement-consent gate (`pending_consent` until each membership agreement is attested; see the API's `api/AGENTS.md` "Sign-up placement and the consent gate"). `AuthContext` exposes `pendingConsents` from `/auth/me` and every sign-in method returns `{ consentRequired }`; `Login` then lands on `CONSENT_GATE_PATH` (`/welcome/consent`, `lib/member-status.ts`) instead of the redirect target. The OAuth callback redirects a gated newcomer there itself, and `AppLayout` drops the stashed OAuth destination while a gate is pending. `pages/ConsentGatePage` lists each pending ecosystem's agreements with links to `/agreements/:id` (where consent is recorded) and re-reads `/auth/me` on mount and on "check again". Statuses are shown through `memberStatusLabel` (never raw `pending_consent`); the sidebar's pending label links to the gate.
 
 ## Orientation journeys
 
@@ -98,3 +102,12 @@ member-facing ceremony surface: it records personal attestation, shows consent
 progress, collects test evidence before activation, and permits a reasoned
 withdrawal. Keep its labels and select values aligned with the backend
 agreement vocabulary; presentation cannot bypass the API lifecycle.
+
+## Client tests
+
+`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
+
+## Pass 01 (first week) history note
+
+The UX-QA pass-01 client fixes span two commits. `7841c55` (`fix(uxqa-01-first-week): …`) carries the domain-name, advice/status a11y, route-guide rail and Discover-tab code plus this file's text, but the code for p1-arrival-and-welcome-1/7/8 (Login `safeRedirect` and OAuth stash, orientation states) and p1-keyboard-and-screen-reader-week-4/5/10/11/12/15 (shell focus on navigation, route-guide padding in `App.tsx`, `NewConversationDialog`, `LinkifiedText`, `ProposalDetail` `caller_can_manage` UI, `types/api.ts` domain fields) landed earlier in `2cb3f26` ("feat: add member decision recording…"). Revert or cherry-pick both together. The review follow-up (`fix(uxqa-01-first-week): review findings`) hardened the `2cb3f26` redirect and link code above.
+

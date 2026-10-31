@@ -9,6 +9,7 @@
     "build": "vite build",
     "build:client": "vite build",
     "check": "tsc",
+    "test": "node --import tsx --test \"client/src/**/*.test.ts\"",
     "check:contrast": "node scripts/verify-contrast.mjs"
   },
   "dependencies": {

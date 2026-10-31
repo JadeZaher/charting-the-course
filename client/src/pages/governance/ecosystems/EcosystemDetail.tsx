@@ -40,6 +40,7 @@ import {
 } from '@/lib/api-client';
 import type { QuizListItem, SharesNeeds, DomainListItem } from '@/types/api';
 import { resolveExternalUrl } from '@/lib/media';
+import { domainCode, domainLabel, domainOptionLabel } from '@/lib/domain-label';
 
 interface EcoQuiz {
   id: string;
@@ -439,7 +440,10 @@ export default function EcosystemDetail() {
                 {ecoDomains.map(d => (
                   <Link key={d.id} href={`/domains/${d.id}`} className="block rounded-none border-2 border-strong-border p-3 transition-colors hover:bg-accent">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{d.domain_id}</span>
+                      <span className="text-sm font-medium">
+                        {domainLabel(d)}
+                        {domainCode(d) && <span className="ml-2 text-xs font-normal text-muted-foreground">{domainCode(d)}</span>}
+                      </span>
                       <Badge variant={d.status === 'active' ? 'default' : 'secondary'} className="text-xs">{d.status}</Badge>
                     </div>
                     {d.purpose && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{d.purpose}</p>}
@@ -678,7 +682,7 @@ export default function EcosystemDetail() {
                     <Select value={snForm.domain_id} onValueChange={(v: string) => setSnForm({ ...snForm, domain_id: v })}>
                       <SelectTrigger id="share-need-domain"><SelectValue placeholder="Select domain..." /></SelectTrigger>
                       <SelectContent>
-                        {ecoDomains.map(d => <SelectItem key={d.id} value={d.id}>{d.domain_id}</SelectItem>)}
+                        {ecoDomains.map(d => <SelectItem key={d.id} value={d.id}>{domainOptionLabel(d)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

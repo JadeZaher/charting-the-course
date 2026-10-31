@@ -43,6 +43,11 @@ auto-advances to Consent: read `auto_transitions` from the submit response.
 Render `display_name` through `lib/domain-label.ts` (`domainLabel`,
 `domainCode`, `domainOptionLabel`). The generated `DOM-XXXXXXXX` code is
 secondary text only, and never a heading, select label or aria-label on its own.
+This covers every surface that lists domains, not only `governance/domains`:
+Discover forms (shares/needs, collaborations), agreement prerequisite pickers,
+ecosystem detail, and profile badges and quiz scopes (the profiles API sends
+`display_name` too). `grep -rn "domain_id}" client/src` should only find keys,
+values and secondary text.
 
 ## Form accessibility
 

@@ -10,6 +10,7 @@ import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield, Network, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toStringList } from '@/lib/utils';
+import { domainLabel } from '@/lib/domain-label';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -157,7 +158,7 @@ export default function MemberDetail() {
             <div className="flex flex-wrap gap-2">
               {stewarded.map((d) => (
                 <Link key={d.id} href={`/domains/${d.id}`} className="inline-flex items-center min-h-11">
-                  <Badge variant="outline">{d.domain_id ?? d.id}</Badge>
+                  <Badge variant="outline">{domainLabel(d)}</Badge>
                 </Link>
               ))}
             </div>

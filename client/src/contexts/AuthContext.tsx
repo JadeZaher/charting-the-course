@@ -2,18 +2,25 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { useQueryClient } from '@tanstack/react-query';
 import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword, registerWithPassword, resetDid, linkDid, getOAuthUrl, fetchOAuthProviders } from '@/lib/api-client';
 import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, clearKeyPair, publicKeyToDid } from '@/lib/did-auth';
-import type { MemberSummary, EcosystemSummary, OAuthProvider } from '@/types/api';
+import type { MemberSummary, EcosystemSummary, OAuthProvider, PendingConsentGate } from '@/types/api';
 import { resolveExternalUrl } from '@/lib/media';
+
+/** Result of a sign-in: whether a membership still waits on the agreement-consent gate. */
+export interface SignInOutcome {
+  consentRequired: boolean;
+}
 
 interface AuthContextType {
   member: MemberSummary | null;
   ecosystems: EcosystemSummary[];
+  /** Memberships behind their ecosystem's agreement-consent gate (from /auth/me). */
+  pendingConsents: PendingConsentGate[];
   oauthProviders: OAuthProvider[];
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (displayName?: string) => Promise<void>;
-  loginWithCredentials: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName?: string) => Promise<void>;
+  login: (displayName?: string) => Promise<SignInOutcome>;
+  loginWithCredentials: (username: string, password: string) => Promise<SignInOutcome>;
+  register: (username: string, password: string, displayName?: string) => Promise<SignInOutcome>;
   loginWithOAuth: (provider: string) => Promise<void>;
   regenerateDid: () => Promise<void>;
   logout: () => Promise<void>;
@@ -27,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [member, setMember] = useState<MemberSummary | null>(null);
   const [ecosystems, setEcosystems] = useState<EcosystemSummary[]>([]);
+  const [pendingConsents, setPendingConsents] = useState<PendingConsentGate[]>([]);
   const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,16 +51,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie = 'neos_selected_ecosystems=; Max-Age=0; path=/;';
   }
 
-  async function checkSession() {
+  /** Load /auth/me; the outcome says whether the signed-in user still faces a consent gate. */
+  async function checkSession(): Promise<SignInOutcome> {
     try {
       const data = await fetchMe();
+      const gates = data.pending_consents ?? [];
       setMember(data.member);
       setEcosystems(data.ecosystems);
+      setPendingConsents(gates);
+      return { consentRequired: gates.length > 0 };
     } catch {
       // No valid session — clear any stale cookies
       clearAuthCookies();
       setMember(null);
       setEcosystems([]);
+      setPendingConsents([]);
+      return { consentRequired: false };
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Session cookie is set by the response. Now fetch full member data.
-      await checkSession();
+      return await checkSession();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
       setIsLoading(false);
@@ -124,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await loginWithPassword(username, password);
       // Session cookie is set by the response. Now fetch full member data.
-      await checkSession();
+      return await checkSession();
     } catch (err) {
       clearAuthCookies();
       setError(err instanceof Error ? err.message : 'Authentication failed');
@@ -138,8 +152,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      await registerWithPassword(username, password, displayName);
-      await checkSession();
+      const registered = await registerWithPassword(username, password, displayName);
+      const session = await checkSession();
+      return { consentRequired: session.consentRequired || registered.status === 'consent_required' };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
       setIsLoading(false);
@@ -194,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await fetchMe();
       setMember(data.member);
       setEcosystems(data.ecosystems);
+      setPendingConsents(data.pending_consents ?? []);
     } catch {
       // Silent — session still valid, just couldn't refresh
     }
@@ -208,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuthCookies();
     setMember(null);
     setEcosystems([]);
+    setPendingConsents([]);
     queryClient.clear();
   }, [queryClient]);
 
@@ -216,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         member,
         ecosystems,
+        pendingConsents,
         oauthProviders,
         isAuthenticated: !!member,
         isLoading,

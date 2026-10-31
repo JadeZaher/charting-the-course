@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { fetchPublicProfile } from "@/lib/api-client";
 import { resolveExternalUrl, resolveMediaUrl } from "@/lib/media";
+import { domainLabel } from "@/lib/domain-label";
 import type {
   PublicProfileQuizAttempt,
   PublicProfileQuizResult,
@@ -202,7 +203,7 @@ export default function PublicProfile() {
       };
       const domainKey = result.domain?.id ?? "general";
       const domain = ecosystem.domains.get(domainKey) ?? {
-        name: result.domain?.domain_id ?? "Ecosystem-wide",
+        name: result.domain ? domainLabel(result.domain) : "Ecosystem-wide",
         quizzes: [],
       };
       domain.quizzes.push(result);
@@ -464,7 +465,7 @@ export default function PublicProfile() {
                         {domains.length ? (
                           domains.map((domain) => (
                             <Badge key={domain.id} variant="secondary" title={domain.purpose ?? undefined}>
-                              {domain.domain_id} · {domain.role}
+                              {domainLabel(domain)} · {domain.role}
                             </Badge>
                           ))
                         ) : (

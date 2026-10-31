@@ -36,7 +36,8 @@ export function linkifySegments(text: string, appOrigin: string): LinkifiedSegme
     if (!href) continue;
     if (start > cursor) segments.push({ kind: 'text', value: text.slice(cursor, start) });
     const parsed = new URL(href);
-    const inApp = parsed.origin === appOrigin;
+    // "https://app//evil.com" has path "//evil.com", which an in-app <a href> would send off-site.
+    const inApp = parsed.origin === appOrigin && !parsed.pathname.startsWith('//');
     segments.push({
       kind: 'link',
       value: raw,
