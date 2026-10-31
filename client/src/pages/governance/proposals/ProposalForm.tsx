@@ -58,11 +58,12 @@ export default function ProposalForm() {
   const proposerPrefilled = useRef(false);
 
   // New proposals default the proposer to the caller (still editable, e.g. proposing on someone's behalf).
+  const callerDisplayName = member?.display_name ?? '';
   useEffect(() => {
-    if (isEdit || proposerPrefilled.current || !member?.display_name) return;
+    if (isEdit || proposerPrefilled.current || !callerDisplayName) return;
     proposerPrefilled.current = true;
-    setProposer((current) => current || member.display_name);
-  }, [isEdit, member?.display_name]);
+    setProposer((current) => current || callerDisplayName);
+  }, [isEdit, callerDisplayName]);
 
   useEffect(() => {
     if (existing && isEdit) {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useRoute, useLocation } from 'wouter';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,7 @@ import {
   updateSharesNeedsStatus,
   deleteSharesNeeds,
 } from '@/lib/api-client';
+import { domainCode, domainLabel } from '@/lib/domain-label';
 import type { QuizListItem, SharesNeeds } from '@/types/api';
 
 interface DomainQuiz {
@@ -54,6 +55,41 @@ const statusVariant = (status: string) => {
   }
 };
 
+/** "primary_accountabilities" -> "Primary accountabilities". */
+function humanizeKey(key: string): string {
+  const spaced = key.replace(/[_-]+/g, ' ').trim();
+  return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : key;
+}
+
+/** Renders a JSON domain-element value as readable rows and lists instead of raw JSON. */
+function ElementValue({ value }: { value: unknown }) {
+  if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">-</span>;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-muted-foreground">None</span>;
+    return (
+      <ul className="list-disc space-y-1 pl-5">
+        {value.map((item, index) => <li key={index}><ElementValue value={item} /></li>)}
+      </ul>
+    );
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return <span className="text-muted-foreground">None</span>;
+    return (
+      <dl className="grid grid-cols-[minmax(0,auto)_1fr] gap-x-4 gap-y-1">
+        {entries.map(([key, item]) => (
+          <Fragment key={key}>
+            <dt className="text-muted-foreground">{humanizeKey(key)}</dt>
+            <dd><ElementValue value={item} /></dd>
+          </Fragment>
+        ))}
+      </dl>
+    );
+  }
+  if (typeof value === 'boolean') return <span>{value ? 'Yes' : 'No'}</span>;
+  return <span>{String(value)}</span>;
+}
+
 const snTypeColor = (type: string) => type === 'share' ? 'default' as const : 'secondary' as const;
 const snStatusColor = (status: string) => {
   switch (status) {
@@ -67,13 +103,34 @@ const snStatusColor = (status: string) => {
 export default function DomainDetail() {
   const [, params] = useRoute('/domains/:id');
   const id = params?.id ?? '';
-  const [, navigate] = useLocation();
   const { data, isLoading, error } = useDomain(id);
   const { permissions } = useRoleAccess();
   const { toast } = useToast();
   const joinMutation = useJoinDomainParticipation(id);
-  const [joined, setJoined] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  // Participation is server state (caller_is_participant); after joining, the Join
+  // button unmounts, so move focus to the status text that replaces it.
+  const participationStatusRef = useRef<HTMLParagraphElement>(null);
+  const focusParticipationOnUpdate = useRef(false);
+
+  useEffect(() => {
+    if (data?.caller_is_participant && focusParticipationOnUpdate.current) {
+      focusParticipationOnUpdate.current = false;
+      participationStatusRef.current?.focus();
+    }
+  }, [data?.caller_is_participant]);
+
+  const handleJoin = async () => {
+    setJoinError(null);
+    focusParticipationOnUpdate.current = true;
+    try {
+      await joinMutation.mutateAsync();
+      toast({ title: 'Joined the domain', description: 'You are now a participant in this domain.' });
+    } catch (e) {
+      focusParticipationOnUpdate.current = false;
+      setJoinError(e instanceof Error ? e.message : 'Could not join this domain');
+    }
+  };
 
   // --- Quiz management state ---
   const [domainQuizzes, setDomainQuizzes] = useState<DomainQuiz[]>([]);
@@ -192,33 +249,40 @@ export default function DomainDetail() {
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">{data.domain_id}</h1>
+          <h1 className="text-3xl font-bold">{domainLabel(data)}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+            {domainCode(data) && <span className="text-sm text-muted-foreground">Code {domainCode(data)}</span>}
             <span className="text-sm text-muted-foreground">v{data.version}</span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="default"
-            size="sm"
-            disabled={joinMutation.isPending || joined}
-            onClick={async () => {
-              setJoinError(null);
-              try {
-                await joinMutation.mutateAsync();
-                setJoined(true);
-                toast({ title: 'Joined the domain', description: 'You are now a participant in this domain.' });
-              } catch (e) {
-                setJoinError(e instanceof Error ? e.message : 'Could not join this domain');
-              }
-            }}
-          >
-            {joinMutation.isPending ? 'Joining...' : joined ? 'Joined' : 'Join this domain'}
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/domains/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
-          </Button>
+        {/* Button state comes from server flags, so it survives reloads. */}
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          {data.caller_is_steward && (
+            <p className="inline-flex items-center gap-1 text-sm font-medium">
+              <Check className="h-4 w-4" aria-hidden="true" />You steward this domain
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {data.caller_is_participant ? (
+              <p
+                ref={participationStatusRef}
+                tabIndex={-1}
+                className="inline-flex items-center gap-1 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />You participate in this domain
+              </p>
+            ) : (
+              <Button variant="default" size="sm" disabled={joinMutation.isPending} onClick={handleJoin}>
+                {joinMutation.isPending ? 'Joining...' : data.caller_is_steward ? 'Join as a participant' : 'Join this domain'}
+              </Button>
+            )}
+            {data.caller_can_edit && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/domains/${id}/edit`}><Pencil className="h-4 w-4 mr-1" aria-hidden="true" />Edit</Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       {joinError && (
@@ -243,18 +307,37 @@ export default function DomainDetail() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Participants ({data.participant_count ?? 0})</CardTitle></CardHeader>
+        <CardContent>
+          {(data.participants ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No one participates in this domain yet.</p>
+          ) : (
+            <ul className="flex flex-wrap gap-2" aria-label="Domain participants">
+              {(data.participants ?? []).map((participant) => (
+                <li key={participant.member_id}>
+                  <Badge variant="outline">
+                    {participant.display_name}{participant.role !== 'member' ? ` · ${participant.role}` : ''}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {data.domain_elements.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-lg">Domain Elements</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Value</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Element</TableHead><TableHead>Details</TableHead></TableRow></TableHeader>
               <TableBody>
                 {data.domain_elements.map((element) => (
                   <TableRow key={element.id}>
-                    <TableCell className="font-medium">{element.element_name}</TableCell>
-                    <TableCell className="max-w-[480px] whitespace-pre-wrap">
-                      {element.element_value ? JSON.stringify(element.element_value, null, 2) : '-'}
+                    <TableCell className="align-top font-medium">{humanizeKey(element.element_name)}</TableCell>
+                    <TableCell className="max-w-[480px] text-sm">
+                      <ElementValue value={element.element_value} />
                     </TableCell>
                   </TableRow>
                 ))}

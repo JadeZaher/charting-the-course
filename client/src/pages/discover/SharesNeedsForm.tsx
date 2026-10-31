@@ -11,7 +11,11 @@ import { useCreateSharesNeeds } from '@/hooks/use-discover';
 import { useDomains } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { SHARESNEEDS_CATEGORY_OPTIONS } from '@/lib/sharesneeds-vocab';
+import { domainOptionLabel } from '@/lib/domain-label';
 import { ArrowLeft } from 'lucide-react';
+
+/** Discover tab that lists shares, needs and solutions (DiscoverHub reads ?tab=). */
+const SHARES_NEEDS_TAB_URL = '/discover?tab=shares-needs';
 
 const VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Public' },
@@ -86,7 +90,7 @@ export default function SharesNeedsForm() {
     try {
       await createMutation.mutateAsync(payload);
       toast({ title: 'Published', description: `Your ${type} is now available.` });
-      navigate('/discover');
+      navigate(SHARES_NEEDS_TAB_URL);
     } catch {
       // Error handled by mutation state
     }
@@ -95,7 +99,7 @@ export default function SharesNeedsForm() {
   return (
     <div className="space-y-6 max-w-2xl">
       <Button asChild variant="ghost" size="sm">
-        <Link href="/discover">
+        <Link href={SHARES_NEEDS_TAB_URL}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Discover
         </Link>
@@ -245,7 +249,7 @@ export default function SharesNeedsForm() {
                   </SelectTrigger>
                   <SelectContent>
                     {domains.map(d => (
-                      <SelectItem key={d.id} value={d.id}>{d.domain_id}</SelectItem>
+                      <SelectItem key={d.id} value={d.id}>{domainOptionLabel(d)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -276,7 +280,7 @@ export default function SharesNeedsForm() {
                 {createMutation.isPending ? 'Publishing...' : `Publish ${type}`}
               </Button>
               <Button asChild variant="outline">
-                <Link href="/discover">Cancel</Link>
+                <Link href={SHARES_NEEDS_TAB_URL}>Cancel</Link>
               </Button>
             </div>
           </form>

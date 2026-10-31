@@ -32,6 +32,33 @@ The route contract is:
 - `/explore` and `/discover/hub` redirect to `/discover`.
 - Journey-map admin routes (`/admin/journey-maps*`) redirect to `/onboarding` — journey maps are being folded into onboarding flows.
 - Ethos and orientation routes belong to the Explore navigation state.
+- Signed-out visits to any non-public path redirect to `/login?redirect=<path+query>` (see §Sign-in redirect contract), never to `/`.
+
+`App.tsx` moves focus to `#main-content` (`preventScroll`) after every client-side navigation except the first render, unless the new page already put focus inside `main` (an `autoFocus` field, a link that stayed mounted). Pages should not focus `main` themselves.
+
+On mobile the sidebar is a sheet; `AppSidebar` closes it whenever the location changes so it never covers the page it just navigated to.
+
+### Route guide rail
+
+`RouteGuidePanel` keeps one persisted preference (`localStorage["neos:route-guide-open"]`). At `lg+` (1024 px) the panel is docked: while open it sets `--route-guide-width: 380px` on `<html>` (`0px` when closed, hidden, or unmounted) and the shell's `main` adds that width to its right padding (`lg:pr-[calc(var(--page-gutter)_+_var(--route-guide-width,0px))]`), so the rail never covers page controls. Below `lg` the panel overlays content, so it opens only on demand and collapses on the next navigation without overwriting the stored preference. Keep `PANEL_WIDTH` and the panel's `w-[380px]` in step.
+
+## Sign-in redirect contract
+
+`pages/Login.tsx` reads `?redirect=` from the raw `window.location.search` (wouter's `useSearch()` unescapes it, which would split a nested `&`) and passes it through `safeRedirect`: only same-origin in-app paths (`resolveInternalPath`: starts with `/`, not `//`, no backslash) that are not `/login…` are honoured; anything else becomes `/dashboard`. Every sign-in path (password, register, DID, already-authenticated visit) lands on that target with `replace`.
+
+OAuth cannot carry the parameter: the backend callback always returns to `/dashboard`. Before leaving, `handleOAuth` stashes the target in `sessionStorage["neos:post-login-redirect"]`; `AppLayout` consumes it once (`takeStashedRedirect`) when the session becomes authenticated. Non-OAuth submits clear the stash first so a stale OAuth attempt cannot redirect a later password sign-in.
+
+## Orientation journeys
+
+Journey maps are served by the orientation blueprint: `GET /api/v1/orientation/journey-maps/:id` (there is no `/api/v1/journey-maps`). Unknown `/api/*` paths now return JSON 404s instead of redirecting to `/dashboard`, so a wrong path surfaces as a query error rather than SPA HTML.
+
+`OrientationJourney` renders four distinct states: loading; load failure ("We couldn't load this journey" + Retry); a map with an empty `content_sequence` ("This journey has no steps yet"); and completion, shown only when `progress.status === 'complete'`. `OrientationComplete` shows the celebration only for a completed journey and otherwise links back to continue or choose a journey. The ethos page's per-journey "Begin <title>" links pass `?journey=<id>`, which `OrientationGate` preselects; `JourneyMapCard` exposes its selection with `aria-pressed`.
+
+## Messaging
+
+`components/messaging/NewConversationDialog` is the single new-conversation flow, rendered by both `/messaging` and the `FloatingComms` drawer; it owns its form state and reports the created conversation through `onCreated`. Message bodies render through `components/messaging/LinkifiedText`: only `http(s)` URLs become links, same-origin URLs become in-app wouter `Link`s, external ones open in a new tab with `rel="noopener noreferrer"`, trailing sentence punctuation is left outside the link, and all text stays React-escaped (no HTML injection path).
+
+The floating drawer is a non-modal `role="dialog"` named "Communications": opening it moves focus into the panel, closing it (button, launcher, or Escape) returns focus to the launcher. Icon-only controls carry `aria-label`s ("New conversation", "Send message", "Stop response").
 
 ## Public member profiles
 

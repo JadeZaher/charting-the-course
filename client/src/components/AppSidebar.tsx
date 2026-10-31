@@ -262,7 +262,7 @@ export function AppSidebar() {
             <span className="text-xl font-black tracking-[-0.08em]">N.</span>
           ) : (
             <span className="grid gap-1">
-              <span className="text-[0.625rem] font-black uppercase tracking-[0.24em] text-sidebar-foreground/65">NEOS / Index 01</span>
+              <span className="text-[0.625rem] font-black uppercase tracking-[0.24em] text-sidebar-foreground/65">Governance / Index 01</span>
               <span className="text-xl font-black uppercase leading-[0.92] tracking-[-0.045em]">NEOS</span>
             </span>
           )}

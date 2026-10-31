@@ -122,11 +122,13 @@ export default function Dashboard() {
   const statCards = summaryQuery.data?.cards ?? [];
   const recentActivity = summaryQuery.data?.activity ?? [];
   const displayName = member?.display_name || 'Member';
-  const contextLabel = isAll
-    ? `All ${ecosystems.length} ecosystems`
-    : isMulti
-      ? `${selectedIds.length} ecosystems selected`
-      : scopedEcosystem?.name ?? 'No ecosystem selected';
+  const contextLabel = scopedEcosystem
+    ? scopedEcosystem.name
+    : isAll
+      ? `All ${ecosystems.length} ecosystems`
+      : isMulti
+        ? `${selectedIds.length} ecosystems selected`
+        : 'No ecosystem selected';
   const ecosystemImage = resolveMediaUrl(scopedEcosystem?.logo_url);
 
   const pendingActions = [
@@ -140,7 +142,10 @@ export default function Dashboard() {
     { label: 'Draft proposal', detail: 'Open a governance change', href: '/proposals/new' },
     { label: 'Review agreements', detail: 'Read the current operating record', href: '/agreements' },
     { label: 'Discover network', detail: 'Explore ecosystems and exchanges', href: '/discover' },
-    { label: 'My solutions', detail: 'Continue orientation and alignment', href: '/solutions' },
+    ...(scopedEcosystem
+      ? [{ label: 'Orientation', detail: `Start or continue ${scopedEcosystem.name} orientation`, href: `/ethos/${scopedEcosystem.id}` }]
+      : []),
+    { label: 'My solutions', detail: 'Browse solutions on the Discover page', href: '/discover' },
     { label: 'Member profile', detail: 'Update identity and capabilities', href: '/profile' },
     ...(canManageContent
       ? [{ label: 'Manage learning', detail: 'Publish quizzes and pathways', href: '/quiz/manage' }]
@@ -327,7 +332,7 @@ export default function Dashboard() {
           <h2 id="quick-actions-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Move next.</h2>
           <ol className="mt-5 border-t border-border">
             {quickActions.map((action, index) => (
-              <li key={action.href} className="border-b border-border">
+              <li key={action.label} className="border-b border-border">
                 <Link href={action.href} className="group grid grid-cols-[auto_1fr_auto] gap-3 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <span className="text-xs font-black tabular-nums text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
                   <span>

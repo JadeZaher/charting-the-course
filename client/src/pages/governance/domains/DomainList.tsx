@@ -8,6 +8,7 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useDomains } from '@/hooks/use-governance';
+import { domainCode, domainLabel } from '@/lib/domain-label';
 import { Plus } from 'lucide-react';
 
 const FILTERS: FilterDef[] = [
@@ -51,12 +52,17 @@ export default function DomainList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Domains</h1>
-        <Button asChild>
-          <Link href="/domains/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Domain
-          </Link>
-        </Button>
+        {/* Creating a domain needs an ecosystem steward (mod+); the server enforces it too. */}
+        {data?.caller_can_create ? (
+          <Button asChild>
+            <Link href="/domains/new">
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+              New Domain
+            </Link>
+          </Button>
+        ) : (
+          <p className="max-w-xs text-right text-sm text-muted-foreground">Ecosystem stewards create domains.</p>
+        )}
       </div>
 
       <FilterBar
@@ -70,12 +76,21 @@ export default function DomainList() {
       <CollectionGrid aria-label="Domains">
         {data?.items.length === 0 ? (
           <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No domains found</div>
-        ) : data?.items.map((d) => (
+        ) : data?.items.map((d) => {
+          const code = domainCode(d);
+          return (
           <CollectionCard key={d.id} asChild>
-            <Link href={`/domains/${d.id}`} aria-label={`View domain: ${d.domain_id}`}>
+            <Link href={`/domains/${d.id}`} aria-label={`View domain: ${domainLabel(d)}`}>
               <div className="flex items-start justify-between gap-3">
-                <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Domain</p><h2 className="mt-1 text-lg font-semibold">{d.domain_id}</h2></div>
-                <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Domain{code ? ` · ${code}` : ''}</p>
+                  <h2 className="mt-1 text-lg font-semibold">{domainLabel(d)}</h2>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
+                  {d.caller_is_steward && <Badge variant="outline">You steward</Badge>}
+                  {d.caller_is_participant && <Badge variant="outline">You participate</Badge>}
+                </div>
               </div>
               <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">{d.purpose || 'No purpose recorded.'}</p>
               <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm">
@@ -85,7 +100,8 @@ export default function DomainList() {
               </dl>
             </Link>
           </CollectionCard>
-        ))}
+          );
+        })}
       </CollectionGrid>
 
       {totalPages > 1 && (

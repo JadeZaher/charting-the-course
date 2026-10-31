@@ -13,41 +13,71 @@ import { cn } from "@/lib/utils";
 import { BookOpenText, PanelRightClose, ArrowRight } from "lucide-react";
 
 const STORAGE_KEY = "neos:route-guide-open";
+const PANEL_WIDTH = "380px";
+const DOCKED_QUERY = "(min-width: 1024px)"; // Tailwind lg
+
+function useMatchesMedia(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const onChange = () => setMatches(media.matches);
+    media.addEventListener("change", onChange);
+    onChange();
+    return () => media.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
 
 /**
  * Route-aware governance guide. Collapses to a vertical handle on the right
  * edge; expands into a panel of accordioned, per-page steps. Renders nothing
- * on routes without guide content. Open state persists across sessions.
+ * on routes without guide content. Layout contract: see `client/src/AGENTS.md` §Route guide rail.
  */
 export function RouteGuidePanel() {
   const [location] = useLocation();
   const guide = getRouteGuide(location);
   const isMobile = useIsMobile();
-  const [open, setOpen] = useState<boolean>(() => {
+  const isDocked = useMatchesMedia(DOCKED_QUERY);
+  // The member's open/closed preference persists and governs the docked (lg+) rail.
+  const [preferOpen, setPreferOpen] = useState<boolean>(() => {
     try {
       return window.localStorage.getItem(STORAGE_KEY) === "1";
     } catch {
       return false;
     }
   });
+  // Below lg the panel overlays content, so it only stays open on the route it was opened on.
+  const [overlayRoute, setOverlayRoute] = useState<string | null>(null);
+  const open = Boolean(guide) && (isDocked ? preferOpen : overlayRoute === location);
 
-  useEffect(() => {
+  const setPreference = (next: boolean) => {
+    setPreferOpen(next);
+    setOverlayRoute(next ? location : null);
     try {
-      window.localStorage.setItem(STORAGE_KEY, open ? "1" : "0");
+      window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
     } catch {
       /* storage unavailable */
     }
-  }, [open]);
+  };
+
+  // Docked and open, the rail reserves its width in the shell (App.tsx main padding).
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--route-guide-width", open && isDocked ? PANEL_WIDTH : "0px");
+    return () => {
+      root.style.setProperty("--route-guide-width", "0px");
+    };
+  }, [open, isDocked]);
 
   // Escape closes the panel; focus stays where it was.
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") setPreference(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, location]);
 
   if (!guide) return null;
 
@@ -56,7 +86,7 @@ export function RouteGuidePanel() {
       {!open && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setPreference(true)}
           aria-expanded={false}
           aria-controls="route-guide-panel"
           aria-label={`Open the ${guide.title} guide`}
@@ -92,7 +122,7 @@ export function RouteGuidePanel() {
             </div>
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => setPreference(false)}
               aria-expanded={true}
               aria-controls="route-guide-panel"
               aria-label="Close guide"

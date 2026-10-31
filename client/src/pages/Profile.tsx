@@ -58,6 +58,9 @@ const EMPTY_FORM: ProfileForm = {
   interests: "",
 };
 
+// Any Unicode letter; built at runtime because the TS target predates the regex `u` flag.
+const LETTER = new RegExp("\\p{L}", "u");
+
 function splitList(value: string) {
   return Array.from(new Set(value.split(",").map((item) => item.trim()).filter(Boolean)));
 }
@@ -279,10 +282,11 @@ export default function Profile() {
   }
 
   const avatarUrl = resolveMediaUrl(data.profile.profile_picture);
+  // First letter of each word, skipping punctuation such as "(" so "Priya R (she)" reads "PR".
   const initials =
     data.profile.display_name
       .split(/\s+/)
-      .map((part) => part[0])
+      .map((part) => part.match(LETTER)?.[0] ?? "")
       .join("")
       .slice(0, 2)
       .toUpperCase() || "?";

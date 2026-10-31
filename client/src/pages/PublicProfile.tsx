@@ -67,6 +67,9 @@ function SectionLabel({
   );
 }
 
+// Any Unicode letter; built at runtime because the TS target predates the regex `u` flag.
+const LETTER = new RegExp("\\p{L}", "u");
+
 function collectStrings(value: unknown): string[] {
   if (typeof value === "string") {
     return value
@@ -268,10 +271,11 @@ export default function PublicProfile() {
 
   const { profile } = data;
   const avatarUrl = resolveMediaUrl(profile.profile_picture);
+  // First letter of each word, skipping punctuation such as "(" so "Priya R (she)" reads "PR".
   const initials =
     profile.display_name
       .split(/\s+/)
-      .map((name) => name[0])
+      .map((name) => name.match(LETTER)?.[0] ?? "")
       .join("")
       .slice(0, 2)
       .toUpperCase() || "?";
@@ -673,7 +677,7 @@ export default function PublicProfile() {
 
         <footer className="flex flex-col justify-between gap-2 border-t border-foreground py-6 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground sm:flex-row">
           <p>
-            Powered by <span className="text-foreground">Charting the Course</span>
+            Powered by <span className="text-foreground">NEOS</span>
           </p>
           <p>NEOS / Public member record</p>
         </footer>

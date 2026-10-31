@@ -12,6 +12,15 @@ import { Bot, Copy, KeyRound, Loader2, Plus, ShieldCheck, Trash2 } from 'lucide-
 // Agent access (MCP): mint session-scoped bearer tokens so the member's own
 // agents can connect to the governance MCP server and do permissioned
 // agreement-building work on their behalf.
+
+/** MCP server URL: VITE_MCP_URL when set, else the API host on port 8100 (the API's own port replaced). */
+function resolveMcpUrl(): string {
+  const configured = import.meta.env.VITE_MCP_URL;
+  if (typeof configured === 'string' && configured.trim()) return configured.trim();
+  const apiBase = new URL(import.meta.env.VITE_API_URL || window.location.origin, window.location.origin);
+  return `${apiBase.protocol}//${apiBase.hostname}:8100/mcp`;
+}
+
 export default function AgentAccessPage() {
   const { data, isLoading, error, refetch } = useAgentTokens();
   const mintMutation = useMintAgentToken();
@@ -20,10 +29,10 @@ export default function AgentAccessPage() {
 
   const [label, setLabel] = useState('');
   const [days, setDays] = useState('7');
-  const [freshToken, setFreshToken] = useState<string | null>(null);
+  // The one-time secret and the id it belongs to, so revoking that token clears it from screen.
+  const [freshToken, setFreshToken] = useState<{ id: string; token: string } | null>(null);
 
-  const apiBase = import.meta.env.VITE_API_URL || window.location.origin;
-  const mcpUrl = `${String(apiBase).replace(/\/$/, '')}:8100/mcp`;
+  const mcpUrl = resolveMcpUrl();
 
   const handleMint = async () => {
     try {
@@ -31,7 +40,7 @@ export default function AgentAccessPage() {
         label: label.trim() || undefined,
         expires_in_days: Math.min(30, Math.max(1, parseInt(days, 10) || 7)),
       });
-      setFreshToken(minted.token ?? null);
+      setFreshToken(minted.token ? { id: minted.id, token: minted.token } : null);
       setLabel('');
       toast({ title: 'Agent token minted', description: 'Copy it now — it is only shown once.' });
     } catch (e) {
@@ -42,6 +51,7 @@ export default function AgentAccessPage() {
   const handleRevoke = async (id: string) => {
     try {
       await revokeMutation.mutateAsync(id);
+      setFreshToken((current) => (current?.id === id ? null : current));
       toast({ title: 'Token revoked', description: 'The agent using it loses access immediately.' });
     } catch (e) {
       toast({ title: 'Could not revoke token', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
@@ -71,7 +81,7 @@ export default function AgentAccessPage() {
             <p className="text-sm font-medium">MCP endpoint</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 border-2 border-strong-border bg-muted px-3 py-2 text-xs break-all">{mcpUrl}</code>
-              <Button variant="outline" size="sm" className="min-h-11" onClick={() => copy(mcpUrl)}><Copy className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="min-h-11" onClick={() => copy(mcpUrl)} aria-label="Copy MCP endpoint"><Copy className="h-4 w-4" aria-hidden="true" /></Button>
             </div>
             <p className="text-xs text-muted-foreground">
               Configure your MCP client with this URL and an{' '}
@@ -100,8 +110,8 @@ export default function AgentAccessPage() {
               <div className="border-2 border-warning bg-warning/10 p-3 space-y-2">
                 <p className="text-sm font-medium">Shown once — copy it now:</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-background border border-strong-border px-3 py-2 text-xs break-all">{freshToken}</code>
-                  <Button variant="outline" size="sm" className="min-h-11" onClick={() => copy(freshToken)}><Copy className="h-4 w-4" /></Button>
+                  <code className="flex-1 bg-background border border-strong-border px-3 py-2 text-xs break-all">{freshToken.token}</code>
+                  <Button variant="outline" size="sm" className="min-h-11" onClick={() => copy(freshToken.token)} aria-label="Copy token"><Copy className="h-4 w-4" aria-hidden="true" /></Button>
                 </div>
               </div>
             )}

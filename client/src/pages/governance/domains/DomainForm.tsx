@@ -11,6 +11,7 @@ import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useDomain, useCreateDomain, useUpdateDomain } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
+import { ApiFetchError } from '@/lib/api-client';
 import { ArrowLeft } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -31,6 +32,7 @@ export default function DomainForm() {
   const createMutation = useCreateDomain();
   const updateMutation = useUpdateDomain(editId ?? '');
 
+  const [name, setName] = useState('');
   const [purpose, setPurpose] = useState('');
   const [currentSteward, setCurrentSteward] = useState('');
   const [status, setStatus] = useState('draft');
@@ -40,6 +42,8 @@ export default function DomainForm() {
 
   useEffect(() => {
     if (existing && isEdit) {
+      // Legacy rows have no stored name: seed the field with the derived label unless that is just the code.
+      setName(existing.name ?? (existing.display_name !== existing.domain_id ? existing.display_name : ''));
       setPurpose(existing.purpose || '');
       setCurrentSteward(existing.current_steward || '');
       setStatus(existing.status || 'draft');
@@ -58,8 +62,12 @@ export default function DomainForm() {
 
   const validate = () => {
     const errs: Record<string, string> = {};
+    if (!name.trim()) errs.name = 'Name is required';
+    else if (name.trim().length > 200) errs.name = 'Name must be 200 characters or fewer';
     if (!purpose.trim()) errs.purpose = 'Purpose is required';
     setErrors(errs);
+    const firstInvalidId = errs.name ? 'name' : errs.purpose ? 'purpose' : null;
+    if (firstInvalidId) window.requestAnimationFrame(() => document.getElementById(firstInvalidId)?.focus());
     return Object.keys(errs).length === 0;
   };
 
@@ -68,6 +76,7 @@ export default function DomainForm() {
     if (!validate()) return;
 
     const payload: Record<string, any> = {
+      name: name.trim(),
       purpose: purpose.trim(),
       current_steward: currentSteward || null,
       status,
@@ -95,6 +104,10 @@ export default function DomainForm() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const mutationError = createMutation.error || updateMutation.error;
+  const editLocked = isEdit && existing != null && !existing.caller_can_edit;
+  const mutationMessage = mutationError instanceof ApiFetchError && mutationError.status === 403 && !isEdit
+    ? 'Only an ecosystem steward (moderator or above) can create a domain. Ask a steward to create it, or to give you the moderator role.'
+    : (mutationError as Error | null)?.message;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -107,15 +120,37 @@ export default function DomainForm() {
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Domain' : 'New Domain'}</h1>
 
+      {editLocked && (
+        <div role="status" className="rounded-none border-2 border-strong-border bg-muted p-3 text-sm text-muted-foreground">
+          Only this domain's steward or an ecosystem steward can edit this domain.
+        </div>
+      )}
+
       {mutationError && (
-        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(mutationError as Error).message}
+        <div role="alert" className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          {mutationMessage}
         </div>
       )}
 
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Community Kitchen"
+                maxLength={200}
+                aria-required="true"
+                aria-invalid={errors.name ? true : undefined}
+                aria-describedby={errors.name ? 'name-hint name-error' : 'name-hint'}
+              />
+              <p id="name-hint" className="text-xs text-muted-foreground">How members will find and recognise this domain.</p>
+              {errors.name && <p id="name-error" className="text-sm text-destructive">{errors.name}</p>}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="purpose">Purpose *</Label>
               <AITextarea
@@ -124,10 +159,13 @@ export default function DomainForm() {
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="Domain purpose..."
                 rows={5}
+                aria-required="true"
+                aria-invalid={errors.purpose ? true : undefined}
+                aria-describedby={errors.purpose ? 'purpose-error' : undefined}
                 fieldLabel="Purpose"
                 fieldContext="The purpose and scope of a governance domain within the organization"
               />
-              {errors.purpose && <p className="text-sm text-destructive">{errors.purpose}</p>}
+              {errors.purpose && <p id="purpose-error" className="text-sm text-destructive">{errors.purpose}</p>}
             </div>
 
             <div className="space-y-2">
@@ -143,7 +181,7 @@ export default function DomainForm() {
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -177,7 +215,7 @@ export default function DomainForm() {
             />
 
             <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || editLocked}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Domain' : 'Create Domain')}
               </Button>
               <Button asChild variant="outline">

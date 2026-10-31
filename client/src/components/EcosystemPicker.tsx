@@ -11,6 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, ChevronDown, Search, ExternalLink } from 'lucide-react';
 import type { EcosystemSummary } from '@/types/api';
 
+/** "1 member" / "N members" so picker counts carry their unit. */
+function memberCount(count: number) {
+  return `${count} ${count === 1 ? 'member' : 'members'}`;
+}
+
 export function EcosystemPicker() {
   const { ecosystems, selectedIds, toggleMulti, selectAll, isAll } = useEcosystem();
   const [open, setOpen] = useState(false);
@@ -30,10 +35,10 @@ export function EcosystemPicker() {
   if (ecosystems.length === 0) return null;
 
   const selectedCount = selectedIds.length;
-  const label = isAll
-    ? 'All Ecosystems'
-    : selectedCount === 1
-      ? ecosystems.find(e => selectedIds.includes(e.id))?.name ?? 'Ecosystem'
+  const label = selectedCount === 1
+    ? ecosystems.find(e => selectedIds.includes(e.id))?.name ?? 'Ecosystem'
+    : isAll
+      ? 'All Ecosystems'
       : `${selectedCount} ecosystems`;
 
   return (
@@ -60,7 +65,7 @@ export function EcosystemPicker() {
                 />
                 <span className="flex-1">All Ecosystems</span>
                 <Badge variant="outline" className="text-xs shrink-0">
-                  {ecosystems.reduce((sum, e) => sum + e.member_count, 0)}
+                  {memberCount(ecosystems.reduce((sum, e) => sum + e.member_count, 0))}
                 </Badge>
               </label>
             )}
@@ -75,7 +80,7 @@ export function EcosystemPicker() {
                 />
                 <span className="truncate flex-1">{eco.name}</span>
                 <Badge variant="outline" className="text-xs shrink-0">
-                  {eco.member_count}
+                  {memberCount(eco.member_count)}
                 </Badge>
               </label>
             ))}
@@ -110,7 +115,7 @@ export function EcosystemPicker() {
                   <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate flex-1">{eco.name}</span>
                   <span className="text-xs text-muted-foreground shrink-0">
-                    {eco.member_count} members
+                    {memberCount(eco.member_count)}
                   </span>
                   <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                 </Link>
