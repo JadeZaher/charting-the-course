@@ -48,7 +48,7 @@ interface RecordDecisionDialogProps {
   subjectTitle: string;
   onRecorded?: (decision: MemberDecision) => void;
   triggerLabel?: string;
-  triggerVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
+  triggerVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive';
   triggerSize?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
@@ -153,7 +153,7 @@ interface RecordDecisionActionProps {
   subjectId: string;
   subjectTitle: string;
   actionLabel?: string;
-  triggerVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive' | 'link';
+  triggerVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive';
   triggerSize?: 'default' | 'sm' | 'lg' | 'icon';
 }
 

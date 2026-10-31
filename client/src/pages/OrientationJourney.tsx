@@ -33,8 +33,7 @@ function useJourneyMap(journeyMapId?: string) {
     queryKey: ['journey-map', journeyMapId],
     queryFn: async () => {
       if (!journeyMapId) return null;
-      // TODO: replace with Sanic endpoint when journey-maps-get is available
-      const result = await apiFetch<any>(`/api/v1/journey-maps/${journeyMapId}`);
+      const result = await apiFetch<any>(`/api/v1/orientation/journey-maps/${journeyMapId}`);
       return (result?.map ?? result?.data ?? result) as JourneyMap;
     },
     enabled: !!journeyMapId,
@@ -46,12 +45,17 @@ export default function OrientationJourney() {
   const [, navigate] = useLocation();
   const ethosSlug = params?.ethos_slug ?? '';
 
-  const { data: ethosData } = useEthosDetail(ethosSlug);
+  const { data: ethosData, error: ethosError, refetch: refetchEthos } = useEthosDetail(ethosSlug);
   const ethos = ethosData?.ethos;
   const ethosId = ethos?.id ?? '';
 
   const { data: progress, isLoading: progressLoading, isFetching: progressFetching } = useUserProgress(ethosId);
-  const { data: journeyMap, isLoading: mapLoading } = useJourneyMap(progress?.journey_map_id);
+  const {
+    data: journeyMap,
+    isLoading: mapLoading,
+    error: mapError,
+    refetch: refetchMap,
+  } = useJourneyMap(progress?.journey_map_id);
   const saveProgress = useSaveProgress();
 
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
@@ -72,26 +76,28 @@ export default function OrientationJourney() {
 
   const steps = journeyMap?.content_sequence ?? [];
   const totalSteps = steps.length;
-  const currentStep = steps[currentStepIdx];
-  const progressPct = totalSteps > 0 ? Math.round(((currentStepIdx + 1) / totalSteps) * 100) : 0;
-  const isLoading = progressLoading || progressFetching || mapLoading || !ethos;
+  // Saved progress can point past the last step (e.g. the sequence was shortened); clamp it.
+  const stepIndex = totalSteps > 0 ? Math.min(Math.max(currentStepIdx, 0), totalSteps - 1) : 0;
+  const currentStep = steps[stepIndex];
+  const progressPct = totalSteps > 0 ? Math.round(((stepIndex + 1) / totalSteps) * 100) : 0;
+  const isLoading = (!ethos && !ethosError) || progressLoading || progressFetching || mapLoading;
 
   function handleBack() {
-    if (currentStepIdx > 0) {
-      setCurrentStepIdx(currentStepIdx - 1);
+    if (stepIndex > 0) {
+      setCurrentStepIdx(stepIndex - 1);
     }
   }
 
   async function handleStepComplete(response?: unknown) {
-    if (!progress || !journeyMap) return;
-    const nextIdx = currentStepIdx + 1;
+    if (!progress || !journeyMap || !currentStep) return;
+    const nextIdx = stepIndex + 1;
     const isLast = nextIdx >= totalSteps;
 
     await saveProgress.mutateAsync({
       ethos_id: ethosId,
       journey_map_id: journeyMap.id,
       current_step: nextIdx,
-      step_key: `step_${currentStepIdx}`,
+      step_key: `step_${stepIndex}`,
       step_response: response,
       status: isLast ? 'complete' : 'in_progress',
     });
@@ -107,7 +113,7 @@ export default function OrientationJourney() {
           choice_label: selectedChoice.label,
           choice_index: selectedChoice.choice_index ?? null,
           output_text: selectedChoice.description ?? selectedChoice.label,
-          journey_step_id: String(currentStepIdx),
+          journey_step_id: String(stepIndex),
         });
       }
     }
@@ -135,15 +141,59 @@ export default function OrientationJourney() {
     );
   }
 
-  if (!currentStep) {
+  // A load failure, an empty journey, and a finished journey are distinct states with distinct copy.
+  if (progress?.status === 'complete') {
     return (
       <div className="text-center py-20 space-y-3">
+        <h1 className="text-2xl font-bold">Journey complete</h1>
         <p className="text-muted-foreground">
-          Journey complete or no steps found.{' '}
+          You've finished this orientation journey.{' '}
           <Link href={`/orientation/${ethosSlug}/complete`} className="text-primary underline">
             View your orientation kit
           </Link>
         </p>
+      </div>
+    );
+  }
+
+  if (!progress && !ethosError) {
+    // No saved progress yet: the effect above sends the member to the journey gate.
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Skeleton className="h-64 rounded-none" />
+      </div>
+    );
+  }
+
+  if (ethosError || mapError || !journeyMap) {
+    return (
+      <div className="max-w-lg mx-auto space-y-4 border border-strong-border bg-card p-8 text-center">
+        <div role="alert" className="space-y-2">
+          <h1 className="text-xl font-bold">We couldn't load this journey</h1>
+          <p className="text-sm text-muted-foreground">
+            Your saved progress is safe. Try again, or return to the ecosystem page.
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button onClick={() => (ethosError ? refetchEthos() : refetchMap())}>Retry</Button>
+          <Button variant="outline" asChild>
+            <Link href={`/ethos/${ethosSlug}`}>Back to {ethos?.name ?? 'the ecosystem'}</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentStep) {
+    return (
+      <div className="max-w-lg mx-auto space-y-4 border border-strong-border bg-card p-8 text-center">
+        <h1 className="text-xl font-bold">This journey has no steps yet</h1>
+        <p className="text-sm text-muted-foreground">
+          {journeyMap.title} doesn't have any steps to follow yet. You can choose another journey.
+        </p>
+        <Button variant="outline" asChild>
+          <Link href={`/orientation/${ethosSlug}`}>Choose another journey</Link>
+        </Button>
       </div>
     );
   }
@@ -160,7 +210,7 @@ export default function OrientationJourney() {
             </Link>
           </Button>
           <span className="text-xs text-muted-foreground">
-            Step {currentStepIdx + 1} of {totalSteps}
+            Step {stepIndex + 1} of {totalSteps}
           </span>
         </div>
         <Progress value={progressPct} className="h-1.5" />
@@ -169,27 +219,27 @@ export default function OrientationJourney() {
       {/* Step card */}
       <div className="border border-strong-border bg-card p-6 sm:p-8">
         {currentStep.type === 'video' && (
-          <VideoStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
+          <VideoStep key={stepIndex} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'choice' && (
-          <ChoiceStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
+          <ChoiceStep key={stepIndex} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'confirmation' && (
-          <ConfirmationStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
+          <ConfirmationStep key={stepIndex} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'reflection' && (
-          <ReflectionStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
+          <ReflectionStep key={stepIndex} step={currentStep} onComplete={handleStepComplete} />
         )}
         {currentStep.type === 'ai_conversation' && (
           <AIConversationStep
-            key={currentStepIdx}
+            key={stepIndex}
             step={currentStep}
             context={omnibotCtx}
             onComplete={handleStepComplete}
           />
         )}
         {currentStep.type === 'survey' && (
-          <SurveyStep key={currentStepIdx} step={currentStep} onComplete={handleStepComplete} />
+          <SurveyStep key={stepIndex} step={currentStep} onComplete={handleStepComplete} />
         )}
       </div>
 
@@ -199,14 +249,14 @@ export default function OrientationJourney() {
           variant="ghost"
           size="sm"
           onClick={handleBack}
-          disabled={currentStepIdx === 0}
-          className={currentStepIdx === 0 ? 'invisible' : ''}
+          disabled={stepIndex === 0}
+          className={stepIndex === 0 ? 'invisible' : ''}
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Previous Step
         </Button>
         <span className="text-xs text-muted-foreground">
-          Step {currentStepIdx + 1} of {totalSteps}
+          Step {stepIndex + 1} of {totalSteps}
         </span>
         {/* Forward navigation is handled by step completion */}
         <div className="w-[120px]" /> {/* Spacer to balance layout */}

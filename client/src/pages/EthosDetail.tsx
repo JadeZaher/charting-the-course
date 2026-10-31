@@ -174,7 +174,11 @@ export default function EthosDetail() {
                       {map.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">{map.description}</p>}
                       <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{map.step_count} {map.step_count === 1 ? 'step' : 'steps'}</p>
                     </div>
-                    <Link href={`/orientation/${slug}`} className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <Link
+                      href={`/orientation/${slug}?journey=${encodeURIComponent(map.id)}`}
+                      aria-label={`Begin ${map.title}`}
+                      className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
                       Begin <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   </li>

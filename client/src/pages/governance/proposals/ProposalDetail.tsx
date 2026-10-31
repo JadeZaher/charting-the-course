@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useRoute, useLocation } from 'wouter';
+import { useRef, useState } from 'react';
+import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +20,16 @@ import { RecordDecisionAction } from '@/components/governance/RecordDecisionDial
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Pencil, ArrowLeft, Check, X, Award, Trash2, CircleAlert } from 'lucide-react';
-import type { AdviceLog, ConsentRecord, TestReport } from '@/types/api';
+import { Pencil, ArrowLeft, Check, X, Award, Trash2, CircleAlert, Info } from 'lucide-react';
+import { ApiFetchError } from '@/lib/api-client';
+import {
+  PROPOSAL_GATE_FOR_STATUS,
+  PROPOSAL_NEXT_STATUSES,
+  PROPOSAL_TRANSITION_LABELS,
+  proposalPhaseAnnouncement,
+  proposalPhaseLabel,
+} from '@/lib/proposal-vocab';
+import type { AdviceLog, ConsentRecord, ProposalDetail as ProposalDetailData, TestReport } from '@/types/api';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -44,16 +52,13 @@ const urgencyVariant = (urgency: string | null) => {
   }
 };
 
-// Valid status transitions — mirrors proposals.py::_VALID_TRANSITIONS (draft->advice->consent->test->ratified, any->withdrawn).
-// The backend has no proposal "archived" status/transition, so ratified has no further transition to offer here.
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  draft: ['advice', 'withdrawn'],
-  advice: ['consent', 'withdrawn'],
-  consent: ['test', 'withdrawn'],
-  test: ['ratified', 'withdrawn'],
-  ratified: [],
-  withdrawn: [],
-};
+/** Manual moves offered now: forward moves only once their ACT gate is met (the server would 409 otherwise). */
+function availableTransitions(data: ProposalDetailData): string[] {
+  return (PROPOSAL_NEXT_STATUSES[data.status] ?? []).filter((target) => {
+    const gate = PROPOSAL_GATE_FOR_STATUS[target];
+    return !gate || Boolean(data.gates?.[gate]?.met);
+  });
+}
 
 // --- Sub-components ---
 
@@ -120,24 +125,44 @@ function OverviewTab({ data }: { data: any }) {
   );
 }
 
-function AdviceTab({ adviceLogs, proposalId, proposalStatus }: { adviceLogs: AdviceLog[]; proposalId: string; proposalStatus: string }) {
+const ADVICE_REQUIRED_MESSAGE = 'Write your advice before submitting.';
+
+function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoAdvance }: {
+  adviceLogs: AdviceLog[];
+  proposalId: string;
+  proposalStatus: string;
+  isProposer: boolean;
+  /** Called after an advice entry auto-advanced the proposal (this form unmounts). */
+  onAutoAdvance: () => void;
+}) {
   const submitAdvice = useSubmitAdvice(proposalId);
   const { toast } = useToast();
   const { member } = useAuth();
   const [content, setContent] = useState('');
   const [concerns, setConcerns] = useState('');
   const [newRound, setNewRound] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const displayName = member?.display_name ?? 'Unknown';
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      setContentError(ADVICE_REQUIRED_MESSAGE);
+      contentRef.current?.focus();
+      return;
+    }
     try {
-      await submitAdvice.mutateAsync({ advisor: displayName, content: content.trim(), concerns: concerns.trim() || null, new_round: newRound });
+      // The server records the advisor from the session; no advisor field is sent.
+      const result = await submitAdvice.mutateAsync({ content: content.trim(), concerns: concerns.trim() || null, new_round: newRound });
       setContent('');
       setConcerns('');
       setNewRound(false);
-      toast({ title: 'Advice submitted', description: 'Your advice has been recorded.' });
+      if (result.auto_transitions?.includes('advice->consent')) {
+        toast({ title: 'Advice submitted', description: 'The advice round is complete, so the proposal moved to Consent.' });
+        onAutoAdvance();
+      } else {
+        toast({ title: 'Advice submitted', description: 'Your advice has been recorded.' });
+      }
     } catch {
       // Error handled by mutation state
     }
@@ -145,19 +170,47 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus }: { adviceLogs: Adv
 
   return (
     <div className="space-y-6">
+      {/* The proposer gathers advice; the server refuses self-advice (409). */}
+      {proposalStatus === 'advice' && isProposer && (
+        <Card className="border-muted">
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground text-center">
+              You are the proposer: advice from others appears here.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {/* Submit advice form — only during advice phase */}
-      {proposalStatus === 'advice' && (
+      {proposalStatus === 'advice' && !isProposer && (
         <Card>
           <CardHeader><CardTitle className="text-lg">Submit Advice</CardTitle></CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-3" noValidate>
               <div className="space-y-1">
                 <Label>Submitting as:</Label>
                 <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="advice-content">Advice *</Label>
-                <AITextarea id="advice-content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Your advice..." rows={4} fieldLabel="Advice" fieldContext="Governance advice on a proposal being considered by the organization" />
+                <AITextarea
+                  id="advice-content"
+                  ref={contentRef}
+                  value={content}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    if (contentError && e.target.value.trim()) setContentError(null);
+                  }}
+                  placeholder="Your advice..."
+                  rows={4}
+                  aria-required="true"
+                  aria-invalid={contentError ? true : undefined}
+                  aria-describedby={contentError ? 'advice-content-error' : undefined}
+                  fieldLabel="Advice"
+                  fieldContext="Governance advice on a proposal being considered by the organization"
+                />
+                {contentError && (
+                  <p id="advice-content-error" role="alert" className="text-sm text-destructive">{contentError}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="advice-concerns">Concerns</Label>
@@ -285,7 +338,7 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus }: { consentRec
               <div className="space-y-1">
                 <Label htmlFor="consent-position">Position</Label>
                 <Select value={position} onValueChange={setPosition}>
-                  <SelectTrigger>
+                  <SelectTrigger id="consent-position">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -437,7 +490,7 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
               <div className="space-y-1">
                 <Label htmlFor="test-outcome">Outcome *</Label>
                 <Select value={outcome} onValueChange={setOutcome}>
-                  <SelectTrigger>
+                  <SelectTrigger id="test-outcome">
                     <SelectValue placeholder="Select outcome" />
                   </SelectTrigger>
                   <SelectContent>
@@ -452,14 +505,14 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
                   <Label>Success Criteria</Label>
                   {criteria.map((c, idx) => (
                     <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto_1fr_auto] gap-2 items-center">
-                      <Input placeholder="Criterion" value={c.criterion} onChange={(e) => updateCriterion(idx, 'criterion', e.target.value)} />
-                      <Input placeholder="Metric" value={c.metric} onChange={(e) => updateCriterion(idx, 'metric', e.target.value)} />
-                      <Input placeholder="Target" value={c.target} onChange={(e) => updateCriterion(idx, 'target', e.target.value)} />
-                      <Input placeholder="Actual" value={c.actual} onChange={(e) => updateCriterion(idx, 'actual', e.target.value)} />
-                      <Checkbox checked={c.met} onCheckedChange={(checked) => updateCriterion(idx, 'met', !!checked)} />
-                      <Input placeholder="Evidence" value={c.evidence} onChange={(e) => updateCriterion(idx, 'evidence', e.target.value)} />
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(idx)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Input aria-label={`Criterion ${idx + 1}`} placeholder="Criterion" value={c.criterion} onChange={(e) => updateCriterion(idx, 'criterion', e.target.value)} />
+                      <Input aria-label={`Criterion ${idx + 1} metric`} placeholder="Metric" value={c.metric} onChange={(e) => updateCriterion(idx, 'metric', e.target.value)} />
+                      <Input aria-label={`Criterion ${idx + 1} target`} placeholder="Target" value={c.target} onChange={(e) => updateCriterion(idx, 'target', e.target.value)} />
+                      <Input aria-label={`Criterion ${idx + 1} actual`} placeholder="Actual" value={c.actual} onChange={(e) => updateCriterion(idx, 'actual', e.target.value)} />
+                      <Checkbox aria-label={`Criterion ${idx + 1} met`} checked={c.met} onCheckedChange={(checked) => updateCriterion(idx, 'met', !!checked)} />
+                      <Input aria-label={`Criterion ${idx + 1} evidence`} placeholder="Evidence" value={c.evidence} onChange={(e) => updateCriterion(idx, 'evidence', e.target.value)} />
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Remove criterion ${idx + 1}`} onClick={() => removeCriterion(idx)}>
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   ))}
@@ -562,29 +615,49 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
 export default function ProposalDetail() {
   const [, params] = useRoute('/proposals/:id');
   const id = params?.id ?? '';
-  const [, navigate] = useLocation();
   const { data, isLoading, error } = useProposal(id);
   const statusMutation = useUpdateProposalStatus(id);
+  const { toast } = useToast();
   const [statusChanging, setStatusChanging] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  // Focus target after a lifecycle change unmounts the control that was used.
+  const statusRegionRef = useRef<HTMLDivElement>(null);
+  const focusStatusRegion = () => window.requestAnimationFrame(() => statusRegionRef.current?.focus());
 
   if (isLoading) return <LoadingState message="Loading proposal..." />;
 
   if (error || !data) {
+    // 404 is deliberate ecosystem scoping: never confirm that a foreign proposal exists.
+    const notFound = !data && (!error || (error instanceof ApiFetchError && error.status === 404));
     return (
-      <div className="text-center py-12">
-        <p className="text-destructive">Failed to load proposal</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
-        <Button asChild variant="outline" className="mt-4">
-          <Link href="/proposals">Back to Proposals</Link>
-        </Button>
+      <div className="text-center py-12 space-y-2">
+        <h1 className="text-2xl font-bold">{notFound ? 'Proposal not available' : 'Failed to load proposal'}</h1>
+        <p className="text-sm text-muted-foreground">
+          {notFound
+            ? "This proposal doesn't exist or belongs to an ecosystem you haven't joined."
+            : (error as Error)?.message}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <Button asChild variant="outline">
+            <Link href="/proposals">Back to Proposals</Link>
+          </Button>
+          {notFound && (
+            <Button asChild variant="outline">
+              <Link href="/discover">Discover ecosystems to join</Link>
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
 
-  const validNextStatuses = VALID_TRANSITIONS[data.status] ?? [];
   const canConduct = data.caller_can_conduct ?? false;
+  const canManage = data.caller_can_manage ?? false;
+  const transitions = canManage ? availableTransitions(data) : [];
+  const forwardTransitions = transitions.filter((s) => s !== 'withdrawn');
+  const canWithdraw = transitions.includes('withdrawn');
+  const proposerGathersAdvice = data.status === 'advice' && data.caller_is_proposer;
 
   // The single participation action this phase asks of the caller, if any.
   const phaseAction = ({
@@ -593,14 +666,15 @@ export default function ProposalDetail() {
     test: { tab: 'test', cta: 'Submit a Test Report', text: 'The proposal is being tried in practice. Report observations against the success criteria.' },
   } as Record<string, { tab: string; cta: string; text: string }>)[data.status];
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (['withdrawn', 'archived'].includes(newStatus)) {
-      setPendingStatus(newStatus);
-      return;
-    }
+  const runTransition = async (target: string) => {
     setStatusChanging(true);
     try {
-      await statusMutation.mutateAsync(newStatus);
+      const updated = await statusMutation.mutateAsync(target);
+      // Name the phase the proposal actually landed in (gates may auto-advance further).
+      toast(proposalPhaseAnnouncement(updated.status));
+      focusStatusRegion();
+    } catch (err) {
+      toast({ title: 'Status not changed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setStatusChanging(false);
     }
@@ -608,13 +682,9 @@ export default function ProposalDetail() {
 
   const confirmStatusChange = async () => {
     if (!pendingStatus) return;
-    setStatusChanging(true);
-    try {
-      await statusMutation.mutateAsync(pendingStatus);
-    } finally {
-      setStatusChanging(false);
-      setPendingStatus(null);
-    }
+    const target = pendingStatus;
+    setPendingStatus(null);
+    await runTransition(target);
   };
 
   return (
@@ -642,53 +712,55 @@ export default function ProposalDetail() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.title}</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+          <div
+            ref={statusRegionRef}
+            tabIndex={-1}
+            className="flex flex-wrap items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="sr-only">Status:</span>
+            <Badge variant={statusVariant(data.status)}>{proposalPhaseLabel(data.status)}</Badge>
             <Badge variant="outline">{data.type}</Badge>
             {data.urgency && <Badge variant={urgencyVariant(data.urgency)}>{data.urgency}</Badge>}
             <span className="text-sm text-muted-foreground">v{data.version}</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/proposals/${id}/edit`}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Link>
-          </Button>
-          {validNextStatuses.length > 0 && canConduct && (
-            <Select onValueChange={handleStatusChange} disabled={statusChanging}>
-              <SelectTrigger className="w-[160px] h-9">
-                <SelectValue placeholder="Change Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {validNextStatuses.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+        {/* Edit and manual moves: the proposer or an ecosystem steward (caller_can_manage). */}
+        {canManage && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Proposal lifecycle actions">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/proposals/${id}/edit`}>
+                <Pencil className="h-4 w-4 mr-1" aria-hidden="true" />
+                Edit
+              </Link>
+            </Button>
+            {forwardTransitions.map((target) => (
+              <Button key={target} size="sm" disabled={statusChanging} onClick={() => runTransition(target)}>
+                {PROPOSAL_TRANSITION_LABELS[target] ?? proposalPhaseLabel(target)}
+              </Button>
+            ))}
+            {canWithdraw && (
+              <Button variant="outline" size="sm" disabled={statusChanging} onClick={() => setPendingStatus('withdrawn')}>
+                {PROPOSAL_TRANSITION_LABELS.withdrawn}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Confirmation dialog for destructive status changes */}
       <AlertDialog open={!!pendingStatus} onOpenChange={(open) => { if (!open) setPendingStatus(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingStatus === 'withdrawn' ? 'Withdraw this proposal?' : 'Archive this proposal?'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Withdraw this proposal?</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingStatus === 'withdrawn'
-                ? 'This action cannot be undone. All advice and consent collected will be preserved in the record, but the proposal will no longer be active.'
-                : 'This will archive the proposal. It will remain accessible for reference but will no longer be active.'}
+              This action cannot be undone. All advice and consent collected will be preserved in the record, but the proposal will no longer be active.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmStatusChange} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {pendingStatus === 'withdrawn' ? 'Yes, withdraw' : 'Yes, archive'}
+              Yes, withdraw
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -697,13 +769,36 @@ export default function ProposalDetail() {
       {/* ACT Process Stepper */}
       <ACTStepper currentStatus={data.status} />
 
+      {/* A draft only moves when its manager opens it; say so explicitly. */}
+      {data.status === 'draft' && canManage && (
+        <div className="flex items-start gap-3 border-2 border-strong-border bg-muted p-4">
+          <Info className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">
+            This proposal is a draft. When it is ready, choose <strong className="text-foreground">{PROPOSAL_TRANSITION_LABELS.advice}</strong> so members can give advice.
+          </p>
+        </div>
+      )}
+
+      {/* The proposer gathers advice rather than giving it. */}
+      {proposerGathersAdvice && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-2 border-strong-border bg-muted p-4">
+          <div className="flex items-start gap-3 flex-1">
+            <Info className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">You are the proposer: advice from others appears here.</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setActiveTab('advice')}>
+            View advice
+          </Button>
+        </div>
+      )}
+
       {/* Next action — what this phase asks of the caller */}
-      {phaseAction && (
+      {phaseAction && !proposerGathersAdvice && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-2 border-warning bg-warning/10 p-4">
           <div className="flex items-start gap-3 flex-1">
             <CircleAlert className="h-5 w-5 shrink-0 text-warning mt-0.5" />
             <div>
-              <p className="font-bold text-sm">Your input is needed in the {data.status} phase</p>
+              <p className="font-bold text-sm">Your input is needed in the {proposalPhaseLabel(data.status)} phase</p>
               <p className="text-sm text-muted-foreground">{phaseAction.text}</p>
             </div>
           </div>
@@ -717,7 +812,7 @@ export default function ProposalDetail() {
         <div className="flex items-center gap-3 border-2 border-strong-border bg-muted p-4">
           <CircleAlert className="h-5 w-5 shrink-0 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            You are not a member of this proposal's ecosystem, so lifecycle controls are unavailable.
+            You are not a member of this proposal's ecosystem, so you can read it but not take part.
           </p>
         </div>
       )}
@@ -772,7 +867,13 @@ export default function ProposalDetail() {
         </TabsContent>
 
         <TabsContent value="advice">
-          <AdviceTab adviceLogs={data.advice_logs} proposalId={id} proposalStatus={data.status} />
+          <AdviceTab
+            adviceLogs={data.advice_logs}
+            proposalId={id}
+            proposalStatus={data.status}
+            isProposer={data.caller_is_proposer ?? false}
+            onAutoAdvance={focusStatusRegion}
+          />
         </TabsContent>
 
         <TabsContent value="consent">

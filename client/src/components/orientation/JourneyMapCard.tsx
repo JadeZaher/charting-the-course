@@ -16,7 +16,9 @@ export function JourneyMapCard({ map, isRecommended, misalignmentFlags, onSelect
 
   return (
     <button
+      type="button"
       onClick={onSelect}
+      aria-pressed={isSelected}
       className={`w-full border-2 p-5 text-left transition-colors motion-reduce:transition-none ${
         isSelected
           ? 'border-primary bg-primary/5'

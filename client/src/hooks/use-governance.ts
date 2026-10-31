@@ -60,9 +60,11 @@ export function useUpdateProposalStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (status: string) => api.updateProposalStatus(id, status), onSuccess: (data) => { qc.setQueryData(['proposals', id], data); qc.invalidateQueries({ queryKey: ['proposals'] }); } });
 }
+/** Resolves with auto_transitions so callers can explain an ACT auto-advance (e.g. advice->consent). */
 export function useSubmitAdvice(proposalId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.submitAdvice(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', proposalId] }) });
+  // ['proposals'] prefix: an auto-advance changes the list's phase badge too.
+  return useMutation({ mutationFn: (data: Record<string, any>) => api.submitAdvice(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals'] }) });
 }
 export function useSubmitConsent(proposalId: string) {
   const qc = useQueryClient();
@@ -107,9 +109,10 @@ export function useUpdateDomain(id: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: Record<string, any>) => api.updateDomain(id, data), onSuccess: (data) => { qc.setQueryData(['domains', id], data); qc.invalidateQueries({ queryKey: ['domains'] }); } });
 }
+/** Resolves after the domain refetch, so caller_is_participant is current when mutateAsync returns. */
 export function useJoinDomainParticipation(domainId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: () => api.joinDomainParticipation(domainId), onSuccess: () => { qc.invalidateQueries({ queryKey: ['domains'] }); qc.invalidateQueries({ queryKey: ['domains', domainId] }); } });
+  return useMutation({ mutationFn: () => api.joinDomainParticipation(domainId), onSuccess: () => qc.invalidateQueries({ queryKey: ['domains'] }) });
 }
 
 // Decision hooks

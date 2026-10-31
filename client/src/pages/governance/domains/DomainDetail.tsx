@@ -71,6 +71,9 @@ export default function DomainDetail() {
   const { data, isLoading, error } = useDomain(id);
   const { permissions } = useRoleAccess();
   const { toast } = useToast();
+  const joinMutation = useJoinDomainParticipation(id);
+  const [joined, setJoined] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   // --- Quiz management state ---
   const [domainQuizzes, setDomainQuizzes] = useState<DomainQuiz[]>([]);
@@ -196,11 +199,33 @@ export default function DomainDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            disabled={joinMutation.isPending || joined}
+            onClick={async () => {
+              setJoinError(null);
+              try {
+                await joinMutation.mutateAsync();
+                setJoined(true);
+                toast({ title: 'Joined the domain', description: 'You are now a participant in this domain.' });
+              } catch (e) {
+                setJoinError(e instanceof Error ? e.message : 'Could not join this domain');
+              }
+            }}
+          >
+            {joinMutation.isPending ? 'Joining...' : joined ? 'Joined' : 'Join this domain'}
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link href={`/domains/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
           </Button>
         </div>
       </div>
+      {joinError && (
+        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+          {joinError}
+        </div>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Purpose</CardTitle></CardHeader>

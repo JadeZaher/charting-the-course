@@ -27,13 +27,16 @@ export function FilterBar({
         <div className="flex flex-wrap gap-3">
           {filters.map((f) => {
             if (f.type === 'select' && f.options) {
+              const value = filterValues[f.key] || 'all';
+              const valueLabel = f.options.find((o) => o.value === value)?.label;
               return (
                 <Select
                   key={f.key}
-                  value={filterValues[f.key] || 'all'}
+                  value={value}
                   onValueChange={(v) => onFilterChange(f.key, v)}
                 >
-                  <SelectTrigger className="w-[160px]">
+                  {/* role=combobox takes no name from its content: name it "Label: current value". */}
+                  <SelectTrigger className="w-[160px]" aria-label={valueLabel ? `${f.label}: ${valueLabel}` : f.label}>
                     <SelectValue placeholder={f.label} />
                   </SelectTrigger>
                   <SelectContent>
@@ -48,6 +51,7 @@ export function FilterBar({
               return (
                 <Input
                   key={f.key}
+                  aria-label={f.label}
                   placeholder={f.placeholder || `${f.label}...`}
                   value={filterValues[f.key] || ''}
                   onChange={(e) => onFilterChange(f.key, e.target.value)}
@@ -61,6 +65,8 @@ export function FilterBar({
           <EcosystemFilter />
 
           <Input
+            type="search"
+            aria-label="Search"
             placeholder={searchPlaceholder}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}

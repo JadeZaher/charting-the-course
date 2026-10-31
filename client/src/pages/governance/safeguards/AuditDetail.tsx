@@ -140,7 +140,7 @@ export default function AuditDetail() {
               </dd>
             </div>
 
-            {data.audit_scope && (
+            {typeof data.audit_scope === 'string' && data.audit_scope && (
               <div>
                 <dt className="text-muted-foreground">Audit Scope</dt>
                 <dd className="font-medium">{data.audit_scope}</dd>
@@ -253,7 +253,7 @@ export default function AuditDetail() {
       )}
 
       {/* Findings */}
-      {data.findings && (
+      {typeof data.findings === 'string' && data.findings && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Findings</CardTitle>
@@ -278,7 +278,7 @@ export default function AuditDetail() {
             </ol>
           </CardContent>
         </Card>
-      ) : data.recommendations ? (
+      ) : typeof data.recommendations === 'string' && data.recommendations ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Recommendations</CardTitle>

@@ -27,8 +27,7 @@ function useJourneyMap(journeyMapId?: string) {
     queryKey: ['journey-map', journeyMapId],
     queryFn: async () => {
       if (!journeyMapId) return null;
-      // TODO: replace with Sanic endpoint when journey-maps-get is available
-      const result = await apiFetch<any>(`/api/v1/journey-maps/${journeyMapId}`);
+      const result = await apiFetch<any>(`/api/v1/orientation/journey-maps/${journeyMapId}`);
       return (result?.map ?? result?.data ?? result) as JourneyMap;
     },
     enabled: !!journeyMapId,
@@ -43,8 +42,10 @@ export default function OrientationComplete() {
   const ethos = ethosData?.ethos;
   const ethosId = ethos?.id ?? '';
 
-  const { data: progress } = useUserProgress(ethosId);
+  const { data: progress, isLoading: progressLoading } = useUserProgress(ethosId);
   const { data: journeyMap, isLoading: mapLoading } = useJourneyMap(progress?.journey_map_id);
+  const isComplete = progress?.status === 'complete';
+  const statusLoading = ethosLoading || progressLoading;
 
   const pkg = journeyMap?.exit_package;
   const safeDocs = (pkg?.docs ?? []).flatMap((doc) => {
@@ -59,7 +60,25 @@ export default function OrientationComplete() {
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Celebration hero */}
+      {/* Celebration hero — only once saved progress says the journey is complete */}
+      {statusLoading ? (
+        <Skeleton className="h-56 rounded-none" />
+      ) : !isComplete ? (
+        <div className="space-y-4 border border-strong-border bg-card p-8 text-center">
+          <h1 className="text-3xl font-bold">You haven't finished this journey yet</h1>
+          <p className="text-lg text-muted-foreground max-w-md mx-auto">
+            {progress
+              ? 'Pick up where you left off to complete your orientation.'
+              : 'Choose a journey to begin your orientation.'}
+          </p>
+          <Button asChild>
+            <Link href={progress ? `/orientation/${ethosSlug}/journey` : `/orientation/${ethosSlug}`}>
+              {progress ? 'Continue the journey' : 'Choose a journey'}
+              <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      ) : (
       <div>
         <div className="space-y-4 border border-strong-border bg-card p-8 text-center">
           <div className="select-none text-6xl">
@@ -84,6 +103,7 @@ export default function OrientationComplete() {
           </Badge>
         </div>
       </div>
+      )}
 
       {/* What's Next */}
       <div className="space-y-4 mt-8">

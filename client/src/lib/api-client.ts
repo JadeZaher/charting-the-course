@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListItem, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -180,8 +180,8 @@ export function updateProposalStatus(id: string, status: string): Promise<Propos
 export function fetchProposalAdvice(id: string): Promise<AdviceLog[]> {
   return apiFetch<{ advice_logs: AdviceLog[] }>(`/api/v1/proposals/${id}/advice`).then(r => r.advice_logs);
 }
-export function submitAdvice(id: string, data: Record<string, any>): Promise<AdviceLog> {
-  return apiFetch<AdviceLog>(`/api/v1/proposals/${id}/advice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+export function submitAdvice(id: string, data: Record<string, any>): Promise<AdviceSubmitResult> {
+  return apiFetch<AdviceSubmitResult>(`/api/v1/proposals/${id}/advice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export function fetchProposalConsent(id: string): Promise<ConsentRecord[]> {
   return apiFetch<{ consent_records: ConsentRecord[] }>(`/api/v1/proposals/${id}/consent`).then(r => r.consent_records);
@@ -231,9 +231,9 @@ export function updateMyPublicProfile(data: Record<string, unknown>): Promise<Pu
 }
 
 // Domains API
-export function fetchDomains(params?: Record<string, string>): Promise<PaginatedResponse<DomainListItem>> {
+export function fetchDomains(params?: Record<string, string>): Promise<DomainListResponse> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch<PaginatedResponse<DomainListItem>>(`/api/v1/domains${qs}`);
+  return apiFetch<DomainListResponse>(`/api/v1/domains${qs}`);
 }
 export function fetchDomain(id: string): Promise<DomainDetail> {
   return apiFetch<DomainDetail>(`/api/v1/domains/${id}`);
@@ -279,7 +279,7 @@ export function updateMyDecision(id: string, data: { decision?: string; state?: 
   return apiFetch<MemberDecision>(`/api/v1/my-decisions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export function deleteMyDecision(id: string): Promise<{ deleted: boolean; id: string }> {
-  return apiFetch<{ deleted: boolean; id: string }>(`/api/v1/my-decisions/${id}`, { method: DELETE });
+  return apiFetch<{ deleted: boolean; id: string }>(`/api/v1/my-decisions/${id}`, { method: 'DELETE' });
 }
 
 // Onboarding API
@@ -447,7 +447,7 @@ export function fetchChatSession(id: string): Promise<ChatSessionDetail> {
   return apiFetch<ChatSessionDetail>(`/api/v1/chat/sessions/${id}`);
 }
 
-export function deleteChatSession(id: string): Promise<{ deleted: boolean; id: string }> {
+export function deleteChatSession(id: string): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(`/api/v1/chat/sessions/${id}`, { method: 'DELETE' });
 }
 

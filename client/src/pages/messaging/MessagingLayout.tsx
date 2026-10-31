@@ -8,6 +8,8 @@ import { useConversations, useConversation, useWebSocket, useSendMessage } from 
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
+import { LinkifiedText } from '@/components/messaging/LinkifiedText';
 
 export default function MessagingLayout() {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -54,14 +56,15 @@ export default function MessagingLayout() {
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Messages</h2>
-            <Button size="sm" variant="outline" onClick={() => setShowNewDialog(true)}>
-              <Plus className="h-4 w-4" />
+            <Button size="sm" variant="outline" onClick={() => setShowNewDialog(true)} aria-label="New conversation">
+              <Plus className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               placeholder="Search..."
+              aria-label="Search conversations"
               className="pl-8"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -76,6 +79,7 @@ export default function MessagingLayout() {
                 activeId === conv.id ? 'bg-muted' : ''
               }`}
               onClick={() => setActiveId(conv.id)}
+              aria-current={activeId === conv.id ? 'true' : undefined}
             >
               <div className="flex justify-between items-start">
                 <p className="font-medium text-sm truncate">
@@ -126,7 +130,7 @@ export default function MessagingLayout() {
                       }`}
                     >
                       <p className="text-xs font-medium mb-1">{msg.sender_name}</p>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <p className="text-sm whitespace-pre-wrap"><LinkifiedText text={msg.content} /></p>
                       <p className="text-xs opacity-70 mt-1">
                         {new Date(msg.created_at).toLocaleTimeString()}
                       </p>
@@ -141,9 +145,10 @@ export default function MessagingLayout() {
                 onChange={e => setMessageInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Type a message..."
+                aria-label="Message"
               />
-              <Button onClick={handleSend} disabled={!messageInput.trim()}>
-                <Send className="h-4 w-4" />
+              <Button onClick={handleSend} disabled={!messageInput.trim()} aria-label="Send message">
+                <Send className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
           </>
@@ -156,6 +161,12 @@ export default function MessagingLayout() {
           </div>
         )}
       </Card>
+
+      <NewConversationDialog
+        open={showNewDialog}
+        onOpenChange={setShowNewDialog}
+        onCreated={(conversation) => setActiveId(conversation.id)}
+      />
     </div>
   );
 }

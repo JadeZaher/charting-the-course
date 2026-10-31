@@ -3,16 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
+import { LinkifiedText } from '@/components/messaging/LinkifiedText';
 import { useQuery } from '@tanstack/react-query';
 import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@/lib/api-client';
 import Markdown from 'react-markdown';
@@ -20,7 +13,7 @@ import remarkGfm from 'remark-gfm';
 import { Link } from 'wouter';
 import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
-import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
@@ -64,6 +57,21 @@ export function FloatingComms() {
 
   const { data: convData } = useConversations();
   const totalUnread = (convData?.conversations || []).reduce((sum, c) => sum + c.unread_count, 0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
+
+  // Focus moves into the drawer when it opens and back to the launcher when it closes.
+  useEffect(() => {
+    if (open) {
+      panelRef.current?.focus();
+    } else if (wasOpenRef.current) {
+      launcherRef.current?.focus();
+    }
+    wasOpenRef.current = open;
+  }, [open]);
+
+  const closePanel = () => { setOpen(false); setExpanded(false); };
 
   // Hide on the messaging page where full messaging + agent are available
   const isMessagingPage = window.location.pathname.startsWith('/messaging');
@@ -74,6 +82,14 @@ export function FloatingComms() {
       {/* Panel */}
       {open && (
         <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Communications"
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            // Portaled dialogs (new conversation) handle their own Escape.
+            if (event.key === 'Escape' && panelRef.current?.contains(event.target as Node)) closePanel();
+          }}
           className={cn(
             'border-2 border-strong-border bg-background flex flex-col overflow-hidden transition-[width,height] duration-200 motion-reduce:transition-none',
             expanded
@@ -87,6 +103,7 @@ export function FloatingComms() {
               {/* Tabs */}
               <button
                 onClick={() => setActiveTab('messaging')}
+                aria-pressed={activeTab === 'messaging'}
                 className={cn(
                   'flex min-h-11 items-center gap-1.5 border border-primary-foreground/40 px-3 py-1.5 text-sm font-bold transition-colors motion-reduce:transition-none',
                   activeTab === 'messaging'
@@ -104,6 +121,7 @@ export function FloatingComms() {
               </button>
               <button
                 onClick={() => setActiveTab('chat')}
+                aria-pressed={activeTab === 'chat'}
                 className={cn(
                   'flex min-h-11 items-center gap-1.5 border border-primary-foreground/40 px-3 py-1.5 text-sm font-bold transition-colors motion-reduce:transition-none',
                   activeTab === 'chat'
@@ -124,9 +142,9 @@ export function FloatingComms() {
                 {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
               <button
-                onClick={() => { setOpen(false); setExpanded(false); }}
+                onClick={closePanel}
                 className="min-h-11 min-w-11 p-1.5 hover:bg-primary-foreground/10 transition-colors"
-                aria-label="Close"
+                aria-label="Close communications"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -142,10 +160,12 @@ export function FloatingComms() {
 
       {/* Floating Action Button */}
       <Button
+        ref={launcherRef}
         size="icon"
         className="h-14 w-14 min-h-[48px] min-w-[48px] border-2 border-strong-border"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => (open ? closePanel() : setOpen(true))}
         aria-label={open ? 'Close communications' : 'Open communications'}
+        aria-expanded={open}
       >
         {open ? (
           <X className="h-5 w-5" />
@@ -171,17 +191,11 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [newConvType, setNewConvType] = useState<'direct' | 'group'>('direct');
-  const [newConvTitle, setNewConvTitle] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [memberSearch, setMemberSearch] = useState('');
 
   const { data: convData, isLoading, error: convError } = useConversations();
   const { data: activeConv, error: activeConvError } = useConversation(activeId || '');
   const { isConnected } = useWebSocket();
   const { member } = useAuth();
-  const { data: membersData, error: membersError } = useMemberPicker();
-  const createConversation = useCreateConversation();
   const sendMessageMutation = useSendMessage(activeId || '');
 
   const conversations = convData?.conversations || [];
@@ -192,55 +206,11 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
       )
     : conversations;
 
-  const availableMembers = (membersData?.members || []).filter(
-    m => m.id !== member?.id && !selectedMembers.includes(m.id)
-  );
-  const filteredMembers = memberSearch
-    ? availableMembers.filter(m =>
-        m.display_name.toLowerCase().includes(memberSearch.toLowerCase())
-      )
-    : availableMembers;
-
   const handleSend = () => {
     if (!messageInput.trim() || !activeId) return;
     const content = messageInput;
     setMessageInput('');
     sendMessageMutation.mutate(content);
-  };
-
-  const resetDialog = () => {
-    setShowNewDialog(false);
-    setNewConvType('direct');
-    setNewConvTitle('');
-    setSelectedMembers([]);
-    setMemberSearch('');
-  };
-
-  const handleCreateConversation = () => {
-    if (selectedMembers.length === 0) return;
-    createConversation.mutate(
-      {
-        type: newConvType === 'direct' ? 'dm' : 'group',
-        title: newConvType === 'group' ? newConvTitle || undefined : undefined,
-        participant_ids: selectedMembers,
-      },
-      {
-        onSuccess: (conv) => {
-          setActiveId(conv.id);
-          resetDialog();
-        },
-      }
-    );
-  };
-
-  const toggleMember = (id: string) => {
-    if (newConvType === 'direct') {
-      setSelectedMembers([id]);
-    } else {
-      setSelectedMembers(prev =>
-        prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
-      );
-    }
   };
 
   // On mobile-ish (non-expanded), show either list or conversation
@@ -265,98 +235,11 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
   }
 
   const newConvDialog = (
-    <Dialog open={showNewDialog} onOpenChange={(open) => { if (!open) resetDialog(); else setShowNewDialog(true); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New Conversation</DialogTitle>
-          <DialogDescription>Start a direct message or create a group chat.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <Button
-              variant={newConvType === 'direct' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => { setNewConvType('direct'); setSelectedMembers([]); }}
-            >
-              <User className="h-4 w-4 mr-1.5" />
-              Direct
-            </Button>
-            <Button
-              variant={newConvType === 'group' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => { setNewConvType('group'); setSelectedMembers([]); }}
-            >
-              <Users className="h-4 w-4 mr-1.5" />
-              Group
-            </Button>
-          </div>
-          {newConvType === 'group' && (
-            <div className="space-y-1.5">
-              <Label htmlFor="floating-group-name" className="text-sm">Group Name</Label>
-              <Input
-                id="floating-group-name"
-                placeholder="e.g. Domain Stewards"
-                value={newConvTitle}
-                onChange={e => setNewConvTitle(e.target.value)}
-              />
-            </div>
-          )}
-          {selectedMembers.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {selectedMembers.map(id => {
-                const m = membersData?.members.find(mb => mb.id === id);
-                return (
-                  <Badge key={id} variant="secondary" className="gap-1 pr-1">
-                    {m?.display_name || id}
-                    <button onClick={() => toggleMember(id)} className="hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label className="text-sm">
-              {newConvType === 'direct' ? 'Select a member' : 'Add members'}
-            </Label>
-            <Input
-              placeholder="Search members..."
-              value={memberSearch}
-              onChange={e => setMemberSearch(e.target.value)}
-            />
-            <ScrollArea className="h-40 rounded-none border-2 border-strong-border">
-              {filteredMembers.map(m => (
-                <button
-                  key={m.id}
-                  className={cn(
-                    'w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b last:border-0',
-                    selectedMembers.includes(m.id) && 'bg-primary/10'
-                  )}
-                  onClick={() => toggleMember(m.id)}
-                >
-                  {m.display_name}
-                </button>
-              ))}
-              {membersError ? (
-                <p className="text-xs text-destructive text-center py-4">Couldn't load members</p>
-              ) : filteredMembers.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No members found</p>
-              )}
-            </ScrollArea>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={resetDialog}>Cancel</Button>
-          <Button
-            onClick={handleCreateConversation}
-            disabled={selectedMembers.length === 0 || createConversation.isPending}
-          >
-            {createConversation.isPending ? 'Creating...' : 'Start Chat'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <NewConversationDialog
+      open={showNewDialog}
+      onOpenChange={setShowNewDialog}
+      onCreated={(conversation) => setActiveId(conversation.id)}
+    />
   );
 
   // Expanded: side-by-side layout
@@ -472,8 +355,8 @@ function ConversationList({
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">Messages</h3>
           {onNewConversation && (
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={onNewConversation}>
-              <Plus className="h-3.5 w-3.5" />
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={onNewConversation} aria-label="New conversation">
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           )}
         </div>
@@ -481,6 +364,7 @@ function ConversationList({
           <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search conversations..."
+            aria-label="Search conversations"
             className="pl-7 h-8 text-sm"
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
@@ -582,7 +466,7 @@ function ConversationView({
                 )}
               >
                 <p className="text-[10px] font-medium mb-0.5 opacity-80">{msg.sender_name}</p>
-                <p className="text-xs whitespace-pre-wrap">{msg.content}</p>
+                <p className="text-xs whitespace-pre-wrap"><LinkifiedText text={msg.content} /></p>
                 <p className="text-[10px] opacity-60 mt-0.5">
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -600,10 +484,11 @@ function ConversationView({
           onChange={e => onMessageChange(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && onSend()}
           placeholder="Type a message..."
+          aria-label="Message"
           className="h-8 text-sm"
         />
-        <Button size="sm" onClick={onSend} disabled={!messageInput.trim()} className="h-8 px-2.5">
-          <Send className="h-3.5 w-3.5" />
+        <Button size="sm" onClick={onSend} disabled={!messageInput.trim()} className="h-8 px-2.5" aria-label="Send message">
+          <Send className="h-3.5 w-3.5" aria-hidden="true" />
         </Button>
       </div>
     </div>
@@ -694,8 +579,8 @@ function ChatTab({ expanded }: { expanded: boolean }) {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowSessions(false)} className="rounded-[2px] border-2 border-strong-border p-1 transition-colors hover:bg-muted">
-              <ArrowLeft className="h-3.5 w-3.5" />
+            <button onClick={() => setShowSessions(false)} className="rounded-[2px] border-2 border-strong-border p-1 transition-colors hover:bg-muted" aria-label="Back to chat">
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
             <span className="text-sm font-semibold">Chat History</span>
           </div>
@@ -946,16 +831,17 @@ function ChatTab({ expanded }: { expanded: boolean }) {
               }
             }}
             placeholder="Ask the governance agent..."
+            aria-label="Message the governance agent"
             className="min-h-[48px] resize-none text-sm"
             disabled={isStreaming}
           />
           {isStreaming ? (
-            <Button variant="destructive" size="sm" onClick={stopStreaming} className="self-end h-8 px-2.5">
-              <Square className="h-3.5 w-3.5" />
+            <Button variant="destructive" size="sm" onClick={stopStreaming} className="self-end h-8 px-2.5" aria-label="Stop response">
+              <Square className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           ) : (
-            <Button size="sm" onClick={handleSend} disabled={!input.trim()} className="self-end h-8 px-2.5">
-              <Send className="h-3.5 w-3.5" />
+            <Button size="sm" onClick={handleSend} disabled={!input.trim()} className="self-end h-8 px-2.5" aria-label="Send message">
+              <Send className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           )}
         </div>

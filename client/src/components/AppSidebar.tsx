@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -224,8 +224,13 @@ export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { member, logout } = useAuth();
   const { canManageContent, canManageUsers, isAdmin } = usePermissions();
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
+
+  // The mobile sheet overlays the page; close it once a navigation lands.
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [location, isMobile, setOpenMobile]);
 
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -258,7 +263,7 @@ export function AppSidebar() {
           ) : (
             <span className="grid gap-1">
               <span className="text-[0.625rem] font-black uppercase tracking-[0.24em] text-sidebar-foreground/65">NEOS / Index 01</span>
-              <span className="text-xl font-black uppercase leading-[0.92] tracking-[-0.045em]">Charting the Course</span>
+              <span className="text-xl font-black uppercase leading-[0.92] tracking-[-0.045em]">NEOS</span>
             </span>
           )}
         </Link>

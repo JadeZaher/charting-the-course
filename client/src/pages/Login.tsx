@@ -9,10 +9,44 @@ import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_il
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useLocation, useSearch } from "wouter";
+import { Link, Redirect, useLocation, useSearch } from "wouter";
 import { hasSavedIdentity, getSavedDid } from "@/lib/did-auth";
+import { resolveInternalPath } from "@/lib/media";
 
 type AuthMode = "did" | "password" | "register";
+
+const DEFAULT_DESTINATION = "/dashboard";
+const POST_LOGIN_REDIRECT_KEY = "neos:post-login-redirect";
+
+/** Same-origin in-app path to land on after sign-in; anything else becomes the dashboard. */
+export function safeRedirect(raw: string | null | undefined): string {
+  const path = resolveInternalPath(raw);
+  if (!path || /^\/login(?:[/?#]|$)/.test(path)) return DEFAULT_DESTINATION;
+  return path;
+}
+
+/** Destination stashed before an OAuth round-trip, returned once and then cleared. */
+export function takeStashedRedirect(): string | null {
+  try {
+    const stashed = window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    return stashed ? safeRedirect(stashed) : null;
+  } catch {
+    return null;
+  }
+}
+
+function stashRedirect(destination: string | null) {
+  try {
+    if (destination && destination !== DEFAULT_DESTINATION) {
+      window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, destination);
+    } else {
+      window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    }
+  } catch {
+    /* storage unavailable: OAuth lands on the dashboard */
+  }
+}
 
 export default function Login() {
   const { toast } = useToast();
@@ -41,6 +75,18 @@ export default function Login() {
   const hasIdentity = hasSavedIdentity();
   const savedDid = getSavedDid();
 
+  // Raw query, not useSearch(): wouter unescapes it, which would split a nested "&".
+  // The OAuth error return carries no ?redirect=, so fall back to the stashed destination.
+  const [redirectTarget] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get("redirect");
+    if (requested) return safeRedirect(requested);
+    try {
+      return safeRedirect(window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY));
+    } catch {
+      return DEFAULT_DESTINATION;
+    }
+  });
+
   // Handle OAuth error from redirect — clear stale cookies
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -66,13 +112,13 @@ export default function Login() {
 
   // Redirect if already authenticated
   if (isAuthenticated && !isAuthLoading) {
-    setLocation('/dashboard');
-    return null;
+    return <Redirect to={redirectTarget} replace />;
   }
 
   const handleDIDLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    stashRedirect(null);
 
     try {
       await login(displayName || undefined);
@@ -80,7 +126,7 @@ export default function Login() {
         title: "Login Successful",
         description: "Welcome to NEOS!",
       });
-      setLocation('/dashboard');
+      setLocation(redirectTarget, { replace: true });
     } catch (err) {
       toast({
         title: "Authentication Failed",
@@ -96,6 +142,7 @@ export default function Login() {
     e.preventDefault();
     if (!username.trim() || !password.trim()) return;
     setIsSubmitting(true);
+    stashRedirect(null);
 
     try {
       await loginWithCredentials(username, password);
@@ -103,7 +150,7 @@ export default function Login() {
         title: "Login Successful",
         description: "Welcome to NEOS!",
       });
-      setLocation('/dashboard');
+      setLocation(redirectTarget, { replace: true });
     } catch (err) {
       toast({
         title: "Authentication Failed",
@@ -138,6 +185,7 @@ export default function Login() {
     }
 
     setIsSubmitting(true);
+    stashRedirect(null);
 
     try {
       await register(username, password, regDisplayName || undefined);
@@ -145,7 +193,7 @@ export default function Login() {
         title: "Account Created",
         description: "Welcome to NEOS!",
       });
-      setLocation('/dashboard');
+      setLocation(redirectTarget, { replace: true });
     } catch (err) {
       toast({
         title: "Registration Failed",
@@ -158,9 +206,12 @@ export default function Login() {
   };
 
   const handleOAuth = async (provider: string) => {
+    // The OAuth callback always lands on /dashboard; AppLayout resumes this destination.
+    stashRedirect(redirectTarget);
     try {
       await loginWithOAuth(provider);
     } catch (err) {
+      stashRedirect(null);
       toast({
         title: "OAuth Failed",
         description: err instanceof Error ? err.message : "Could not start OAuth",

@@ -285,6 +285,8 @@ export interface ProposalListItem {
   version: string;
   status: string;
   proposer: string | null;
+  /** Authoring member; null on legacy proposals (steward-managed only). */
+  proposer_member_id?: string | null;
   affected_domain: string | null;
   urgency: string | null;
   created_at: string;
@@ -309,6 +311,12 @@ export interface AdviceLog {
   summary: string | null;
   proposer_modifications: string | null;
   entries: AdviceEntry[];
+}
+
+/** POST /proposals/:id/advice response: the log plus any ACT auto-advance it caused. */
+export interface AdviceSubmitResult extends AdviceLog {
+  gates?: ActGates;
+  auto_transitions?: string[];
 }
 
 export interface ConsentParticipant {
@@ -372,7 +380,11 @@ export interface ProposalDetail extends ProposalListItem {
   consent_records: ConsentRecord[];
   test_reports: TestReport[];
   caller_role: string | null;
+  /** May participate (advice, consent, test). */
   caller_can_conduct: boolean;
+  /** May edit and make manual status moves: the author or an ecosystem steward (mod+). */
+  caller_can_manage: boolean;
+  caller_is_proposer: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -577,8 +589,12 @@ export interface CeremonyConsentRequest {
 // Domain types
 export interface DomainListItem {
   id: string;
+  /** Generated business code (DOM-XXXXXXXX); show it as secondary text only. */
   domain_id: string;
   ecosystem_id: string;
+  name: string | null;
+  /** Server-derived label: name, else the purpose's "Name — " prefix, else domain_id. */
+  display_name: string;
   version: string;
   status: string;
   purpose: string | null;
@@ -586,12 +602,25 @@ export interface DomainListItem {
   parent_domain_id: string | null;
   version_fingerprint: string | null;
   created_at: string;
+  caller_is_participant: boolean;
+  caller_is_steward: boolean;
+}
+
+/** GET /domains envelope: caller_can_create is true when the caller is mod+ in a scoped ecosystem. */
+export interface DomainListResponse extends PaginatedResponse<DomainListItem> {
+  caller_can_create?: boolean;
+}
+
+export interface DomainParticipant {
+  member_id: string;
+  display_name: string;
+  role: string;
 }
 
 export interface DomainElement {
   id: string;
   element_name: string;
-  element_value: Record<string, any> | null;
+  element_value: unknown;
 }
 
 export interface DomainMetric {
@@ -611,6 +640,10 @@ export interface DomainDetail extends DomainListItem {
   domain_elements: DomainElement[];
   domain_metrics: DomainMetric[];
   updated_at: string;
+  /** The domain's steward or an ecosystem steward (mod+). */
+  caller_can_edit: boolean;
+  participants: DomainParticipant[];
+  participant_count: number;
 }
 
 // Decision types

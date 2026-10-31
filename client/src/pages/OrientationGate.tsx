@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useRoute, useLocation } from 'wouter';
+import { useRoute, useLocation, useSearch } from 'wouter';
 import { Link } from 'wouter';
 import { useDetectPath, useRecommendJourney, useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
 import { useEthosDetail } from '@/hooks/useEthos';
@@ -14,6 +14,8 @@ export default function OrientationGate() {
   const [, params] = useRoute('/orientation/:ethos_slug');
   const [, navigate] = useLocation();
   const ethosSlug = params?.ethos_slug ?? '';
+  // ?journey=<id> (from the ethos page "Begin <title>" links) preselects that journey.
+  const requestedJourneyId = new URLSearchParams(useSearch()).get('journey');
 
   const { data: ethosData, isLoading: ethosLoading } = useEthosDetail(ethosSlug);
   const ethos = ethosData?.ethos;
@@ -31,7 +33,10 @@ export default function OrientationGate() {
   const allMaps: JourneyMap[] = recData
     ? [recData.recommended, ...recData.alternatives].filter(m => m && m.id)
     : [];
-  const chosen = selectedMap ?? (allMaps.length > 0 ? allMaps[0] : null);
+  const chosen =
+    selectedMap ??
+    allMaps.find(map => map.id === requestedJourneyId) ??
+    (allMaps.length > 0 ? allMaps[0] : null);
 
   async function handleStart() {
     if (!chosen || !ethosId) return;

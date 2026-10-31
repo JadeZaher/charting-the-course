@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
 import { useProposal, useCreateProposal, useUpdateProposal, useAgreements } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
@@ -53,6 +54,15 @@ export default function ProposalForm() {
   const [declareGates, setDeclareGates] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { data: agreementsData } = useAgreements({ per_page: '100' });
+  const { member } = useAuth();
+  const proposerPrefilled = useRef(false);
+
+  // New proposals default the proposer to the caller (still editable, e.g. proposing on someone's behalf).
+  useEffect(() => {
+    if (isEdit || proposerPrefilled.current || !member?.display_name) return;
+    proposerPrefilled.current = true;
+    setProposer((current) => current || member.display_name);
+  }, [isEdit, member?.display_name]);
 
   useEffect(() => {
     if (existing && isEdit) {
@@ -97,7 +107,6 @@ export default function ProposalForm() {
       title: title.trim(),
       type,
       decision_type: decisionType || null,
-      proposer: proposer || null,
       affected_domain: affectedDomain || null,
       urgency: urgency || null,
       proposed_change: proposedChange || null,
@@ -115,8 +124,10 @@ export default function ProposalForm() {
       governing_agreement_id: governingAgreementId || null,
     };
 
-    if (!isEdit && selectedEcosystem) {
-      payload.ecosystem_id = selectedEcosystem.id;
+    if (!isEdit) {
+      // Proposer is set once at creation; PUT does not accept it.
+      payload.proposer = proposer.trim() || null;
+      if (selectedEcosystem) payload.ecosystem_id = selectedEcosystem.id;
     }
     try {
       let result;
@@ -134,6 +145,7 @@ export default function ProposalForm() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const mutationError = createMutation.error || updateMutation.error;
+  const editLocked = isEdit && existing != null && !existing.caller_can_manage;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -146,8 +158,14 @@ export default function ProposalForm() {
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Proposal' : 'New Proposal'}</h1>
 
+      {editLocked && (
+        <div role="status" className="rounded-none border-2 border-strong-border bg-muted p-3 text-sm text-muted-foreground">
+          Only the proposer or an ecosystem steward can edit this proposal.
+        </div>
+      )}
+
       {mutationError && (
-        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+        <div role="alert" className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           {(mutationError as Error).message}
         </div>
       )}
@@ -165,7 +183,12 @@ export default function ProposalForm() {
               <div className="space-y-2">
                 <Label htmlFor="type">Type *</Label>
                 <Select value={type} onValueChange={setType}>
-                  <SelectTrigger>
+                  <SelectTrigger
+                    id="type"
+                    aria-required="true"
+                    aria-invalid={errors.type ? true : undefined}
+                    aria-describedby={errors.type ? 'type-error' : undefined}
+                  >
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -174,13 +197,13 @@ export default function ProposalForm() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.type && <p className="text-sm text-destructive">{errors.type}</p>}
+                {errors.type && <p id="type-error" className="text-sm text-destructive">{errors.type}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="decision_type">Decision Type</Label>
                 <Select value={decisionType} onValueChange={setDecisionType}>
-                  <SelectTrigger>
+                  <SelectTrigger id="decision_type">
                     <SelectValue placeholder="Select decision type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -195,7 +218,17 @@ export default function ProposalForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="proposer">Proposer</Label>
-                <Input id="proposer" value={proposer} onChange={(e) => setProposer(e.target.value)} placeholder="Proposer name" />
+                {isEdit ? (
+                  <>
+                    <Input id="proposer" value={proposer || 'Not recorded'} readOnly aria-describedby="proposer-hint" className="bg-muted" />
+                    <p id="proposer-hint" className="text-xs text-muted-foreground">Set when the proposal was created; it cannot be changed here.</p>
+                  </>
+                ) : (
+                  <>
+                    <Input id="proposer" value={proposer} onChange={(e) => setProposer(e.target.value)} placeholder="Proposer name" aria-describedby="proposer-hint" />
+                    <p id="proposer-hint" className="text-xs text-muted-foreground">Defaults to you. Change it if you are proposing on someone's behalf.</p>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -208,7 +241,7 @@ export default function ProposalForm() {
               <div className="space-y-2">
                 <Label htmlFor="urgency">Urgency</Label>
                 <Select value={urgency} onValueChange={setUrgency}>
-                  <SelectTrigger>
+                  <SelectTrigger id="urgency">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -332,7 +365,7 @@ export default function ProposalForm() {
             />
 
             <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || editLocked}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Proposal' : 'Create Proposal')}
               </Button>
               <Button asChild variant="outline">

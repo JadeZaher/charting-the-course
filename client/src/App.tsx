@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation, Redirect } from "wouter";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -16,7 +17,7 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
 import GovernanceModel from "@/pages/GovernanceModel";
-import Login from "@/pages/Login";
+import Login, { takeStashedRedirect } from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
@@ -26,7 +27,6 @@ import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
-import { lazy, Suspense } from "react";
 const DiscoverHub = lazy(() => import("@/pages/discover/DiscoverHub"));
 const SharesNeedsForm = lazy(() => import("@/pages/discover/SharesNeedsForm"));
 const CollaborationForm = lazy(() => import("@/pages/discover/CollaborationForm"));
@@ -71,6 +71,27 @@ function SkipLink() {
   return <a className="skip-link" href="#main-content">Skip to content</a>;
 }
 
+/** Login URL that returns the member to `path` (plus the current query) after sign-in. */
+function loginRedirectHref(path: string) {
+  return `/login?redirect=${encodeURIComponent(path + window.location.search)}`;
+}
+
+/** Move focus to #main-content after client-side navigation unless the new page placed it. */
+function useFocusMainOnNavigate(location: string) {
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const main = document.getElementById("main-content");
+    if (!main) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== main && main.contains(active)) return;
+    main.focus({ preventScroll: true });
+  }, [location]);
+}
+
 function PublicPageFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen bg-background text-foreground">
@@ -100,8 +121,7 @@ function ProtectedRoute({
   }
 
   if (!isAuthenticated) {
-    // Redirect to login, preserving the intended destination
-    return <Redirect to={`/login?redirect=${encodeURIComponent(location)}`} />;
+    return <Redirect to={loginRedirectHref(location)} />;
   }
 
   // Show error if permission fetch failed
@@ -394,7 +414,16 @@ function AuthenticatedRoutes() {
 // Main app layout with authentication
 function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
+  useFocusMainOnNavigate(location);
+
+  // OAuth returns to /dashboard; resume the deep link stashed before leaving (see Login.tsx).
+  // Keyed on auth state only: it runs once per sign-in, not on every navigation.
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    const destination = takeStashedRedirect();
+    if (destination && destination !== location) navigate(destination, { replace: true });
+  }, [isAuthenticated, isLoading]);
 
   // Public routes that don't need the sidebar
   const publicPaths = ['/login', '/about', '/governance-model', '/users/'];
@@ -419,7 +448,7 @@ function AppLayout() {
           <Route path="/about" component={About} />
           <Route path="/governance-model" component={GovernanceModel} />
           <Route path="/users/:username" component={PublicProfile} />
-          {!isAuthenticated && <Route><Redirect to="/" /></Route>}
+          {!isAuthenticated && <Route><Redirect to={loginRedirectHref(location)} /></Route>}
           {isAuthenticated && <Route><Redirect to="/dashboard" /></Route>}
         </Switch>
       </PublicPageFrame>
@@ -446,7 +475,8 @@ function AppLayout() {
               <ThemeToggle />
             </div>
           </header>
-          <main id="main-content" tabIndex={-1} className="route-shell min-w-0 flex-1 overflow-auto">
+          {/* --route-guide-width is set by RouteGuidePanel while it is docked open at lg+ */}
+          <main id="main-content" tabIndex={-1} className="route-shell min-w-0 flex-1 overflow-auto lg:pr-[calc(var(--page-gutter)_+_var(--route-guide-width,0px))]">
             <AuthenticatedRoutes />
           </main>
         </div>

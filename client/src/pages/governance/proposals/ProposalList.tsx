@@ -8,7 +8,7 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useProposals } from '@/hooks/use-governance';
-import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
+import { PROPOSAL_TYPE_OPTIONS, proposalPhaseLabel } from '@/lib/proposal-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { Plus } from 'lucide-react';
 
@@ -107,14 +107,14 @@ export default function ProposalList() {
             <Link href={`/proposals/${p.id}`} aria-label={`View proposal: ${p.title}`}>
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-lg font-semibold leading-tight">{p.title}</h2>
-                <Badge variant={statusVariant(p.status)}>{p.status}</Badge>
+                <Badge variant={statusVariant(p.status)}>{proposalPhaseLabel(p.status)}</Badge>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {p.urgency && <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge>}
                 <Badge variant="outline">{p.affected_domain || 'No domain'}</Badge>
               </div>
               <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-                {p.proposer || 'Unknown proposer'} · {getEcosystemName(p.ecosystem_id) || 'Unknown ecosystem'} · {new Date(p.created_at).toLocaleDateString()}
+                {p.proposer || 'Proposer not recorded'} · {getEcosystemName(p.ecosystem_id) || 'Unknown ecosystem'} · {new Date(p.created_at).toLocaleDateString()}
               </p>
             </Link>
           </CollectionCard>
