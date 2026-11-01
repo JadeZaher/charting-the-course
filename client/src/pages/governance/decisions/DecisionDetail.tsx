@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useDecision, useDomains } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -73,7 +74,7 @@ export default function DecisionDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load decision</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/decisions">Back to Decisions</Link>
         </Button>

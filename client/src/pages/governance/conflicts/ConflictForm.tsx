@@ -13,6 +13,7 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { CONFLICT_SCOPE_OPTIONS } from '@/lib/conflict-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const SEVERITY_OPTIONS = [
   { value: 'low', label: 'Low' },
@@ -94,7 +95,7 @@ export default function ConflictForm() {
 
       {createMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(createMutation.error as Error).message}
+          {apiErrorMessage(createMutation.error)}
         </div>
       )}
 

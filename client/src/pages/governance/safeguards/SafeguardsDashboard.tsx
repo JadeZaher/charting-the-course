@@ -9,6 +9,7 @@ import { useSafeguards, useRequestAudit } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ShieldCheck, ClipboardList, TrendingUp, TrendingDown, ArrowRight, AlertTriangle } from 'lucide-react';
 import type { IndicatorScore } from '@/types/api';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 // ---------------------------------------------------------------------------
 // GHI indicator definitions
@@ -126,7 +127,7 @@ export default function SafeguardsDashboard() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load safeguards</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }
@@ -166,7 +167,7 @@ export default function SafeguardsDashboard() {
 
       {requestMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(requestMutation.error as Error).message}
+          {apiErrorMessage(requestMutation.error)}
         </div>
       )}
 

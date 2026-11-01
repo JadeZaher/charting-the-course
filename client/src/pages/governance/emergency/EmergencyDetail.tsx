@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEmergency, useResolveEmergency } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 export default function EmergencyDetail() {
   const [, params] = useRoute('/emergency/:id');
@@ -21,7 +22,7 @@ export default function EmergencyDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load emergency</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/emergency">Back to Emergency</Link>
         </Button>
@@ -87,7 +88,7 @@ export default function EmergencyDetail() {
 
       {resolveMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(resolveMutation.error as Error).message}
+          {apiErrorMessage(resolveMutation.error)}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { keys } from "@/lib/query-keys";
 import {
   ArrowLeft,
   Award,
@@ -147,7 +148,7 @@ export default function PublicProfile() {
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading, error } = useQuery<PublicProfileResponse>({
-    queryKey: ["public-profile", identifier],
+    queryKey: keys.profiles.detail(identifier),
     queryFn: () => fetchPublicProfile(identifier!),
     enabled: Boolean(identifier),
   });

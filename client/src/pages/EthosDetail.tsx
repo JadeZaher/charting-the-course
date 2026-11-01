@@ -1,7 +1,10 @@
 import { Link, useLocation, useRoute } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { keys } from '@/lib/query-keys';
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { useEthosDetail } from '@/hooks/useEthos';
+import { useAuth } from '@/contexts/AuthContext';
+import { holdsMembershipIn } from '@/lib/ecosystem-join';
 import { fetchEthosJourneyMaps } from '@/lib/api-client';
 import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl, resolveMiroEmbedUrl } from '@/lib/media';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,8 +28,9 @@ export default function EthosDetail() {
   const slug = (detailParams ?? baseParams)?.slug ?? '';
   const detailQuery = useEthosDetail(slug);
   const ethosId = detailQuery.data?.ethos.id;
+  const { ecosystems } = useAuth();
   const journeyQuery = useQuery({
-    queryKey: ['ethos-journey-maps', ethosId],
+    queryKey: keys.orientation.journeyMaps(ethosId),
     queryFn: () => fetchEthosJourneyMaps(ethosId!),
     enabled: !!ethosId,
   });
@@ -67,6 +71,8 @@ export default function EthosDetail() {
     return url ? [{ ...resource, url }] : [];
   });
   const journeyMaps = journeyQuery.data ?? [];
+  // A non-member's start on the orientation page joins first; say so before they click (api/AGENTS.md "Join-first").
+  const isMember = holdsMembershipIn(ethos.id, ecosystems);
   const showDescription = ethos.description && ethos.description !== ethos.tagline;
 
   return (
@@ -191,7 +197,12 @@ export default function EthosDetail() {
               </div>
             )}
 
-            <div className="border-t-2 border-strong-border p-5 text-right">
+            <div className="flex flex-wrap items-center justify-end gap-4 border-t-2 border-strong-border p-5">
+              {!isMember && (
+                <p className="mr-auto max-w-md text-sm leading-6 text-muted-foreground">
+                  You are not a member of {ethos.name} yet. Starting a journey asks to join it.
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => navigate(`/orientation/${slug}`)}

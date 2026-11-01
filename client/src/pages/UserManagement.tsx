@@ -22,7 +22,9 @@ import {
   Shield, UserCheck, Archive, ArchiveRestore,
   Download, Mail, CheckSquare, XSquare, Plus, X
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/use-api-mutation";
+import { affects, keys } from "@/lib/query-keys";
 import { Link, Redirect } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { fetchMembers, updateMember, resendMemberInvite } from "@/lib/api-client";
@@ -75,8 +77,8 @@ interface UserProfile {
   quiz_count?: number;
 }
 
-async function fetchUsers(): Promise<UserProfile[]> {
-  const result = await fetchMembers();
+// Reshape the raw members response (the query shares keys.members.list() with AdminPanel).
+function selectUsers(result: Awaited<ReturnType<typeof fetchMembers>>): UserProfile[] {
   const items = (result as any).items || (result as any).members || [];
   return items.map((m: any) => ({
     id: m.id,
@@ -113,68 +115,47 @@ export default function UserManagement() {
   const [bulkActionPending, setBulkActionPending] = useState(false);
 
   const { data: users = [], isLoading, refetch } = useQuery({
-    queryKey: ['admin-users-management'],
-    queryFn: fetchUsers,
+    queryKey: keys.members.list(),
+    queryFn: () => fetchMembers(),
+    select: selectUsers,
     retry: false,
     enabled: isAdmin || canManageUsers,
   });
 
-  const updatePermissionsMutation = useMutation({
+  const updatePermissionsMutation = useApiMutation({
     mutationFn: async ({ userId, permissions }: { userId: string; permissions: Permission[] }) => {
       await updateMember(userId, { permissions });
     },
+    invalidates: affects.members,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
-      toast({
-        title: "Permissions Updated",
-        description: `${selectedUser?.first_name || selectedUser?.username}'s permissions have been updated`,
-      });
       setDialogOpen(false);
       setSelectedUser(null);
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update permissions",
-        variant: "destructive",
-      });
-    },
+    success: () => ({
+      title: "Permissions Updated",
+      description: `${selectedUser?.first_name || selectedUser?.username}'s permissions have been updated`,
+    }),
+    error: "Permissions not updated",
   });
 
-  const archiveUserMutation = useMutation({
+  const archiveUserMutation = useApiMutation({
     mutationFn: async ({ userId, archive }: { userId: string; archive: boolean }) => {
       await updateMember(userId, { is_archived: archive });
     },
-    onSuccess: (_, { archive }) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-management'] });
-      toast({
-        title: archive ? "User Archived" : "User Restored",
-        description: archive 
-          ? "User has been archived and hidden from active lists"
-          : "User has been restored to active status",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update user status",
-        variant: "destructive",
-      });
-    },
+    invalidates: affects.members,
+    success: (_result, { archive }) => ({
+      title: archive ? "User Archived" : "User Restored",
+      description: archive
+        ? "User has been archived and hidden from active lists"
+        : "User has been restored to active status",
+    }),
+    error: "User status not updated",
   });
 
-  const resendInviteMutation = useMutation({
+  const resendInviteMutation = useApiMutation({
     mutationFn: async (userId: string) => resendMemberInvite(userId),
-    onSuccess: (result) => {
-      toast({ title: "Invite re-sent", description: result.message || undefined });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to resend invite",
-        variant: "destructive",
-      });
-    },
+    success: (result) => ({ title: "Invite re-sent", description: result.message || undefined }),
+    error: "Invite not re-sent",
   });
 
   if (permLoading) {
@@ -286,7 +267,7 @@ export default function UserManagement() {
     setBulkActionPending(false);
     setBulkArchiveConfirm(false);
     setBulkRestoreConfirm(false);
-    queryClient.invalidateQueries({ queryKey: ["admin-users-management"] });
+    affects.members.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }));
 
     const succeeded = ids.length - failedIds.length;
     const verb = archive ? "archived" : "restored";

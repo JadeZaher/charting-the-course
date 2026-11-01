@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
-import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { QueryState } from '@/components/QueryState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
@@ -66,18 +66,8 @@ export default function ProposalList() {
   const list = useGovernanceList({ entity: 'proposals', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const { data, isLoading, error } = useProposals(list.params);
-
-  if (isLoading) return <LoadingState message="Loading proposals..." />;
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-destructive">Failed to load proposals</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
-      </div>
-    );
-  }
+  const query = useProposals(list.params);
+  const data = query.data;
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 1;
 
@@ -101,57 +91,68 @@ export default function ProposalList() {
         onSearchChange={list.setSearch}
       />
 
-      <CollectionGrid aria-label="Proposals">
-        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No proposals found</div> : data?.items.map((p) => (
-          <CollectionCard key={p.id} asChild>
-            <Link href={`/proposals/${p.id}`} aria-label={`View proposal: ${p.title}`}>
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-semibold leading-tight">{p.title}</h2>
-                <Badge variant={statusVariant(p.status)}>{proposalPhaseLabel(p.status)}</Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {p.urgency && <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge>}
-                <Badge variant="outline">{p.affected_domain || 'No domain'}</Badge>
-              </div>
-              <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-                {p.proposer || 'Proposer not recorded'} · {getEcosystemName(p.ecosystem_id) || 'Unknown ecosystem'} · {new Date(p.created_at).toLocaleDateString()}
-              </p>
-            </Link>
-          </CollectionCard>
-        ))}
-      </CollectionGrid>
+      <QueryState
+        query={query}
+        isEmpty={(page) => page.items.length === 0}
+        empty={<div className="border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No proposals found</div>}
+        errorTitle="We couldn't load proposals"
+      >
+        {(page) => (
+          <>
+          <CollectionGrid aria-label="Proposals">
+            {page.items.map((p) => (
+              <CollectionCard key={p.id} asChild>
+                <Link href={`/proposals/${p.id}`} aria-label={`View proposal: ${p.title}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg font-semibold leading-tight">{p.title}</h2>
+                    <Badge variant={statusVariant(p.status)}>{proposalPhaseLabel(p.status)}</Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {p.urgency && <Badge variant={urgencyVariant(p.urgency)}>{p.urgency}</Badge>}
+                    <Badge variant="outline">{p.affected_domain || 'No domain'}</Badge>
+                  </div>
+                  <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                    {p.proposer || 'Proposer not recorded'} · {getEcosystemName(p.ecosystem_id) || 'Unknown ecosystem'} · {new Date(p.created_at).toLocaleDateString()}
+                  </p>
+                </Link>
+              </CollectionCard>
+            ))}
+          </CollectionGrid>
 
-      {totalPages > 1 && (
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() => list.setPage(p => Math.max(1, p - 1))}
-                className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-              />
-            </PaginationItem>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
-              .map((p) => (
-                <PaginationItem key={p}>
-                  <PaginationLink
-                    isActive={p === list.page}
-                    onClick={() => list.setPage(p)}
-                    className="cursor-pointer"
-                  >
-                    {p}
-                  </PaginationLink>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => list.setPage(p => Math.max(1, p - 1))}
+                    className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
                 </PaginationItem>
-              ))}
-            <PaginationItem>
-              <PaginationNext
-                onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
-                className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
+                  .map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        isActive={p === list.page}
+                        onClick={() => list.setPage(p)}
+                        className="cursor-pointer"
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
+                    className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+          </>
+        )}
+      </QueryState>
     </div>
   );
 }

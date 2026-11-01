@@ -12,9 +12,9 @@ import { CollectionCard, CollectionGrid } from '@/components/governance/shared/C
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystems, useRequestJoinEcosystem } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { fetchDiscover } from '@/lib/api-client';
-import { useToast } from '@/hooks/use-toast';
+import { apiErrorMessage } from '@/lib/api-error-message';
+import { keys } from '@/lib/query-keys';
 import { ECOSYSTEM_STATUS_OPTIONS } from '@/lib/ecosystem-vocab';
 import { Plus, Check, UserPlus } from 'lucide-react';
 import type { EcosystemSummary } from '@/types/api';
@@ -32,8 +32,6 @@ const statusVariant = (status: string) => {
 
 function JoinButton({ ecosystemId, isMember }: { ecosystemId: string; isMember: boolean }) {
   const joinMutation = useRequestJoinEcosystem(ecosystemId);
-  const { refreshSession } = useAuth();
-  const { toast } = useToast();
 
   if (isMember) {
     return (
@@ -50,15 +48,10 @@ function JoinButton({ ecosystemId, isMember }: { ecosystemId: string; isMember: 
       size="sm"
       className="gap-1"
       disabled={joinMutation.isPending || joinMutation.isSuccess}
-      onClick={async (e) => {
+      onClick={(e) => {
         e.stopPropagation();
-        try {
-          await joinMutation.mutateAsync();
-          toast({ title: 'Orientation requested', description: 'Orientation requested — this does not make you a member yet.' });
-          await refreshSession();
-        } catch (err) {
-          toast({ title: 'Orientation request failed', description: (err as Error).message, variant: 'destructive' });
-        }
+        // The hook refreshes the session and toasts the outcome or failure.
+        joinMutation.mutate();
       }}
     >
       {joinMutation.isSuccess ? (
@@ -91,9 +84,11 @@ export default function EcosystemList() {
 
   const { data: rawData, isLoading, error } = useEcosystems(params);
 
+  // Same request shape as DiscoverHub's keys.discover.list (the API response, untouched); different params, different entry.
+  const discoverParams = useMemo((): Record<string, string> => ({ tab: 'ecosystems', ...(discoverSearch ? { q: discoverSearch } : {}) }), [discoverSearch]);
   const { data: discoverData, isLoading: discoverLoading, error: discoverError } = useQuery({
-    queryKey: ['discover', 'ecosystems', discoverSearch],
-    queryFn: () => fetchDiscover({ tab: 'ecosystems', ...(discoverSearch ? { q: discoverSearch } : {}) }),
+    queryKey: keys.discover.list(discoverParams),
+    queryFn: () => fetchDiscover(discoverParams),
     enabled: tab === 'discover',
   });
 
@@ -153,7 +148,7 @@ export default function EcosystemList() {
           {isLoading ? <LoadingState message="Loading ecosystems..." /> : error ? (
             <div className="text-center py-12">
               <p className="text-destructive">Failed to load ecosystems</p>
-              <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+              <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
             </div>
           ) : (
             <>
@@ -218,7 +213,7 @@ export default function EcosystemList() {
           {discoverLoading ? <LoadingState message="Discovering ecosystems..." /> : discoverError ? (
             <div className="text-center py-12">
               <p className="text-destructive">Failed to load public ecosystems</p>
-              <p className="text-sm text-muted-foreground mt-1">{(discoverError as Error).message}</p>
+              <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(discoverError)}</p>
             </div>
           ) : (
             <CollectionGrid aria-label="Public ecosystems">

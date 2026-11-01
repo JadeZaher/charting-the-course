@@ -29,8 +29,8 @@ function DecisionRow({ decision }: { decision: MemberDecision }) {
   const setState = async (state: MemberDecisionState) => {
     try {
       await updateMutation.mutateAsync({ id: decision.id, data: { state } });
-    } catch (e) {
-      toast({ title: 'Could not update the decision', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } catch {
+      // Error already toasted by useUpdateMyDecision.
     }
   };
 
@@ -40,8 +40,8 @@ function DecisionRow({ decision }: { decision: MemberDecision }) {
     try {
       await updateMutation.mutateAsync({ id: decision.id, data: { notes: trimmed || null } });
       toast({ title: 'Notes saved' });
-    } catch (e) {
-      toast({ title: 'Could not save notes', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } catch {
+      // Error already toasted by useUpdateMyDecision.
     }
   };
 
@@ -49,8 +49,8 @@ function DecisionRow({ decision }: { decision: MemberDecision }) {
     try {
       await deleteMutation.mutateAsync(decision.id);
       toast({ title: 'Decision deleted' });
-    } catch (e) {
-      toast({ title: 'Could not delete the decision', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } catch {
+      // Error already toasted by useDeleteMyDecision.
     }
   };
 

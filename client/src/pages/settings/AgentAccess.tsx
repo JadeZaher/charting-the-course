@@ -43,8 +43,8 @@ export default function AgentAccessPage() {
       setFreshToken(minted.token ? { id: minted.id, token: minted.token } : null);
       setLabel('');
       toast({ title: 'Agent token minted', description: 'Copy it now — it is only shown once.' });
-    } catch (e) {
-      toast({ title: 'Could not mint token', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } catch {
+      // Error already toasted by useMintAgentToken.
     }
   };
 
@@ -53,8 +53,8 @@ export default function AgentAccessPage() {
       await revokeMutation.mutateAsync(id);
       setFreshToken((current) => (current?.id === id ? null : current));
       toast({ title: 'Token revoked', description: 'The agent using it loses access immediately.' });
-    } catch (e) {
-      toast({ title: 'Could not revoke token', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } catch {
+      // Error already toasted by useRevokeAgentToken.
     }
   };
 

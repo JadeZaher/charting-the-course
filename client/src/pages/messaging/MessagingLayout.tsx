@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useConversations, useConversation, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
-import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { QueryState } from '@/components/QueryState';
 import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
@@ -17,7 +17,8 @@ export default function MessagingLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
 
-  const { data: convData, isLoading, error } = useConversations();
+  const conversationsQuery = useConversations();
+  const convData = conversationsQuery.data;
   const { data: activeConv } = useConversation(activeId || '');
   const { isConnected } = useWebSocket();
   const { member } = useAuth();
@@ -37,17 +38,6 @@ export default function MessagingLayout() {
     setMessageInput('');
     sendMessageMutation.mutate(content);
   };
-
-  if (isLoading) return <LoadingState message="Loading conversations..." />;
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-destructive">Failed to load conversations</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
@@ -72,31 +62,42 @@ export default function MessagingLayout() {
           </div>
         </div>
         <ScrollArea className="flex-1">
-          {filtered.map(conv => (
-            <button
-              key={conv.id}
-              className={`w-full text-left p-3 border-b hover:bg-muted/50 transition-colors ${
-                activeId === conv.id ? 'bg-muted' : ''
-              }`}
-              onClick={() => setActiveId(conv.id)}
-              aria-current={activeId === conv.id ? 'true' : undefined}
-            >
-              <div className="flex justify-between items-start">
-                <p className="font-medium text-sm truncate">
-                  {conv.title || conv.participants.map(p => p.display_name).join(', ')}
-                </p>
-                {conv.unread_count > 0 && (
-                  <Badge variant="default" className="text-xs">{conv.unread_count}</Badge>
+          <QueryState
+            query={conversationsQuery}
+            isEmpty={(data) => data.conversations.length === 0}
+            empty={<p className="text-sm text-muted-foreground text-center py-8">No conversations</p>}
+            errorTitle="We couldn't load conversations"
+          >
+            {() => (
+              <>
+                {filtered.map(conv => (
+                  <button
+                    key={conv.id}
+                    className={`w-full text-left p-3 border-b hover:bg-muted/50 transition-colors ${
+                      activeId === conv.id ? 'bg-muted' : ''
+                    }`}
+                    onClick={() => setActiveId(conv.id)}
+                    aria-current={activeId === conv.id ? 'true' : undefined}
+                  >
+                    <div className="flex justify-between items-start">
+                      <p className="font-medium text-sm truncate">
+                        {conv.title || conv.participants.map(p => p.display_name).join(', ')}
+                      </p>
+                      {conv.unread_count > 0 && (
+                        <Badge variant="default" className="text-xs">{conv.unread_count}</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mt-1">
+                      {conv.last_message || 'No messages yet'}
+                    </p>
+                  </button>
+                ))}
+                {filtered.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No conversations</p>
                 )}
-              </div>
-              <p className="text-xs text-muted-foreground truncate mt-1">
-                {conv.last_message || 'No messages yet'}
-              </p>
-            </button>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">No conversations</p>
-          )}
+              </>
+            )}
+          </QueryState>
         </ScrollArea>
       </Card>
 

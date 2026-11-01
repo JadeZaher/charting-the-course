@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { useQuery } from "@tanstack/react-query";
+import { keys } from '@/lib/query-keys';
 import { Link } from "wouter";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,15 +28,12 @@ export default function QuizList() {
   const [searchQuery, setSearchQuery] = useState("");
   const { canManageContent } = usePermissions();
 
-  const { data: quizzes, isLoading, error } = useQuery<Quiz[]>({
-    queryKey: ['quizzes-list', canManageContent],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      // Regular users only see published quizzes
-      if (!canManageContent) {
-        params.is_published = 'true';
-      }
-      const result = await fetchQuizzes(params);
+  // Regular users only see published quizzes
+  const listParams: Record<string, string> = canManageContent ? {} : { is_published: 'true' };
+  const { data: quizzes, isLoading, error } = useQuery({
+    queryKey: keys.quizzes.list(listParams),
+    queryFn: () => fetchQuizzes(listParams),
+    select: (result): Quiz[] => {
       const items = (result as any).items || (result as any).quizzes || [];
       return items.map((q: any) => ({
         id: q.id,
@@ -47,7 +46,7 @@ export default function QuizList() {
         ecosystem_id: q.ecosystem_id ?? null,
         domain_id: q.domain_id ?? null,
         created_at: q.created_at,
-      })) as Quiz[];
+      }));
     },
   });
 
@@ -140,7 +139,7 @@ export default function QuizList() {
           <Card className="col-span-full">
             <CardContent className="p-12 text-center">
               <p className="text-destructive font-medium mb-2">Failed to load quizzes</p>
-              <p className="text-muted-foreground text-sm">{(error as Error).message}</p>
+              <p className="text-muted-foreground text-sm">{apiErrorMessage(error)}</p>
             </CardContent>
           </Card>
         ) : (

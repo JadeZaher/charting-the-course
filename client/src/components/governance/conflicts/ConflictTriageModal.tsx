@@ -17,6 +17,7 @@ import type { ConflictDetail } from '@/types/api';
 import { URGENCY_LEVELS, type UrgencyLevel } from '@/lib/urgency';
 import { CONFLICT_SCOPE_OPTIONS } from '@/lib/conflict-vocab';
 import { Loader2, ClipboardCheck } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const SEVERITY_OPTIONS = [
   { value: 'low', label: 'Low' },
@@ -238,7 +239,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
 
         {updateMutation.error && (
           <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-            {(updateMutation.error as Error).message}
+            {apiErrorMessage(updateMutation.error)}
           </div>
         )}
 

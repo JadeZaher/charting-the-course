@@ -8,6 +8,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useExit, useUpdateExitStatus } from '@/hooks/use-governance';
 import { exitStatusVariant } from '@/lib/exit-status';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 // Backend creates new exits at status='declared'; every non-terminal status must have an entry here
 // or newly-created records show zero action buttons. completed/cancelled are terminal (no further transitions).
@@ -58,7 +59,7 @@ export default function ExitDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load exit</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/exit">Back to Exits</Link>
         </Button>
@@ -139,7 +140,7 @@ export default function ExitDetail() {
 
       {updateStatusMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(updateStatusMutation.error as Error).message}
+          {apiErrorMessage(updateStatusMutation.error)}
         </div>
       )}
 

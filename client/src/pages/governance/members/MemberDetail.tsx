@@ -3,9 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useQuery } from '@tanstack/react-query';
-import { fetchMemberProfile } from '@/lib/api-client';
-import { useDomains } from '@/hooks/use-governance';
+import { useDomains, useMemberProfile } from '@/hooks/use-governance';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield, Network, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -26,11 +25,7 @@ export default function MemberDetail() {
   const id = params?.id ?? '';
   const [, navigate] = useLocation();
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['member-profile', id],
-    queryFn: () => fetchMemberProfile(id),
-    enabled: !!id,
-  });
+  const { data, isLoading, error } = useMemberProfile(id);
 
   const ecosystemName = useEcosystemName();
   const { data: domainsData } = useDomains(data?.ecosystem_id ? { ecosystem_id: data.ecosystem_id } : false);
@@ -42,7 +37,7 @@ export default function MemberDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load member</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/members">Back to Members</Link>
         </Button>

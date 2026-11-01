@@ -180,6 +180,7 @@ export const ecosystemScoped = [
   keys.agreements.all,
   keys.audits.all,
   keys.badges.all,
+  keys.chatSessions.all,
   keys.compliance.all,
   keys.conflicts.all,
   keys.conversations.all,

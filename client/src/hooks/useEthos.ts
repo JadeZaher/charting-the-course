@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { keys } from '@/lib/query-keys';
 import { fetchEcosystems, fetchEcosystem } from '@/lib/api-client';
 import type { EthosSummary, EthosDetail, EthosMemberWithProfile } from '@/types/orientation';
 
@@ -54,9 +55,10 @@ function mapEthosSummary(ecosystem: Record<string, any>): EthosSummary {
 
 export function useEthosList(sector?: string, limit = 20, offset = 0) {
   return useQuery({
-    queryKey: ['ethos-list', sector, limit, offset],
-    queryFn: async () => {
-      const result = await fetchEcosystems();
+    // Shares keys.ecosystems.list({}) with the admin panel; mapping, filtering and paging happen in `select`.
+    queryKey: keys.ecosystems.list(),
+    queryFn: () => fetchEcosystems(),
+    select: (result): EthosListResponse => {
       const ecosystems = (result as any).ecosystems || (result as any).items || [];
       const mapped = ecosystems.map((ecosystem: Record<string, any>) => mapEthosSummary(ecosystem));
       const filtered = sector && sector !== 'all'
@@ -67,7 +69,7 @@ export function useEthosList(sector?: string, limit = 20, offset = 0) {
       return {
         ethos,
         total: sector && sector !== 'all' ? filtered.length : ((result as any).total ?? filtered.length),
-      } as EthosListResponse;
+      };
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -75,11 +77,10 @@ export function useEthosList(sector?: string, limit = 20, offset = 0) {
 
 export function useEthosDetail(id: string) {
   return useQuery({
-    queryKey: ['ethos-detail', id],
-    queryFn: async () => {
-      if (!id) return null;
-
-      const result = await fetchEcosystem(id) as unknown as Record<string, any>;
+    queryKey: keys.ecosystems.detail(id),
+    queryFn: () => fetchEcosystem(id),
+    select: (detail): EthosDetailResponse => {
+      const result = detail as unknown as Record<string, any>;
       const summary = mapEthosSummary(result);
       const status = toOptionalString(result.status);
       const members: EthosMemberWithProfile[] = Array.isArray(result.members) ? result.members : [];
@@ -108,7 +109,7 @@ export function useEthosDetail(id: string) {
         ethos,
         members,
         viewer_alignment: toOptionalNumber(result.viewer_alignment) ?? null,
-      } as EthosDetailResponse;
+      };
     },
     enabled: !!id,
     staleTime: 1000 * 60 * 5,

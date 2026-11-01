@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useConflict } from '@/hooks/use-governance';
 import { Pencil, ArrowLeft, Plus } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -39,7 +40,7 @@ export default function ConflictDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load conflict</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/conflicts">Back to Conflicts</Link>
         </Button>

@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { QueryState } from '@/components/QueryState';
 import { fetchDiscover } from '@/lib/api-client';
+import { keys } from '@/lib/query-keys';
 import { resolveExternalUrl, resolveMediaUrl } from '@/lib/media';
 import type { DiscoverEcosystem } from '@/types/api';
 import SharesNeedsList from './SharesNeedsList';
@@ -129,59 +131,53 @@ function EcosystemsTab({ search }: { search: string }) {
     return next;
   }, [search]);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['discover', params],
+  const query = useQuery({
+    queryKey: keys.discover.list(params),
     queryFn: () => fetchDiscover(params),
   });
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-label="Loading ecosystems">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="aspect-[3/2] rounded-none border-2 border-border" />
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="border-2 border-destructive p-8" role="alert">
-        <p className="font-black uppercase tracking-wide text-destructive">Ecosystems unavailable</p>
-        <p className="mt-2 text-sm text-muted-foreground">{(error as Error).message}</p>
-      </div>
-    );
-  }
-
-  const section = data?.ecosystems;
-  const ecosystems = section?.items ?? [];
-
-  if (ecosystems.length === 0) {
-    return (
-      <div className="border-2 border-dashed border-strong-border p-10 sm:p-16">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Zero matches</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight">No ecosystems found.</h2>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-          {search ? 'Try a broader place, practice, or ecosystem name.' : 'Public ecosystems will appear here as they join the network.'}
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-5">
-      <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
-        <p className="text-sm text-muted-foreground">
-          Showing <strong className="text-foreground">{ecosystems.length}</strong> of <strong className="text-foreground">{section?.total ?? ecosystems.length}</strong> ecosystems
-        </p>
-        {search && <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Query: {search}</p>}
-      </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {ecosystems.map((ecosystem, index) => (
-          <EcosystemCard key={ecosystem.id} ecosystem={ecosystem} index={index} featured={index === 0} />
-        ))}
-      </div>
-    </div>
+    <QueryState
+      query={query}
+      loading={
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-label="Loading ecosystems">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="aspect-[3/2] rounded-none border-2 border-border" />
+          ))}
+        </div>
+      }
+      errorTitle="Ecosystems unavailable"
+      isEmpty={(data) => (data.ecosystems?.items ?? []).length === 0}
+      empty={
+        <div className="border-2 border-dashed border-strong-border p-10 sm:p-16">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Zero matches</p>
+          <h2 className="mt-3 text-3xl font-black tracking-tight">No ecosystems found.</h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            {search ? 'Try a broader place, practice, or ecosystem name.' : 'Public ecosystems will appear here as they join the network.'}
+          </p>
+        </div>
+      }
+    >
+      {(data) => {
+        const section = data.ecosystems;
+        const ecosystems = section?.items ?? [];
+        return (
+          <div className="space-y-5">
+            <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3">
+              <p className="text-sm text-muted-foreground">
+                Showing <strong className="text-foreground">{ecosystems.length}</strong> of <strong className="text-foreground">{section?.total ?? ecosystems.length}</strong> ecosystems
+              </p>
+              {search && <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Query: {search}</p>}
+            </div>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {ecosystems.map((ecosystem, index) => (
+                <EcosystemCard key={ecosystem.id} ecosystem={ecosystem} index={index} featured={index === 0} />
+              ))}
+            </div>
+          </div>
+        );
+      }}
+    </QueryState>
   );
 }
 

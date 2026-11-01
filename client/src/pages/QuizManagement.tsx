@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/use-api-mutation";
+import { affects, keys } from "@/lib/query-keys";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -117,7 +119,6 @@ function validateSurveyJson(json: any, mode: string): { valid: boolean; error?: 
 
 export default function QuizManagement() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { member } = useAuth();
   const { selected, ecosystems } = useEcosystem();
   const [location, setLocation] = useLocation();
@@ -133,10 +134,10 @@ export default function QuizManagement() {
     queryParams.ecosystem_id = selected.id;
   }
 
-  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
-    queryKey: ['quizzes-manage', queryParams],
-    queryFn: async () => {
-      const result = await fetchQuizzes(Object.keys(queryParams).length > 0 ? queryParams : undefined);
+  const { data: quizzes, isLoading } = useQuery({
+    queryKey: keys.quizzes.list(queryParams),
+    queryFn: () => fetchQuizzes(Object.keys(queryParams).length > 0 ? queryParams : undefined),
+    select: (result): Quiz[] => {
       const items = (result as any).items || (result as any).quizzes || [];
       return items.map((q: any) => ({
         id: q.id,
@@ -153,7 +154,7 @@ export default function QuizManagement() {
         survey_json: q.survey_json ?? q.config ?? null,
         created_at: q.created_at,
         created_by: q.created_by ?? q.author_id ?? '',
-      })) as Quiz[];
+      }));
     },
   });
 
@@ -196,7 +197,7 @@ export default function QuizManagement() {
     }
   }, [editQuiz.surveyJson, editQuiz.mode]);
 
-  const createQuizMutation = useMutation({
+  const createQuizMutation = useApiMutation({
     mutationFn: async (quizData: QuizFormState) => {
       const parsedJson = JSON.parse(quizData.surveyJson);
       return createQuiz({
@@ -212,29 +213,23 @@ export default function QuizManagement() {
         ...(selected?.id && { ecosystem_id: selected.id }),
       });
     },
+    invalidates: affects.quizzes,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setIsCreating(false);
       setNewQuiz({ ...EMPTY_FORM });
-      toast({ title: "Success", description: "Quiz created successfully" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create quiz", variant: "destructive" });
-    },
+    success: { title: "Success", description: "Quiz created successfully" },
+    error: "Quiz not created",
   });
 
-  const publishQuizMutation = useMutation({
+  const publishQuizMutation = useApiMutation({
     mutationFn: async (quizId: string) => { await updateQuiz(quizId, { is_published: true }); },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
-      toast({ title: "Success", description: "Quiz published successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to publish quiz", variant: "destructive" });
-    },
+    invalidates: affects.quizzes,
+    success: { title: "Success", description: "Quiz published successfully" },
+    error: "Quiz not published",
   });
 
-  const updateQuizMutation = useMutation({
+  const updateQuizMutation = useApiMutation({
     mutationFn: async (data: { id: string } & QuizFormState) => {
       const parsedJson = JSON.parse(data.surveyJson);
       return updateQuiz(data.id, {
@@ -248,26 +243,20 @@ export default function QuizManagement() {
         is_published: data.is_published,
       });
     },
+    invalidates: affects.quizzes,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
       setEditingQuiz(null);
       setEditQuiz({ ...EMPTY_FORM });
-      toast({ title: "Success", description: "Quiz updated successfully" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update quiz", variant: "destructive" });
-    },
+    success: { title: "Success", description: "Quiz updated successfully" },
+    error: "Quiz not updated",
   });
 
-  const deleteQuizMutation = useMutation({
+  const deleteQuizMutation = useApiMutation({
     mutationFn: async (quizId: string) => { await deleteQuiz(quizId); },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quizzes-manage'] });
-      toast({ title: "Success", description: "Quiz deleted successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete quiz", variant: "destructive" });
-    },
+    invalidates: affects.quizzes,
+    success: { title: "Success", description: "Quiz deleted successfully" },
+    error: "Quiz not deleted",
   });
 
   const handleCreateQuiz = () => {

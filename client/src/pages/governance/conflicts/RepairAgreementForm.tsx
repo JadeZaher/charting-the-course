@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { useCreateRepairAgreement } from '@/hooks/use-governance';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
-import { createRepairAgreement } from '@/lib/api-client';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 interface Commitment {
   description: string;
@@ -20,8 +19,6 @@ export default function RepairAgreementForm() {
   const [, params] = useRoute('/conflicts/:conflictId/repair-agreements/new');
   const conflictId = params?.conflictId ?? '';
   const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const [title, setTitle] = useState('');
   const [parties, setParties] = useState<string[]>(['']);
@@ -32,17 +29,8 @@ export default function RepairAgreementForm() {
   const [facilitatorNotes, setFacilitatorNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const mutation = useMutation({
-    mutationFn: (data: Record<string, any>) => createRepairAgreement(conflictId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conflicts', conflictId] });
-      toast({
-        title: 'Repair agreement created',
-        description: 'The repair agreement has been saved.',
-      });
-      navigate(`/conflicts/${conflictId}`);
-    },
-  });
+  // Confirms with a toast and refreshes the conflict; a failure renders above the form.
+  const mutation = useCreateRepairAgreement(conflictId);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -73,8 +61,9 @@ export default function RepairAgreementForm() {
 
     try {
       await mutation.mutateAsync(payload);
+      navigate(`/conflicts/${conflictId}`);
     } catch {
-      // Error handled by mutation state
+      // Rendered above the form from mutation.error
     }
   };
 
@@ -111,7 +100,7 @@ export default function RepairAgreementForm() {
 
       {mutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(mutation.error as Error).message}
+          {apiErrorMessage(mutation.error)}
         </div>
       )}
 

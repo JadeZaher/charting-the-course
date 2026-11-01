@@ -3,6 +3,9 @@ import { useRoute, useLocation, useSearch } from 'wouter';
 import { Link } from 'wouter';
 import { useDetectPath, useRecommendJourney, useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
 import { useEthosDetail } from '@/hooks/useEthos';
+import { useRequestJoinEcosystem } from '@/hooks/use-governance';
+import { useAuth } from '@/contexts/AuthContext';
+import { holdsMembershipIn, joinThen } from '@/lib/ecosystem-join';
 import { JourneyMapCard } from '@/components/orientation/JourneyMapCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +28,11 @@ export default function OrientationGate() {
   const { data: recData, isLoading: recLoading } = useRecommendJourney(ethosId);
   const { data: existingProgress, isLoading: progressLoading } = useUserProgress(ethosId);
   const saveProgress = useSaveProgress();
+  const { ecosystems } = useAuth();
+  const join = useRequestJoinEcosystem(ethosId);
+  // Progress is stored on the member row in this ecosystem, so a non-member joins first (api/AGENTS.md "Join-first").
+  const isMember = holdsMembershipIn(ethosId, ecosystems);
+  const isStarting = join.isPending || saveProgress.isPending;
 
   const [selectedMap, setSelectedMap] = useState<JourneyMap | null>(null);
 
@@ -40,14 +48,21 @@ export default function OrientationGate() {
 
   async function handleStart() {
     if (!chosen || !ethosId) return;
-    await saveProgress.mutateAsync({
-      ethos_id: ethosId,
-      journey_map_id: chosen.id,
-      current_step: 0,
-      status: 'in_progress',
-      orientation_path: pathData?.path ?? 'explorer',
-      was_recommended: chosen.id === recData?.recommended?.id,
-    });
+    try {
+      await joinThen(
+        () => saveProgress.mutateAsync({
+          ethos_id: ethosId,
+          journey_map_id: chosen.id,
+          current_step: 0,
+          status: 'in_progress',
+          orientation_path: pathData?.path ?? 'explorer',
+          was_recommended: chosen.id === recData?.recommended?.id,
+        }),
+        { isMember, join: () => join.mutateAsync() },
+      );
+    } catch {
+      return; // The join or useSaveProgress already toasted the failure; stay on the picker.
+    }
     navigate(`/orientation/${ethosSlug}/journey`);
   }
 
@@ -151,13 +166,20 @@ export default function OrientationGate() {
       )}
 
       {/* Start CTA */}
+      {!isLoading && !isMember && (
+        <p id="orientation-join-note" className="border-l-4 border-strong-border pl-4 text-sm leading-6 text-muted-foreground">
+          You are not a member of {ethos?.name ?? 'this ecosystem'} yet. Starting a journey asks to join it. If it asks
+          newcomers to consent to its agreements first, your membership waits for that consent.
+        </p>
+      )}
       <div className="flex justify-end">
         <Button
           size="lg"
-          disabled={!chosen || saveProgress.isPending}
+          disabled={!chosen || isStarting}
           onClick={handleStart}
+          aria-describedby={!isLoading && !isMember ? 'orientation-join-note' : undefined}
         >
-          {saveProgress.isPending ? 'Starting…' : 'Start Journey'}
+          {join.isPending ? 'Joining…' : saveProgress.isPending ? 'Starting…' : isMember ? 'Start Journey' : 'Join and start journey'}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

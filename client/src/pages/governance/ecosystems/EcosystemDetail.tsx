@@ -16,7 +16,6 @@ import {
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements, useProposals } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -41,6 +40,7 @@ import {
 import type { QuizListItem, SharesNeeds, DomainListItem } from '@/types/api';
 import { resolveExternalUrl } from '@/lib/media';
 import { domainCode, domainLabel, domainOptionLabel } from '@/lib/domain-label';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 interface EcoQuiz {
   id: string;
@@ -91,10 +91,8 @@ export default function EcosystemDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error } = useEcosystemDetail(id);
   const { ecosystems } = useEcosystem();
-  const { refreshSession } = useAuth();
   const { toast } = useToast();
   const joinMutation = useRequestJoinEcosystem(id);
-  const [joinRequested, setJoinRequested] = useState(false);
 
   const { permissions } = useRoleAccess();
   const isMember = ecosystems.some(e => e.id === id);
@@ -176,14 +174,14 @@ export default function EcosystemDetail() {
       toast({ title: 'Quiz assigned' });
       setAssignQuizId(''); setAssignAsEntry(false);
       await loadQuizzes();
-    } catch (err) { toast({ title: 'Failed to assign quiz', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed to assign quiz', description: apiErrorMessage(err), variant: 'destructive' }); }
     finally { setAssigning(false); }
   };
   const handleUnassignQuiz = async (quizId: string) => {
     try {
       await unassignQuizFromEcosystem(id, quizId);
       toast({ title: 'Quiz unassigned' }); await loadQuizzes();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
 
   // --- Journey Map handlers ---
@@ -206,7 +204,11 @@ export default function EcosystemDetail() {
       setShowJmForm(false);
       setJmForm({ title: '', description: '', contentJson: '', exitJson: '', is_default: false });
       await loadJourneyMaps();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) {
+      // A SyntaxError here is the author's JSON, which apiErrorMessage would hide as engine text.
+      const description = err instanceof SyntaxError ? `The content sequence or exit package is not valid JSON: ${err.message}` : apiErrorMessage(err);
+      toast({ title: 'Journey map not created', description, variant: 'destructive' });
+    }
     finally { setJmSaving(false); }
   };
   const handleToggleJmActive = async (jm: JourneyMapItem) => {
@@ -214,14 +216,14 @@ export default function EcosystemDetail() {
       await updateJourneyMap(jm.id, { is_active: !jm.is_active });
       toast({ title: jm.is_active ? 'Journey map deactivated' : 'Journey map activated' });
       await loadJourneyMaps();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
   const handleDeleteJourneyMap = async (jmId: string) => {
     if (!confirm('Delete this journey map and all associated progress?')) return;
     try {
       await deleteJourneyMap(jmId);
       toast({ title: 'Journey map deleted' }); await loadJourneyMaps();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
 
   // --- Shares/Needs handlers ---
@@ -248,21 +250,21 @@ export default function EcosystemDetail() {
       setShowSnForm(false);
       setSnForm({ type: 'share', title: '', description: '', category: '', capacity: '', visibility: 'public', domain_id: '' });
       await loadSharesNeeds();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
     finally { setSnSaving(false); }
   };
   const handleSnStatusChange = async (snId: string, newStatus: string) => {
     try {
       await updateSharesNeedsStatus(snId, newStatus);
       toast({ title: `Status updated to ${newStatus}` }); await loadSharesNeeds();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
   const handleDeleteShareNeed = async (snId: string) => {
     if (!confirm('Delete this share/need?')) return;
     try {
       await deleteSharesNeeds(snId);
       toast({ title: 'Deleted' }); await loadSharesNeeds();
-    } catch (err) { toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
 
   // Fetch agreements only when user is a member
@@ -285,29 +287,14 @@ export default function EcosystemDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load ecosystem</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4"><Link href="/ecosystems">Back to Ecosystems</Link></Button>
       </div>
     );
   }
 
-  const handleJoin = async () => {
-    try {
-      const result = await joinMutation.mutateAsync();
-      setJoinRequested(true);
-      toast({ title: 'Join request sent', description: `${result.message || 'Your request to join has been submitted.'} This does not make you a member yet.` });
-      await refreshSession();
-    } catch (err) {
-      const message = (err as Error).message;
-      if (message.includes('Already a member')) {
-        setJoinRequested(true);
-        toast({ title: 'Already a member' });
-        await refreshSession();
-      } else {
-        toast({ title: 'Failed to join', description: message, variant: 'destructive' });
-      }
-    }
-  };
+  // The hook refreshes the session (an "already a member" 409 resolves) and toasts the outcome or failure.
+  const handleJoin = () => joinMutation.mutate();
 
   const assignedIds = new Set(ecoQuizzes.map(q => q.id));
   const unassignedQuizzes = allQuizzes.filter(q => !assignedIds.has(q.id));
@@ -333,7 +320,7 @@ export default function EcosystemDetail() {
             <Button asChild variant="outline" size="sm">
               <Link href={`/ecosystems/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
             </Button>
-          ) : joinRequested || joinMutation.isSuccess ? (
+          ) : joinMutation.isSuccess ? (
             <Button variant="outline" size="sm" disabled><Clock className="h-4 w-4 mr-1" />Orientation requested</Button>
           ) : (
             <Button size="sm" onClick={handleJoin} disabled={joinMutation.isPending}>

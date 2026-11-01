@@ -14,6 +14,7 @@ import { useSafeguards, useRequestAudit } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import type { IndicatorScore, TriggeredSafeguard } from '@/types/api';
 import { ShieldCheck, AlertTriangle, TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 // GHI indicator definitions (same as SafeguardsDashboard)
 const GHI_INDICATORS = [
@@ -180,7 +181,7 @@ export function GovernanceHealthAuditForm({ open, onOpenChange }: GovernanceHeal
 
         {requestMutation.error && (
           <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-            {(requestMutation.error as Error).message}
+            {apiErrorMessage(requestMutation.error)}
           </div>
         )}
 

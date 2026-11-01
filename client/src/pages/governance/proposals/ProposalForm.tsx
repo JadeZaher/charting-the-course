@@ -16,6 +16,7 @@ import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { ArrowLeft } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const DECISION_TYPE_OPTIONS = [
   { value: 'consent', label: 'Consent' },
@@ -167,7 +168,7 @@ export default function ProposalForm() {
 
       {mutationError && (
         <div role="alert" className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(mutationError as Error).message}
+          {apiErrorMessage(mutationError)}
         </div>
       )}
 

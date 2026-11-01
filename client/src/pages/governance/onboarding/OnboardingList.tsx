@@ -6,6 +6,7 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useOnboardings } from '@/hooks/use-governance';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const FILTERS: FilterDef[] = [];
 
@@ -21,7 +22,7 @@ export default function OnboardingList() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load onboardings</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

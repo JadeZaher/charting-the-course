@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/use-governance';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import type { NotificationPreferences } from '@/types/api';
 import { Bell, BellRing, Loader2, Save, Undo2 } from 'lucide-react';
 
@@ -68,7 +69,11 @@ export default function NotificationPreferencesPage() {
     for (const [key, val] of Object.entries(prefs)) {
       types[key] = val;
     }
-    await updateMutation.mutateAsync(types);
+    try {
+      await updateMutation.mutateAsync(types);
+    } catch {
+      // Silent mutation: the inline error block below renders updateMutation.error.
+    }
   };
 
   const handleReset = () => {
@@ -102,7 +107,7 @@ export default function NotificationPreferencesPage() {
       <div className="text-center py-12">
         <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <p className="text-destructive">Failed to load notification preferences</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
         <button onClick={() => refetch()} className="mt-3 text-sm text-primary underline">Try again</button>
       </div>
     );
@@ -121,7 +126,7 @@ export default function NotificationPreferencesPage() {
 
       {updateMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(updateMutation.error as Error).message}
+          {apiErrorMessage(updateMutation.error)}
         </div>
       )}
 

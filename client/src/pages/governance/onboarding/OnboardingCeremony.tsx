@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useOnboardingCeremony, useSubmitCeremonyConsent } from '@/hooks/use-governance';
 import { ArrowLeft, CheckCircle2, ChevronDown, Circle } from 'lucide-react';
 import type { OnboardingSectionConsent } from '@/types/api';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const CEREMONY_STEPS = [
   {
@@ -92,7 +93,7 @@ export default function OnboardingCeremony() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load onboarding ceremony</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/onboarding">Back to Onboarding</Link>
         </Button>
@@ -111,6 +112,8 @@ export default function OnboardingCeremony() {
     setSubmittingSection(sectionKey);
     try {
       await consentMutation.mutateAsync({ section: sectionKey, consented: true });
+    } catch {
+      // Toasted by useSubmitCeremonyConsent
     } finally {
       setSubmittingSection(null);
     }
@@ -120,6 +123,8 @@ export default function OnboardingCeremony() {
     setSubmittingSection(sectionKey);
     try {
       await consentMutation.mutateAsync({ section: sectionKey, consented: true, position: 'stand_aside' });
+    } catch {
+      // Toasted by useSubmitCeremonyConsent
     } finally {
       setSubmittingSection(null);
     }
@@ -137,6 +142,8 @@ export default function OnboardingCeremony() {
       });
       setObjectingSection(null);
       setObjectionText('');
+    } catch {
+      // Toasted by useSubmitCeremonyConsent
     } finally {
       setSubmittingSection(null);
     }

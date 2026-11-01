@@ -14,6 +14,7 @@ import {
 import { useUpdateRepairAgreement } from '@/hooks/use-governance';
 import type { RepairAgreement } from '@/types/api';
 import { CalendarCheck, CheckCircle2, Loader2, Clock } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 type CheckinMilestone = '30' | '60' | '90';
 
@@ -154,7 +155,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
 
         {updateMutation.error && (
           <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-            {(updateMutation.error as Error).message}
+            {apiErrorMessage(updateMutation.error)}
           </div>
         )}
 

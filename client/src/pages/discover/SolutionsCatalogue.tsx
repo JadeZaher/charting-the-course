@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { keys } from '@/lib/query-keys';
 import { ArrowRight } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEthosList } from '@/hooks/useEthos';
@@ -21,7 +22,7 @@ interface CatalogueProps {
 
 function EcosystemSharesNeedsSection({ ecosystem, onBrowseExchanges }: { ecosystem: EthosSummary; onBrowseExchanges: () => void }) {
   const query = useQuery({
-    queryKey: ['ecosystem-shares-needs', ecosystem.id],
+    queryKey: keys.sharesNeeds.forEcosystem(ecosystem.id),
     queryFn: () => fetchEcosystemSharesNeeds(ecosystem.id),
     enabled: !!ecosystem.id,
   });
@@ -95,7 +96,7 @@ function EcosystemSharesNeedsSection({ ecosystem, onBrowseExchanges }: { ecosyst
 
 function EcosystemQuizzesSection({ ecosystem }: { ecosystem: EthosSummary }) {
   const query = useQuery({
-    queryKey: ['ecosystem-quizzes', ecosystem.id],
+    queryKey: keys.quizzes.forEcosystem(ecosystem.id),
     queryFn: () => fetchEcosystemQuizzes(ecosystem.id),
     enabled: !!ecosystem.id,
   });

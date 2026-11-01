@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -84,7 +85,7 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
     return (
       <div className="border-2 border-destructive p-8" role="alert">
         <p className="font-black uppercase tracking-wide text-destructive">Exchange index unavailable</p>
-        <p className="mt-2 text-sm text-muted-foreground">{(error as Error).message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{apiErrorMessage(error)}</p>
       </div>
     );
   }

@@ -1,53 +1,54 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useApiMutation } from '@/hooks/use-api-mutation';
 import * as api from '@/lib/api-client';
+import { affects, keys } from '@/lib/query-keys';
 
 // REST hooks
 export function useConversations() {
-  return useQuery({ queryKey: ['conversations'], queryFn: api.fetchConversations, refetchInterval: 30_000 });
+  return useQuery({ queryKey: keys.conversations.list(), queryFn: api.fetchConversations, refetchInterval: 30_000 });
 }
 
 export function useConversation(id: string) {
-  return useQuery({ queryKey: ['conversations', id], queryFn: () => api.fetchConversation(id), enabled: !!id });
+  return useQuery({ queryKey: keys.conversations.detail(id), queryFn: () => api.fetchConversation(id), enabled: !!id });
 }
 
-export function useCreateConversation() {
-  const qc = useQueryClient();
-  return useMutation({
+// NewConversationDialog renders the failure inline and passes `silent`; other callers get the toast.
+export function useCreateConversation({ silent = false }: { silent?: boolean } = {}) {
+  return useApiMutation({
     mutationFn: api.createConversation,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['conversations'] }),
+    invalidates: affects.conversations,
+    error: "Couldn't start the conversation",
+    silent,
   });
 }
 
-export function useConversationMessages(id: string, page?: number) {
+export function useConversationMessages(id: string, page = 1) {
   return useQuery({
-    queryKey: ['conversations', id, 'messages', page],
+    queryKey: keys.conversations.messages(id, page),
     queryFn: () => api.fetchConversationMessages(id, page),
     enabled: !!id,
   });
 }
 
 export function useSendMessage(conversationId: string) {
-  const qc = useQueryClient();
-  return useMutation({
+  return useApiMutation({
     mutationFn: (content: string) => api.sendConversationMessage(conversationId, content),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['conversations', conversationId] });
-      qc.invalidateQueries({ queryKey: ['conversations'] });
-    },
+    invalidates: affects.conversations,
+    error: 'Message not sent',
   });
 }
 
 export function useMessageSearch(q: string) {
   return useQuery({
-    queryKey: ['messages', 'search', q],
+    queryKey: keys.conversations.search(q),
     queryFn: () => api.searchMessages(q),
     enabled: q.length > 2,
   });
 }
 
 export function useMemberPicker() {
-  return useQuery({ queryKey: ['members', 'picker'], queryFn: api.fetchMembersList });
+  return useQuery({ queryKey: keys.members.picker(), queryFn: api.fetchMembersList });
 }
 
 // WebSocket hook
@@ -93,10 +94,7 @@ export function useWebSocket(path: string = '/messaging/ws') {
         const msg = JSON.parse(event.data);
         setLastMessage(msg);
         if (msg.type === 'message') {
-          qc.invalidateQueries({ queryKey: ['conversations'] });
-          if (msg.data?.conversation_id) {
-            qc.invalidateQueries({ queryKey: ['conversations', msg.data.conversation_id] });
-          }
+          qc.invalidateQueries({ queryKey: keys.conversations.all });
         }
       } catch { /* ignore non-JSON */ }
     };

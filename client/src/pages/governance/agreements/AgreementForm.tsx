@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AGREEMENT_TYPE_OPTIONS } from '@/lib/agreement-type';
 import { domainOptionLabel } from '@/lib/domain-label';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const HIERARCHY_OPTIONS = [
   { value: 'foundational', label: 'Foundational' },
@@ -159,7 +160,7 @@ export default function AgreementForm() {
 
       {mutationError && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(mutationError as Error).message}
+          {apiErrorMessage(mutationError)}
         </div>
       )}
 

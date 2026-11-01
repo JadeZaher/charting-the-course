@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { keys } from '@/lib/query-keys';
 import { Link } from "wouter";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,12 +51,11 @@ export default function QuizzesOnboardingHub() {
   const { canManageContent } = usePermissions();
   const { member } = useAuth();
 
-  const { data: quizzes, isLoading: quizzesLoading } = useQuery<Quiz[]>({
-    queryKey: ["quizzes-hub", canManageContent],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (!canManageContent) params.is_published = "true";
-      const result = await fetchQuizzes(params);
+  const quizListParams: Record<string, string> = canManageContent ? {} : { is_published: "true" };
+  const { data: quizzes, isLoading: quizzesLoading } = useQuery({
+    queryKey: keys.quizzes.list(quizListParams),
+    queryFn: () => fetchQuizzes(quizListParams),
+    select: (result): Quiz[] => {
       const items = (result as any).items || (result as any).quizzes || [];
       return items.map((q: any) => ({
         id: q.id,
@@ -72,10 +72,10 @@ export default function QuizzesOnboardingHub() {
     },
   });
 
-  const { data: onboardings, isLoading: onboardingLoading } = useQuery<OnboardingItem[]>({
-    queryKey: ["onboarding-hub"],
-    queryFn: async () => {
-      const result = await fetchOnboardings();
+  const { data: onboardings, isLoading: onboardingLoading } = useQuery({
+    queryKey: keys.onboarding.list(),
+    queryFn: () => fetchOnboardings(),
+    select: (result): OnboardingItem[] => {
       return (result.items ?? []).map((o: any) => ({
         member_id: o.member_id,
         member_name: o.member_name || o.display_name || o.member_id,

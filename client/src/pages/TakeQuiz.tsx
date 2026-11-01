@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -12,6 +11,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuiz, useSubmitQuizResult } from "@/hooks/use-courses";
 import { cn } from "@/lib/utils";
+import { apiErrorMessage } from "@/lib/api-error-message";
 
 interface SurveyElement {
   type: string;
@@ -29,7 +29,6 @@ export default function TakeQuiz() {
   const [, params] = useRoute("/quiz/take/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { member } = useAuth();
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [startTime] = useState(Date.now());
@@ -74,14 +73,6 @@ export default function TakeQuiz() {
       const tilesCreated = (response as any).tiles_created || 0;
       const resultId = result?.id;
 
-      queryClient.invalidateQueries({ queryKey: ["my-quiz-results"] });
-      queryClient.invalidateQueries({ queryKey: ["my-quiz-history"] });
-      queryClient.invalidateQueries({ queryKey: ["profile-tiles"] });
-      queryClient.invalidateQueries({ queryKey: ["my-profile-data"] });
-      if (resultId) {
-        queryClient.invalidateQueries({ queryKey: ["quiz-result", resultId] });
-      }
-
       let title = "Quiz Submitted!";
       let description = "Your answers have been saved successfully";
       let variant: "default" | "destructive" | undefined;
@@ -108,12 +99,8 @@ export default function TakeQuiz() {
 
       toast({ title, description, variant });
       setLocation(resultId ? `/quiz/results/${resultId}` : `/quiz/results/${quizId}`);
-    } catch (err: any) {
-      toast({
-        title: "Submission Failed",
-        description: err.message || "Failed to submit quiz",
-        variant: "destructive",
-      });
+    } catch {
+      // useSubmitQuizResult already toasted the failure; stay on the quiz so answers are kept.
     } finally {
       setSubmitting(false);
     }
@@ -137,7 +124,7 @@ export default function TakeQuiz() {
         <Card>
           <CardContent className="p-12 text-center space-y-4">
             <p className="text-destructive">
-              {error ? (error as Error).message : "Quiz not found"}
+              {error ? apiErrorMessage(error) : "Quiz not found"}
             </p>
             <Button onClick={() => setLocation("/onboarding")} data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />

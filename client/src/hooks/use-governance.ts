@@ -1,276 +1,368 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// Governance queries and mutations on the shared key factory and feedback contract.
+// See client/src/AGENTS.md "Shared data and feedback contracts"; silent/toast choices: pages/governance/AGENTS.md "Data and feedback".
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api-client';
+import { affects, keys } from '@/lib/query-keys';
+import { proposalPhaseAnnouncement } from '@/lib/proposal-vocab';
+import { agreementStatusLabel } from '@/lib/agreement-status';
+import { actParticipationMutation } from '@/lib/act-participation';
+import { joinEcosystemMutation } from '@/lib/ecosystem-join';
 import type { CeremonyConsentRequest, MemberDecisionState } from '@/types/api';
+
+// A list hook given `false` is disabled and keyed on the bare root, which no request fills,
+// so another page's cached list never shows as its data.
 
 // Agreement hooks
 export function useAgreements(params?: Record<string, string> | false) {
-  return useQuery({ queryKey: ['agreements', params], queryFn: () => api.fetchAgreements(params || undefined), enabled: params !== false, staleTime: 30_000 });
+  return useQuery({ queryKey: params === false ? keys.agreements.all : keys.agreements.list(params), queryFn: () => api.fetchAgreements(params || undefined), enabled: params !== false, staleTime: 30_000 });
 }
 export function useAgreement(id: string) {
-  return useQuery({ queryKey: ['agreements', id], queryFn: () => api.fetchAgreement(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });
+  return useQuery({ queryKey: keys.agreements.detail(id), queryFn: () => api.fetchAgreement(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });
 }
 export function useAgreementHistory(id: string) {
-  return useQuery({ queryKey: ['agreements', id, 'history'], queryFn: () => api.fetchAgreementHistory(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.agreements.history(id), queryFn: () => api.fetchAgreementHistory(id), enabled: !!id, staleTime: 30_000 });
 }
+// AgreementForm renders create/update failures inline and confirms with its own toast.
 export function useCreateAgreement() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createAgreement, onSuccess: () => qc.invalidateQueries({ queryKey: ['agreements'] }) });
+  return useApiMutation({ mutationFn: api.createAgreement, invalidates: affects.agreements, silent: true });
 }
 export function useUpdateAgreement(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateAgreement(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['agreements'] }); qc.invalidateQueries({ queryKey: ['agreements', id] }); } });
+  return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateAgreement(id, data), invalidates: affects.agreements, silent: true });
 }
+// AgreementDetail renders status, consent, withdrawal and evidence failures inline.
 export function useUpdateAgreementStatus(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: { status: string; evidence?: string }) => api.updateAgreementStatus(id, data), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+  const queryClient = useQueryClient();
+  return useApiMutation({
+    mutationFn: (data: { status: string; evidence?: string }) => api.updateAgreementStatus(id, data),
+    onSuccess: (data) => { queryClient.setQueryData(keys.agreements.detail(id), data); },
+    invalidates: affects.agreements,
+    // Names the status it landed in: a gate can carry it past the one chosen.
+    success: (data) => `Status changed to ${agreementStatusLabel(data.status)}`,
+    silent: true,
+  });
 }
+/** Consent can activate a pending membership, so the session (consent gate, picker) is refreshed too. */
 export function useAttestAgreementConsent(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (attestation: string) => api.attestAgreementConsent(id, attestation), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+  const queryClient = useQueryClient();
+  const { refreshSession } = useAuth();
+  return useApiMutation({
+    mutationFn: (attestation: string) => api.attestAgreementConsent(id, attestation),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(keys.agreements.detail(id), data);
+      await refreshSession();
+    },
+    invalidates: affects.agreements,
+    success: { title: 'Consent recorded', description: 'Your consent to this agreement is in the record.' },
+    silent: true,
+  });
 }
+/** Withdrawal can return a membership to pending consent, so the session is refreshed too. */
 export function useWithdrawAgreementConsent(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (reason: string) => api.withdrawAgreementConsent(id, reason), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+  const queryClient = useQueryClient();
+  const { refreshSession } = useAuth();
+  return useApiMutation({
+    mutationFn: (reason: string) => api.withdrawAgreementConsent(id, reason),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(keys.agreements.detail(id), data);
+      await refreshSession();
+    },
+    invalidates: affects.agreements,
+    success: { title: 'Consent withdrawn', description: 'Your withdrawal and its reason are in the record.' },
+    silent: true,
+  });
 }
 export function useRecordAgreementCeremony(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: { stage: string; note: string }) => api.recordAgreementCeremony(id, data), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); } });
+  const queryClient = useQueryClient();
+  return useApiMutation({
+    mutationFn: (data: { stage: string; note: string }) => api.recordAgreementCeremony(id, data),
+    onSuccess: (data) => { queryClient.setQueryData(keys.agreements.detail(id), data); },
+    invalidates: affects.agreements,
+    success: (data) => (data.auto_transitions?.length ? `Status changed to ${agreementStatusLabel(data.status)}` : 'Evidence recorded'),
+    silent: true,
+  });
 }
+/** AgreementHistory shows no inline error, so failures toast. */
 export function useRollbackAgreement(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (versionId: string) => api.rollbackAgreement(id, versionId), onSuccess: (data) => { qc.setQueryData(['agreements', id], data); qc.invalidateQueries({ queryKey: ['agreements'] }); qc.invalidateQueries({ queryKey: ['agreements', id, 'history'] }); } });
+  const queryClient = useQueryClient();
+  return useApiMutation({
+    mutationFn: (versionId: string) => api.rollbackAgreement(id, versionId),
+    onSuccess: (data) => { queryClient.setQueryData(keys.agreements.detail(id), data); },
+    // affects.agreements reaches the history under the agreement's detail key.
+    invalidates: affects.agreements,
+    success: { title: 'Agreement rolled back', description: 'The previous state was saved as a snapshot first.' },
+    error: 'Rollback failed',
+  });
 }
 
 // Proposal hooks
 export function useProposals(params?: Record<string, string> | false) {
-  return useQuery({ queryKey: ['proposals', params], queryFn: () => api.fetchProposals(params || undefined), enabled: params !== false, staleTime: 30_000 });
+  return useQuery({ queryKey: params === false ? keys.proposals.all : keys.proposals.list(params), queryFn: () => api.fetchProposals(params || undefined), enabled: params !== false, staleTime: 30_000 });
 }
 export function useProposal(id: string) {
-  return useQuery({ queryKey: ['proposals', id], queryFn: () => api.fetchProposal(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });
+  return useQuery({ queryKey: keys.proposals.detail(id), queryFn: () => api.fetchProposal(id), enabled: !!id, staleTime: 30_000, refetchOnWindowFocus: true });
 }
+// ProposalForm renders create/update failures inline and confirms with its own toast.
 export function useCreateProposal() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createProposal, onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals'] }) });
+  return useApiMutation({ mutationFn: api.createProposal, invalidates: affects.proposals, silent: true });
 }
 export function useUpdateProposal(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateProposal(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['proposals'] }); qc.invalidateQueries({ queryKey: ['proposals', id] }); } });
+  return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateProposal(id, data), invalidates: affects.proposals, silent: true });
 }
+/** Toasts the phase the proposal landed in (gates can auto-advance past the target) and any failure. */
 export function useUpdateProposalStatus(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (status: string) => api.updateProposalStatus(id, status), onSuccess: (data) => { qc.setQueryData(['proposals', id], data); qc.invalidateQueries({ queryKey: ['proposals'] }); } });
+  const queryClient = useQueryClient();
+  return useApiMutation({
+    mutationFn: (status: string) => api.updateProposalStatus(id, status),
+    onSuccess: (data) => { queryClient.setQueryData(keys.proposals.detail(id), data); },
+    invalidates: affects.proposals,
+    success: (updated) => proposalPhaseAnnouncement(updated.status),
+    error: 'Status not changed',
+  });
 }
-/** Resolves with auto_transitions so callers can explain an ACT auto-advance (e.g. advice->consent). */
+// ACT participation (lib/act-participation.ts): announce an automatic advance or confirm the entry; failures render inline.
+// Each resolves with auto_transitions so ProposalDetail can move focus after an advance unmounts its form.
 export function useSubmitAdvice(proposalId: string) {
-  const qc = useQueryClient();
-  // ['proposals'] prefix: an auto-advance changes the list's phase badge too.
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.submitAdvice(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals'] }) });
+  return useApiMutation(actParticipationMutation((data) => api.submitAdvice(proposalId, data), 'advice'));
 }
 export function useSubmitConsent(proposalId: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.submitConsent(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', proposalId] }) });
+  return useApiMutation(actParticipationMutation((data) => api.submitConsent(proposalId, data), 'consent'));
 }
 export function useSubmitTestReport(proposalId: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.submitTestReport(proposalId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', proposalId] }) });
+  return useApiMutation(actParticipationMutation((data) => api.submitTestReport(proposalId, data), 'test'));
 }
 
 // Member hooks
 export function useMembers(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['members', params], queryFn: () => api.fetchMembers(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.members.list(params), queryFn: () => api.fetchMembers(params), staleTime: 30_000 });
 }
 export function useMember(id: string) {
-  return useQuery({ queryKey: ['members', id], queryFn: () => api.fetchMember(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.members.detail(id), queryFn: () => api.fetchMember(id), enabled: !!id, staleTime: 30_000 });
 }
+/** A member's governance profile: roles, domains, contributions (GET /members/:id/profile). */
+export function useMemberProfile(id: string) {
+  return useQuery({ queryKey: keys.members.profile(id), queryFn: () => api.fetchMemberProfile(id), enabled: !!id });
+}
+// MemberForm renders create/update failures inline and confirms with its own toast.
 export function useCreateMember() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createMember, onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }) });
+  return useApiMutation({ mutationFn: api.createMember, invalidates: affects.members, silent: true });
 }
 export function useUpdateMember(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateMember(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['members', id] }); } });
+  return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateMember(id, data), invalidates: affects.members, silent: true });
 }
 export function useMemberOnboarding(memberId: string) {
-  return useQuery({ queryKey: ['members', memberId, 'onboarding'], queryFn: () => api.fetchMemberOnboarding(memberId), enabled: !!memberId, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.members.onboarding(memberId), queryFn: () => api.fetchMemberOnboarding(memberId), enabled: !!memberId, staleTime: 30_000 });
 }
 
 // Domain hooks
 export function useDomains(params?: Record<string, string> | false) {
-  return useQuery({ queryKey: ['domains', params], queryFn: () => api.fetchDomains(params || undefined), enabled: params !== false, staleTime: 30_000 });
+  return useQuery({ queryKey: params === false ? keys.domains.all : keys.domains.list(params), queryFn: () => api.fetchDomains(params || undefined), enabled: params !== false, staleTime: 30_000 });
 }
 export function useDomain(id: string) {
-  return useQuery({ queryKey: ['domains', id], queryFn: () => api.fetchDomain(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.domains.detail(id), queryFn: () => api.fetchDomain(id), enabled: !!id, staleTime: 30_000 });
 }
+// DomainForm renders create/update failures inline and confirms with its own toast.
 export function useCreateDomain() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createDomain, onSuccess: () => qc.invalidateQueries({ queryKey: ['domains'] }) });
+  return useApiMutation({ mutationFn: api.createDomain, invalidates: affects.domains, silent: true });
 }
 export function useUpdateDomain(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateDomain(id, data), onSuccess: (data) => { qc.setQueryData(['domains', id], data); qc.invalidateQueries({ queryKey: ['domains'] }); } });
+  const queryClient = useQueryClient();
+  return useApiMutation({
+    mutationFn: (data: Record<string, any>) => api.updateDomain(id, data),
+    onSuccess: (data) => { queryClient.setQueryData(keys.domains.detail(id), data); },
+    invalidates: affects.domains,
+    silent: true,
+  });
 }
-/** Resolves after the domain refetch, so caller_is_participant is current when mutateAsync returns. */
+/** Resolves after the domain refetch, so caller_is_participant is current when mutateAsync returns. DomainDetail renders failures inline. */
 export function useJoinDomainParticipation(domainId: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: () => api.joinDomainParticipation(domainId), onSuccess: () => qc.invalidateQueries({ queryKey: ['domains'] }) });
+  return useApiMutation({
+    mutationFn: () => api.joinDomainParticipation(domainId),
+    invalidates: affects.domains,
+    success: { title: 'Joined the domain', description: 'You are now a participant in this domain.' },
+    silent: true,
+  });
+}
+/** Shares and needs declared in one domain; writes go through the use-discover hooks (affects.sharesNeeds reaches this key). */
+export function useDomainSharesNeeds(domainId: string) {
+  return useQuery({ queryKey: keys.sharesNeeds.forDomain(domainId), queryFn: () => api.fetchDomainSharesNeeds(domainId), enabled: !!domainId });
 }
 
 // Decision hooks
 export function useDecisions(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['decisions', params], queryFn: () => api.fetchDecisions(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.decisions.list(params), queryFn: () => api.fetchDecisions(params), staleTime: 30_000 });
 }
 export function useDecision(id: string) {
-  return useQuery({ queryKey: ['decisions', id], queryFn: () => api.fetchDecision(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.decisions.detail(id), queryFn: () => api.fetchDecision(id), enabled: !!id, staleTime: 30_000 });
 }
 
 // My decisions hooks (member-owned decision substrate)
 export function useMyDecisions(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['my-decisions', params], queryFn: () => api.fetchMyDecisions(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.myDecisions.list(params), queryFn: () => api.fetchMyDecisions(params), staleTime: 30_000 });
 }
+/** RecordDecisionDialog renders the server's refusal (409/403/400) inline. */
 export function useCreateMyDecision() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createMyDecision, onSuccess: () => qc.invalidateQueries({ queryKey: ['my-decisions'] }) });
+  return useApiMutation({ mutationFn: api.createMyDecision, invalidates: affects.myDecisions, silent: true });
 }
 export function useUpdateMyDecision() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: ({ id, data }: { id: string; data: { decision?: string; state?: MemberDecisionState; notes?: string | null } }) => api.updateMyDecision(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['my-decisions'] }) });
+  return useApiMutation({
+    mutationFn: ({ id, data }: { id: string; data: { decision?: string; state?: MemberDecisionState; notes?: string | null } }) => api.updateMyDecision(id, data),
+    invalidates: affects.myDecisions,
+    error: 'Could not update the decision',
+  });
 }
 export function useDeleteMyDecision() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (id: string) => api.deleteMyDecision(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['my-decisions'] }) });
+  return useApiMutation({ mutationFn: (id: string) => api.deleteMyDecision(id), invalidates: affects.myDecisions, error: 'Could not delete the decision' });
 }
 
 // Onboarding hooks
 export function useOnboardings(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['onboarding', params], queryFn: () => api.fetchOnboardings(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.onboarding.list(params), queryFn: () => api.fetchOnboardings(params), staleTime: 30_000 });
 }
 export function useOnboardingCeremony(memberId: string) {
-  return useQuery({ queryKey: ['onboarding', memberId, 'ceremony'], queryFn: () => api.fetchOnboardingCeremony(memberId), enabled: !!memberId, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.onboarding.ceremony(memberId), queryFn: () => api.fetchOnboardingCeremony(memberId), enabled: !!memberId, staleTime: 30_000 });
 }
+/** OnboardingCeremony shows no inline error, so failures toast. */
 export function useSubmitCeremonyConsent(memberId: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: CeremonyConsentRequest) => api.submitCeremonyConsent(memberId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding', memberId] }) });
+  return useApiMutation({
+    mutationFn: (data: CeremonyConsentRequest) => api.submitCeremonyConsent(memberId, data),
+    invalidates: affects.onboarding,
+    error: 'Position not recorded',
+  });
 }
 
-// Conflict hooks
+// Conflict hooks: every form and modal renders its failure inline.
 export function useConflicts(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['conflicts', params], queryFn: () => api.fetchConflicts(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.conflicts.list(params), queryFn: () => api.fetchConflicts(params), staleTime: 30_000 });
 }
 export function useConflict(id: string) {
-  return useQuery({ queryKey: ['conflicts', id], queryFn: () => api.fetchConflict(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.conflicts.detail(id), queryFn: () => api.fetchConflict(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateConflict() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createConflict, onSuccess: () => qc.invalidateQueries({ queryKey: ['conflicts'] }) });
+  return useApiMutation({ mutationFn: api.createConflict, invalidates: affects.conflicts, silent: true });
 }
 export function useUpdateConflict() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) => api.updateConflict(id, data), onSuccess: (_data, { id }) => { qc.invalidateQueries({ queryKey: ['conflicts'] }); qc.invalidateQueries({ queryKey: ['conflicts', id] }); } });
+  return useApiMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) => api.updateConflict(id, data),
+    invalidates: affects.conflicts,
+    silent: true,
+  });
+}
+export function useCreateRepairAgreement(conflictId: string) {
+  return useApiMutation({
+    mutationFn: (data: Record<string, any>) => api.createRepairAgreement(conflictId, data),
+    invalidates: affects.conflicts,
+    success: { title: 'Repair agreement created', description: 'The repair agreement has been saved.' },
+    silent: true,
+  });
 }
 export function useUpdateRepairAgreement(conflictId: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: ({ repairId, data }: { repairId: string; data: Record<string, any> }) => api.updateRepairAgreement(conflictId, repairId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['conflicts'] }); qc.invalidateQueries({ queryKey: ['conflicts', conflictId] }); } });
+  return useApiMutation({
+    mutationFn: ({ repairId, data }: { repairId: string; data: Record<string, any> }) => api.updateRepairAgreement(conflictId, repairId, data),
+    invalidates: affects.conflicts,
+    silent: true,
+  });
 }
 
 // Ecosystem hooks
 export function useEcosystems(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['ecosystems', params], queryFn: () => api.fetchEcosystemsList(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.ecosystems.list(params), queryFn: () => api.fetchEcosystemsList(params), staleTime: 30_000 });
 }
 export function useEcosystemDetail(id: string) {
-  return useQuery({ queryKey: ['ecosystems', id], queryFn: () => api.fetchEcosystem(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.ecosystems.detail(id), queryFn: () => api.fetchEcosystem(id), enabled: !!id, staleTime: 30_000 });
 }
+// EcosystemForm renders create/update failures inline and confirms with its own toast.
 export function useCreateEcosystem() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createEcosystemRecord, onSuccess: () => qc.invalidateQueries({ queryKey: ['ecosystems'] }) });
+  return useApiMutation({ mutationFn: api.createEcosystemRecord, invalidates: affects.ecosystems, silent: true });
 }
 export function useUpdateEcosystem(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateEcosystemRecord(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ecosystems'] }); qc.invalidateQueries({ queryKey: ['ecosystems', id] }); } });
+  return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateEcosystemRecord(id, data), invalidates: affects.ecosystems, silent: true });
 }
+/** Joining changes /auth/me (memberships, pending consents), so the session is refreshed; "already a member" resolves (lib/ecosystem-join.ts). */
 export function useRequestJoinEcosystem(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: () => api.requestJoinEcosystem(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['ecosystems'] }); qc.invalidateQueries({ queryKey: ['ecosystems', id] }); } });
+  const { refreshSession } = useAuth();
+  return useApiMutation(joinEcosystemMutation(() => api.requestJoinEcosystem(id), refreshSession));
 }
 
-// Emergency hooks
+// Emergency hooks: the dashboard, detail and recovery dialog render failures inline.
 export function useEmergencyState() {
-  return useQuery({ queryKey: ['emergency'], queryFn: () => api.fetchEmergencyState(), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.emergency.list(), queryFn: () => api.fetchEmergencyState(), staleTime: 30_000 });
 }
 export function useEmergency(id: string) {
-  return useQuery({ queryKey: ['emergency', id], queryFn: () => api.fetchEmergencyDetail(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.emergency.detail(id), queryFn: () => api.fetchEmergencyDetail(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useDeclareEmergency() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.declareEmergency, onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
+  return useApiMutation({ mutationFn: api.declareEmergency, invalidates: affects.emergency, silent: true });
 }
 export function useResolveEmergency() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (id: string) => api.resolveEmergency(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
+  return useApiMutation({ mutationFn: (id: string) => api.resolveEmergency(id), invalidates: affects.emergency, silent: true });
 }
 export function useCompleteRecovery() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (id: string) => api.completeEmergencyRecovery(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency'] }) });
+  return useApiMutation({ mutationFn: (id: string) => api.completeEmergencyRecovery(id), invalidates: affects.emergency, silent: true });
 }
 
-// Exit hooks
+// Exit hooks: the form, detail and export card render failures inline.
 export function useExits(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['exits', params], queryFn: () => api.fetchExits(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.exits.list(params), queryFn: () => api.fetchExits(params), staleTime: 30_000 });
 }
 export function useExit(id: string) {
-  return useQuery({ queryKey: ['exits', id], queryFn: () => api.fetchExit(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.exits.detail(id), queryFn: () => api.fetchExit(id), enabled: !!id, staleTime: 30_000 });
 }
 export function useCreateExit() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createExit, onSuccess: () => qc.invalidateQueries({ queryKey: ['exits'] }) });
+  return useApiMutation({ mutationFn: api.createExit, invalidates: affects.exits, silent: true });
 }
 export function useUpdateExitStatus(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: Record<string, any>) => api.updateExitStatus(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['exits'] }); qc.invalidateQueries({ queryKey: ['exits', id] }); } });
+  return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateExitStatus(id, data), invalidates: affects.exits, silent: true });
 }
 export function useRequestExitDataExport(id: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: () => api.requestExitDataExport(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['exits'] }); qc.invalidateQueries({ queryKey: ['exits', id] }); } });
+  return useApiMutation({ mutationFn: () => api.requestExitDataExport(id), invalidates: affects.exits, silent: true });
 }
 
 // Safeguards hooks
 export function useSafeguards() {
-  return useQuery({ queryKey: ['safeguards'], queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.safeguards.overview(), queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
 }
 export function useAudits(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['audits', params], queryFn: () => api.fetchAudits(params), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.audits.list(params), queryFn: () => api.fetchAudits(params), staleTime: 30_000 });
 }
 export function useAudit(id: string) {
-  return useQuery({ queryKey: ['audits', id], queryFn: () => api.fetchAudit(id), enabled: !!id, staleTime: 30_000 });
+  return useQuery({ queryKey: keys.audits.detail(id), queryFn: () => api.fetchAudit(id), enabled: !!id, staleTime: 30_000 });
 }
+/** Both audit request forms render failures inline. */
 export function useRequestAudit() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.requestAudit, onSuccess: () => { qc.invalidateQueries({ queryKey: ['audits'] }); qc.invalidateQueries({ queryKey: ['safeguards'] }); } });
+  return useApiMutation({ mutationFn: api.requestAudit, invalidates: affects.audits, silent: true });
 }
 
 // Notification hooks
 export function useNotificationPreferences() {
-  return useQuery({ queryKey: ['notifications', 'preferences'], queryFn: () => api.fetchNotificationPreferences(), staleTime: 60_000 });
+  return useQuery({ queryKey: keys.notifications.preferences(), queryFn: () => api.fetchNotificationPreferences(), staleTime: 60_000 });
 }
+/** NotificationPreferences renders the failure and the saved state inline. */
 export function useUpdateNotificationPreferences() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (types: Record<string, boolean>) => api.updateNotificationPreferences(types), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
+  return useApiMutation({ mutationFn: (types: Record<string, boolean>) => api.updateNotificationPreferences(types), invalidates: affects.notifications, silent: true });
 }
 
-// Agent tokens (MCP access)
+// Agent tokens (MCP access); AgentAccess confirms success with its own toasts.
 export function useAgentTokens() {
-  return useQuery({ queryKey: ['agent-tokens'], queryFn: () => api.fetchAgentTokens(), staleTime: 30_000 });
+  return useQuery({ queryKey: keys.agentTokens.list(), queryFn: () => api.fetchAgentTokens(), staleTime: 30_000 });
 }
 export function useMintAgentToken() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: { label?: string; expires_in_days?: number }) => api.mintAgentToken(data), onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-tokens'] }) });
+  return useApiMutation({
+    mutationFn: (data: { label?: string; expires_in_days?: number }) => api.mintAgentToken(data),
+    invalidates: affects.agentTokens,
+    error: 'Could not mint token',
+  });
 }
 export function useRevokeAgentToken() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (id: string) => api.revokeAgentToken(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-tokens'] }) });
+  return useApiMutation({ mutationFn: (id: string) => api.revokeAgentToken(id), invalidates: affects.agentTokens, error: 'Could not revoke token' });
 }
 
 // Member status transition
 export function useTransitionMemberStatus(memberId: string) {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: { status: string; trigger?: string; notes?: string }) => api.transitionMemberStatus(memberId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['members', memberId] }); } });
+  return useApiMutation({
+    mutationFn: (data: { status: string; trigger?: string; notes?: string }) => api.transitionMemberStatus(memberId, data),
+    invalidates: affects.members,
+    error: 'Status not changed',
+  });
 }

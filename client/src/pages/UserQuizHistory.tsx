@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RoleBadge } from "@/components/RoleBadge";
-import { 
-  ArrowLeft, Loader2, History, Trophy, Clock, 
+import {
+  ArrowLeft, Loader2, History, Trophy, Clock,
   Calendar, CheckCircle2, XCircle, BarChart3, Award, Eye, CheckCircle,
   Trash2, AlertTriangle, RefreshCw, RotateCcw
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/use-api-mutation";
+import { affects, keys } from "@/lib/query-keys";
 import { Link, Redirect, useParams } from "wouter";
 import { usePermissions } from "@/hooks/usePermissions";
 import { fetchMember, fetchMemberQuizHistory, fetchMemberBadges } from "@/lib/api-client";
@@ -105,69 +107,51 @@ interface UserXP {
   quiz_streak: number;
 }
 
-// Fetch user profile via Sanic BFF API
-async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
-  try {
-    const data = await fetchMember(userId);
-    return {
-      id: (data as any).id,
-      first_name: (data as any).display_name?.split(' ')[0] ?? null,
-      last_name: (data as any).display_name?.split(' ').slice(1).join(' ') ?? null,
-      username: (data as any).username ?? null,
-      avatar_url: (data as any).avatar_url ?? null,
-      bio: (data as any).bio ?? null,
-      headline: (data as any).headline ?? null,
-      profile_visibility: (data as any).profile_visibility ?? 'public',
-      created_at: (data as any).created_at,
-      role: (data as any).role ?? 'viewer',
-      roleName: (data as any).role_name ?? 'Viewer',
-    };
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    return null;
-  }
+// Reshape the raw member detail for the history header.
+function selectUserProfile(data: Awaited<ReturnType<typeof fetchMember>>): UserProfile {
+  return {
+    id: (data as any).id,
+    first_name: (data as any).display_name?.split(' ')[0] ?? null,
+    last_name: (data as any).display_name?.split(' ').slice(1).join(' ') ?? null,
+    username: (data as any).username ?? null,
+    avatar_url: (data as any).avatar_url ?? null,
+    bio: (data as any).bio ?? null,
+    headline: (data as any).headline ?? null,
+    profile_visibility: (data as any).profile_visibility ?? 'public',
+    created_at: (data as any).created_at,
+    role: (data as any).role ?? 'viewer',
+    roleName: (data as any).role_name ?? 'Viewer',
+  };
 }
 
-// Fetch user's quiz results via Sanic BFF API
-async function fetchUserQuizResults(userId: string): Promise<QuizResult[]> {
-  try {
-    const result = await fetchMemberQuizHistory(userId);
-    const items = (result as any).results || (result as any).items || [];
-    return items.map((r: any) => ({
-      id: r.id,
-      quiz_id: r.quiz_id,
-      user_id: r.member_id || userId,
-      score: r.score ?? 0,
-      is_passed: r.is_passed ?? null,
-      time_spent: r.time_spent ?? null,
-      completed_at: r.completed_at,
-      survey_results: r.survey_results ?? r.answers ?? {},
-      quiz: r.quiz ?? null,
-    })) as QuizResult[];
-  } catch (error) {
-    console.error('Error fetching quiz results:', error);
-    return [];
-  }
+// Reshape the raw quiz history into result rows.
+function selectQuizResults(result: Awaited<ReturnType<typeof fetchMemberQuizHistory>>, userId: string): QuizResult[] {
+  const items = (result as any).results || (result as any).items || [];
+  return items.map((r: any) => ({
+    id: r.id,
+    quiz_id: r.quiz_id,
+    user_id: r.member_id || userId,
+    score: r.score ?? 0,
+    is_passed: r.is_passed ?? null,
+    time_spent: r.time_spent ?? null,
+    completed_at: r.completed_at,
+    survey_results: r.survey_results ?? r.answers ?? {},
+    quiz: r.quiz ?? null,
+  })) as QuizResult[];
 }
 
-// Fetch user's badges via Sanic BFF API
-async function fetchUserBadges(userId: string): Promise<UserBadge[]> {
-  try {
-    const result = await fetchMemberBadges(userId);
-    const badges = (result as any).badges || [];
-    return badges.map((b: any) => ({
-      id: b.id,
-      badge_key: b.badge_key || b.key,
-      badge_name: b.badge_name || b.name,
-      badge_icon: b.badge_icon || b.icon || null,
-      badge_color: b.badge_color || b.color || null,
-      earned_at: b.earned_at || b.created_at,
-      xp_reward: b.xp_reward ?? 0,
-    })) as UserBadge[];
-  } catch (error) {
-    console.error('Error fetching badges:', error);
-    return [];
-  }
+// Reshape the raw earned badges into history rows.
+function selectUserBadges(result: Awaited<ReturnType<typeof fetchMemberBadges>>): UserBadge[] {
+  const badges = (result as any).badges || [];
+  return badges.map((b: any) => ({
+    id: b.id,
+    badge_key: b.badge_key || b.key,
+    badge_name: b.badge_name || b.name,
+    badge_icon: b.badge_icon || b.icon || null,
+    badge_color: b.badge_color || b.color || null,
+    earned_at: b.earned_at || b.created_at,
+    xp_reward: b.xp_reward ?? 0,
+  })) as UserBadge[];
 }
 
 // Fetch user XP — TODO: add XP endpoint to Sanic API
@@ -181,8 +165,7 @@ export default function UserQuizHistory() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
+
   const [selectedResult, setSelectedResult] = useState<QuizResult | null>(null);
   const [selectedResults, setSelectedResults] = useState<Set<string>>(new Set());
   const [selectedBadges, setSelectedBadges] = useState<Set<string>>(new Set());
@@ -193,64 +176,58 @@ export default function UserQuizHistory() {
 
   // All hooks must be called before any conditional returns
   const { data: user, isLoading: userLoading } = useQuery({
-    queryKey: ['user-profile', userId],
-    queryFn: () => fetchUserProfile(userId!),
+    queryKey: keys.members.detail(userId),
+    queryFn: () => fetchMember(userId!),
+    select: selectUserProfile,
     enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   const { data: quizResults = [], isLoading: resultsLoading } = useQuery({
-    queryKey: ['user-quiz-results', userId],
-    queryFn: () => fetchUserQuizResults(userId!),
+    queryKey: keys.members.quizHistory(userId),
+    queryFn: () => fetchMemberQuizHistory(userId!),
+    select: (result) => selectQuizResults(result, userId!),
     enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
-    queryKey: ['user-badges-history', userId],
-    queryFn: () => fetchUserBadges(userId!),
+    queryKey: keys.members.badges(userId),
+    queryFn: () => fetchMemberBadges(userId!),
+    select: selectUserBadges,
     enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   const { data: userXP } = useQuery({
-    queryKey: ['user-xp', userId],
+    queryKey: keys.achievements.experience(userId),
     queryFn: () => fetchUserXP(userId!),
     enabled: !!userId && !roleLoading && (isAdmin || canManageUsers),
   });
 
   // Delete single quiz result - must be before conditional returns
-  const deleteResultMutation = useMutation({
+  const deleteResultMutation = useApiMutation({
     mutationFn: async (resultId: string) => {
       // TODO: Replace with Sanic API endpoint when quiz result deletion is implemented
       await apiFetch(`/api/v1/quiz-results/${resultId}`, { method: 'DELETE' });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-quiz-results', userId] });
-      toast({ title: "Quiz result deleted", description: "The quiz result has been removed." });
-      setDeleteResultDialog(null);
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.quizResults,
+    onSuccess: () => { setDeleteResultDialog(null); },
+    success: { title: "Quiz result deleted", description: "The quiz result has been removed." },
+    error: "Quiz result not deleted",
   });
 
   // Delete single badge
-  const deleteBadgeMutation = useMutation({
+  const deleteBadgeMutation = useApiMutation({
     mutationFn: async (badge: UserBadge) => {
       // TODO: Replace with Sanic API endpoint when badge deletion is implemented
       await apiFetch(`/api/v1/members/${userId}/badges/${badge.id}`, { method: 'DELETE' });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-badges-history', userId] });
-      queryClient.invalidateQueries({ queryKey: ['user-xp', userId] });
-      toast({ title: "Badge removed", description: "The badge has been removed and XP adjusted." });
-      setDeleteBadgeDialog(null);
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.quizResults,
+    onSuccess: () => { setDeleteBadgeDialog(null); },
+    success: { title: "Badge removed", description: "The badge has been removed and XP adjusted." },
+    error: "Badge not removed",
   });
 
   // Bulk delete quiz results
-  const bulkDeleteMutation = useMutation({
+  const bulkDeleteMutation = useApiMutation({
     mutationFn: async () => {
       const resultIds = Array.from(selectedResults);
       const badgeIds = Array.from(selectedBadges);
@@ -265,42 +242,29 @@ export default function UserQuizHistory() {
         await apiFetch(`/api/v1/members/${userId}/badges/${badgeId}`, { method: 'DELETE' });
       }
     },
+    invalidates: affects.quizResults,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-quiz-results', userId] });
-      queryClient.invalidateQueries({ queryKey: ['user-badges-history', userId] });
-      queryClient.invalidateQueries({ queryKey: ['user-xp', userId] });
-      toast({ 
-        title: "Items deleted", 
-        description: `Deleted ${selectedResults.size} quiz results and ${selectedBadges.size} badges.` 
-      });
       setSelectedResults(new Set());
       setSelectedBadges(new Set());
       setBulkDeleteDialog(false);
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: () => ({
+      title: "Items deleted",
+      description: `Deleted ${selectedResults.size} quiz results and ${selectedBadges.size} badges.`,
+    }),
+    error: "Items not deleted",
   });
 
   // Reset user XP completely — TODO: add reset endpoint to Sanic API
-  const resetXPMutation = useMutation({
+  const resetXPMutation = useApiMutation({
     mutationFn: async () => {
       // TODO: Replace with Sanic API endpoint when member reset endpoint is implemented
       await apiFetch(`/api/v1/members/${userId}/reset`, { method: 'POST' });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-quiz-results', userId] });
-      queryClient.invalidateQueries({ queryKey: ['user-badges-history', userId] });
-      queryClient.invalidateQueries({ queryKey: ['user-xp', userId] });
-      toast({ 
-        title: "User reset complete", 
-        description: "All quiz results, badges, tags, and XP have been reset." 
-      });
-      setResetXPDialog(false);
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.quizResults,
+    onSuccess: () => { setResetXPDialog(false); },
+    success: { title: "User reset complete", description: "All quiz results, badges, tags, and XP have been reset." },
+    error: "User not reset",
   });
 
   // Check access - must come AFTER all hooks but before rendering
@@ -358,7 +322,7 @@ export default function UserQuizHistory() {
 
   const stats = {
     totalQuizzes: quizResults.length,
-    averageScore: quizResults.length > 0 
+    averageScore: quizResults.length > 0
       ? Math.round(quizResults.reduce((sum, r) => sum + (r.score || 0), 0) / quizResults.length)
       : 0,
     totalBadges: badges.length,
@@ -439,20 +403,20 @@ export default function UserQuizHistory() {
             </p>
           </div>
         </div>
-        
+
         {/* Admin Actions */}
         <div className="flex items-center gap-2">
           {hasSelectedItems && (
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => setBulkDeleteDialog(true)}
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Selected ({selectedResults.size + selectedBadges.size})
             </Button>
           )}
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="text-destructive border-destructive hover:bg-destructive/10"
             onClick={() => setResetXPDialog(true)}
           >
@@ -599,8 +563,8 @@ export default function UserQuizHistory() {
               {badges.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {badges.map((badge) => (
-                    <Card 
-                      key={badge.id} 
+                    <Card
+                      key={badge.id}
                       className={`overflow-hidden relative ${selectedBadges.has(badge.id) ? 'ring-2 ring-primary' : ''}`}
                     >
                       <div className="absolute top-2 left-2">
@@ -618,7 +582,7 @@ export default function UserQuizHistory() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       <CardContent className="p-4 pt-8 text-center">
-                        <div 
+                        <div
                           className="mx-auto mb-3 flex h-16 w-16 items-center justify-center border border-strong-border text-3xl"
                           style={{ backgroundColor: `${badge.badge_color || '#6366f1'}20` }}
                         >
@@ -659,13 +623,13 @@ export default function UserQuizHistory() {
               Delete Quiz Result
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this quiz result for "{deleteResultDialog?.quiz?.title}"? 
+              Are you sure you want to delete this quiz result for "{deleteResultDialog?.quiz?.title}"?
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteResultDialog && deleteResultMutation.mutate(deleteResultDialog.id)}
             >
@@ -695,7 +659,7 @@ export default function UserQuizHistory() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteBadgeDialog && deleteBadgeMutation.mutate(deleteBadgeDialog)}
             >
@@ -731,7 +695,7 @@ export default function UserQuizHistory() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => bulkDeleteMutation.mutate()}
             >
@@ -771,7 +735,7 @@ export default function UserQuizHistory() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => resetXPMutation.mutate()}
             >
@@ -791,7 +755,7 @@ export default function UserQuizHistory() {
               Quiz Answers - {selectedResult?.quiz?.title}
             </DialogTitle>
             <DialogDescription>
-              Completed on {selectedResult ? new Date(selectedResult.completed_at).toLocaleDateString() : ''} 
+              Completed on {selectedResult ? new Date(selectedResult.completed_at).toLocaleDateString() : ''}
               {' • '} Score: {selectedResult?.score}%
               {selectedResult?.is_passed !== null && (
                 <Badge className="ml-2" variant={selectedResult?.is_passed ? "default" : "destructive"}>
@@ -806,7 +770,7 @@ export default function UserQuizHistory() {
                 const surveyDef = selectedResult.quiz?.survey_json as any;
                 const surveyResults = selectedResult.survey_results as Record<string, any> || {};
                 const questions: any[] = [];
-                
+
                 if (surveyDef?.pages && Array.isArray(surveyDef.pages)) {
                   for (const page of surveyDef.pages) {
                     if (page.elements && Array.isArray(page.elements)) {
@@ -833,7 +797,7 @@ export default function UserQuizHistory() {
                   const userAnswer = surveyResults[q.name];
                   const correctAnswer = q.correctAnswer;
                   const hasCorrectAnswer = correctAnswer !== undefined;
-                  const isCorrect = hasCorrectAnswer && 
+                  const isCorrect = hasCorrectAnswer &&
                     String(userAnswer).trim().toLowerCase() === String(correctAnswer).trim().toLowerCase();
 
                   return (

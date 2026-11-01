@@ -10,6 +10,7 @@ import { useCreateExit, useMembers } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 // Matches ExitCreateRequest.exit_type in exit.py: "standard" (30d cooling-off) or "urgent" (7d)
 const EXIT_TYPE_OPTIONS = [
@@ -78,7 +79,7 @@ export default function ExitForm() {
 
       {createMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(createMutation.error as Error).message}
+          {apiErrorMessage(createMutation.error)}
         </div>
       )}
 

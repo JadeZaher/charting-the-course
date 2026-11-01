@@ -9,6 +9,7 @@ import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useAudits } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const FILTERS: FilterDef[] = [
   { key: 'status', label: 'Status', type: 'select', options: [
@@ -57,7 +58,7 @@ export default function AuditList() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load audits</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

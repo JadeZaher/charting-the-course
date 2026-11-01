@@ -1,6 +1,8 @@
 // TanStack Query hooks for orientation journey via Sanic BFF API
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { keys } from '@/lib/query-keys';
 import {
   fetchEthosJourneyMaps,
   fetchOrientationProgress,
@@ -16,7 +18,7 @@ async function detectPath(_ethos_id: string): Promise<OrientationPath> {
 
 export function useDetectPath(ethos_id: string) {
   return useQuery({
-    queryKey: ['orientation-path', ethos_id],
+    queryKey: keys.orientation.path(ethos_id),
     queryFn: () => detectPath(ethos_id),
     enabled: !!ethos_id,
   });
@@ -58,7 +60,7 @@ async function recommendJourney(ethos_id: string): Promise<RecommendJourneyRespo
 
 export function useRecommendJourney(ethos_id: string) {
   return useQuery({
-    queryKey: ['journey-recommendation', ethos_id],
+    queryKey: keys.orientation.recommendation(ethos_id),
     queryFn: () => recommendJourney(ethos_id),
     enabled: !!ethos_id,
   });
@@ -79,7 +81,7 @@ async function fetchUserProgress(ethos_id: string): Promise<UserJourneyProgress 
 
 export function useUserProgress(ethos_id: string) {
   return useQuery({
-    queryKey: ['journey-progress', ethos_id],
+    queryKey: keys.orientation.progress(ethos_id),
     queryFn: () => fetchUserProgress(ethos_id),
     enabled: !!ethos_id,
   });
@@ -104,11 +106,9 @@ async function saveProgress(params: SaveProgressParams): Promise<UserJourneyProg
 }
 
 export function useSaveProgress() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useApiMutation({
     mutationFn: saveProgress,
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['journey-progress', vars.ethos_id] });
-    },
+    invalidates: (_data, vars) => [keys.orientation.progress(vars.ethos_id)],
+    error: 'Progress not saved',
   });
 }

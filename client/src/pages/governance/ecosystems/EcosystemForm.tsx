@@ -11,6 +11,7 @@ import { useEcosystemDetail, useCreateEcosystem, useUpdateEcosystem } from '@/ho
 import { useToast } from '@/hooks/use-toast';
 import { ECOSYSTEM_STATUS_OPTIONS, ECOSYSTEM_VISIBILITY_OPTIONS } from '@/lib/ecosystem-vocab';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 export default function EcosystemForm() {
   const [, editParams] = useRoute('/ecosystems/:id/edit');
@@ -109,7 +110,7 @@ export default function EcosystemForm() {
 
       {mutationError && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(mutationError as Error).message}
+          {apiErrorMessage(mutationError)}
         </div>
       )}
 

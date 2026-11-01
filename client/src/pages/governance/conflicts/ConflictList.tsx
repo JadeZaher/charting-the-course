@@ -10,6 +10,7 @@ import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useConflicts } from '@/hooks/use-governance';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { Plus } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
@@ -70,7 +71,7 @@ export default function ConflictList() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load conflicts</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

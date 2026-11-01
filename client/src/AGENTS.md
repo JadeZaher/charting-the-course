@@ -62,6 +62,8 @@ Journey maps are served by the orientation blueprint: `GET /api/v1/orientation/j
 
 `OrientationJourney` renders four distinct states: loading; load failure ("We couldn't load this journey" + Retry); a map with an empty `content_sequence` ("This journey has no steps yet"); and completion, shown only when `progress.status === 'complete'`. `OrientationComplete` shows the celebration only for a completed journey and otherwise links back to continue or choose a journey. The ethos page's per-journey "Begin <title>" links pass `?journey=<id>`, which `OrientationGate` preselects; `JourneyMapCard` exposes its selection with `aria-pressed`.
 
+Join first. The API stores orientation progress and ethos participation consent on the user's member row in that ecosystem and answers a non-member's write with 409 `JOIN_REQUIRED` (API `api/AGENTS.md` "Join-first self-service writes"). Starting a journey or consenting is an intent to join, so for a user with no membership there (`holdsMembershipIn`: `/auth/me` `ecosystems` lists every row, pending included) `OrientationGate`'s start and `ConsentGate`'s consent run `joinThen` (`lib/ecosystem-join.ts`): the existing join mutation first (`useRequestJoinEcosystem`, which toasts joined versus consent-required and refreshes the session; its 409 "already a member" counts as joined), then the write, in one click. A failed join never writes. Members see no change. Non-members see the button as "Join and start journey" / "Join and consent to participate" with a line saying the click asks to join and that an ecosystem with membership agreements keeps them pending until they consent; the ethos dossier shows the same line beside "Open orientation". Each step keeps its own failure feedback: the join toasts, `useSaveProgress` toasts, and the consent gate renders `apiErrorMessage` inline (so a failed join there shows both its toast and the inline line).
+
 ## Messaging
 
 `components/messaging/NewConversationDialog` is the single new-conversation flow, rendered by both `/messaging` and the `FloatingComms` drawer; it owns its form state and reports the created conversation through `onCreated`. Message bodies render through `components/messaging/LinkifiedText`: only `http(s)` URLs become links, same-origin URLs become in-app wouter `Link`s, external ones open in a new tab with `rel="noopener noreferrer"`, trailing sentence punctuation is left outside the link, and all text stays React-escaped (no HTML injection path).
@@ -214,51 +216,11 @@ if (!fields.validate({ observations, outcome })) return;
 - `EcosystemContext` invalidates `ecosystemScoped` instead of its hand list.
 - One lane owns `lib/query-keys.ts` at a time; others ask for new keys rather than writing literals. A new key goes through `collection`/`resource` and keeps `npm test` green.
 - Do not wrap `useQuery`, adopt react-hook-form, or derive keys from URLs.
-
-Legacy roots and their factory keys (delete this table once `queryKey: \[` no longer matches in `client/src`). *select* marks a legacy query whose `queryFn` reshapes the response: move the reshaping into `select` before sharing the key.
-
-| Legacy key | Factory key |
-|---|---|
-| `['proposals' \| 'domains' \| 'decisions' \| 'conflicts' \| 'exits' \| 'audits' \| 'courses' \| 'collaborations', params \| id]` | `keys.<entity>.list(params)` / `.detail(id)` |
-| `['agreements', id, 'history']` | `agreements.history(id)` |
-| `['my-decisions', params]` | `myDecisions.list(params)` |
-| `['members', params]`; `['admin-users']`, `['admin-users-management']` *select* | `members.list(params)` |
-| `['members', id]`; `['user-profile', id]`, `['personal-map', id]`, `['profile', id]` *select* | `members.detail(id)` |
-| `['members', id, 'onboarding' \| 'quiz-history' \| 'badges' \| 'tags']`, `['member-profile', id]` | `members.onboarding / quizHistory / badges / tags / profile(id)` |
-| `['user-quiz-results', id]`, `['my-quiz-history', id]`, `['quiz-result', resultId, memberId]` *select* | `members.quizHistory(memberId)` |
-| `['user-badges', id]`, `['user-badges-history', id]` *select* | `members.badges(id)` |
-| `['members', 'picker']` | `members.picker()` |
-| `['onboarding', params]`; `['onboarding-hub']` *select* | `onboarding.list(params)` |
-| `['onboarding', memberId, 'ceremony']` | `onboarding.ceremony(memberId)` |
-| `['ecosystems', params]`; `['ethos-list', …]`, `['admin-ethos']` *select* | `ecosystems.list(params)` |
-| `['ecosystems', id]`; `['ethos-detail', id]` *select* | `ecosystems.detail(id)` |
-| `['admin-ethos-members', id]`, `['admin-ethos-access', id]`, `['ethos-access', id]` | `ecosystems.members / accessGrants / myAccess(id)` |
-| `['emergency']`, `['emergency', id]` | `emergency.list()`, `emergency.detail(id)` |
-| `['safeguards']`, `['notifications', 'preferences']`, `['agent-tokens']` | `safeguards.overview()`, `notifications.preferences()`, `agentTokens.list()` |
-| `['dashboard', 'summary', ids]` | `dashboard.summary(ids)` |
-| `['discover', params]`, `['discover', 'ecosystems', search]` | `discover.list(params)` with the params `fetchDiscover` sends |
-| `['shares-needs', p]`, `['shares-needs-admin', p]`, `['ecosystem-shares-needs', id]` | `sharesNeeds.list(p)`, `.moderation(p)`, `.forEcosystem(id)`; `.forDomain(id)` for the domain page |
-| `['compliance', 'latest' \| 'history', x]` | `compliance.latest(params)`, `compliance.history(params)` |
-| `['conversations']`, `[…, id]`, `[…, id, 'messages', page]`, `['messages', 'search', q]` | `conversations.list()`, `.detail(id)`, `.messages(id, page)`, `.search(q)` |
-| `['chat', 'sessions']` | `chatSessions.list(params)` |
-| `['quizzes', params]`, `['quizzes-manage', p]`; `['quizzes-list', …]`, `['quizzes-hub', …]`, `['admin-quizzes']` *select* | `quizzes.list(params)` |
-| `['quizzes', id]`, `['quiz', id]` | `quizzes.detail(id)` |
-| `['quiz-results', quizId]`, `['admin-quiz-results-counts']`, `['ecosystem-quizzes', id]` | `quizzes.results(quizId)`, `.resultCounts()`, `.forEcosystem(id)` |
-| `['admin-quiz-assignments']` | `quizAssignments.list()` |
-| `['badge-definitions', options]`, `['admin-badges']` *select* | `badges.list(params)` |
-| `['admin-teams']`, `['admin-team-members', id]` | `teams.list()`, `teams.members(id)` |
-| `['my-public-profile']`, `['public-profile', identifier]` | `profiles.mine()`, `profiles.detail(identifier)` |
-| `['ctc-map-settings']`, `['ctc-map-settings-admin']` *select* | `settings.detail(APP_SETTINGS_KEYS.ctcMap)` |
-| `['admin-ctc-handoff']` | `ctcHandoff.list()` |
-| `['orientation-path' \| 'journey-recommendation' \| 'journey-progress', ethosId]` | `orientation.path / recommendation / progress(ethosId)` |
-| `['journey-map', id]`, `['ethos-journey-maps', ethosId]` | `orientation.journeyMap(id)`, `orientation.journeyMaps(ethosId)` |
-| `['achievements', userId, options]`, `['user-xp', id]`, `['levels']` | `achievements.forMember(memberId, params)`, `.experience(id)`, `.levels()` |
-| `['health']`, `['skills', layer]`, `['admin-omnibot-sessions']` | `platform.health()`, `platform.skills(layer)`, `omnibot.sessions()` |
-| `['my-quiz-results']`, `['profile-tiles']`, `['my-profile-data']` | nothing queries these: delete them and invalidate `affects.quizResults` |
+- Every legacy key is migrated (wave 1): `grep -rn "queryKey: \[" client/src` finds nothing, and should stay that way.
 
 ## Client tests
 
-`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
+`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `lib/act-participation.ts`, `lib/ecosystem-join.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
 
 ## Pass 01 (first week) history note
 

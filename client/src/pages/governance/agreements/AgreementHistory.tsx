@@ -7,6 +7,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useAgreementHistory, useRollbackAgreement } from '@/hooks/use-governance';
 import { ArrowLeft, FileEdit, Search, RotateCcw, GitBranch } from 'lucide-react';
 import type { AmendmentRecord, ReviewRecord, AgreementVersionRecord } from '@/types/api';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 type TimelineItem =
   | { kind: 'amendment'; date: string | null; data: AmendmentRecord }
@@ -40,6 +41,8 @@ export default function AgreementHistory() {
     setRollingBack(versionId);
     try {
       await rollbackMutation.mutateAsync(versionId);
+    } catch {
+      // Toasted by useRollbackAgreement
     } finally {
       setRollingBack(null);
     }
@@ -51,7 +54,7 @@ export default function AgreementHistory() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load history</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href={`/agreements/${id}`}>Back to Agreement</Link>
         </Button>

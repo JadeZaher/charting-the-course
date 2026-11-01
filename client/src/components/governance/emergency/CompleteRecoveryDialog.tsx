@@ -4,6 +4,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useCompleteRecovery } from '@/hooks/use-governance';
 import type { EmergencyStateDetail } from '@/types/api';
 import { ShieldCheck, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 interface CompleteRecoveryDialogProps {
   emergency: EmergencyStateDetail;
@@ -72,7 +73,7 @@ export function CompleteRecoveryDialog({ emergency, onSuccess }: CompleteRecover
 
       {recoveryMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(recoveryMutation.error as Error).message}
+          {apiErrorMessage(recoveryMutation.error)}
         </div>
       )}
 

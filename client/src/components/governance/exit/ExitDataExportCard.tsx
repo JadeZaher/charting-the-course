@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useRequestExitDataExport } from '@/hooks/use-governance';
 import type { ExitDetail } from '@/types/api';
 import { Download, CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 interface ExitDataExportCardProps {
   exit: ExitDetail;
@@ -108,7 +109,7 @@ export function ExitDataExportCard({ exit }: ExitDataExportCardProps) {
 
           {exportMutation.error && (
             <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-              {(exportMutation.error as Error).message}
+              {apiErrorMessage(exportMutation.error)}
             </div>
           )}
         </CardContent>

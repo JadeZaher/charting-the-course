@@ -32,11 +32,13 @@ Domains (`DomainDetail`, `DomainList`):
 Proposal status changes use labelled buttons from `lib/proposal-vocab.ts`
 (`PROPOSAL_TRANSITION_LABELS`). Forward moves appear only when their ACT gate is
 met, because the server would otherwise answer 409. Withdraw goes through the
-confirmation dialog. After a change, show a toast naming the phase the proposal
-actually landed in (`proposalPhaseAnnouncement(updated.status)`, since gates
-can auto-advance further) and move focus to the status region, because the
-button that was used unmounts. The same applies to an advice entry that
-auto-advances to Consent: read `auto_transitions` from the submit response.
+confirmation dialog. After a change, `useUpdateProposalStatus` toasts the phase
+the proposal actually landed in (`proposalPhaseAnnouncement(updated.status)`,
+since gates can auto-advance further) and the page moves focus to the status
+region, because the button that was used unmounts. The same applies to advice,
+consent and test entries that auto-advance: their hooks announce the move
+(`announceActOutcome`) and the tab reads `auto_transitions` from the resolved
+result to move focus.
 
 ## Domain names
 
@@ -57,3 +59,38 @@ from its content. Give it the `id` its `<Label htmlFor>` points at, or an
 inline error with an `id`, set `aria-invalid` and `aria-describedby`, and move
 focus to the field. They use `aria-required` with `noValidate` instead of native
 `required`, so the inline message is the one users get.
+
+## Data and feedback
+
+Governance reads and writes go through `hooks/use-governance.ts` on the shared
+key factory and `useApiMutation` (`client/src/AGENTS.md` "Shared data and
+feedback contracts"). Which hook toasts what:
+
+- **Silent where the page renders the failure inline**: every create/edit form,
+  the advice, consent and test forms, agreement status, consent, withdrawal and
+  evidence, the conflict, repair and emergency dialogs, exit export, audit
+  requests, recording a personal decision, notification preferences. The page
+  renders `apiErrorMessage(mutation.error)`.
+- **Toasts its failure** where no page shows one: proposal status moves,
+  agreement rollback, onboarding ceremony positions, ecosystem join, updating or
+  deleting a personal decision, agent tokens, member status transitions.
+- **Success copy in the hook** when every consumer is a governance page: ACT
+  participation (`lib/act-participation.ts`: `announceActOutcome`, else a
+  confirmation), proposal and agreement status, agreement consent, withdrawal,
+  evidence and rollback, joining a domain, creating a repair agreement, joining
+  an ecosystem (`lib/ecosystem-join.ts`). Forms keep their own "created/updated"
+  toasts because they also navigate.
+- **Session refresh**: agreement consent and withdrawal and ecosystem join change
+  `/auth/me` (membership status, pending consents). That is AuthContext state,
+  not a query, so those hooks await `refreshSession` in `onSuccess`. A join
+  answered 409 means the session was stale; it resolves as "already a member"
+  instead of toasting a failure.
+- **Disabled lists**: `useAgreements`, `useProposals` and `useDomains` given
+  `false` key on the bare root, which no request fills. `list({})` would hand
+  them another page's cached unfiltered list (for example the Dashboard queue
+  with no ecosystem selected).
+- **DomainDetail shares and needs** read through `useDomainSharesNeeds`
+  (`keys.sharesNeeds.forDomain`) and write with the `use-discover` hooks, whose
+  `affects.sharesNeeds` reaches the domain key; status and delete failures toast
+  from those hooks, create renders inline. Domain quizzes still load
+  imperatively until `keys.quizzes.forDomain(id)` exists.

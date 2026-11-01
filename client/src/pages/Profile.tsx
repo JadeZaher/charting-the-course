@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/use-api-mutation";
+import { affects, keys } from "@/lib/query-keys";
 import {
   Award,
   BriefcaseBusiness,
@@ -95,7 +97,7 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading, error } = useQuery<PublicProfileResponse>({
-    queryKey: ["my-public-profile"],
+    queryKey: keys.profiles.mine(),
     queryFn: fetchMyPublicProfile,
   });
 
@@ -117,23 +119,16 @@ export default function Profile() {
     setProjects(data.profile.projects);
   }, [data]);
 
-  const updateProfile = useMutation({
+  const updateProfile = useApiMutation({
     mutationFn: updateMyPublicProfile,
-    onSuccess: (updated) => {
-      queryClient.setQueryData(["my-public-profile"], updated);
-      queryClient.invalidateQueries({ queryKey: ["public-profile"] });
-      toast({
-        title: "Public profile saved",
-        description: "Your changes are now visible to other users.",
-      });
+    // The saved profile lands in the cache before the prefix refetch.
+    onSuccess: (updated) => { queryClient.setQueryData(keys.profiles.mine(), updated); },
+    invalidates: affects.profiles,
+    success: {
+      title: "Public profile saved",
+      description: "Your changes are now visible to other users.",
     },
-    onError: (updateError: Error) => {
-      toast({
-        title: "Profile could not be saved",
-        description: updateError.message,
-        variant: "destructive",
-      });
-    },
+    error: "Profile could not be saved",
   });
 
   const domainsByEcosystem = useMemo(() => {

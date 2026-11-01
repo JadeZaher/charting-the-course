@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/utils';
 import { agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
 import { agreementTypeLabel } from '@/lib/agreement-type';
 import { Pencil, History, ArrowLeft, CircleAlert, CheckCircle2, Gavel } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const CONSENT_OPEN_STATUSES = ['consent', 'test', 'active', 'under_review'];
 
@@ -39,7 +40,7 @@ export default function AgreementDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load agreement</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/agreements">Back to Agreements</Link>
         </Button>
@@ -54,6 +55,8 @@ export default function AgreementDetail() {
         status: newStatus,
         evidence: ceremonyEvidence.trim() || undefined,
       });
+    } catch {
+      // Rendered below the header from statusMutation.error
     } finally {
       setStatusChanging(false);
     }
@@ -144,7 +147,7 @@ export default function AgreementDetail() {
 
       {statusMutation.error && (
         <div className="border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-          {(statusMutation.error as Error).message}
+          {apiErrorMessage(statusMutation.error)}
         </div>
       )}
 
@@ -177,7 +180,7 @@ export default function AgreementDetail() {
           </div>
           {consentMutation.error && (
             <p className="text-sm text-destructive" role="alert">
-              {(consentMutation.error as Error).message}
+              {apiErrorMessage(consentMutation.error)}
             </p>
           )}
         </div>
@@ -301,7 +304,7 @@ export default function AgreementDetail() {
                   </Button>
                   {withdrawalMutation.error && (
                     <p className="text-sm text-destructive" role="alert">
-                      {(withdrawalMutation.error as Error).message}
+                      {apiErrorMessage(withdrawalMutation.error)}
                     </p>
                   )}
                 </div>
@@ -355,7 +358,7 @@ export default function AgreementDetail() {
                 </Button>
                 {ceremonyMutation.error && (
                   <p className="text-sm text-destructive" role="alert">
-                    {(ceremonyMutation.error as Error).message}
+                    {apiErrorMessage(ceremonyMutation.error)}
                   </p>
                 )}
               </CardContent>

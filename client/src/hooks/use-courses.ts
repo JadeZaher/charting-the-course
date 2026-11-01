@@ -1,42 +1,43 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
 import * as api from '@/lib/api-client';
+import { affects, keys } from '@/lib/query-keys';
 
 export function useCourses(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['courses', params], queryFn: () => api.fetchCourses(params) });
+  return useQuery({ queryKey: keys.courses.list(params), queryFn: () => api.fetchCourses(params) });
 }
 export function useCourse(id: string) {
-  return useQuery({ queryKey: ['courses', id], queryFn: () => api.fetchCourse(id), enabled: !!id });
+  return useQuery({ queryKey: keys.courses.detail(id), queryFn: () => api.fetchCourse(id), enabled: !!id });
 }
 export function useCreateCourse() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createCourse, onSuccess: () => qc.invalidateQueries({ queryKey: ['courses'] }) });
+  return useApiMutation({ mutationFn: api.createCourse, invalidates: affects.courses, error: 'Course not created' });
 }
 export function useQuizzes(params?: Record<string, string>) {
-  return useQuery({ queryKey: ['quizzes', params], queryFn: () => api.fetchQuizzes(params) });
+  return useQuery({ queryKey: keys.quizzes.list(params), queryFn: () => api.fetchQuizzes(params) });
 }
 export function useQuiz(id: string) {
-  return useQuery({ queryKey: ['quizzes', id], queryFn: () => api.fetchQuiz(id), enabled: !!id });
+  return useQuery({ queryKey: keys.quizzes.detail(id), queryFn: () => api.fetchQuiz(id), enabled: !!id });
 }
 export function useCreateQuiz() {
-  const qc = useQueryClient();
-  return useMutation({ mutationFn: api.createQuiz, onSuccess: () => qc.invalidateQueries({ queryKey: ['quizzes'] }) });
+  return useApiMutation({ mutationFn: api.createQuiz, invalidates: affects.quizzes, error: 'Quiz not created' });
 }
+// TakeQuiz owns the graded success toast; a result also moves badges, XP and profiles.
 export function useSubmitQuizResult(quizId: string) {
-  const qc = useQueryClient();
-  return useMutation({
+  return useApiMutation({
     mutationFn: (data: Record<string, any>) => api.submitQuizResult(quizId, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quizzes', quizId] }); qc.invalidateQueries({ queryKey: ['quiz-results'] }); },
+    invalidates: affects.quizResults,
+    error: 'Quiz not submitted',
   });
 }
 export function useQuizResults(quizId: string) {
-  return useQuery({ queryKey: ['quiz-results', quizId], queryFn: () => api.fetchQuizResults(quizId), enabled: !!quizId });
+  return useQuery({ queryKey: keys.quizzes.results(quizId), queryFn: () => api.fetchQuizResults(quizId), enabled: !!quizId });
 }
 export function useMemberQuizHistory(memberId: string) {
-  return useQuery({ queryKey: ['members', memberId, 'quiz-history'], queryFn: () => api.fetchMemberQuizHistory(memberId), enabled: !!memberId });
+  return useQuery({ queryKey: keys.members.quizHistory(memberId), queryFn: () => api.fetchMemberQuizHistory(memberId), enabled: !!memberId });
 }
 export function useMemberBadges(memberId: string) {
-  return useQuery({ queryKey: ['members', memberId, 'badges'], queryFn: () => api.fetchMemberBadges(memberId), enabled: !!memberId });
+  return useQuery({ queryKey: keys.members.badges(memberId), queryFn: () => api.fetchMemberBadges(memberId), enabled: !!memberId });
 }
 export function useMemberTags(memberId: string) {
-  return useQuery({ queryKey: ['members', memberId, 'tags'], queryFn: () => api.fetchMemberTags(memberId), enabled: !!memberId });
+  return useQuery({ queryKey: keys.members.tags(memberId), queryFn: () => api.fetchMemberTags(memberId), enabled: !!memberId });
 }

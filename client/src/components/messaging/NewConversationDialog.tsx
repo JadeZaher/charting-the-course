@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +34,7 @@ export function NewConversationDialog({ open, onOpenChange, onCreated }: NewConv
 
   const { member } = useAuth();
   const { data: membersData, error: membersError } = useMemberPicker();
-  const createConversation = useCreateConversation();
+  const createConversation = useCreateConversation({ silent: true });
 
   const availableMembers = (membersData?.members || []).filter(
     (candidate) => candidate.id !== member?.id && !selectedMembers.includes(candidate.id),
@@ -177,7 +178,7 @@ export function NewConversationDialog({ open, onOpenChange, onCreated }: NewConv
           </div>
           {createConversation.error && (
             <p className="text-xs text-destructive" role="alert">
-              {(createConversation.error as Error).message || "Couldn't start the conversation"}
+              {apiErrorMessage(createConversation.error)}
             </p>
           )}
         </div>

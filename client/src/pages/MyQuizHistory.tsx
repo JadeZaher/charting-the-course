@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle, XCircle, Clock, Calendar, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { keys } from '@/lib/query-keys';
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMemberQuizHistory } from "@/lib/api-client";
@@ -40,16 +41,15 @@ export default function MyQuizHistory() {
   const { member } = useAuth();
   const [showAll, setShowAll] = useState(false);
 
-  const { data: quizResults = [], isLoading } = useQuery<QuizResult[]>({
-    queryKey: ['my-quiz-history', member?.id],
-    queryFn: async () => {
-      if (!member?.id) return [];
-      const result = await fetchMemberQuizHistory(member.id);
+  const { data: quizResults = [], isLoading } = useQuery({
+    queryKey: keys.members.quizHistory(member?.id),
+    queryFn: () => fetchMemberQuizHistory(member!.id),
+    select: (result) => {
       const items = (result as any).results || (result as any).items || [];
       return items.map((item: any) => ({
         id: item.id,
         quiz_id: item.quiz_id,
-        user_id: item.member_id || member.id,
+        user_id: item.member_id || member?.id,
         score: item.score ?? null,
         is_passed: item.is_passed ?? null,
         time_spent: item.time_spent ?? null,

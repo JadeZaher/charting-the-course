@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FileText, Vote, Users, Globe2, Scale, Clock } from 'lucide-react';
 import type { SummaryCard as SummaryCardType, ActivityItem } from '@/types/api';
 import { resolveInternalPath } from '@/lib/media';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 type ActivityFilter = 'all' | 'needs_input' | 'watching';
 
@@ -82,7 +83,7 @@ export default function GovernanceDashboard() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load dashboard data</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

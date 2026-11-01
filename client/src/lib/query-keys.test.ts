@@ -75,6 +75,7 @@ test('a share or need change refreshes every surface that lists shares and needs
 const cookieScopedReads: Array<[endpoint: string, key: QueryKey]> = [
   ['/agreements/', keys.agreements.list()],
   ['/badges/', keys.badges.list()],
+  ['/chat/sessions', keys.chatSessions.list()],
   ['/compliance/latest', keys.compliance.latest()],
   ['/compliance/history', keys.compliance.history()],
   ['/conflicts/', keys.conflicts.list()],

@@ -14,6 +14,7 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { AlertTriangle, ShieldCheck, Siren } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 export default function EmergencyDashboard() {
   const [, navigate] = useLocation();
@@ -65,7 +66,7 @@ export default function EmergencyDashboard() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load emergency state</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }
@@ -173,7 +174,7 @@ export default function EmergencyDashboard() {
           <CardContent>
             {declareMutation.error && (
               <div className="mb-4 rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-                {(declareMutation.error as Error).message}
+                {apiErrorMessage(declareMutation.error)}
               </div>
             )}
             <form id="emergency-declare-form" onSubmit={handleDeclare} className="space-y-4">

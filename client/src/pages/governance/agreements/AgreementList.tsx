@@ -11,6 +11,7 @@ import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { AGREEMENT_STATUS_OPTIONS, agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
 import { AGREEMENT_TYPE_OPTIONS, agreementTypeLabel } from '@/lib/agreement-type';
 import { Plus } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const FILTERS: FilterDef[] = [
   {
@@ -35,7 +36,7 @@ export default function AgreementList() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load agreements</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

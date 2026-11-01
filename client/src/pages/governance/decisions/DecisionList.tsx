@@ -9,6 +9,7 @@ import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useDecisions, useDomains } from '@/hooks/use-governance';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const STATUS_FILTER: FilterDef = { key: 'status', label: 'Status', type: 'select', options: [
   { value: 'all', label: 'All Statuses' },
@@ -77,7 +78,7 @@ export default function DecisionList() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load decisions</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

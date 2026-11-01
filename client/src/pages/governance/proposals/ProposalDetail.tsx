@@ -10,8 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useProposal, useUpdateProposalStatus, useSubmitAdvice, useSubmitConsent, useSubmitTestReport } from '@/hooks/use-governance';
-import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ACTStepper } from '@/components/governance/ACTStepper';
@@ -26,7 +26,6 @@ import {
   PROPOSAL_GATE_FOR_STATUS,
   PROPOSAL_NEXT_STATUSES,
   PROPOSAL_TRANSITION_LABELS,
-  proposalPhaseAnnouncement,
   proposalPhaseLabel,
 } from '@/lib/proposal-vocab';
 import type { AdviceLog, ConsentRecord, ProposalDetail as ProposalDetailData, TestReport } from '@/types/api';
@@ -136,7 +135,6 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
   onAutoAdvance: () => void;
 }) {
   const submitAdvice = useSubmitAdvice(proposalId);
-  const { toast } = useToast();
   const { member } = useAuth();
   const [content, setContent] = useState('');
   const [concerns, setConcerns] = useState('');
@@ -157,14 +155,10 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
       setContent('');
       setConcerns('');
       setNewRound(false);
-      if (result.auto_transitions?.includes('advice->consent')) {
-        toast({ title: 'Advice submitted', description: 'The advice round is complete, so the proposal moved to Consent.' });
-        onAutoAdvance();
-      } else {
-        toast({ title: 'Advice submitted', description: 'Your advice has been recorded.' });
-      }
+      // The hook announces the outcome; an advance unmounts this form, so focus moves to the status.
+      if (result.auto_transitions?.length) onAutoAdvance();
     } catch {
-      // Error handled by mutation state
+      // Rendered below from submitAdvice.error
     }
   };
 
@@ -228,7 +222,7 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
                 {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
               </Button>
               {submitAdvice.error && (
-                <p className="text-sm text-destructive">{(submitAdvice.error as Error).message}</p>
+                <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitAdvice.error)}</p>
               )}
             </form>
           </CardContent>
@@ -299,9 +293,14 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
   );
 }
 
-function ConsentTab({ consentRecords, proposalId, proposalStatus }: { consentRecords: ConsentRecord[]; proposalId: string; proposalStatus: string }) {
+function ConsentTab({ consentRecords, proposalId, proposalStatus, onAutoAdvance }: {
+  consentRecords: ConsentRecord[];
+  proposalId: string;
+  proposalStatus: string;
+  /** Called after a position auto-advanced the proposal (this form unmounts). */
+  onAutoAdvance: () => void;
+}) {
   const submitConsent = useSubmitConsent(proposalId);
-  const { toast } = useToast();
   const { member } = useAuth();
   const [position, setPosition] = useState('consent');
   const [objection, setObjection] = useState('');
@@ -310,16 +309,16 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus }: { consentRec
     e.preventDefault();
     const displayName = member?.display_name ?? 'Unknown';
     try {
-      await submitConsent.mutateAsync({
+      const result = await submitConsent.mutateAsync({
         member_name: displayName,
         position,
         objection_text: position === 'object' ? objection.trim() || null : null,
       });
       setPosition('consent');
       setObjection('');
-      toast({ title: 'Consent submitted', description: 'Your consent response has been recorded.' });
+      if (result.auto_transitions?.length) onAutoAdvance();
     } catch {
-      // Error handled by mutation state
+      // Rendered below from submitConsent.error
     }
   };
 
@@ -358,7 +357,7 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus }: { consentRec
                 {submitConsent.isPending ? 'Submitting...' : 'Submit'}
               </Button>
               {submitConsent.error && (
-                <p className="text-sm text-destructive">{(submitConsent.error as Error).message}</p>
+                <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitConsent.error)}</p>
               )}
             </form>
           </CardContent>
@@ -438,9 +437,14 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus }: { consentRec
   );
 }
 
-function TestTab({ testReports, proposalId, proposalStatus }: { testReports: TestReport[]; proposalId: string; proposalStatus: string }) {
+function TestTab({ testReports, proposalId, proposalStatus, onAutoAdvance }: {
+  testReports: TestReport[];
+  proposalId: string;
+  proposalStatus: string;
+  /** Called after a report auto-advanced the proposal (this form unmounts). */
+  onAutoAdvance: () => void;
+}) {
   const submitTest = useSubmitTestReport(proposalId);
-  const { toast } = useToast();
   const [observations, setObservations] = useState('');
   const [outcome, setOutcome] = useState('');
   const [criteria, setCriteria] = useState<{ criterion: string; metric: string; target: string; actual: string; met: boolean; evidence: string }[]>([]);
@@ -461,7 +465,7 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
     e.preventDefault();
     if (!observations.trim() || !outcome) return;
     try {
-      await submitTest.mutateAsync({
+      const result = await submitTest.mutateAsync({
         observations: observations.trim(),
         outcome,
         success_criteria: criteria,
@@ -469,9 +473,9 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
       setObservations('');
       setOutcome('');
       setCriteria([]);
-      toast({ title: 'Test report submitted', description: 'Your test report has been recorded.' });
+      if (result.auto_transitions?.length) onAutoAdvance();
     } catch {
-      // Error handled by mutation state
+      // Rendered below from submitTest.error
     }
   };
 
@@ -527,7 +531,7 @@ function TestTab({ testReports, proposalId, proposalStatus }: { testReports: Tes
                 </Button>
               </div>
               {submitTest.error && (
-                <p className="text-sm text-destructive">{(submitTest.error as Error).message}</p>
+                <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitTest.error)}</p>
               )}
             </form>
           </CardContent>
@@ -617,7 +621,6 @@ export default function ProposalDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error } = useProposal(id);
   const statusMutation = useUpdateProposalStatus(id);
-  const { toast } = useToast();
   const [statusChanging, setStatusChanging] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -636,7 +639,7 @@ export default function ProposalDetail() {
         <p className="text-sm text-muted-foreground">
           {notFound
             ? "This proposal doesn't exist or belongs to an ecosystem you haven't joined."
-            : (error as Error)?.message}
+            : apiErrorMessage(error)}
         </p>
         <div className="flex flex-wrap justify-center gap-2 pt-2">
           <Button asChild variant="outline">
@@ -669,12 +672,11 @@ export default function ProposalDetail() {
   const runTransition = async (target: string) => {
     setStatusChanging(true);
     try {
-      const updated = await statusMutation.mutateAsync(target);
-      // Name the phase the proposal actually landed in (gates may auto-advance further).
-      toast(proposalPhaseAnnouncement(updated.status));
+      // The hook toasts the phase the proposal landed in (gates may auto-advance further), or the failure.
+      await statusMutation.mutateAsync(target);
       focusStatusRegion();
-    } catch (err) {
-      toast({ title: 'Status not changed', description: (err as Error).message, variant: 'destructive' });
+    } catch {
+      // Toasted by useUpdateProposalStatus
     } finally {
       setStatusChanging(false);
     }
@@ -877,11 +879,11 @@ export default function ProposalDetail() {
         </TabsContent>
 
         <TabsContent value="consent">
-          <ConsentTab consentRecords={data.consent_records} proposalId={id} proposalStatus={data.status} />
+          <ConsentTab consentRecords={data.consent_records} proposalId={id} proposalStatus={data.status} onAutoAdvance={focusStatusRegion} />
         </TabsContent>
 
         <TabsContent value="test">
-          <TestTab testReports={data.test_reports} proposalId={id} proposalStatus={data.status} />
+          <TestTab testReports={data.test_reports} proposalId={id} proposalStatus={data.status} onAutoAdvance={focusStatusRegion} />
         </TabsContent>
           </Tabs>
         </div>

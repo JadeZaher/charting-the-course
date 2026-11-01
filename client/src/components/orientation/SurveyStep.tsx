@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import type { JourneyStep } from '@/types/orientation';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -45,7 +46,9 @@ export function SurveyStep({ step, onComplete }: Props) {
       }
     : null;
 
-  const submitMutation = useMutation({
+  // Survey submission is part of the step flow: it stays silent and renders its failure inline.
+  const submitMutation = useApiMutation({
+    silent: true,
     mutationFn: async () => {
       if (!quizId) return;
       await submitQuizResult(quizId, { answers });
@@ -155,6 +158,10 @@ export function SurveyStep({ step, onComplete }: Props) {
           </p>
         )}
       </div>
+
+      {submitMutation.isError && (
+        <p role="alert" className="text-sm text-destructive">{apiErrorMessage(submitMutation.error)}</p>
+      )}
 
       <div className="flex justify-end">
         <Button

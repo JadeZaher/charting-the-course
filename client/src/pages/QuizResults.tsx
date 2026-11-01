@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Download, ArrowLeft, Clock, Calendar, User } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
+import { keys } from '@/lib/query-keys';
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchQuiz, fetchMemberQuizHistory } from "@/lib/api-client";
@@ -56,17 +57,15 @@ export default function QuizResults() {
   const resultId = params?.id;
 
   // Fetch quiz history to find the specific result by ID or quiz ID
-  const { data: historyData, isLoading: resultLoading } = useQuery<QuizResult | null>({
-    queryKey: ['quiz-result', resultId, member?.id],
-    queryFn: async () => {
-      if (!member?.id || !resultId) return null;
-
-      // Fetch member quiz history and find the matching result
-      const historyResult = await fetchMemberQuizHistory(member.id);
+  const { data: historyData, isLoading: resultLoading } = useQuery({
+    queryKey: keys.members.quizHistory(member?.id),
+    queryFn: () => fetchMemberQuizHistory(member!.id),
+    select: (historyResult): QuizResult | null => {
+      // Find the matching result in the member's quiz history
       const results: QuizResult[] = ((historyResult as any).results || []).map((r: any) => ({
         id: r.id,
         quiz_id: r.quiz_id,
-        user_id: r.member_id || member.id,
+        user_id: r.member_id || member?.id,
         score: r.score ?? null,
         is_passed: r.is_passed ?? null,
         time_spent: r.time_spent ?? null,
@@ -87,11 +86,10 @@ export default function QuizResults() {
 
   const result = historyData;
 
-  const { data: quiz, isLoading: quizLoading } = useQuery<Quiz | null>({
-    queryKey: ['quiz', result?.quiz_id],
-    queryFn: async () => {
-      if (!result?.quiz_id) return null;
-      const data = await fetchQuiz(result.quiz_id);
+  const { data: quiz, isLoading: quizLoading } = useQuery({
+    queryKey: keys.quizzes.detail(result?.quiz_id),
+    queryFn: () => fetchQuiz(result!.quiz_id),
+    select: (data): Quiz => {
       return {
         id: (data as any).id,
         title: (data as any).title,

@@ -1,4 +1,5 @@
 import { Link, useRoute } from 'wouter';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,7 +59,7 @@ export default function CollaborationDetail() {
         </Button>
         <div className="text-center py-12">
           <p className="text-destructive">Failed to load collaboration</p>
-          {error && <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>}
+          {error && <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>}
         </div>
       </div>
     );
@@ -116,7 +117,7 @@ export default function CollaborationDetail() {
 
       {activateMutation.error && (
         <div className="border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-          {(activateMutation.error as Error).message}
+          {apiErrorMessage(activateMutation.error)}
         </div>
       )}
 

@@ -13,7 +13,9 @@ import {
   Globe, Building2, Network, UserMinus, Bot, MessageSquare, ToggleLeft, ToggleRight,
   Settings, Map as MapIcon, Package, ArrowUpCircle, ArrowDownCircle, TrendingUp, CheckCircle2, XCircle
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/use-api-mutation";
+import { affects, keys } from "@/lib/query-keys";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,7 +24,7 @@ import {
   fetchBadgeDefinitions, createBadgeDefinition, updateBadgeDefinition, deleteBadgeDefinition,
   fetchTeams, createTeam, updateTeam, deleteTeam, fetchTeamMembers, addTeamMember, removeTeamMember,
   fetchQuizAssignments, createQuizAssignment, deleteQuizAssignment,
-  fetchCtcHandoff, setNeosDenReady, fetchSetting, saveSetting,
+  fetchCtcHandoff, setNeosDenReady, fetchSetting, saveSetting, updateQuiz, deleteQuiz,
   listEthosAccess, grantEthosAccess, revokeEthosAccess,
 } from "@/lib/api-client";
 import { APP_SETTINGS_KEYS } from "@/lib/utils";
@@ -96,9 +98,8 @@ const getRoleBadgeRole = (role?: string): Role => {
   return (role.charAt(0).toUpperCase() + role.slice(1)) as Role;
 };
 
-// Fetch users from Sanic BFF API
-async function fetchUsers() {
-  const result = await fetchMembers();
+// Reshape the raw members response for the admin tables (the query shares keys.members.list() with UserManagement).
+function selectUsers(result: Awaited<ReturnType<typeof fetchMembers>>) {
   const items = (result as any).items || (result as any).members || [];
   return items.map((m: any) => ({
     id: m.id,
@@ -114,12 +115,6 @@ async function fetchUsers() {
     isArchived: m.is_archived ?? false,
     did: m.did ?? null,
   }));
-}
-
-// Fetch quizzes via Sanic BFF API
-async function fetchQuizzes() {
-  const result = await apiFetchQuizzes();
-  return (result as any).items || (result as any).quizzes || [];
 }
 
 // Badge definitions, teams, quiz assignments, CTC settings, and ethos-access grants are
@@ -220,100 +215,99 @@ export default function AdminPanel() {
   }, [location]);
 
   // Query hooks - must be called before any conditional returns
-  const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: fetchUsers,
+  const { data: users = [], isLoading: usersLoading } = useQuery({
+    queryKey: keys.members.list(),
+    queryFn: () => fetchMembers(),
+    select: selectUsers,
     enabled: isAdmin || canManageUsers,
   });
 
   const { data: quizzes = [], isLoading: quizzesLoading } = useQuery({
-    queryKey: ['admin-quizzes'],
-    queryFn: fetchQuizzes,
+    queryKey: keys.quizzes.list(),
+    queryFn: () => apiFetchQuizzes(),
+    select: (result): any[] => (result as any).items || (result as any).quizzes || [],
     enabled: isAdmin || canManageUsers,
   });
 
   // Badge definitions query
   const { data: badges = [], isLoading: badgesLoading } = useQuery({
-    queryKey: ['admin-badges'],
-    queryFn: async () => (await fetchBadgeDefinitions()).items,
+    queryKey: keys.badges.list(),
+    queryFn: fetchBadgeDefinitions,
+    select: (result) => result.items,
     enabled: isAdmin || canManageUsers,
   });
 
   // Teams query
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
-    queryKey: ['admin-teams'],
-    queryFn: async () => (await fetchTeams()).items,
+    queryKey: keys.teams.list(),
+    queryFn: fetchTeams,
+    select: (result) => result.items,
     enabled: isAdmin || canManageUsers,
   });
 
   // Team members query (for the editing team's sub-panel)
-  const { data: teamMembers = [], refetch: refetchTeamMembers } = useQuery({
-    queryKey: ['admin-team-members', editingTeam?.id],
-    queryFn: async () => {
-      if (!editingTeam?.id) return [] as TeamMember[];
-      return (await fetchTeamMembers(editingTeam.id)).items;
-    },
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: keys.teams.members(editingTeam?.id),
+    queryFn: () => fetchTeamMembers(editingTeam!.id),
+    select: (result) => result.items,
     enabled: !!editingTeam?.id,
   });
 
   // Quiz assignments query (member-targeted)
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
-    queryKey: ['admin-quiz-assignments'],
-    queryFn: async () => (await fetchQuizAssignments()).items,
+    queryKey: keys.quizAssignments.list(),
+    queryFn: () => fetchQuizAssignments(),
+    select: (result) => result.items,
     enabled: isAdmin || canManageUsers,
   });
 
-  // ETHOS query via Sanic BFF API
-  const { data: ethosListData = [], isLoading: ethosLoading, refetch: refetchEthos } = useQuery({
-    queryKey: ['admin-ethos'],
-    queryFn: async () => {
-      const result = await fetchEcosystems();
-      return (result as any).ecosystems || (result as any).items || [];
-    },
+  // ETHOS query via Sanic BFF API (shares keys.ecosystems.list() with the ethos hooks)
+  const { data: ethosListData = [], isLoading: ethosLoading } = useQuery({
+    queryKey: keys.ecosystems.list(),
+    queryFn: () => fetchEcosystems(),
+    select: (result): any[] => (result as any).ecosystems || (result as any).items || [],
     enabled: isAdmin || canManageContent,
   });
 
   // ETHOS members query — TODO: add per-ecosystem members endpoint to Sanic API
-  const { data: ethosMembers = [], refetch: refetchEthosMembers } = useQuery({
-    queryKey: ['admin-ethos-members', editingEthos?.id],
+  const { data: ethosMembers = [] } = useQuery({
+    queryKey: keys.ecosystems.members(editingEthos?.id),
     queryFn: async () => {
-      if (!editingEthos?.id) return [];
       // TODO: Replace with Sanic API endpoint when ecosystem members endpoint is implemented
-      return [];
+      return [] as any[];
     },
     enabled: !!editingEthos?.id,
   });
 
   // ETHOS access grants query
-  const { data: ethosAccessGrants = [], refetch: refetchAccessGrants } = useQuery({
-    queryKey: ['admin-ethos-access', accessEthos?.id],
-    queryFn: async () => {
-      if (!accessEthos?.id) return [] as EthosAccessGrant[];
-      return (await listEthosAccess(accessEthos.id)).items;
-    },
+  const { data: ethosAccessGrants = [] } = useQuery({
+    queryKey: keys.ecosystems.accessGrants(accessEthos?.id),
+    queryFn: () => listEthosAccess(accessEthos!.id),
+    select: (result) => result.items,
     enabled: !!accessEthos?.id,
   });
 
   // OmniBot sessions query — TODO: add OmniBot sessions endpoint to Sanic API
   const { data: omnibotSessions = [], isLoading: omnibotLoading } = useQuery({
-    queryKey: ['admin-omnibot-sessions'],
+    queryKey: keys.omnibot.sessions(),
     queryFn: async () => {
       // TODO: Replace with Sanic API endpoint when OmniBot sessions endpoint is implemented
-      return [];
+      return [] as any[];
     },
     enabled: isAdmin,
   });
 
   // CTC handoff ready flags query (keyed by member id; absent members default to false)
-  const { data: handoffData = [] } = useQuery({
-    queryKey: ['admin-ctc-handoff'],
-    queryFn: async () => (await fetchCtcHandoff()).items,
+  const { data: handoffResponse } = useQuery({
+    queryKey: keys.ctcHandoff.list(),
+    queryFn: fetchCtcHandoff,
     enabled: (isAdmin || canManageUsers) && users.length > 0,
   });
+  const handoffData = handoffResponse?.items ?? [];
 
   const handoffMap = useMemo(() => {
     const map: Record<string, boolean> = {};
-    for (const row of (handoffData as CtcHandoffItem[])) {
+    for (const row of handoffData) {
       map[row.member_id] = row.ready_for_neos_den ?? false;
     }
     return map;
@@ -321,11 +315,9 @@ export default function AdminPanel() {
 
   // CTC Map settings query (admin view) — loaded once into the form
   const { data: ctcMapData } = useQuery({
-    queryKey: ['ctc-map-settings-admin'],
-    queryFn: async () => {
-      const res = await fetchSetting(APP_SETTINGS_KEYS.ctcMap);
-      return (res.value as { prezi_url?: string; description?: string } | null) ?? { prezi_url: "", description: "" };
-    },
+    queryKey: keys.settings.detail(APP_SETTINGS_KEYS.ctcMap),
+    queryFn: () => fetchSetting(APP_SETTINGS_KEYS.ctcMap),
+    select: (res) => (res.value as { prezi_url?: string; description?: string } | null) ?? { prezi_url: "", description: "" },
     enabled: !!(isAdmin || canManageContent),
   });
   useEffect(() => {
@@ -335,16 +327,11 @@ export default function AdminPanel() {
     }
   }, [ctcMapData, ctcMapLoaded]);
 
-  const saveCtcMapMutation = useMutation({
+  const saveCtcMapMutation = useApiMutation({
     mutationFn: async (data: { prezi_url: string; description: string }) => saveSetting(APP_SETTINGS_KEYS.ctcMap, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ctc-map-settings-admin'] });
-      queryClient.invalidateQueries({ queryKey: ['ctc-map-settings'] });
-      toast({ title: "Map settings saved!" });
-    },
-    onError: (err: any) => {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    },
+    invalidates: affects.settings,
+    success: "Map settings saved!",
+    error: "Save failed",
   });
 
   // Shares & Needs admin query
@@ -368,10 +355,10 @@ export default function AdminPanel() {
 
   // Quiz results admin query (for completion counts)
   const { data: quizResultsMap = {} } = useQuery({
-    queryKey: ['admin-quiz-results-counts'],
+    queryKey: keys.quizzes.resultCounts(),
     queryFn: async () => {
       const counts: Record<string, number> = {};
-      for (const q of (quizzes as any[])) {
+      for (const q of quizzes) {
         try {
           const res = await fetchQuizResultsAdmin(q.id, { page: '1', per_page: '1' });
           counts[q.id] = res.total || 0;
@@ -384,64 +371,40 @@ export default function AdminPanel() {
     enabled: quizzes.length > 0,
   });
 
-  const toggleQuizPublish = async (quizId: string, currentPublished: boolean) => {
-    try {
-      await apiFetch(`/api/v1/quizzes/${quizId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_published: !currentPublished }),
-      });
-      queryClient.invalidateQueries({ queryKey: ['admin-quizzes'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-quiz-results-counts'] });
-      toast({ title: currentPublished ? "Quiz Unpublished" : "Quiz Published" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
+  const toggleQuizPublishMutation = useApiMutation({
+    mutationFn: ({ quizId, currentPublished }: { quizId: string; currentPublished: boolean }) =>
+      updateQuiz(quizId, { is_published: !currentPublished }),
+    invalidates: affects.quizzes,
+    success: (_result, { currentPublished }) => (currentPublished ? "Quiz Unpublished" : "Quiz Published"),
+  });
+  const toggleQuizPublish = (quizId: string, currentPublished: boolean) =>
+    toggleQuizPublishMutation.mutate({ quizId, currentPublished });
 
-  const deleteQuizMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiFetch<any>(`/api/v1/quizzes/${id}`, { method: 'DELETE' });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-quizzes'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-quiz-results-counts'] });
-      toast({ title: "Quiz Deleted" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+  const deleteQuizMutation = useApiMutation({
+    mutationFn: (id: string) => deleteQuiz(id),
+    invalidates: affects.quizzes,
+    success: "Quiz Deleted",
   });
 
   // ETHOS mutations via Sanic BFF API
-  const createEthosMutation = useMutation({
+  const createEthosMutation = useApiMutation({
     mutationFn: async (data: typeof defaultEthosForm) => {
       return createEcosystemRecord({ ...data, parent_ethos_id: data.parent_ethos_id || null });
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
-      setEditingEthos(data);
-      toast({ title: "ETHOS Created", description: "New ETHOS has been created. Add members below." });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.ecosystems,
+    onSuccess: (data) => { setEditingEthos(data); },
+    success: { title: "ETHOS Created", description: "New ETHOS has been created. Add members below." },
   });
 
-  const updateEthosMutation = useMutation({
+  const updateEthosMutation = useApiMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<typeof defaultEthosForm> }) => {
       return updateEcosystemRecord(id, { ...data, parent_ethos_id: data.parent_ethos_id || null });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
-      toast({ title: "ETHOS Updated", description: "Changes saved." });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.ecosystems,
+    success: { title: "ETHOS Updated", description: "Changes saved." },
   });
 
-  const deleteEthosMutation = useMutation({
+  const deleteEthosMutation = useApiMutation({
     mutationFn: async ({ id, hard }: { id: string; hard: boolean }) => {
       return apiFetch<any>(`/api/v1/ecosystems/${id}`, {
         method: 'DELETE',
@@ -449,22 +412,22 @@ export default function AdminPanel() {
         body: JSON.stringify({ hard }),
       });
     },
-    onSuccess: (_, { hard }) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-ethos'] });
+    invalidates: affects.ecosystems,
+    onSuccess: () => {
       setEthosDeleteTarget(null);
       setEthosHardDeleteTarget(null);
       if (editingEthos?.id === ethosDeleteTarget?.id || editingEthos?.id === ethosHardDeleteTarget?.id) {
         setEditingEthos(null);
         setIsEthosDialogOpen(false);
       }
-      toast({ title: hard ? "ETHOS Deleted" : "ETHOS Deactivated", description: hard ? "ETHOS permanently removed." : "ETHOS set to inactive." });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: (_result, { hard }) => ({
+      title: hard ? "ETHOS Deleted" : "ETHOS Deactivated",
+      description: hard ? "ETHOS permanently removed." : "ETHOS set to inactive.",
+    }),
   });
 
-  const addEthosMemberMutation = useMutation({
+  const addEthosMemberMutation = useApiMutation({
     mutationFn: async (data: { ethos_id: string; user_id: string; role_in_ethos: string; member_type: string }) => {
       return apiFetch<any>(`/api/v1/ecosystems/${data.ethos_id}/members`, {
         method: 'POST',
@@ -472,29 +435,21 @@ export default function AdminPanel() {
         body: JSON.stringify(data),
       });
     },
+    invalidates: (_result, { ethos_id }) => [keys.ecosystems.members(ethos_id)],
     onSuccess: () => {
-      refetchEthosMembers();
       setMemberForm({ user_id: "", role_in_ethos: "member", member_type: "member" });
       setEthosUserSearch("");
       setEthosUserResults([]);
-      toast({ title: "Member Added" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: "Member Added",
   });
 
-  const removeEthosMemberMutation = useMutation({
+  const removeEthosMemberMutation = useApiMutation({
     mutationFn: async ({ ethos_id, user_id }: { ethos_id: string; user_id: string }) => {
       return apiFetch<any>(`/api/v1/ecosystems/${ethos_id}/members/${user_id}`, { method: 'DELETE' });
     },
-    onSuccess: () => {
-      refetchEthosMembers();
-      toast({ title: "Member Removed" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: (_result, { ethos_id }) => [keys.ecosystems.members(ethos_id)],
+    success: "Member Removed",
   });
 
   const searchEthosUsers = async (query: string) => {
@@ -517,28 +472,20 @@ export default function AdminPanel() {
     ).slice(0, 10));
   };
 
-  const grantAccessMutation = useMutation({
+  const grantAccessMutation = useApiMutation({
     mutationFn: async ({ ethos_id, member_id }: { ethos_id: string; member_id: string }) => grantEthosAccess(ethos_id, { member_id }),
+    invalidates: (_result, { ethos_id }) => [keys.ecosystems.accessGrants(ethos_id)],
     onSuccess: () => {
-      refetchAccessGrants();
       setAccessUserSearch('');
       setAccessUserResults([]);
-      toast({ title: 'Access Granted' });
     },
-    onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    },
+    success: 'Access Granted',
   });
 
-  const revokeAccessMutation = useMutation({
+  const revokeAccessMutation = useApiMutation({
     mutationFn: async ({ ethos_id, member_id }: { ethos_id: string; member_id: string }) => revokeEthosAccess(ethos_id, member_id),
-    onSuccess: () => {
-      refetchAccessGrants();
-      toast({ title: 'Access Revoked' });
-    },
-    onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    },
+    invalidates: (_result, { ethos_id }) => [keys.ecosystems.accessGrants(ethos_id)],
+    success: 'Access Revoked',
   });
 
   const openCreateEthos = () => {
@@ -586,7 +533,7 @@ export default function AdminPanel() {
   // Quiz assignments have no backend endpoint (verified: no /api/v1/quiz-assignments route exists) — see honest-disabled tab below.
 
   // Create user mutation via Sanic BFF API
-  const createUserMutation = useMutation({
+  const createUserMutation = useApiMutation({
     mutationFn: async (data: { email: string; password: string; first_name: string; last_name: string; role: string }) => {
       // TODO: Replace with Sanic API invite/create-member endpoint when implemented
       return apiFetch<any>('/api/v1/members', {
@@ -599,19 +546,16 @@ export default function AdminPanel() {
         }),
       });
     },
+    invalidates: affects.members,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setIsCreateUserOpen(false);
       setCreateUserForm({ email: '', password: '', first_name: '', last_name: '', role: 'viewer' });
-      toast({ title: "User Created", description: "New user has been created successfully" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: { title: "User Created", description: "New user has been created successfully" },
   });
 
   // Badge mutations
-  const createBadgeMutation = useMutation({
+  const createBadgeMutation = useApiMutation({
     mutationFn: async (data: BadgeFormData) => createBadgeDefinition({
       badge_key: data.badge_key,
       badge_name: data.badge_name,
@@ -620,18 +564,15 @@ export default function AdminPanel() {
       badge_icon: data.badge_icon || null,
       strength: data.strength,
     }),
+    invalidates: affects.badges,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
       setIsCreateBadgeOpen(false);
       setBadgeForm(defaultBadgeForm);
-      toast({ title: "Badge Created", description: "New badge has been created successfully" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: { title: "Badge Created", description: "New badge has been created successfully" },
   });
 
-  const updateBadgeMutation = useMutation({
+  const updateBadgeMutation = useApiMutation({
     mutationFn: async ({ id, data }: { id: string; data: BadgeFormData }) => updateBadgeDefinition(id, {
       badge_name: data.badge_name,
       badge_description: data.badge_description || null,
@@ -640,140 +581,145 @@ export default function AdminPanel() {
       strength: data.strength,
       is_active: data.is_active,
     }),
+    invalidates: affects.badges,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
       setEditingBadge(null);
       setBadgeForm(defaultBadgeForm);
-      toast({ title: "Badge Updated", description: "Badge has been updated successfully" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: { title: "Badge Updated", description: "Badge has been updated successfully" },
   });
 
-  const deleteBadgeMutation = useMutation({
+  const deleteBadgeMutation = useApiMutation({
     mutationFn: async (id: string) => deleteBadgeDefinition(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-badges'] });
-      toast({ title: "Badge Deleted", description: "Badge has been deleted successfully" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.badges,
+    success: { title: "Badge Deleted", description: "Badge has been deleted successfully" },
   });
 
   // Team mutations
-  const createTeamMutation = useMutation({
+  const createTeamMutation = useApiMutation({
     mutationFn: async (data: { name: string; description: string }) => createTeam({ name: data.name, description: data.description || null }),
-    onSuccess: (team) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
-      setEditingTeam(team);
-      toast({ title: "Team Created", description: "New team created. Add members below." });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.teams,
+    onSuccess: (team) => { setEditingTeam(team); },
+    success: { title: "Team Created", description: "New team created. Add members below." },
   });
 
-  const updateTeamMutation = useMutation({
+  const updateTeamMutation = useApiMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<{ name: string; description: string; is_active: boolean }> }) => updateTeam(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
-      toast({ title: "Team Updated", description: "Changes saved." });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.teams,
+    success: { title: "Team Updated", description: "Changes saved." },
   });
 
-  const deleteTeamMutation = useMutation({
+  const deleteTeamMutation = useApiMutation({
     mutationFn: async (id: string) => deleteTeam(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+    invalidates: affects.teams,
+    onSuccess: (_result, id) => {
       if (editingTeam?.id === id) { setEditingTeam(null); setIsTeamDialogOpen(false); }
-      toast({ title: "Team Deleted" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: "Team Deleted",
   });
 
-  const addTeamMemberMutation = useMutation({
+  const addTeamMemberMutation = useApiMutation({
     mutationFn: async ({ team_id, member_id, role }: { team_id: string; member_id: string; role: string }) => addTeamMember(team_id, { member_id, role }),
+    invalidates: affects.teams,
     onSuccess: () => {
-      refetchTeamMembers();
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
       setTeamMemberPick({ member_id: "", role: "member" });
       setTeamMemberSearch("");
       setTeamMemberResults([]);
-      toast({ title: "Member Added" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: "Member Added",
   });
 
-  const removeTeamMemberMutation = useMutation({
+  const removeTeamMemberMutation = useApiMutation({
     mutationFn: async ({ team_id, member_id }: { team_id: string; member_id: string }) => removeTeamMember(team_id, member_id),
-    onSuccess: () => {
-      refetchTeamMembers();
-      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
-      toast({ title: "Member Removed" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.teams,
+    success: "Member Removed",
   });
 
   // Quiz assignment mutations (member-targeted)
-  const createAssignmentMutation = useMutation({
+  const createAssignmentMutation = useApiMutation({
     mutationFn: async (data: { quiz_id: string; member_id: string; due_date: string }) =>
       createQuizAssignment({ quiz_id: data.quiz_id, member_id: data.member_id, due_date: data.due_date || null }),
+    invalidates: affects.quizAssignments,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-quiz-assignments'] });
       setIsAssignQuizOpen(false);
       setAssignmentForm({ quiz_id: "", member_id: "", due_date: "" });
-      toast({ title: "Quiz Assigned", description: "Quiz has been assigned successfully" });
     },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    success: { title: "Quiz Assigned", description: "Quiz has been assigned successfully" },
   });
 
-  const deleteAssignmentMutation = useMutation({
+  const deleteAssignmentMutation = useApiMutation({
     mutationFn: async (id: string) => deleteQuizAssignment(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-quiz-assignments'] });
-      toast({ title: "Assignment Removed", description: "Quiz assignment has been removed" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    invalidates: affects.quizAssignments,
+    success: { title: "Assignment Removed", description: "Quiz assignment has been removed" },
   });
 
-  // NEOS Den ready toggle (optimistic; keyed by member id)
-  const setNeosDenReadyMutation = useMutation({
+  // NEOS Den ready toggle (optimistic; the cache holds the raw { items, total } response)
+  const setNeosDenReadyMutation = useApiMutation({
     mutationFn: async ({ member_id, ready }: { member_id: string; ready: boolean }) => setNeosDenReady(member_id, ready),
     onMutate: async ({ member_id, ready }) => {
-      await queryClient.cancelQueries({ queryKey: ['admin-ctc-handoff'] });
-      const previous = queryClient.getQueryData(['admin-ctc-handoff']);
-      queryClient.setQueryData(['admin-ctc-handoff'], (old: any) => {
-        const rows: CtcHandoffItem[] = old ?? [];
+      await queryClient.cancelQueries({ queryKey: keys.ctcHandoff.list() });
+      const previous = queryClient.getQueryData(keys.ctcHandoff.list());
+      queryClient.setQueryData(keys.ctcHandoff.list(), (old: { items: CtcHandoffItem[]; total: number } | undefined) => {
+        const rows = old?.items ?? [];
         const exists = rows.some((r) => r.member_id === member_id);
-        if (exists) {
-          return rows.map((r) => r.member_id === member_id ? { ...r, ready_for_neos_den: ready } : r);
-        }
-        return [...rows, { member_id, ready_for_neos_den: ready, updated_at: null }];
+        const items = exists
+          ? rows.map((r) => r.member_id === member_id ? { ...r, ready_for_neos_den: ready } : r)
+          : [...rows, { member_id, ready_for_neos_den: ready, updated_at: null }];
+        return { total: old?.total ?? items.length, items };
       });
       return { previous };
     },
-    onError: (_err: any, _vars: any, context: any) => {
-      queryClient.setQueryData(['admin-ctc-handoff'], context?.previous);
-      toast({ title: 'Error', description: 'Failed to update NEOS Den readiness.', variant: 'destructive' });
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(keys.ctcHandoff.list(), context?.previous);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-ctc-handoff'] });
+      queryClient.invalidateQueries({ queryKey: keys.ctcHandoff.all });
     },
+    error: 'Could not update NEOS Den readiness',
+  });
+
+  // Role and permission edits
+  const changeRoleMutation = useApiMutation({
+    mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {
+      // TODO: replace with dedicated Sanic role assignment endpoint when available
+      return apiFetch(`/api/v1/members/${memberId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+    },
+    invalidates: affects.members,
+    onSuccess: () => {
+      setSelectedUser(null);
+      setNewRole("");
+    },
+    success: (_result, { role }) => ({
+      title: "Role Updated",
+      description: `${selectedUser?.first_name || selectedUser?.username}'s role has been changed to ${role}`,
+    }),
+    error: "Role not changed",
+  });
+
+  const changePermissionsMutation = useApiMutation({
+    mutationFn: async ({ memberId, permissions }: { memberId: string; permissions: Permission[] }) => {
+      // TODO: replace with dedicated Sanic permissions endpoint when available
+      return apiFetch(`/api/v1/members/${memberId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions }),
+      });
+    },
+    invalidates: affects.members,
+    onSuccess: () => {
+      setIsEditPermissionsOpen(false);
+      setSelectedUser(null);
+      setEditedPermissions([]);
+    },
+    success: () => ({
+      title: "Permissions Updated",
+      description: `${selectedUser?.first_name || selectedUser?.username}'s permissions have been updated`,
+    }),
+    error: "Permissions not changed",
   });
 
   // Check access - conditional returns AFTER all hooks
@@ -859,61 +805,14 @@ export default function AdminPanel() {
   const activeQuizzes = quizzes.filter((q: any) => q.is_published);
   const quizCreators = users.filter((u: any) => u.role === "admin" || u.role === "facilitator");
 
-  const handleRoleChange = async () => {
+  const handleRoleChange = () => {
     if (!selectedUser || !newRole) return;
-
-    try {
-      // TODO: replace with dedicated Sanic role assignment endpoint when available
-      await apiFetch(`/api/v1/members/${selectedUser.id}/role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-
-      toast({
-        title: "Role Updated",
-        description: `${selectedUser.first_name || selectedUser.username}'s role has been changed to ${newRole}`,
-      });
-
-      refetchUsers();
-      setSelectedUser(null);
-      setNewRole("");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update role",
-        variant: "destructive",
-      });
-    }
+    changeRoleMutation.mutate({ memberId: selectedUser.id, role: newRole });
   };
 
-  const handlePermissionsChange = async () => {
+  const handlePermissionsChange = () => {
     if (!selectedUser) return;
-
-    try {
-      // TODO: replace with dedicated Sanic permissions endpoint when available
-      await apiFetch(`/api/v1/members/${selectedUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permissions: editedPermissions }),
-      });
-
-      toast({
-        title: "Permissions Updated",
-        description: `${selectedUser.first_name || selectedUser.username}'s permissions have been updated`,
-      });
-
-      refetchUsers();
-      setIsEditPermissionsOpen(false);
-      setSelectedUser(null);
-      setEditedPermissions([]);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update permissions",
-        variant: "destructive",
-      });
-    }
+    changePermissionsMutation.mutate({ memberId: selectedUser.id, permissions: editedPermissions });
   };
 
   return (

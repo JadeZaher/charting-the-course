@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 import { LinkifiedText } from '@/components/messaging/LinkifiedText';
 import { useQuery } from '@tanstack/react-query';
+import { keys } from '@/lib/query-keys';
 import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@/lib/api-client';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -532,9 +533,10 @@ function ChatTab({ expanded }: { expanded: boolean }) {
   const [copied, setCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const sessionsParams = { limit: 20 };
   const { data: sessionsData } = useQuery({
-    queryKey: ['chat', 'sessions'],
-    queryFn: () => fetchChatSessions({ limit: 20 }),
+    queryKey: keys.chatSessions.list(sessionsParams),
+    queryFn: () => fetchChatSessions(sessionsParams),
     staleTime: 30_000,
     enabled: showSessions,
   });

@@ -330,11 +330,17 @@ export interface AdviceLog {
   entries: AdviceEntry[];
 }
 
-/** POST /proposals/:id/advice response: the log plus any ACT auto-advance it caused. */
-export interface AdviceSubmitResult extends AdviceLog {
+/** What an ACT participation write reports: the gates after it and any automatic advance it caused. */
+export interface ActSubmitOutcome {
   gates?: ActGates;
+  /** Automatic moves in order, e.g. ['advice->consent']; empty when the proposal stayed put. */
   auto_transitions?: string[];
+  /** Set when the cascade reached ratified and minted a decision record. */
+  decision_record_id?: string;
 }
+
+/** POST /proposals/:id/advice response: the log plus any ACT auto-advance it caused. */
+export interface AdviceSubmitResult extends AdviceLog, ActSubmitOutcome {}
 
 export interface ConsentParticipant {
   id: string;
@@ -356,6 +362,9 @@ export interface ConsentRecord {
   participants: ConsentParticipant[];
 }
 
+/** POST /proposals/:id/consent response: the record plus any ACT auto-advance it caused. */
+export interface ConsentSubmitResult extends ConsentRecord, ActSubmitOutcome {}
+
 export interface TestSuccessCriterion {
   id: string;
   criterion: string | null;
@@ -373,6 +382,9 @@ export interface TestReport {
   observations: string | null;
   success_criteria: TestSuccessCriterion[];
 }
+
+/** POST /proposals/:id/test response: the report plus any ACT auto-advance (ratification included). */
+export interface TestReportSubmitResult extends TestReport, ActSubmitOutcome {}
 
 export interface ProposalDetail extends ProposalListItem {
   shared_ecosystem_ids: string[] | null;

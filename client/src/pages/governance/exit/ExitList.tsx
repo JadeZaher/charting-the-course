@@ -10,6 +10,7 @@ import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useExits } from '@/hooks/use-governance';
 import { EXIT_STATUS_OPTIONS, exitStatusVariant } from '@/lib/exit-status';
 import { Plus } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 // Matches ExitRecord.exit_type: "standard" (30d cooling-off) or "urgent" (7d)
 const TYPE_OPTIONS = [
@@ -38,7 +39,7 @@ export default function ExitList() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">Failed to load exits</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
       </div>
     );
   }

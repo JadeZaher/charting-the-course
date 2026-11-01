@@ -1,4 +1,6 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { keys } from '@/lib/query-keys';
 import { fetchMemberBadges } from '@/lib/api-client';
 import type {
   UserAchievement,
@@ -19,29 +21,19 @@ export function useAchievements(userId?: string, options?: {
   enabled?: boolean;
 }) {
   return useQuery({
-    queryKey: ['achievements', userId || 'me', options],
-    queryFn: async () => {
-      if (!userId) {
-        return {
-          achievements: [] as UserAchievement[],
-          total: 0,
-          by_type: {} as Record<string, UserAchievement[]>,
-          total_xp_from_achievements: 0,
-          xp_level: null as UserXPLevel | null,
-          level_info: null as LevelDefinition | null,
-        };
-      }
-
+    // Shares keys.members.badges with the badge hooks; achievements are derived from the badges in `select`.
+    queryKey: keys.members.badges(userId),
+    queryFn: () => fetchMemberBadges(userId as string),
+    select: (badgesResult) => {
       // Derive achievements from earned badges until a dedicated endpoint exists.
       // Profile tags have no earned timestamp and are not an AchievementType.
-      const badgesResult = await fetchMemberBadges(userId);
       const badges = badgesResult.badges || [];
 
       const achievements: UserAchievement[] = badges
         .filter((badge): badge is UserBadgeItem & { earned_at: string } => Boolean(badge.earned_at))
         .map((badge): UserAchievement => ({
           id: badge.id,
-          user_id: userId,
+          user_id: userId as string,
           achievement_type: 'badge_earned',
           achievement_key: badge.badge_key,
           achievement_name: badge.badge_name,
@@ -89,7 +81,7 @@ export function useAchievements(userId?: string, options?: {
  */
 export function useLevels(enabled = false) {
   return useQuery({
-    queryKey: ['levels'],
+    queryKey: keys.achievements.levels(),
     queryFn: async () => {
       // TODO: Replace with Sanic API endpoint when levels endpoint is implemented
       return { levels: [] as LevelDefinition[], total: 0 };
@@ -107,7 +99,9 @@ export function useLevels(enabled = false) {
  * TODO: Add achievement calculation endpoint to the Sanic API.
  */
 export function useCalculateAchievements() {
-  return useMutation({
+  // Background bookkeeping after a quiz: never toasts.
+  return useApiMutation({
+    silent: true,
     mutationFn: async (_params: {
       quiz_result_id: string;
       quiz_id: string;

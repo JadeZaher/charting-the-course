@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { activeEcosystemIds } from '@/lib/consent-gate';
+import { CONSENT_GATE_PATH } from '@/lib/member-status';
+import { keys } from '@/lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDiscover } from '@/lib/api-client';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,13 +21,21 @@ function memberCount(count: number) {
 }
 
 export function EcosystemPicker() {
-  const { ecosystems, selectedIds, toggleMulti, selectAll, isAll } = useEcosystem();
+  const { ecosystems, selectedIds, toggleMulti, selectMultiple } = useEcosystem();
+  const { pendingConsents, member } = useAuth();
+  // Ecosystems behind a consent gate are not selectable scopes: the server would snap the selection back.
+  const activeIds = activeEcosystemIds({ pendingConsents, memberships: ecosystems, member });
+  const activeEcosystems = ecosystems.filter((eco) => activeIds.includes(eco.id));
+  const awaitingConsent = ecosystems.filter((eco) => !activeIds.includes(eco.id));
+  const isAll = activeEcosystems.length > 0 && activeEcosystems.every((eco) => selectedIds.includes(eco.id));
   const [open, setOpen] = useState(false);
   const [discoverSearch, setDiscoverSearch] = useState('');
 
+  const discoverParams: Record<string, string> = { tab: 'ecosystems', ...(discoverSearch ? { q: discoverSearch } : {}) };
+
   const { data: discoverData } = useQuery({
-    queryKey: ['discover', 'ecosystems', discoverSearch],
-    queryFn: () => fetchDiscover({ tab: 'ecosystems', ...(discoverSearch ? { q: discoverSearch } : {}) }),
+    queryKey: keys.discover.list(discoverParams),
+    queryFn: () => fetchDiscover(discoverParams),
     enabled: open,
   });
 
@@ -55,21 +67,21 @@ export function EcosystemPicker() {
         <div className="p-3 border-b">
           <p className="text-xs font-medium text-muted-foreground mb-2">Your Ecosystems</p>
           <div className="space-y-1">
-            {ecosystems.length > 1 && (
+            {activeEcosystems.length > 1 && (
               <label
                 className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer font-medium"
               >
                 <Checkbox
                   checked={isAll}
-                  onCheckedChange={() => selectAll()}
+                  onCheckedChange={() => selectMultiple(activeIds)}
                 />
                 <span className="flex-1">All Ecosystems</span>
                 <Badge variant="outline" className="text-xs shrink-0">
-                  {memberCount(ecosystems.reduce((sum, e) => sum + e.member_count, 0))}
+                  {memberCount(activeEcosystems.reduce((sum, e) => sum + e.member_count, 0))}
                 </Badge>
               </label>
             )}
-            {ecosystems.map((eco) => (
+            {activeEcosystems.map((eco) => (
               <label
                 key={eco.id}
                 className="flex items-center gap-2 rounded-[2px] border-2 border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
@@ -83,6 +95,17 @@ export function EcosystemPicker() {
                   {memberCount(eco.member_count)}
                 </Badge>
               </label>
+            ))}
+            {awaitingConsent.map((eco) => (
+              <Link
+                key={eco.id}
+                href={CONSENT_GATE_PATH}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-[2px] border-2 border-dashed border-strong-border px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+              >
+                <span className="truncate flex-1">{eco.name}</span>
+                <Badge variant="outline" className="text-xs shrink-0">Awaiting your consent</Badge>
+              </Link>
             ))}
           </div>
         </div>

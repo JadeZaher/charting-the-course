@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,7 +93,7 @@ export default function CollaborationForm() {
 
       {createMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(createMutation.error as Error).message}
+          {apiErrorMessage(createMutation.error)}
         </div>
       )}
 

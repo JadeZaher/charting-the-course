@@ -13,6 +13,7 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
 import { ApiFetchError } from '@/lib/api-client';
 import { ArrowLeft } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -107,7 +108,7 @@ export default function DomainForm() {
   const editLocked = isEdit && existing != null && !existing.caller_can_edit;
   const mutationMessage = mutationError instanceof ApiFetchError && mutationError.status === 403 && !isEdit
     ? 'Only an ecosystem steward (moderator or above) can create a domain. Ask a steward to create it, or to give you the moderator role.'
-    : (mutationError as Error | null)?.message;
+    : mutationError ? apiErrorMessage(mutationError) : undefined;
 
   return (
     <div className="space-y-6 max-w-2xl">

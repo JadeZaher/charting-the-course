@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useAudit } from '@/hooks/use-governance';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { IndicatorScore, TriggeredSafeguard } from '@/types/api';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -62,7 +63,7 @@ export default function AuditDetail() {
     return (
       <div className="text-center py-12 space-y-2">
         <p className="text-destructive">Failed to load audit</p>
-        <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message || 'Not found'}</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
         <p className="text-xs text-muted-foreground">The audit may belong to an ecosystem outside your current selection.</p>
         <div className="flex items-center justify-center gap-2 mt-4">
           <Button variant="outline" onClick={() => refetch()} className="min-h-11">Retry</Button>

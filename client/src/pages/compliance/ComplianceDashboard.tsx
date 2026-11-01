@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { apiErrorMessage } from '@/lib/api-error-message';
+import { affects, keys } from '@/lib/query-keys';
+
 import { fetchComplianceLatest, fetchComplianceHistory, generateCompliance } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -123,32 +127,32 @@ function EmptyState({ onGenerate, isGenerating, errorMessage, generateError, onR
 
 export default function ComplianceDashboard() {
   const { selected } = useEcosystem();
-  const qc = useQueryClient();
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const ecosystemId = selected?.id;
 
   // server scopes to the selected ecosystem cookie — no param needed
-  const { data: latest, isLoading, error, refetch } = useQuery<ComplianceSummary>({
-    queryKey: ['compliance', 'latest', ecosystemId],
+  const { data: latest, isLoading, error, refetch } = useQuery({
+    queryKey: keys.compliance.latest(),
     queryFn: () => fetchComplianceLatest(),
     enabled: !!ecosystemId,
     retry: false,
   });
 
-  const { data: history } = useQuery<ComplianceSummary[]>({
-    queryKey: ['compliance', 'history', ecosystemId],
-    queryFn: () => fetchComplianceHistory({ per_page: '25' }).then(r => r.items),
+  const historyParams = { per_page: '25' };
+  const { data: history } = useQuery({
+    queryKey: keys.compliance.history(historyParams),
+    queryFn: () => fetchComplianceHistory(historyParams),
+    select: (page): ComplianceSummary[] => page.items,
     enabled: !!ecosystemId && historyOpen,
     retry: false,
   });
 
-  const generateMutation = useMutation({
+  // The failure renders inline on the page, so the mutation stays silent.
+  const generateMutation = useApiMutation({
     mutationFn: () => generateCompliance(ecosystemId ? { ecosystem_id: ecosystemId } : undefined),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compliance', 'latest', ecosystemId] });
-      qc.invalidateQueries({ queryKey: ['compliance', 'history', ecosystemId] });
-    },
+    invalidates: affects.compliance,
+    silent: true,
   });
 
   if (!ecosystemId) {
@@ -182,7 +186,7 @@ export default function ComplianceDashboard() {
           onGenerate={() => generateMutation.mutate()}
           isGenerating={generateMutation.isPending}
           errorMessage={latestError}
-          generateError={generateMutation.isError ? (generateMutation.error?.message || 'Generation failed — the server may still be processing; retry shortly.') : undefined}
+          generateError={generateMutation.isError ? (apiErrorMessage(generateMutation.error) || 'Generation failed — the server may still be processing; retry shortly.') : undefined}
           onRetry={() => refetch()}
         />
         <AuditRequirementsCard />
@@ -218,7 +222,7 @@ export default function ComplianceDashboard() {
 
       {generateMutation.isError && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {generateMutation.error?.message || 'Failed to generate compliance summary'}
+          {apiErrorMessage(generateMutation.error) || 'Failed to generate compliance summary'}
         </div>
       )}
 

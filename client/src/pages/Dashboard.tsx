@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { QueryState } from '@/components/QueryState';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -10,6 +11,7 @@ import { useDashboardSummary } from '@/hooks/use-api';
 import { useProposals } from '@/hooks/use-governance';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
 import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
+import { keys } from '@/lib/query-keys';
 import type { ActivityItem, SummaryCard } from '@/types/api';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -104,23 +106,16 @@ export default function Dashboard() {
   const scopedEcosystem = selectedIds.length === 1 ? selected : null;
 
   const sharesNeedsQuery = useQuery({
-    queryKey: ['ecosystem-shares-needs', scopedEcosystem?.id],
+    queryKey: keys.sharesNeeds.forEcosystem(scopedEcosystem?.id),
     queryFn: () => fetchEcosystemSharesNeeds(scopedEcosystem!.id),
     enabled: !!scopedEcosystem?.id,
   });
   const quizzesQuery = useQuery({
-    queryKey: ['ecosystem-quizzes', scopedEcosystem?.id],
+    queryKey: keys.quizzes.forEcosystem(scopedEcosystem?.id),
     queryFn: () => fetchEcosystemQuizzes(scopedEcosystem!.id),
     enabled: !!scopedEcosystem?.id,
   });
 
-  const sharesNeeds = sharesNeedsQuery.data?.items ?? [];
-  const sharesCount = sharesNeeds.filter((item) => item.type === 'share').length;
-  const needsCount = sharesNeeds.filter((item) => item.type === 'need').length;
-  const solutionsCount = sharesNeeds.filter((item) => item.type === 'solution').length;
-  const quizCount = quizzesQuery.data?.quizzes?.length ?? 0;
-  const statCards = summaryQuery.data?.cards ?? [];
-  const recentActivity = summaryQuery.data?.activity ?? [];
   const displayName = member?.display_name || 'Member';
   const contextLabel = scopedEcosystem
     ? scopedEcosystem.name
@@ -135,8 +130,9 @@ export default function Dashboard() {
     ...(adviceQuery.data?.items ?? []).map((proposal) => ({ ...proposal, phase: 'Advice' })),
     ...(consentQuery.data?.items ?? []).map((proposal) => ({ ...proposal, phase: 'Consent' })),
   ];
-  const pendingActionCount =
-    (adviceQuery.data?.total ?? 0) + (consentQuery.data?.total ?? 0);
+  // The count is only a number once both queues have loaded; a dash never claims zero.
+  const queuesLoaded = adviceQuery.data !== undefined && consentQuery.data !== undefined;
+  const pendingActionCount = queuesLoaded ? adviceQuery.data!.total + consentQuery.data!.total : null;
 
   const quickActions = [
     { label: 'Draft proposal', detail: 'Open a governance change', href: '/proposals/new' },
@@ -204,24 +200,26 @@ export default function Dashboard() {
           <p className="hidden text-sm text-muted-foreground sm:block">Select any metric to inspect its source records.</p>
         </div>
 
-        {summaryQuery.isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" aria-label="Loading dashboard metrics">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="h-48 rounded-none border-2 border-border" />
-            ))}
-          </div>
-        ) : summaryQuery.error ? (
-          <div className="border-2 border-destructive p-6" role="alert">
-            <p className="font-black uppercase tracking-wide text-destructive">Summary unavailable</p>
-            <p className="mt-2 text-sm text-muted-foreground">{(summaryQuery.error as Error).message}</p>
-          </div>
-        ) : statCards.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {statCards.map((card, index) => <MetricCard key={card.label} card={card} index={index} />)}
-          </div>
-        ) : (
-          <div className="border-2 border-dashed border-strong-border p-8 text-sm text-muted-foreground">No summary records are available in this scope.</div>
-        )}
+        <QueryState
+          query={summaryQuery}
+          loading={
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" aria-label="Loading dashboard metrics">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-48 rounded-none border-2 border-border" />
+              ))}
+            </div>
+          }
+          idle={<div className="border-2 border-dashed border-strong-border p-8 text-sm text-muted-foreground">Select an ecosystem to see its summary.</div>}
+          errorTitle="Summary unavailable"
+          isEmpty={(summary) => summary.cards.length === 0}
+          empty={<div className="border-2 border-dashed border-strong-border p-8 text-sm text-muted-foreground">No summary records are available in this scope.</div>}
+        >
+          {(summary) => (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {summary.cards.map((card, index) => <MetricCard key={card.label} card={card} index={index} />)}
+            </div>
+          )}
+        </QueryState>
       </section>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -231,47 +229,64 @@ export default function Dashboard() {
               <p className="text-xs font-black uppercase tracking-[0.18em] text-warning">02 / Decision queue</p>
               <h2 id="attention-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Needs your attention.</h2>
             </div>
-            <span className="text-4xl font-black tabular-nums" aria-label={`${pendingActionCount} pending actions`}>
-              {pendingActionCount}
+            <span className="text-4xl font-black tabular-nums" aria-label={pendingActionCount === null ? 'Pending actions unavailable' : `${pendingActionCount} pending actions`}>
+              {pendingActionCount ?? '–'}
             </span>
           </div>
 
-          {adviceQuery.isLoading || consentQuery.isLoading ? (
-            <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
-              {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
-            </div>
-          ) : adviceQuery.error || consentQuery.error ? (
-            <div className="p-6" role="alert">
-              <p className="font-bold text-destructive">The governance queue could not be loaded.</p>
-            </div>
-          ) : pendingActions.length === 0 ? (
-            <div className="p-8 sm:p-10">
-              <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">No advice or consent actions are waiting in this scope.</p>
-            </div>
-          ) : (
-            <ol className="divide-y divide-border">
-              {pendingActions.slice(0, 6).map((action, index) => (
-                <li key={`${action.phase}-${action.id}`}>
-                  <Link
-                    href={`/proposals/${action.id}`}
-                    className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
-                  >
-                    <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <div>
-                      <p className="font-black leading-snug">{action.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">Opened {formatDate(action.created_at)}</p>
-                    </div>
-                    <Badge variant={action.phase === 'Consent' ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
-                      {action.phase}
-                    </Badge>
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          )}
+          <QueryState
+            query={adviceQuery}
+            loading={
+              <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
+                {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
+              </div>
+            }
+            idle={<p className="p-6 text-sm text-muted-foreground">Select an ecosystem to see your decision queue.</p>}
+            errorTitle="The governance queue could not be loaded"
+          >
+            {() => (
+              <QueryState
+                query={consentQuery}
+                loading={
+                  <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
+                    {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
+                  </div>
+                }
+                errorTitle="The governance queue could not be loaded"
+                isEmpty={() => pendingActions.length === 0}
+                empty={
+                  <div className="p-8 sm:p-10">
+                    <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">No advice or consent actions are waiting in this scope.</p>
+                  </div>
+                }
+              >
+                {() => (
+                    <ol className="divide-y divide-border">
+                      {pendingActions.slice(0, 6).map((action, index) => (
+                        <li key={`${action.phase}-${action.id}`}>
+                          <Link
+                            href={`/proposals/${action.id}`}
+                            className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
+                          >
+                            <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                            <div>
+                              <p className="font-black leading-snug">{action.title}</p>
+                              <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">Opened {formatDate(action.created_at)}</p>
+                            </div>
+                            <Badge variant={action.phase === 'Consent' ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
+                              {action.phase}
+                            </Badge>
+                          </Link>
+                        </li>
+                      ))}
+                    </ol>
+                )}
+              </QueryState>
+            )}
+          </QueryState>
         </section>
 
         <section aria-labelledby="activity-title" className="border-2 border-strong-border bg-card p-5 sm:p-6 lg:col-span-5">
@@ -279,17 +294,21 @@ export default function Dashboard() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">03 / Recent record</p>
             <h2 id="activity-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Latest movement.</h2>
           </div>
-          {summaryQuery.isLoading ? (
-            <div className="space-y-2 pt-4" aria-label="Loading recent activity">
-              {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-16 rounded-none" />)}
-            </div>
-          ) : summaryQuery.error ? (
-            <p className="py-8 text-sm text-destructive" role="alert">Recent activity could not be loaded.</p>
-          ) : recentActivity.length > 0 ? (
-            <ol>{recentActivity.slice(0, 6).map((activity) => <ActivityRow key={`${activity.type}-${activity.id}`} activity={activity} />)}</ol>
-          ) : (
-            <p className="py-8 text-sm leading-6 text-muted-foreground">No recent governance activity has been recorded in this scope.</p>
-          )}
+          <QueryState
+            query={summaryQuery}
+            loading={
+              <div className="space-y-2 pt-4" aria-label="Loading recent activity">
+                {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-16 rounded-none" />)}
+              </div>
+            }
+            errorTitle="Recent activity could not be loaded"
+            isEmpty={(summary) => summary.activity.length === 0}
+            empty={<p className="py-8 text-sm leading-6 text-muted-foreground">No recent governance activity has been recorded in this scope.</p>}
+          >
+            {(summary) => (
+              <ol>{summary.activity.slice(0, 6).map((activity) => <ActivityRow key={`${activity.type}-${activity.id}`} activity={activity} />)}</ol>
+            )}
+          </QueryState>
         </section>
 
         <section aria-labelledby="ecosystem-activity-title" className="border-2 border-strong-border bg-card lg:col-span-8">
@@ -303,27 +322,49 @@ export default function Dashboard() {
               <p className="text-xl font-black tracking-tight">Narrow the lens to one ecosystem.</p>
               <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Shares, needs, solutions, and quizzes are local records. Select one ecosystem in the header to inspect them without mixing contexts.</p>
             </div>
-          ) : sharesNeedsQuery.isLoading || quizzesQuery.isLoading ? (
-            <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading ecosystem activity">
-              {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-44 rounded-none" />)}
-            </div>
-          ) : sharesNeedsQuery.error || quizzesQuery.error ? (
-            <div className="p-8" role="alert"><p className="font-bold text-destructive">Local ecosystem activity could not be loaded.</p></div>
           ) : (
-            <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: 'Shares', value: sharesCount, detail: 'Resources offered', href: '/discover' },
-                { label: 'Needs', value: needsCount, detail: 'Requests in the network', href: '/discover' },
-                { label: 'Solutions', value: solutionsCount, detail: 'Published approaches', href: '/discover' },
-                { label: 'Quizzes', value: quizCount, detail: 'Learning pathways', href: '/quizzes' },
-              ].map((item) => (
-                <Link key={item.label} href={item.href} className="group min-h-44 bg-card p-6 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground group-hover:text-background/75">{item.label}</p>
-                  <p className="mt-4 text-5xl font-black tabular-nums">{item.value}</p>
-                  <p className="mt-3 text-sm text-muted-foreground group-hover:text-background/75">{item.detail}</p>
-                </Link>
-              ))}
-            </div>
+            <QueryState
+              query={sharesNeedsQuery}
+              loading={
+                <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading ecosystem activity">
+                  {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-44 rounded-none" />)}
+                </div>
+              }
+              errorTitle="Local ecosystem activity could not be loaded"
+            >
+              {(sharesNeedsData) => (
+                <QueryState
+                  query={quizzesQuery}
+                  loading={
+                    <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading ecosystem activity">
+                  {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-44 rounded-none" />)}
+                </div>
+                  }
+                  errorTitle="Local ecosystem activity could not be loaded"
+                >
+                  {(quizzesData) => {
+                    const sharesNeeds = sharesNeedsData.items ?? [];
+                    const quizCount = quizzesData.quizzes?.length ?? 0;
+                    return (
+                      <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
+                        {[
+                          { label: 'Shares', value: sharesNeeds.filter((item) => item.type === 'share').length, detail: 'Resources offered', href: '/discover' },
+                          { label: 'Needs', value: sharesNeeds.filter((item) => item.type === 'need').length, detail: 'Requests in the network', href: '/discover' },
+                          { label: 'Solutions', value: sharesNeeds.filter((item) => item.type === 'solution').length, detail: 'Published approaches', href: '/discover' },
+                          { label: 'Quizzes', value: quizCount, detail: 'Learning pathways', href: '/quizzes' },
+                        ].map((item) => (
+                          <Link key={item.label} href={item.href} className="group min-h-44 bg-card p-6 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground group-hover:text-background/75">{item.label}</p>
+                            <p className="mt-4 text-5xl font-black tabular-nums">{item.value}</p>
+                            <p className="mt-3 text-sm text-muted-foreground group-hover:text-background/75">{item.detail}</p>
+                          </Link>
+                        ))}
+                      </div>
+                    );
+                  }}
+                </QueryState>
+              )}
+            </QueryState>
           )}
         </section>
 

@@ -13,6 +13,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return res.json();
 }
+import { keys } from '@/lib/query-keys';
 import { useUserProgress } from '@/hooks/useOrientation';
 import type { JourneyMap } from '@/types/orientation';
 import { OmniBotPanel } from '@/components/omnibot/OmniBotPanel';
@@ -20,16 +21,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { QueryState } from '@/components/QueryState';
 import { CheckCircle, ExternalLink, Wrench, ArrowRight, Home, Scale, Vote, User } from 'lucide-react';
 
 function useJourneyMap(journeyMapId?: string) {
   return useQuery({
-    queryKey: ['journey-map', journeyMapId],
-    queryFn: async () => {
-      if (!journeyMapId) return null;
-      const result = await apiFetch<any>(`/api/v1/orientation/journey-maps/${journeyMapId}`);
-      return (result?.map ?? result?.data ?? result) as JourneyMap;
-    },
+    queryKey: keys.orientation.journeyMap(journeyMapId),
+    queryFn: () => apiFetch<any>(`/api/v1/orientation/journey-maps/${journeyMapId}`),
+    // The response may wrap the map; unwrap by select so the cached value stays the API response.
+    select: (result): JourneyMap => (result?.map ?? result?.data ?? result) as JourneyMap,
     enabled: !!journeyMapId,
   });
 }
@@ -38,14 +38,16 @@ export default function OrientationComplete() {
   const [, params] = useRoute('/orientation/:ethos_slug/complete');
   const ethosSlug = params?.ethos_slug ?? '';
 
-  const { data: ethosData, isLoading: ethosLoading } = useEthosDetail(ethosSlug);
+  const ethosQuery = useEthosDetail(ethosSlug);
+  const ethosData = ethosQuery.data;
   const ethos = ethosData?.ethos;
   const ethosId = ethos?.id ?? '';
 
-  const { data: progress, isLoading: progressLoading } = useUserProgress(ethosId);
-  const { data: journeyMap, isLoading: mapLoading } = useJourneyMap(progress?.journey_map_id);
+  const progressQuery = useUserProgress(ethosId);
+  const progress = progressQuery.data;
+  const mapQuery = useJourneyMap(progress?.journey_map_id);
+  const journeyMap = mapQuery.data;
   const isComplete = progress?.status === 'complete';
-  const statusLoading = ethosLoading || progressLoading;
 
   const pkg = journeyMap?.exit_package;
   const safeDocs = (pkg?.docs ?? []).flatMap((doc) => {
@@ -56,14 +58,20 @@ export default function OrientationComplete() {
     const url = resolveExternalUrl(tool.url);
     return url ? [{ ...tool, url }] : [];
   });
-  const isLoading = ethosLoading || mapLoading;
 
   return (
     <div className="space-y-8 pb-16">
       {/* Celebration hero — only once saved progress says the journey is complete */}
-      {statusLoading ? (
-        <Skeleton className="h-56 rounded-none" />
-      ) : !isComplete ? (
+      <QueryState query={ethosQuery} loading={<Skeleton className="h-56 rounded-none" />} errorTitle="We couldn't load this ecosystem">
+        {() => (
+          <QueryState
+            query={progressQuery}
+            loading={<Skeleton className="h-56 rounded-none" />}
+            idle={<Skeleton className="h-56 rounded-none" />}
+            errorTitle="We couldn't load your journey progress"
+          >
+            {() =>
+              !isComplete ? (
         <div className="space-y-4 border border-strong-border bg-card p-8 text-center">
           <h1 className="text-3xl font-bold">You haven't finished this journey yet</h1>
           <p className="text-lg text-muted-foreground max-w-md mx-auto">
@@ -78,7 +86,7 @@ export default function OrientationComplete() {
             </Link>
           </Button>
         </div>
-      ) : (
+              ) : (
       <div>
         <div className="space-y-4 border border-strong-border bg-card p-8 text-center">
           <div className="select-none text-6xl">
@@ -103,7 +111,11 @@ export default function OrientationComplete() {
           </Badge>
         </div>
       </div>
-      )}
+              )
+            }
+          </QueryState>
+        )}
+      </QueryState>
 
       {/* What's Next */}
       <div className="space-y-4 mt-8">
@@ -139,16 +151,9 @@ export default function OrientationComplete() {
         </div>
       </div>
 
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-4">
-          <Skeleton className="h-36 rounded-none" />
-          <Skeleton className="h-36 rounded-none" />
-        </div>
-      )}
-
-      {/* Exit package contents */}
-      {!isLoading && pkg && (
+      {/* Exit package contents; a failed load says so rather than silently omitting the resources */}
+      <QueryState query={mapQuery} loading={<div className="space-y-4"><Skeleton className="h-36 rounded-none" /><Skeleton className="h-36 rounded-none" /></div>} errorTitle="We couldn't load your orientation resources">
+        {() => pkg ? (
         <>
           {/* Key docs */}
           {safeDocs.length > 0 && (
@@ -222,7 +227,8 @@ export default function OrientationComplete() {
             </div>
           )}
         </>
-      )}
+        ) : null}
+      </QueryState>
 
       {/* Navigation CTAs */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">

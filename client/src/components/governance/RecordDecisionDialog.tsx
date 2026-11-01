@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { useCreateMyDecision, useMyDecisions } from '@/hooks/use-governance';
 import type { MemberDecision, MemberDecisionState, MemberDecisionSubjectType } from '@/types/api';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const DECISION_PLACEHOLDERS: Record<MemberDecisionSubjectType, string> = {
   agreement: 'I accept this agreement and will uphold it',
@@ -93,7 +94,7 @@ export function RecordDecisionDialog({
       onRecorded?.(created);
     } catch (err) {
       // 409 (already have one), 403 (not a member), 400 (wrong state) — show the server's words.
-      setErrorMessage(err instanceof Error ? err.message : 'Could not record your decision');
+      setErrorMessage(apiErrorMessage(err));
     }
   };
 

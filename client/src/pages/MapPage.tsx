@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiErrorMessage } from '@/lib/api-error-message';
+import { useQuery } from "@tanstack/react-query";
+import { useApiMutation } from "@/hooks/use-api-mutation";
+import { affects, keys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateMember, apiFetch, ApiFetchError } from "@/lib/api-client";
+import { updateMember, fetchMember, fetchSetting, ApiFetchError } from "@/lib/api-client";
 import { APP_SETTINGS_KEYS } from "@/lib/utils";
 import { resolvePreziEmbedUrl, resolvePreziUrl } from "@/lib/media";
 import { MapPin, Edit, Plus, Loader2, ExternalLink } from "lucide-react";
@@ -60,7 +63,6 @@ function MapEmbed({ url, title }: { url: string; title: string }) {
 export default function MapPage() {
   const { member } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const [personalMapDialogOpen, setPersonalMapDialogOpen] = useState(false);
   const [personalMapForm, setPersonalMapForm] = useState({
@@ -70,38 +72,31 @@ export default function MapPage() {
 
   // ——— CTC Map settings ———
   // Settings absent or endpoint not implemented (404) → "not configured" defaults; only real failures error.
-  const { data: ctcSettings, isLoading: ctcLoading, error: ctcError } = useQuery<CtcMapSettings>({
-    queryKey: ["ctc-map-settings"],
-    queryFn: async () => {
-      try {
-        const result = await apiFetch<any>(`/api/v1/settings?key=${APP_SETTINGS_KEYS.ctcMap}`);
-        return (result?.value || { prezi_url: "", description: "" }) as CtcMapSettings;
-      } catch (err) {
-        if (err instanceof ApiFetchError && err.status === 404) {
-          return { prezi_url: "", description: "" } as CtcMapSettings;
-        }
-        throw err;
-      }
-    },
+  const { data: ctcSettingsData, isLoading: ctcLoading, error: ctcQueryError } = useQuery({
+    queryKey: keys.settings.detail(APP_SETTINGS_KEYS.ctcMap),
+    queryFn: () => fetchSetting(APP_SETTINGS_KEYS.ctcMap),
+    select: (result) => (result?.value || { prezi_url: "", description: "" }) as unknown as CtcMapSettings,
   });
+  const ctcSettingMissing = ctcQueryError instanceof ApiFetchError && ctcQueryError.status === 404;
+  const ctcError = ctcSettingMissing ? null : ctcQueryError;
+  const ctcSettings: CtcMapSettings | undefined = ctcSettingMissing ? { prezi_url: "", description: "" } : ctcSettingsData;
 
   // ——— Own profile personal map ———
-  const { data: personalMap, isLoading: personalLoading } = useQuery<PersonalMapData>({
-    queryKey: ["personal-map", member?.id],
-    queryFn: async () => {
-      if (!member) return { personal_map_url: null, personal_map_notes: null };
-      const result = await apiFetch<any>(`/api/v1/members/${member.id}`);
-      const m = result?.member ?? result?.data ?? result;
+  const { data: personalMap, isLoading: personalLoading } = useQuery({
+    queryKey: keys.members.detail(member?.id),
+    queryFn: () => fetchMember(member!.id),
+    select: (result): PersonalMapData => {
+      const m: any = (result as any)?.member ?? (result as any)?.data ?? result;
       return {
         personal_map_url: m?.personal_map_url ?? null,
         personal_map_notes: m?.personal_map_notes ?? null,
-      } as PersonalMapData;
+      };
     },
     enabled: !!member,
   });
 
   // ——— Save personal map ———
-  const savePersonalMapMutation = useMutation({
+  const savePersonalMapMutation = useApiMutation({
     mutationFn: async (values: { personal_map_url: string; personal_map_notes: string }) => {
       if (!member) throw new Error("Not authenticated");
       const submittedUrl = values.personal_map_url.trim();
@@ -112,14 +107,10 @@ export default function MapPage() {
         personal_map_notes: values.personal_map_notes || null,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["personal-map", member?.id] });
-      toast({ title: "Your map has been saved!" });
-      setPersonalMapDialogOpen(false);
-    },
-    onError: (err: any) => {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    },
+    invalidates: affects.profiles,
+    onSuccess: () => { setPersonalMapDialogOpen(false); },
+    success: "Your map has been saved!",
+    error: "Save failed",
   });
 
   function openEditPersonalMap() {
@@ -162,7 +153,7 @@ export default function MapPage() {
           <Card>
             <CardContent className="py-6" role="alert">
               <p className="font-bold text-destructive">The CTC goals map could not be loaded.</p>
-              <p className="text-sm text-muted-foreground mt-1">{(ctcError as Error).message}</p>
+              <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(ctcError)}</p>
             </CardContent>
           </Card>
         ) : ctcUrl && ctcEmbedUrl ? (

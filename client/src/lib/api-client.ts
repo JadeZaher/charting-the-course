@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, TestReport, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, ConsentSubmitResult, TestReport, TestReportSubmitResult, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -186,14 +186,14 @@ export function submitAdvice(id: string, data: Record<string, any>): Promise<Adv
 export function fetchProposalConsent(id: string): Promise<ConsentRecord[]> {
   return apiFetch<{ consent_records: ConsentRecord[] }>(`/api/v1/proposals/${id}/consent`).then(r => r.consent_records);
 }
-export function submitConsent(id: string, data: Record<string, any>): Promise<ConsentRecord> {
-  return apiFetch<ConsentRecord>(`/api/v1/proposals/${id}/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+export function submitConsent(id: string, data: Record<string, any>): Promise<ConsentSubmitResult> {
+  return apiFetch<ConsentSubmitResult>(`/api/v1/proposals/${id}/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export function fetchProposalTest(id: string): Promise<TestReport[]> {
   return apiFetch<{ test_reports: TestReport[] }>(`/api/v1/proposals/${id}/test`).then(r => r.test_reports);
 }
-export function submitTestReport(id: string, data: Record<string, any>): Promise<TestReport> {
-  return apiFetch<TestReport>(`/api/v1/proposals/${id}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+export function submitTestReport(id: string, data: Record<string, any>): Promise<TestReportSubmitResult> {
+  return apiFetch<TestReportSubmitResult>(`/api/v1/proposals/${id}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
 // Members API

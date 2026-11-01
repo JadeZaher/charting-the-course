@@ -13,6 +13,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return res.json();
 }
+import { keys } from '@/lib/query-keys';
 import { useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
 import { saveGenplanInput } from '@/lib/api-client';
 import type { JourneyMap } from '@/types/orientation';
@@ -30,12 +31,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function useJourneyMap(journeyMapId?: string) {
   return useQuery({
-    queryKey: ['journey-map', journeyMapId],
-    queryFn: async () => {
-      if (!journeyMapId) return null;
-      const result = await apiFetch<any>(`/api/v1/orientation/journey-maps/${journeyMapId}`);
-      return (result?.map ?? result?.data ?? result) as JourneyMap;
-    },
+    queryKey: keys.orientation.journeyMap(journeyMapId),
+    queryFn: () => apiFetch<any>(`/api/v1/orientation/journey-maps/${journeyMapId}`),
+    // The response may wrap the map; unwrap by select so the cached value stays the API response.
+    select: (result): JourneyMap => (result?.map ?? result?.data ?? result) as JourneyMap,
     enabled: !!journeyMapId,
   });
 }
@@ -93,14 +92,19 @@ export default function OrientationJourney() {
     const nextIdx = stepIndex + 1;
     const isLast = nextIdx >= totalSteps;
 
-    await saveProgress.mutateAsync({
-      ethos_id: ethosId,
-      journey_map_id: journeyMap.id,
-      current_step: nextIdx,
-      step_key: `step_${stepIndex}`,
-      step_response: response,
-      status: isLast ? 'complete' : 'in_progress',
-    });
+    try {
+      await saveProgress.mutateAsync({
+        ethos_id: ethosId,
+        journey_map_id: journeyMap.id,
+        current_step: nextIdx,
+        step_key: `step_${stepIndex}`,
+        step_response: response,
+        status: isLast ? 'complete' : 'in_progress',
+      });
+    } catch {
+      // Error already toasted by useSaveProgress; stay on this step so the member can retry.
+      return;
+    }
 
     if (currentStep.type === 'choice' && currentStep.section_key && response) {
       const choiceResponse = response as { choice: string };

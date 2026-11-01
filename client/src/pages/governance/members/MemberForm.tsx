@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
 import { toStringList } from '@/lib/utils';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 const PROFILE_OPTIONS = [
   { value: 'co_creator', label: 'Co-Creator' },
@@ -115,7 +116,7 @@ export default function MemberForm() {
 
       {mutationError && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {(mutationError as Error).message}
+          {apiErrorMessage(mutationError)}
         </div>
       )}
 

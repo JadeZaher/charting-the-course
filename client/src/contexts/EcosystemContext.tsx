@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { activeEcosystemIds, defaultEcosystemId } from '@/lib/consent-gate';
+import { ecosystemScoped } from '@/lib/query-keys';
 import type { EcosystemSummary } from '@/types/api';
 
 interface EcosystemContextType {
@@ -43,7 +44,7 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const prevIdsRef = useRef<string[]>([]);
 
-  // Invalidate all governance queries when ecosystem selection changes
+  // Refetch every read the server scopes to the selection (lib/query-keys.ts ecosystemScoped) when it changes.
   useEffect(() => {
     const prev = prevIdsRef.current;
     const changed = prev.length > 0 && (
@@ -53,20 +54,7 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     prevIdsRef.current = selectedIds;
 
     if (changed) {
-      queryClient.invalidateQueries({ queryKey: ['proposals'] });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['agreements'] });
-      queryClient.invalidateQueries({ queryKey: ['domains'] });
-      queryClient.invalidateQueries({ queryKey: ['decisions'] });
-      queryClient.invalidateQueries({ queryKey: ['conflicts'] });
-      queryClient.invalidateQueries({ queryKey: ['exits'] });
-      queryClient.invalidateQueries({ queryKey: ['audits'] });
-      queryClient.invalidateQueries({ queryKey: ['emergency'] });
-      queryClient.invalidateQueries({ queryKey: ['safeguards'] });
-      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['discover'] });
-      queryClient.invalidateQueries({ queryKey: ['ethos-list'] });
+      for (const queryKey of ecosystemScoped) queryClient.invalidateQueries({ queryKey });
     }
   }, [selectedIds, queryClient]);
 

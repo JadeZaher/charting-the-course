@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { useRequestJoinEcosystem } from '@/hooks/use-governance';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiErrorMessage } from '@/lib/api-error-message';
+import { holdsMembershipIn, joinThen } from '@/lib/ecosystem-join';
+import { keys } from '@/lib/query-keys';
 import { Link } from 'wouter';
 import { AlertTriangle, Loader2, ShieldCheck } from 'lucide-react';
 import { fetchEthosAccess, consentEthosAccess } from '@/lib/api-client';
@@ -16,17 +22,22 @@ interface Props {
  * Fails closed on a backend error — protected data stays hidden until access verifies.
  */
 export function ConsentGate({ ethosId, children }: Props) {
-  const queryClient = useQueryClient();
-
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['ethos-access', ethosId],
+    queryKey: keys.ecosystems.myAccess(ethosId),
     queryFn: () => fetchEthosAccess(ethosId),
     enabled: !!ethosId,
   });
 
-  const consent = useMutation({
-    mutationFn: () => consentEthosAccess(ethosId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ethos-access', ethosId] }),
+  // Consent is stored on the member row in this ethos, so a non-member joins first (one click).
+  const { ecosystems } = useAuth();
+  const join = useRequestJoinEcosystem(ethosId);
+  const isMember = holdsMembershipIn(ethosId, ecosystems);
+
+  // The failure renders inline below the explainer, so the mutation stays silent.
+  const consent = useApiMutation({
+    mutationFn: () => joinThen(() => consentEthosAccess(ethosId), { isMember, join: () => join.mutateAsync() }),
+    invalidates: [keys.ecosystems.myAccess(ethosId)],
+    silent: true,
   });
 
   if (data?.has_access) {
@@ -77,9 +88,15 @@ export function ConsentGate({ ethosId, children }: Props) {
         This Ethos community shares member profiles and contact points with its participants. This one
         confirmation covers both your participation and your profile's visibility to other directory members.
       </p>
+      {!isMember && (
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+          You are not a member of this ecosystem yet, so consenting also asks to join it. If it asks newcomers to
+          consent to its agreements first, your membership waits for that consent.
+        </p>
+      )}
       {consent.isError && (
         <p className="mt-4 text-xs text-destructive" role="alert">
-          Could not record consent right now. Please try again.
+          {apiErrorMessage(consent.error)}
         </p>
       )}
       <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -91,7 +108,7 @@ export function ConsentGate({ ethosId, children }: Props) {
           className="inline-flex min-h-11 items-center gap-2 border-2 border-strong-border bg-foreground px-5 text-xs font-black uppercase tracking-[0.12em] text-background hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
         >
           {consent.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-          I consent to participate
+          {isMember ? 'I consent to participate' : 'Join and consent to participate'}
         </button>
         <Link
           href="/discover"
