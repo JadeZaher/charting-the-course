@@ -17,6 +17,9 @@ jobs:
   web-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
+    env:
+      # Secrets cannot appear in `if:`; lift the one the upload needs so the step can be skipped when it is unset.
+      SFTP_SERVER: ${{ secrets.SFTP_SERVER }}
 
     steps:
     - name: 🚚 Get latest code
@@ -38,7 +41,12 @@ jobs:
       env:
         VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
+    - name: ⏭️ SFTP upload skipped
+      if: env.SFTP_SERVER == ''
+      run: echo "::notice::SFTP_SERVER is not set, so the build was checked but not uploaded (production serves the client from Railway's charting-the-course service)."
+
     - name: 📂 Sync files via SFTP
+      if: env.SFTP_SERVER != ''
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.SFTP_SERVER }}
