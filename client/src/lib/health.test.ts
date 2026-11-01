@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { auditDueText, bandLabel, formatMeasured, ratingsNeeded, scoreText, trendLabel } from './health';
+import {
+  auditDueText, auditPeriodError, auditPublishBlocker, auditScopeLabel, auditStatusLabel, bandLabel, formatMeasured,
+  overallBandText, ratingsNeeded, scoreText, trendLabel,
+} from './health';
 
 test('measured values read with their unit; nothing measured says so', () => {
   const cases: Array<[Parameters<typeof formatMeasured>[0], Parameters<typeof formatMeasured>[1], string]> = [
@@ -38,4 +41,32 @@ test('publishing needs a rating only for indicators that are computable and have
 test('a score that was not measured never reads as a number', () => {
   assert.deepEqual([scoreText(null), scoreText(undefined), scoreText(0), scoreText(72, '%'), scoreText(Number.NaN)],
     ['Not measured', 'Not measured', '0', '72%', 'Not measured']);
+});
+
+// p3-health-audit-and-review-3/-4: Publish is offered only when the server would accept it.
+test('publishing waits for a valid period and every indicator with data, named as the form names them', () => {
+  const noPeriodError = auditPeriodError('2026-01-01', '2026-06-30');
+  const reversed = auditPeriodError('2026-06-30', '2026-01-01');
+  assert.equal(noPeriodError, null);
+  assert.equal(auditPeriodError('2026-03-01', '2026-03-01'), null, 'a one-day period is valid');
+  assert.equal(auditPeriodError('', '2026-01-01'), null, 'an open start is the default period');
+  assert.match(reversed ?? '', /must end on or after/);
+  const cases: [string, Parameters<typeof auditPublishBlocker>[0], string | null][] = [
+    ['one rating, two required missing', { periodError: null, missingNames: ['Proposal Authorship Diversity', 'Review Compliance'], ratedCount: 1 },
+      'Rate every indicator that has data before publishing. Still to rate: Proposal Authorship Diversity, Review Compliance.'],
+    ['everything required rated', { periodError: null, missingNames: [], ratedCount: 2 }, null],
+    ['nothing rated and nothing required', { periodError: null, missingNames: [], ratedCount: 0 }, 'Rate at least one indicator before publishing.'],
+    ['a reversed period wins', { periodError: reversed, missingNames: ['Review Compliance'], ratedCount: 3 }, 'Fix the audit period before publishing.'],
+  ];
+  for (const [why, input, expected] of cases) assert.equal(auditPublishBlocker(input), expected, why);
+});
+
+// p3-health-audit-and-review-6/-14: stored values read in the form's words; the overall band is a band, not a trend.
+test('audit scope, status and overall band read as words, never stored values', () => {
+  assert.deepEqual(['full', 'indicators', 'capture_risk', 'odd_value', null].map(auditScopeLabel),
+    ['Full review', 'Indicators only', 'Capture risk', 'Odd value', '']);
+  assert.deepEqual(['completed', 'draft', 'abandoned'].map(auditStatusLabel), ['Published', 'Draft (not published)', 'Abandoned']);
+  assert.equal(overallBandText('degrading'), 'Overall band: Weak (score 25-49)');
+  assert.equal(overallBandText('healthy'), 'Overall band: Healthy (score 80-100)');
+  assert.equal(overallBandText(null), null);
 });

@@ -238,6 +238,8 @@ function CollaborationBody({ collab }: { collab: CollaborationDetailView }) {
   const termsText = typeof collab.terms?.text === 'string' ? collab.terms.text : null;
   const waiting = collab.status === 'proposed' ? waitingOnText(collab.awaiting) : null;
   const ended = collab.status === 'completed' || collab.status === 'dissolved';
+  // A review date means something only while the collaboration runs or waits to start (p3-collaboration-and-moderation-8).
+  const hasReviewDate = collab.status === 'proposed' || collab.status === 'active';
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -246,7 +248,7 @@ function CollaborationBody({ collab }: { collab: CollaborationDetailView }) {
           <h1 ref={headingRef} tabIndex={-1} className="text-3xl font-bold [overflow-wrap:anywhere]">{collab.title}</h1>
           <Badge variant={statusVariant(collab.status)} className="px-3 py-1 text-sm capitalize">{collab.status}</Badge>
           <Badge variant="outline" className="px-3 py-1 text-sm capitalize">{collab.engagement_tier}</Badge>
-          {collab.review_due && <Badge variant="warning" className="px-3 py-1 text-sm">Review due</Badge>}
+          {collab.review_due && hasReviewDate && <Badge variant="warning" className="px-3 py-1 text-sm">Review due</Badge>}
         </div>
 
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
@@ -278,7 +280,7 @@ function CollaborationBody({ collab }: { collab: CollaborationDetailView }) {
           <CardContent className="space-y-1 text-sm">
             <p>
               {collab.reviewed_by_name ? `Reviewed by ${collab.reviewed_by_name}` : 'Reviewed'} on {formatDate(collab.reviewed_at)}.
-              {collab.review_date ? ` Next review: ${formatDate(collab.review_date)}.` : ''}
+              {collab.review_date && hasReviewDate ? ` Next review: ${formatDate(collab.review_date)}.` : ''}
             </p>
             {collab.review_note && <p className="whitespace-pre-wrap">Found: {collab.review_note}</p>}
           </CardContent>
@@ -322,27 +324,27 @@ function CollaborationBody({ collab }: { collab: CollaborationDetailView }) {
         <CardHeader><CardTitle className="text-base">Overview</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {collab.description && <p className="whitespace-pre-wrap text-sm leading-relaxed">{collab.description}</p>}
+          {/* One div per dt/dd pair, the icon inside the dt: a dl admits nothing else (axe definition-list, dlitem). */}
           <dl className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-3">
-            <div className="flex items-start gap-2">
-              <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div>
-                <dt className="text-xs text-muted-foreground">Started</dt>
-                <dd className="text-sm font-medium">{formatDate(collab.started_date)}</dd>
-              </div>
+            <div>
+              <dt className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />Started
+              </dt>
+              <dd className="pl-6 text-sm font-medium">{formatDate(collab.started_date)}</dd>
             </div>
-            <div className="flex items-start gap-2">
-              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            {hasReviewDate && (
               <div>
-                <dt className="text-xs text-muted-foreground">Review date</dt>
-                <dd className="text-sm font-medium">{formatDate(collab.review_date)}{collab.review_due ? ' (review due)' : ''}</dd>
+                <dt className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />Review date
+                </dt>
+                <dd className="pl-6 text-sm font-medium">{formatDate(collab.review_date)}{collab.review_due ? ' (review due)' : ''}</dd>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div>
-                <dt className="text-xs text-muted-foreground">Proposed</dt>
-                <dd className="text-sm font-medium">{formatDate(collab.created_at)}</dd>
-              </div>
+            )}
+            <div>
+              <dt className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />Proposed
+              </dt>
+              <dd className="pl-6 text-sm font-medium">{formatDate(collab.created_at)}</dd>
             </div>
           </dl>
         </CardContent>

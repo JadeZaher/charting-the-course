@@ -47,11 +47,19 @@ export default function ExitForm() {
       </Button>
 
       <h1 className="text-3xl font-bold">Leave {selected?.name ?? 'an ecosystem'}</h1>
-      <p className="text-sm text-muted-foreground">
-        Leaving is your choice: no approval and no waiting period. A steward helps hand over your roles and commitments
-        during the handoff, then confirms your departure. You can withdraw until then, and download your governance
-        record from the exit page.
-      </p>
+      {/* One story with the confirm dialog: nobody can refuse, but membership ends at the steward's confirmation (p3-needs-across-ecosystems-2). */}
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <p>
+          Nobody can refuse your exit. You stay a member until a steward confirms your departure at the end of the
+          handoff, within 30 days of filing (7 for an urgent exit). During the handoff a steward helps you hand over your
+          roles and commitments, and you can withdraw your exit. You can download your governance record from the exit page.
+        </p>
+        <p>
+          When your departure is confirmed, your open shares and needs in {selected?.name ?? 'the ecosystem'} are
+          withdrawn, marked “author left”. Conversations are not deleted, but the ones you take part in as a member there
+          leave your Messages.
+        </p>
+      </div>
 
       {!selected && <p className="text-sm">Choose the ecosystem you are leaving in the picker at the top of the page.</p>}
 
@@ -94,8 +102,9 @@ export default function ExitForm() {
           <AlertDialogHeader>
             <AlertDialogTitle>File your exit from {selected?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Stewards see it and start the handoff, which ends within {exitType === 'urgent' ? '7' : '30'} days. Your
-              membership ends only when a steward confirms your departure, and you can withdraw until then.
+              Nobody can refuse it. Stewards see it and start the handoff, which ends within {exitType === 'urgent' ? '7' : '30'} days.
+              You stay a member until a steward confirms your departure, and you can withdraw until then. On confirmation
+              your open shares and needs there are withdrawn.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

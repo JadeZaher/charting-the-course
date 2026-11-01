@@ -46,10 +46,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
-import { canOpenAdminPanel, readPlatformAdmin, showsNewcomers, visibleNavItems, type NavAccess } from "@/lib/nav-access";
+import { canOpenAdminPanel, navPermissionsFor, readPlatformAdmin, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
 import { useModeratedEcosystems } from "@/hooks/use-discover"; // FX-Exchange
+import { useConversations } from "@/hooks/use-messaging";
 import { moderatedInSelection } from "@/lib/exchange"; // FX-Exchange
 
 const menuItems = [
@@ -118,7 +119,7 @@ const facilitatorItems: { title: string; url: string; icon: any; access: NavAcce
     title: "Manage Quizzes",
     url: "/quiz/manage",
     icon: FileEdit,
-    access: "content",
+    access: "quiz-steward",
   },
   {
     title: "Manage Shares & Needs",
@@ -244,13 +245,16 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
-  // G-Authority: Administration and AdminPanel links follow the server's platform-admin flag, not the profile.
-  const permissions = { canManageContent, isPlatformAdmin: readPlatformAdmin(auth) };
+  // G-Authority: Administration and AdminPanel links follow the server's platform-admin flag, not the profile;
+  // Manage Quizzes and Newcomers follow the server's steward rule for the selected ecosystems (FX-Onboard, pass 03).
+  const permissions = navPermissionsFor({ isPlatformAdmin: readPlatformAdmin(auth), selectedIds, memberships: ecosystems });
   const showAdministration = canOpenAdminPanel(permissions);
   const visibleFacilitatorItems = visibleNavItems(facilitatorItems, permissions);
-  const showNewcomers = showsNewcomers(selectedIds, ecosystems); // FX-Onboard: the server's steward rule per ecosystem
+  const showNewcomers = permissions.stewardsSelection;
   // FX-Exchange: Moderation for an exchange steward of a selected ecosystem (the server's own steward list).
   const showModeration = moderatedInSelection(useModeratedEcosystems().data, selectedIds).length > 0;
+  // The same list (and 30 s poll) as the drawer's launcher, so the link, the drawer and /messaging agree.
+  const unreadMessages = (useConversations().data?.conversations ?? []).reduce((sum, conversation) => sum + conversation.unread_count, 0);
 
   const displayName = member?.display_name || 'User';
 
@@ -368,6 +372,12 @@ export function AppSidebar() {
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {unreadMessages > 0 && (
+                        <span className="ml-auto inline-flex min-w-5 shrink-0 items-center justify-center bg-destructive px-1 text-[0.68rem] font-bold leading-5 text-destructive-foreground">
+                          <span aria-hidden="true">{unreadMessages > 99 ? "99+" : unreadMessages}</span>
+                          <span className="sr-only">, {unreadMessages} unread</span>
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

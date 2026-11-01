@@ -17,7 +17,7 @@ import {
 } from '@/hooks/use-discover';
 import { useRequiredFields } from '@/hooks/use-required-fields';
 import { apiErrorMessage } from '@/lib/api-error-message';
-import { POST_TYPE_LABELS, postMoveActions, type PostMoveAction } from '@/lib/exchange';
+import { POST_TYPE_LABELS, postMoveActions, STILL_OPEN_AFTER_DAYS, type PostMoveAction } from '@/lib/exchange';
 import type { SharesNeedsPost } from '@/types/api';
 import { PostForm } from './PostForm';
 
@@ -164,9 +164,12 @@ function ConfirmMove({ post, move, onStart }: { post: SharesNeedsPost; move: Pos
   );
 }
 
-/** "Keep it open": resets the check-in, reversible, so no confirmation; its error shows under the buttons. */
+const keepOpenHintId = (postId: string) => `keep-open-${postId}-hint`;
+
+/** "Keep it open": resets the check-in, reversible, so no confirmation; what it does is said before the click. */
 function KeepOpen({ post, move }: { post: SharesNeedsPost; move: PostMoveAction }) {
   const mutation = useUpdateSharesNeedsStatus();
+  const hintId = keepOpenHintId(post.id);
   return (
     <>
       {/* aria-disabled, not disabled: a focused button that becomes disabled drops focus to the page. */}
@@ -175,6 +178,7 @@ function KeepOpen({ post, move }: { post: SharesNeedsPost; move: PostMoveAction 
         size="sm"
         variant="outline"
         aria-label={`${move.label}: ${post.title}`}
+        aria-describedby={hintId}
         aria-disabled={mutation.isPending}
         onClick={() => { if (!mutation.isPending) mutation.mutate({ id: post.id, status: move.status }); }}
       >
@@ -264,9 +268,17 @@ function DeletePostDialog({ post, onDeleted }: { post: SharesNeedsPost; onDelete
           <AlertDialogAction
             className="border-destructive bg-destructive text-destructive-foreground"
             disabled={mutation.isPending}
-            onClick={(event) => {
+            onClick={async (event) => {
               event.preventDefault();
-              mutation.mutate(post.id, { onSuccess: () => { setOpen(false); onDeleted?.(); } });
+              // mutateAsync, not mutate callbacks: dropping the post's detail can unmount this dialog before the
+              // write settles, and TanStack skips an unmounted observer's callbacks, so onDeleted would never run.
+              try {
+                await mutation.mutateAsync(post.id);
+              } catch {
+                return; // shown above by ActionError
+              }
+              setOpen(false);
+              onDeleted?.();
             }}
           >
             {mutation.isPending ? 'Deleting…' : 'Delete for good'}
@@ -392,6 +404,11 @@ export function PostManageActions({ post, onDeleted, include = 'all' }: PostMana
       {canDelete && <DeletePostDialog post={post} onDeleted={onDeleted} />}
       {canHide && <HidePostDialog post={post} onStart={markActing} />}
       {canRestore && <RestorePostDialog post={post} onStart={markActing} />}
+      {moves.some((move) => move.kind === 'keep-open') && (
+        <p id={keepOpenHintId(post.id)} className="basis-full text-xs text-muted-foreground">
+          Keep it open: resets the {STILL_OPEN_AFTER_DAYS}-day “Still open?” check. It keeps taking answers.
+        </p>
+      )}
     </div>
   );
 }

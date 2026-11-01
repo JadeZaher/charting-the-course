@@ -4,6 +4,7 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { activeEcosystemIds } from '@/lib/consent-gate';
 import { CONSENT_GATE_PATH } from '@/lib/member-status';
+import { ecosystemPickerLabel } from '@/lib/nav-access';
 import { keys } from '@/lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDiscover } from '@/lib/api-client';
@@ -46,12 +47,11 @@ export function EcosystemPicker() {
 
   if (ecosystems.length === 0) return null;
 
-  const selectedCount = selectedIds.length;
-  const label = selectedCount === 1
-    ? ecosystems.find(e => selectedIds.includes(e.id))?.name ?? 'Ecosystem'
-    : isAll
-      ? 'All Ecosystems'
-      : `${selectedCount} ecosystems`;
+  const label = ecosystemPickerLabel({
+    selected: ecosystems.filter((eco) => selectedIds.includes(eco.id)),
+    activeCount: activeEcosystems.length,
+    awaitingConsent,
+  });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { GovernanceHealthAuditForm } from '@/components/governance/safeguards/Go
 import { ShieldCheck, ClipboardList, TrendingUp, TrendingDown, ArrowRight, AlertTriangle } from 'lucide-react';
 import type { EcosystemHealth, IndicatorScore } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
-import { auditDueText, bandLabel, formatMeasured, scoreText, trendLabel } from '@/lib/health';
+import { auditDueText, auditStatusLabel, bandLabel, formatMeasured, overallBandName, scoreText, trendLabel } from '@/lib/health';
 import { formatDate } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -41,6 +41,9 @@ const statusVariant = (status: string) => {
     default: return 'secondary' as const;
   }
 };
+
+/** The ecosystem card's heading, where focus lands after an audit of it is published (p3-health-audit-and-review-12). */
+const healthCardHeadingId = (ecosystemId: string) => `health-card-${ecosystemId}`;
 
 const overallHealthStyle: Record<string, string> = {
   healthy: 'border-success bg-success/10 text-success',
@@ -75,7 +78,7 @@ function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[
           </div>
           {score?.status && (
             <Badge className={statusColor[score.status] ?? ''} variant="outline">
-              {score.status}
+              Auditor’s rating: {bandLabel(score.status)}
             </Badge>
           )}
         </div>
@@ -89,6 +92,7 @@ function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[
                 </span>
               )}
             </div>
+            {score.band && <p className="text-xs">Framework band: <span className="font-medium">{bandLabel(score.band)}</span></p>}
             {score.prior_value != null && (
               <p className="text-xs text-muted-foreground">Prior: {formatMeasured(score.prior_value, score.unit)}</p>
             )}
@@ -114,10 +118,10 @@ function EcosystemHealthCard({ health, onRecord }: { health: EcosystemHealth; on
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
+        <h2 id={healthCardHeadingId(health.ecosystem_id)} tabIndex={-1} className="flex items-center gap-2 text-lg font-extrabold leading-tight tracking-[-0.025em]">
           <ShieldCheck className="h-5 w-5" aria-hidden="true" />
           {health.ecosystem}
-        </CardTitle>
+        </h2>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {health.latest_audit && health.published_on ? (
@@ -148,11 +152,15 @@ function EcosystemHealthCard({ health, onRecord }: { health: EcosystemHealth; on
             </Button>
           )}
           {health.caller_can_record_audit && (
-            <Button size="sm" className="min-h-11" onClick={onRecord}>Record an audit</Button>
+            <Button size="sm" className="min-h-11" onClick={onRecord} data-record-audit={health.ecosystem_id}>Record an audit</Button>
           )}
         </div>
         {health.caller_can_record_audit && health.caller_records_self_assessment && (
           <p className="text-xs text-muted-foreground">This will be a self-assessment: nobody outside the stewards can record it.</p>
+        )}
+        {/* Why there is no "Record an audit", with the next step, as the server words it (p3-health-audit-and-review-1). */}
+        {!health.caller_can_record_audit && health.caller_record_audit_refusal && (
+          <p className="text-xs text-muted-foreground">{health.caller_record_audit_refusal}</p>
         )}
       </CardContent>
     </Card>
@@ -181,10 +189,8 @@ function ComputedValues({ ecosystemId }: { ecosystemId: string }) {
             <p className="font-semibold">{indicator.name}</p>
             {indicator.computable ? (
               <>
-                <p className="mt-1 text-xl font-bold">
-                  {formatMeasured(indicator.measured_value, indicator.unit)}
-                  {indicator.band && <span className="ml-2 text-sm font-medium">{bandLabel(indicator.band)}</span>}
-                </p>
+                <p className="mt-1 text-xl font-bold">{formatMeasured(indicator.measured_value, indicator.unit)}</p>
+                {indicator.band && <p className="text-xs">Framework band: <span className="font-medium">{bandLabel(indicator.band)}</span></p>}
                 <p className="text-xs text-muted-foreground">{indicator.basis}</p>
                 {indicator.detail && <p className="text-xs text-muted-foreground">{indicator.detail}</p>}
               </>
@@ -220,6 +226,21 @@ export default function SafeguardsDashboard() {
   const { data, isLoading, error } = useSafeguards();
   const [recordingFor, setRecordingFor] = useState<EcosystemHealth | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
+  // The audit dialog has no trigger, so Radix returns focus nowhere: after publishing, focus the ecosystem's card
+  // (its new score); otherwise its "Record an audit" button (p3-health-audit-and-review-12).
+  const lastRecorded = useRef<{ ecosystemId: string; published: boolean } | null>(null);
+  const startRecording = (health: EcosystemHealth) => {
+    lastRecorded.current = { ecosystemId: health.ecosystem_id, published: false };
+    setRecordingFor(health);
+  };
+  const returnFocus = (event: Event) => {
+    const last = lastRecorded.current;
+    if (!last) return;
+    event.preventDefault();
+    const heading = document.getElementById(healthCardHeadingId(last.ecosystemId));
+    const button = document.querySelector<HTMLElement>(`[data-record-audit="${CSS.escape(last.ecosystemId)}"]`);
+    (last.published ? heading : button ?? heading)?.focus();
+  };
 
   if (isLoading) return <LoadingState message="Loading safeguards..." />;
 
@@ -251,11 +272,20 @@ export default function SafeguardsDashboard() {
         </Button>
       </div>
 
+      <p className="max-w-3xl text-sm text-muted-foreground">
+        Each ecosystem’s governance health is checked against eight indicators. NEOS works out each value from the
+        records and shows the framework band it falls in; an auditor then rates each indicator by hand and publishes
+        the result. A published audit is what the score below reflects.
+      </p>
+
       <GovernanceHealthAuditForm
         open={recordingFor !== null}
         onOpenChange={(open) => { if (!open) setRecordingFor(null); }}
         ecosystemId={recordingFor?.ecosystem_id}
+        ecosystemName={recordingFor?.ecosystem}
         selfAssessment={recordingFor?.caller_records_self_assessment}
+        onPublished={() => { if (lastRecorded.current) lastRecorded.current.published = true; }}
+        onCloseAutoFocus={returnFocus}
       />
 
       {ecosystems.length === 0 ? (
@@ -263,7 +293,7 @@ export default function SafeguardsDashboard() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {ecosystems.map((health) => (
-            <EcosystemHealthCard key={health.ecosystem_id} health={health} onRecord={() => setRecordingFor(health)} />
+            <EcosystemHealthCard key={health.ecosystem_id} health={health} onRecord={() => startRecording(health)} />
           ))}
         </div>
       )}
@@ -340,12 +370,12 @@ export default function SafeguardsDashboard() {
           <CardTitle className="text-lg">Recent Audits</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <Table aria-label="Recent audits">
             <TableHeader>
               <TableRow>
                 <TableHead>Auditor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Health</TableHead>
+                <TableHead>Overall band</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Completed</TableHead>
               </TableRow>
@@ -366,12 +396,12 @@ export default function SafeguardsDashboard() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(audit.status)}>{audit.status === 'draft' ? 'draft (not published)' : audit.status}</Badge>
+                      <Badge variant={statusVariant(audit.status)}>{auditStatusLabel(audit.status)}</Badge>
                     </TableCell>
                     <TableCell>
                       {audit.overall_health ? (
                         <Badge className={overallHealthStyle[audit.overall_health] ?? ''} variant="outline">
-                          {audit.overall_health}
+                          {overallBandName(audit.overall_health)}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>

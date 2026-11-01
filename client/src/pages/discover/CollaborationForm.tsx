@@ -38,16 +38,32 @@ const SERVER_FIELDS: Record<string, FieldName> = {
   terms: 'terms',
 };
 
+/** The domain a post fixes on its side of the collaboration, read-only. */
+function FixedDomain({ post, labelledBy }: { post: SharesNeedsPost; labelledBy: string }) {
+  return (
+    <div role="group" aria-labelledby={labelledBy} className="border-2 border-border p-3 text-sm">
+      <span className="font-semibold">{post.domain_name ?? 'The post’s domain'}</span>
+      {post.ecosystem_name ? ` in ${post.ecosystem_name}` : ''}
+      <span className="block text-xs text-muted-foreground">Fixed by the post this starts from.</span>
+    </div>
+  );
+}
+
 function ProposalForm({ fromPost }: { fromPost: SharesNeedsPost | null }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { ecosystems } = useEcosystem();
   const createMutation = useCreateCollaboration();
-  const domainsQuery = useDomains({ per_page: '100' });
+  // Archived domains take no new collaborations (p3-collaboration-and-moderation-2).
+  const domainsQuery = useDomains({ per_page: '100', status: 'active' });
   const domains = domainsQuery.data?.items ?? [];
+  // The post fixes its own domain on the side it belongs to: yours when you wrote it, the partner's otherwise.
+  const ownPost = fromPost?.caller_is_author === true;
+  const fixedSource = ownPost ? fromPost : null;
+  const fixedTarget = fromPost && !ownPost ? fromPost : null;
 
-  const [sourceDomainId, setSourceDomainId] = useState('');
-  const [targetDomainId, setTargetDomainId] = useState(fromPost?.domain_id ?? '');
+  const [sourceDomainId, setSourceDomainId] = useState(fixedSource?.domain_id ?? '');
+  const [targetDomainId, setTargetDomainId] = useState(fixedTarget?.domain_id ?? '');
   const [title, setTitle] = useState(fromPost ? `${POST_TYPE_LABELS[fromPost.type]}: ${fromPost.title}`.slice(0, 255) : '');
   const [description, setDescription] = useState('');
   const [engagementTier, setEngagementTier] = useState('cooperate');
@@ -134,34 +150,40 @@ function ProposalForm({ fromPost }: { fromPost: SharesNeedsPost | null }) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="collaboration-source">Your domain</Label>
-              <Select
-                value={sourceDomainId}
-                disabled={domainsQuery.isLoading}
-                onValueChange={(value) => { setSourceDomainId(value); required.settle('sourceDomain', value); markEdited('sourceDomain'); }}
-              >
-                <SelectTrigger id="collaboration-source" {...required.field('sourceDomain')} {...aria('sourceDomain')}>
-                  <SelectValue placeholder="Choose one of your domains" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceChoices.map((domain) => {
-                    const owner = ecosystemName(domain.ecosystem_id);
-                    return <SelectItem key={domain.id} value={domain.id}>{owner ? `${domainOptionLabel(domain)} · ${owner}` : domainOptionLabel(domain)}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
-              <FieldError id={errorId('sourceDomain')} message={messageFor('sourceDomain')} />
+              {fixedSource ? (
+                <>
+                  <p id="collaboration-source-label" className="text-sm font-bold">Your domain</p>
+                  <FixedDomain post={fixedSource} labelledBy="collaboration-source-label" />
+                  <FieldError id={errorId('sourceDomain')} message={messageFor('sourceDomain')} />
+                </>
+              ) : (
+                <>
+                  <Label htmlFor="collaboration-source">Your domain</Label>
+                  <Select
+                    value={sourceDomainId}
+                    disabled={domainsQuery.isLoading}
+                    onValueChange={(value) => { setSourceDomainId(value); required.settle('sourceDomain', value); markEdited('sourceDomain'); }}
+                  >
+                    <SelectTrigger id="collaboration-source" {...required.field('sourceDomain')} {...aria('sourceDomain')}>
+                      <SelectValue placeholder="Choose one of your domains" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sourceChoices.map((domain) => {
+                        const owner = ecosystemName(domain.ecosystem_id);
+                        return <SelectItem key={domain.id} value={domain.id}>{owner ? `${domainOptionLabel(domain)} · ${owner}` : domainOptionLabel(domain)}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <FieldError id={errorId('sourceDomain')} message={messageFor('sourceDomain')} />
+                </>
+              )}
             </div>
 
             <div className="space-y-2">
-              {fromPost ? (
+              {fixedTarget ? (
                 <>
                   <p id="collaboration-target-label" className="text-sm font-bold">With</p>
-                  <p aria-labelledby="collaboration-target-label" className="border-2 border-border p-3 text-sm">
-                    <span className="font-semibold">{fromPost.domain_name ?? 'The post’s domain'}</span>
-                    {fromPost.ecosystem_name ? ` in ${fromPost.ecosystem_name}` : ''}
-                    <span className="block text-xs text-muted-foreground">Fixed by the post this starts from.</span>
-                  </p>
+                  <FixedDomain post={fixedTarget} labelledBy="collaboration-target-label" />
                   <FieldError id={errorId('targetDomain')} message={messageFor('targetDomain')} />
                 </>
               ) : (

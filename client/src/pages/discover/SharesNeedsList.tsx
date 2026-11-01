@@ -10,7 +10,7 @@ import { useSharesNeeds } from '@/hooks/use-discover';
 import { postHref, proposeFromPostHref } from '@/lib/exchange';
 import { SHARESNEEDS_CATEGORY_OPTIONS, sharesNeedsCategoryLabel } from '@/lib/sharesneeds-vocab';
 import type { SharesNeedsPost } from '@/types/api';
-import { PostBadges, PostByline } from './PostParts';
+import { PostBadges, PostByline, SHARES_NEEDS_HEADING_ID } from './PostParts';
 import { RespondAction } from './RespondDialog';
 
 const PER_PAGE = 24;
@@ -74,7 +74,7 @@ function PostCard({ post }: { post: SharesNeedsPost }) {
         <RespondAction post={post} />
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
-            <Link href={postHref(post.id)} aria-label={`Details: ${post.title}`}>Details</Link>
+            <Link href={postHref(post.id)} aria-label={`Details: ${post.title}`} data-post-details={post.id}>Details</Link>
           </Button>
           {open && (
             <Button asChild size="sm" variant="ghost">
@@ -117,14 +117,15 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
 
   return (
     <div className="space-y-6" aria-busy={query.isFetching}>
-      <div className="grid gap-5 border-b-2 border-strong-border pb-6 lg:grid-cols-12 lg:items-end">
-        <div className="lg:col-span-3">
+      {/* The button takes the width its label needs and the filters wrap around it (p3-gold-propose-share-1). */}
+      <div className="flex flex-wrap items-end gap-5 border-b-2 border-strong-border pb-6">
+        <div className="min-w-0 flex-[1_1_14rem]">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Capacity exchange</p>
-          <h2 className="mt-2 text-3xl font-black tracking-[-0.035em]">
+          <h2 id={SHARES_NEEDS_HEADING_ID} tabIndex={-1} className="mt-2 text-3xl font-black tracking-[-0.035em]">
             {query.data ? `${total} ${total === 1 ? 'post' : 'posts'}` : 'Shares + needs'}
           </h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3 lg:col-span-7">
+        <div className="grid min-w-0 flex-[3_1_24rem] grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
           <div>
             <label className="mb-2 block text-[0.68rem] font-black uppercase tracking-[0.14em]" htmlFor="exchange-type">Exchange type</label>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -153,7 +154,7 @@ export default function SharesNeedsList({ searchProp = '' }: Props) {
             </Select>
           </div>
         </div>
-        <Button asChild className="min-h-11 rounded-none lg:col-span-2">
+        <Button asChild className="min-h-11 w-full shrink-0 whitespace-nowrap rounded-none sm:w-auto">
           <Link href="/discover/shares-needs/new">
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
             Post a share or need

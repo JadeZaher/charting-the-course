@@ -10,11 +10,13 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useDashboardSummary } from '@/hooks/use-api';
 import { useMyNextSteps } from '@/hooks/use-next-steps';
 import { useSafeguards } from '@/hooks/use-care';
+import { agreementStatusLabel } from '@/lib/agreement-status';
 import { auditDueText } from '@/lib/health';
 import { formatDate as formatDateOnly } from '@/lib/utils';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
 import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { dueStatus, formatDue, nextStepKindLabel } from '@/lib/next-steps';
+import { proposalPhaseLabel } from '@/lib/proposal-vocab';
 import { keys } from '@/lib/query-keys';
 import type { ActivityItem, SummaryCard } from '@/types/api';
 
@@ -36,6 +38,14 @@ function statusTone(status: string) {
   if (['rejected', 'blocked', 'expired', 'cancelled'].includes(normalized)) return 'text-destructive';
   if (['pending', 'advice', 'consent', 'review'].includes(normalized)) return 'text-warning';
   return 'text-muted-foreground';
+}
+
+/** A breakdown key (a record status) in the words its own pages use, never the raw value ("Under_review"). */
+function breakdownLabel(cardHref: string, key: string): string {
+  if (cardHref === '/agreements') return agreementStatusLabel(key);
+  if (cardHref === '/proposals') return proposalPhaseLabel(key);
+  const words = key.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function MetricCard({ card, index }: { card: SummaryCard; index: number }) {
@@ -61,7 +71,7 @@ function MetricCard({ card, index }: { card: SummaryCard; index: number }) {
         <dl className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-4 text-xs group-hover:border-background/40">
           {Object.entries(card.breakdown).map(([label, value]) => (
             <div key={label} className="flex gap-1.5">
-              <dt className="capitalize text-muted-foreground group-hover:text-background/75">{label}</dt>
+              <dt className="text-muted-foreground group-hover:text-background/75">{breakdownLabel(card.href, label)}</dt>
               <dd className="font-black tabular-nums">{value}</dd>
             </div>
           ))}

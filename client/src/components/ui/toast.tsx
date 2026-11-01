@@ -44,9 +44,12 @@ const Toast = React.forwardRef<
     VariantProps<typeof toastVariants>
 >(({ className, variant, ...props }, ref) => {
   return (
+    // Radix renders each toast as <li role="status"> inside the viewport's <ol>, which is not a list item (axe "list");
+    // its announcement comes from a separate live region, so the item keeps list semantics. See client/src/AGENTS.md "Toasts and axe".
     <ToastPrimitives.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
+      role="listitem"
       {...props}
     />
   )
@@ -79,9 +82,10 @@ const ToastClose = React.forwardRef<
       className
     )}
     toast-close=""
+    aria-label="Dismiss notification"
     {...props}
   >
-    <X className="h-4 w-4" />
+    <X className="h-4 w-4" aria-hidden="true" />
   </ToastPrimitives.Close>
 ))
 ToastClose.displayName = ToastPrimitives.Close.displayName

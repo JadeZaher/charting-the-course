@@ -1516,6 +1516,8 @@ export interface IndicatorScore {
 
 export interface GovernanceAudit {
   self_assessment?: boolean;
+  /** The audited ecosystem's name (pass 03, p3-health-audit-and-review-5); absent from an older server. */
+  ecosystem_name?: string | null;
 }
 
 export interface EcosystemHealth {
@@ -1528,6 +1530,8 @@ export interface EcosystemHealth {
   audit_overdue: boolean;
   critical_count: number;
   caller_can_record_audit: boolean;
+  /** Why the caller may not record one, with the next step (pass 03, p3-health-audit-and-review-1); absent from an older server. */
+  caller_record_audit_refusal?: string | null;
   caller_records_self_assessment: boolean;
 }
 

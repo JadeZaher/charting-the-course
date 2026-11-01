@@ -43,7 +43,10 @@ Members (`MemberDetail` -> `components/governance/MemberRoleCard`):
 says why) and `role_history` the recorded grants. Onboarding
 (`OnboardingCeremony`): `caller_can_record` gates the section buttons.
 Agreements: `caller_can_propose_change` shows "Propose a change", which opens
-`/proposals/new?amends=<id>` pre-filled with the agreement's text.
+`/proposals/new?amends=<id>` pre-filled with the agreement's text. Edit renders
+only for a draft or advice agreement when `caller_can_rollback` is true (the
+server's PUT rule: editable status and an active member there); an in-force
+agreement changes only through "Propose a change" (pass 03).
 
 Domains (`DomainDetail`, `DomainList`):
 
@@ -207,7 +210,10 @@ and exit"); pages render its flags and words.
 - Recovery: `RecordReviewDialog` (scheduled or complete, with a note) and
   `CompleteRecoveryDialog` (steward, after a complete review) live in the
   Recovery card of `EmergencyDetail`.
-- Exit: `ExitForm` files the caller's own exit (no member picker). `ExitDetail`
+- Exit: `ExitForm` files the caller's own exit (no member picker). Its intro
+  and confirm dialog say the same thing: nobody can refuse it, membership ends
+  when a steward confirms, and on confirmation open posts there are withdrawn
+  and conversations held through that membership leave Messages (not deleted). `ExitDetail`
   shows `next_step`, the handoff notice (`lib/exit-status.ts handoffNotice`)
   and one button per `allowed_next` status with `EXIT_MOVE_COPY`.
   `ExitDataExportCard` renders for the leaver only and downloads the portable

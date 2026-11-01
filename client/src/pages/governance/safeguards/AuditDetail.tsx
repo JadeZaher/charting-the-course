@@ -3,15 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAudit } from '@/hooks/use-care';
+import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { GovernanceHealthAuditForm } from '@/components/governance/safeguards/GovernanceHealthAuditForm';
 import { AbandonAuditButton, AuditStewardRecordNote, RespondToAuditButton } from '@/components/governance/safeguards/AuditStewardActions';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { IndicatorScore, TriggeredSafeguard } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
 import { StatusBanner } from '@/components/governance/StatusBanner';
-import { bandLabel, formatMeasured, trendLabel } from '@/lib/health';
+import { auditScopeLabel, auditStatusLabel, bandLabel, formatMeasured, overallBandText, trendLabel } from '@/lib/health';
 import { formatDate } from '@/lib/utils';
 
 const statusVariant = (status: string) => {
@@ -64,6 +65,17 @@ export default function AuditDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error, refetch } = useAudit(id);
   const [continuing, setContinuing] = useState(false);
+  const ecosystemNameOf = useEcosystemName();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const continueRef = useRef<HTMLButtonElement>(null);
+  const published = useRef(false);
+  // The audit dialog has no trigger: after publishing (Continue is gone) focus the heading, else Continue (p3-health-audit-and-review-12).
+  const returnFocus = (event: Event) => {
+    event.preventDefault();
+    const target = published.current || !continueRef.current?.isConnected ? headingRef.current : continueRef.current;
+    published.current = false;
+    target?.focus();
+  };
 
   if (isLoading) return <LoadingState message="Loading audit..." />;
 
@@ -86,6 +98,9 @@ export default function AuditDetail() {
   const triggerLabel = data.trigger_type
     ? (TRIGGER_TYPE_LABELS[data.trigger_type] ?? data.trigger_type)
     : null;
+  // The page names what was audited (p3-health-audit-and-review-5): the server's name, else the caller's membership list.
+  const ecosystemName = data.ecosystem_name || ecosystemNameOf(data.ecosystem_id) || null;
+  const overallBand = overallBandText(data.overall_health);
 
   return (
     <div className="space-y-6">
@@ -98,12 +113,14 @@ export default function AuditDetail() {
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Governance Audit</h1>
+          <h1 ref={headingRef} tabIndex={-1} className="text-3xl font-bold">
+            {ecosystemName ? `Governance audit of ${ecosystemName}` : 'Governance audit'}
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
-            {data.overall_health && (
+            <Badge variant={statusVariant(data.status)}>{auditStatusLabel(data.status)}</Badge>
+            {overallBand && (
               <Badge variant={overallHealthVariant(data.overall_health)}>
-                {data.overall_health}
+                {overallBand}
               </Badge>
             )}
             {triggerLabel && (
@@ -115,7 +132,7 @@ export default function AuditDetail() {
         </div>
         <div className="flex flex-wrap gap-2">
           {data.caller_can_edit && (
-            <Button className="min-h-11" onClick={() => setContinuing(true)}>Continue this audit</Button>
+            <Button ref={continueRef} className="min-h-11" onClick={() => setContinuing(true)}>Continue this audit</Button>
           )}
           {data.caller_can_abandon && <AbandonAuditButton audit={data} />}
           {data.caller_can_respond && <RespondToAuditButton audit={data} />}
@@ -124,8 +141,8 @@ export default function AuditDetail() {
 
       <StatusBanner kind="audit" id={data.id} />
 
-      {data.abandonment && <AuditStewardRecordNote record={data.abandonment} kind="abandonment" />}
-      {data.response && <AuditStewardRecordNote record={data.response} kind="response" />}
+      {data.abandonment && <AuditStewardRecordNote auditId={data.id} record={data.abandonment} kind="abandonment" />}
+      {data.response && <AuditStewardRecordNote auditId={data.id} record={data.response} kind="response" />}
 
       {data.status === 'draft' && (
         <p className="border-2 border-warning bg-warning/10 p-3 text-sm">
@@ -134,7 +151,15 @@ export default function AuditDetail() {
             : `This is ${data.auditor}'s draft. It does not count toward the health score until they publish it.`}
         </p>
       )}
-      <GovernanceHealthAuditForm open={continuing} onOpenChange={setContinuing} audit={data} selfAssessment={data.self_assessment} />
+      <GovernanceHealthAuditForm
+        open={continuing}
+        onOpenChange={setContinuing}
+        audit={data}
+        ecosystemName={ecosystemName}
+        selfAssessment={data.self_assessment}
+        onPublished={() => { published.current = true; }}
+        onCloseAutoFocus={returnFocus}
+      />
 
       {/* Details Card */}
       <Card>
@@ -151,14 +176,14 @@ export default function AuditDetail() {
             <div>
               <dt className="text-muted-foreground">Status</dt>
               <dd className="mt-1">
-                <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+                <Badge variant={statusVariant(data.status)}>{auditStatusLabel(data.status)}</Badge>
               </dd>
             </div>
 
             {typeof data.audit_scope === 'string' && data.audit_scope && (
               <div>
-                <dt className="text-muted-foreground">Audit Scope</dt>
-                <dd className="font-medium">{data.audit_scope}</dd>
+                <dt className="text-muted-foreground">Audit scope</dt>
+                <dd className="font-medium">{auditScopeLabel(data.audit_scope)}</dd>
               </div>
             )}
 
@@ -214,7 +239,9 @@ export default function AuditDetail() {
                 <div key={score.indicator_id} className="space-y-2 border border-strong-border p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">{score.indicator_id}</span>
-                    <Badge className={statusColorClass(score.status)}>{score.status ?? 'N/A'}</Badge>
+                    <Badge className={statusColorClass(score.status)}>
+                      {score.status ? `Auditor’s rating: ${bandLabel(score.status)}` : 'Not rated'}
+                    </Badge>
                   </div>
                   <p className="text-sm font-semibold">{score.indicator_name}</p>
                   <div className="flex items-center gap-2">

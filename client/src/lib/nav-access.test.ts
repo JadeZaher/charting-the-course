@@ -1,26 +1,51 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canOpenAdminPanel, readPlatformAdmin, showsNewcomers, visibleNavItems, type NavAccess, type NavPermissions } from './nav-access';
+import {
+  canOpenAdminPanel, ecosystemPickerLabel, navPermissionsFor, readPlatformAdmin, showsNewcomers, visibleNavItems, type NavAccess,
+} from './nav-access';
 import type { MembershipRow } from './ecosystem-join';
 
 // The sidebar's Content Management links (components/AppSidebar.tsx facilitatorItems).
 const links: { title: string; access: NavAccess }[] = [
-  { title: 'Manage Quizzes', access: 'content' },
+  { title: 'Manage Quizzes', access: 'quiz-steward' },
   { title: 'Manage Shares & Needs', access: 'admin-panel' },
 ];
 
 test('each member sees only the links whose page admits them', () => {
-  // canManageContent as hooks/usePermissions derives it from the profile; isPlatformAdmin is the server's flag.
-  const cases: [string, NavPermissions, string[], boolean][] = [
-    ['townhall', { canManageContent: true, isPlatformAdmin: false }, ['Manage Quizzes'], false],
-    ['founder of their own ecosystem (co_creator there)', { canManageContent: true, isPlatformAdmin: false }, ['Manage Quizzes'], false],
-    ['platform admin', { canManageContent: true, isPlatformAdmin: true }, ['Manage Quizzes', 'Manage Shares & Needs'], true],
-    ['no profile', { canManageContent: false, isPlatformAdmin: false }, [], false],
+  // The /auth/me rows the sidebar reads; quiz authoring is a steward's (api/quizzes.py), whatever the member's profile.
+  const townhall = { id: 'omni', membership_status: 'active', role: 'user', is_steward: false };
+  const pending = { id: 'omni', membership_status: 'pending_consent', role: 'user', is_steward: false };
+  const steward = { id: 'omni', membership_status: 'active', role: 'mod', is_steward: true };
+  const founder = { id: 'fresh', membership_status: 'active', role: 'user', is_steward: true };
+  const cases: [string, boolean, string[], MembershipRow[], string[], boolean][] = [
+    // p3-collaboration-and-moderation-10: a townhall or pending newcomer was offered Manage Quizzes, which the server refuses.
+    ['townhall member', false, ['omni'], [townhall], [], false],
+    ['pending newcomer', false, [], [pending], [], false],
+    ['steward of the selected ecosystem', false, ['omni'], [steward], ['Manage Quizzes'], false],
+    ['founder of their own ecosystem, selected', false, ['fresh'], [townhall, founder], ['Manage Quizzes'], false],
+    ['steward elsewhere, a non-stewarded ecosystem selected', false, ['omni'], [townhall, founder], [], false],
+    ['platform admin', true, ['omni'], [townhall], ['Manage Quizzes', 'Manage Shares & Needs'], true],
   ];
-  for (const [who, permissions, titles, adminPanel] of cases) {
+  for (const [who, isPlatformAdmin, selectedIds, memberships, titles, adminPanel] of cases) {
+    const permissions = navPermissionsFor({ isPlatformAdmin, selectedIds, memberships });
     assert.deepEqual(visibleNavItems(links, permissions).map((link) => link.title), titles, who);
     assert.equal(canOpenAdminPanel(permissions), adminPanel, who);
   }
+});
+
+test('the ecosystem picker never reads "0 ecosystems"', () => {
+  const omni = { name: 'OmniOne' };
+  const oasis = { name: 'Oasis' };
+  const cases: [string, Parameters<typeof ecosystemPickerLabel>[0], string][] = [
+    ['one selected', { selected: [omni], activeCount: 2, awaitingConsent: [] }, 'OmniOne'],
+    ['every active one selected', { selected: [omni, oasis], activeCount: 2, awaitingConsent: [] }, 'All Ecosystems'],
+    ['some selected', { selected: [omni, oasis], activeCount: 3, awaitingConsent: [] }, '2 ecosystems'],
+    // p3-collaboration-and-moderation-10: a pending newcomer has nothing selectable.
+    ['pending newcomer', { selected: [], activeCount: 0, awaitingConsent: [omni] }, 'OmniOne (awaiting your consent)'],
+    ['pending in two', { selected: [], activeCount: 0, awaitingConsent: [omni, oasis] }, '2 ecosystems awaiting your consent'],
+    ['active but nothing selected', { selected: [], activeCount: 1, awaitingConsent: [] }, 'Choose an ecosystem'],
+  ];
+  for (const [who, input, expected] of cases) assert.equal(ecosystemPickerLabel(input), expected, who);
 });
 
 test('only an explicit true from /auth/me makes a platform admin', () => {

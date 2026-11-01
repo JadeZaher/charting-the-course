@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,10 @@ import {
 import { useStartAudit, useSaveAuditDraft, usePublishAudit } from '@/hooks/use-care';
 import { useHealthSnapshot } from '@/hooks/use-health';
 import { useEcosystem } from '@/contexts/EcosystemContext';
-import { bandLabel, formatMeasured, ratingsNeeded } from '@/lib/health';
-import type { AuditDraftFields, GovernanceAudit, RatedIndicator } from '@/types/api';
+import {
+  AUDIT_SCOPE_OPTIONS, auditPeriodError, auditPublishBlocker, bandLabel, formatMeasured, ratingsNeeded,
+} from '@/lib/health';
+import type { AuditDraftFields, GovernanceAudit, HealthSnapshot, RatedIndicator } from '@/types/api';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
@@ -48,15 +50,24 @@ interface GovernanceHealthAuditFormProps {
   ecosystemId?: string;
   /** Nobody outside the stewards can record this audit: say so before it is saved. */
   selfAssessment?: boolean;
+  /** The audited ecosystem's name for the title; else the draft's own, else the caller's membership list. */
+  ecosystemName?: string | null;
+  /** Where focus goes when the dialog closes (it has no trigger for Radix to return to). */
+  onCloseAutoFocus?: (event: Event) => void;
+  /** Called with the published audit, before the dialog closes. */
+  onPublished?: (audit: GovernanceAudit) => void;
 }
 
 /** Record a governance health audit by hand: rate indicators, write findings, save a draft, publish. */
-export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystemId, selfAssessment }: GovernanceHealthAuditFormProps) {
-  const { selected: selectedEcosystem } = useEcosystem();
+export function GovernanceHealthAuditForm({
+  open, onOpenChange, audit, ecosystemId, selfAssessment, ecosystemName, onCloseAutoFocus, onPublished,
+}: GovernanceHealthAuditFormProps) {
+  const { selected: selectedEcosystem, ecosystems } = useEcosystem();
   const startMutation = useStartAudit();
   const saveMutation = useSaveAuditDraft();
   const publishMutation = usePublishAudit();
   const auditedEcosystemId = audit?.ecosystem_id ?? ecosystemId ?? selectedEcosystem?.id;
+  const auditedName = ecosystemName ?? audit?.ecosystem_name ?? ecosystems.find((ecosystem) => ecosystem.id === auditedEcosystemId)?.name;
   // A draft created by this dialog is kept, so a failed publish retries on it instead of starting another.
   const [draftId, setDraftId] = useState<string | undefined>(audit?.id);
 
@@ -80,15 +91,30 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
     setConfirmingPublish(false);
   }, [open, audit]);
 
+  // A reversed period is a field error, never a snapshot request: values and required markers stay those of the last
+  // valid period, and the last values loaded stay up while another period loads (p3-health-audit-and-review-4).
+  const periodError = auditPeriodError(periodStart, periodEnd);
+  const lastValidPeriod = useRef({ from: '', to: '' });
+  if (!periodError) lastValidPeriod.current = { from: periodStart, to: periodEnd };
   const snapshot = useHealthSnapshot({
     ecosystem_id: open ? auditedEcosystemId : undefined,
-    from: periodStart || undefined,
-    to: periodEnd || undefined,
+    from: lastValidPeriod.current.from || undefined,
+    to: lastValidPeriod.current.to || undefined,
   });
-  const liveValues = new Map((snapshot.data?.indicators ?? []).map((value) => [value.indicator_id, value]));
-  const requiredIds = new Set(ratingsNeeded(snapshot.data?.indicators ?? []));
+  const lastSnapshot = useRef<{ ecosystemId?: string; data: HealthSnapshot } | null>(null);
+  if (snapshot.data) lastSnapshot.current = { ecosystemId: auditedEcosystemId, data: snapshot.data };
+  const kept = lastSnapshot.current;
+  const snapshotData = snapshot.data ?? (kept && kept.ecosystemId === auditedEcosystemId ? kept.data : undefined);
+  const liveValues = new Map((snapshotData?.indicators ?? []).map((value) => [value.indicator_id, value]));
+  const requiredIds = new Set(ratingsNeeded(snapshotData?.indicators ?? []));
   const missingRequired = Array.from(requiredIds).filter((id) => !ratings[id] || ratings[id] === NOT_RATED);
   const ratedCount = Object.values(ratings).filter((value) => value !== NOT_RATED).length;
+  // Publishing needs every indicator with data rated (the server's RATINGS_MISSING), named as the form names them.
+  const publishBlocker = auditPublishBlocker({
+    periodError,
+    missingNames: missingRequired.map((id) => GHI_INDICATORS.find((indicator) => indicator.id === id)?.name ?? id),
+    ratedCount,
+  });
   const busy = startMutation.isPending || saveMutation.isPending || publishMutation.isPending;
   const failure = startMutation.error ?? saveMutation.error ?? publishMutation.error;
 
@@ -132,8 +158,10 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
   };
 
   const handlePublish = async () => {
+    if (publishBlocker) return;
     try {
-      await publishMutation.mutateAsync(await saveDraft());
+      const published = await publishMutation.mutateAsync(await saveDraft());
+      onPublished?.(published);
       onOpenChange(false);
     } catch {
       // Error shown by the mutation state below
@@ -142,11 +170,14 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" />
-            {audit ? 'Continue governance health audit' : 'Record a governance health audit'}
+            <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>
+              {audit ? 'Continue the governance health audit' : 'Record a governance health audit'}
+              {auditedName ? ` of ${auditedName}` : ''}
+            </span>
           </DialogTitle>
           <DialogDescription>
             You are the auditor. Rate each indicator you have looked at, write what you found, and publish when you are done.
@@ -166,9 +197,7 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
               <Select value={scope} onValueChange={setScope}>
                 <SelectTrigger id="audit-scope"><SelectValue placeholder="Select scope" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="full">Full review</SelectItem>
-                  <SelectItem value="indicators">Indicators only</SelectItem>
-                  <SelectItem value="capture_risk">Capture risk</SelectItem>
+                  {AUDIT_SCOPE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -178,13 +207,25 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
             </div>
             <div className="space-y-2">
               <Label htmlFor="audit-period-end">Period to</Label>
-              <Input id="audit-period-end" type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+              <Input
+                id="audit-period-end"
+                type="date"
+                value={periodEnd}
+                onChange={(e) => setPeriodEnd(e.target.value)}
+                aria-invalid={periodError ? true : undefined}
+                aria-describedby={periodError ? 'audit-period-error' : undefined}
+              />
             </div>
           </div>
+          {periodError && (
+            <p id="audit-period-error" role="alert" className="text-sm font-semibold text-destructive">
+              {periodError} The values below are for the last valid period.
+            </p>
+          )}
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Indicators</legend>
-            {snapshot.isError && <p className="text-xs text-muted-foreground">The live values could not be loaded. You can still rate.</p>}
+            {snapshot.isError && !snapshotData && <p className="text-xs text-muted-foreground">The live values could not be loaded. You can still rate.</p>}
             {GHI_INDICATORS.map((indicator) => {
               const live = liveValues.get(indicator.id);
               const needed = requiredIds.has(indicator.id);
@@ -224,9 +265,11 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
             <Textarea id="audit-recommendations" rows={3} value={recommendations} onChange={(e) => setRecommendations(e.target.value)} />
           </div>
 
-          {confirmingPublish && (
+          {publishBlocker ? (
+            <p id="audit-publish-blocker" className="border-2 border-strong-border p-3 text-sm">{publishBlocker}</p>
+          ) : confirmingPublish && (
             <div className="border-2 border-warning bg-warning/10 p-3 text-sm" role="alert">
-              Publishing freezes the measured values with your {ratedCount} rating{ratedCount === 1 ? '' : 's'} and locks the audit. You can't edit it afterwards.{missingRequired.length > 0 ? ` Still to rate: ${missingRequired.join(', ')}.` : ''}
+              Publishing freezes the measured values with your {ratedCount} rating{ratedCount === 1 ? '' : 's'} and locks the audit. You can't edit it afterwards.
             </div>
           )}
         </div>
@@ -243,13 +286,18 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystem
             {busy && !confirmingPublish ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Save draft
           </Button>
-          {confirmingPublish ? (
-            <Button onClick={handlePublish} disabled={busy || ratedCount === 0}>
+          {confirmingPublish && !publishBlocker ? (
+            <Button onClick={handlePublish} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Yes, publish
             </Button>
           ) : (
-            <Button onClick={() => setConfirmingPublish(true)} disabled={busy || ratedCount === 0} title={ratedCount === 0 ? 'Rate at least one indicator first' : undefined}>
+            <Button
+              onClick={() => setConfirmingPublish(true)}
+              disabled={busy || publishBlocker !== null}
+              title={publishBlocker ?? undefined}
+              aria-describedby={publishBlocker ? 'audit-publish-blocker' : undefined}
+            >
               Publish audit
             </Button>
           )}

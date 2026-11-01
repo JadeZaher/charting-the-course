@@ -51,3 +51,64 @@ export function ratingsNeeded(indicators: ReadonlyArray<Pick<HealthIndicatorValu
 export function scoreText(value: number | null | undefined, suffix = ''): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${value}${suffix}` : 'Not measured';
 }
+
+// Pass 03 (uxqa 03-cross-ecosystem-exchange): audit wording and the publish rule; see client/src/AGENTS.md "Maintenance and health (G-Maint)".
+
+/** An audit's scope as the form offers it. */
+export const AUDIT_SCOPE_OPTIONS = [
+  { value: 'full', label: 'Full review' },
+  { value: 'indicators', label: 'Indicators only' },
+  { value: 'capture_risk', label: 'Capture risk' },
+] as const;
+
+/** The form's words for a stored scope ("Full review", never "full"); an unknown value reads with spaces. */
+export function auditScopeLabel(scope: string | null | undefined): string {
+  if (!scope) return '';
+  const known = AUDIT_SCOPE_OPTIONS.find((option) => option.value === scope);
+  if (known) return known.label;
+  const words = scope.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** "Published" for the server's `completed`; other statuses with spaces. */
+export function auditStatusLabel(status: string): string {
+  if (status === 'completed') return 'Published';
+  if (status === 'draft') return 'Draft (not published)';
+  const words = status.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+const OVERALL_BANDS: Record<string, { name: string; range: string }> = {
+  healthy: { name: 'Healthy', range: '80-100' },
+  mixed: { name: 'Mixed', range: '50-79' },
+  degrading: { name: 'Weak', range: '25-49' },
+  critical: { name: 'Critical', range: '0-24' },
+};
+
+/** The band a published overall score falls in ("Weak (score 25-49)"), never a trend word: `degrading` is a score range, not a change. */
+export function overallBandName(label: string | null | undefined): string | null {
+  if (!label) return null;
+  const band = OVERALL_BANDS[label];
+  return band ? `${band.name} (score ${band.range})` : label;
+}
+
+/** "Overall band: Weak (score 25-49)", for a badge with no column heading beside it. */
+export function overallBandText(label: string | null | undefined): string | null {
+  const name = overallBandName(label);
+  return name ? `Overall band: ${name}` : null;
+}
+
+/** The audit period's field error: an end before the start (the server refuses to compute or publish it). */
+export function auditPeriodError(start: string, end: string): string | null {
+  return start && end && start > end ? 'The period must end on or after the day it starts.' : null;
+}
+
+/** Why "Publish" is not offered yet, in one sentence; null when it is. Required ratings are named by the form's names. */
+export function auditPublishBlocker(input: { periodError: string | null; missingNames: readonly string[]; ratedCount: number }): string | null {
+  if (input.periodError) return 'Fix the audit period before publishing.';
+  if (input.missingNames.length > 0) {
+    return `Rate every indicator that has data before publishing. Still to rate: ${input.missingNames.join(', ')}.`;
+  }
+  if (input.ratedCount === 0) return 'Rate at least one indicator before publishing.';
+  return null;
+}

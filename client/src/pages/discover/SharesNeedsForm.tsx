@@ -19,7 +19,8 @@ export default function SharesNeedsForm() {
   const { toast } = useToast();
   const { ecosystems } = useEcosystem();
   const createMutation = useCreateSharesNeeds();
-  const domainsQuery = useDomains({ per_page: '100' });
+  // Archived domains take no new posts (p3-collaboration-and-moderation-2).
+  const domainsQuery = useDomains({ per_page: '100', status: 'active' });
 
   const ecosystemName = (ecosystemId: string | null) => ecosystems.find((ecosystem) => ecosystem.id === ecosystemId)?.name ?? null;
   const multipleEcosystems = new Set((domainsQuery.data?.items ?? []).map((domain) => domain.ecosystem_id)).size > 1;

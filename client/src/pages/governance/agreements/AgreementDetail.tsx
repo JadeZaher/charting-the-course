@@ -132,12 +132,16 @@ export default function AgreementDetail() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/agreements/${id}/edit`}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Link>
-          </Button>
+          {/* The server's edit rule (PUT): a draft or advice agreement, an active member there. `caller_can_rollback` is
+              that rule; in force, "Propose a change" below is the way (p3-health-audit-and-review-10). */}
+          {(data.status === 'draft' || data.status === 'advice') && data.caller_can_rollback && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/agreements/${id}/edit`}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm">
             <Link href={`/agreements/${id}/history`}>
               <History className="h-4 w-4 mr-1" />
@@ -543,7 +547,7 @@ export default function AgreementDetail() {
                 <CardTitle className="text-lg">Ratification Records</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
+                <Table aria-label="Ratification records">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Participant</TableHead>

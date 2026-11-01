@@ -98,9 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Sign-in and sign-up leave the global isLoading alone, so Login stays mounted (client/src/AGENTS.md "Pass 03 fixes").
   const login = useCallback(async (displayName?: string) => {
     setError(null);
-    setIsLoading(true);
 
     try {
       // Load or generate keypair
@@ -143,14 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await checkSession();
     } catch (err) {
       setError(apiErrorMessage(err));
-      setIsLoading(false);
       throw err;
     }
   }, []);
 
   const loginWithCredentials = useCallback(async (username: string, password: string) => {
     setError(null);
-    setIsLoading(true);
 
     try {
       await loginWithPassword(username, password);
@@ -159,14 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       clearAuthCookies();
       setError(apiErrorMessage(err));
-      setIsLoading(false);
       throw err;
     }
   }, []);
 
   const register = useCallback(async (username: string, password: string, displayName?: string, ecosystemId?: string) => {
     setError(null);
-    setIsLoading(true);
 
     try {
       const registered = await registerAccount({ username, password, display_name: displayName, ecosystem_id: ecosystemId });
@@ -174,7 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { consentRequired: session.consentRequired || registered.status === 'consent_required' };
     } catch (err) {
       setError(apiErrorMessage(err));
-      setIsLoading(false);
       throw err;
     }
   }, []);

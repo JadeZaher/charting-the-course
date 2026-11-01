@@ -1,4 +1,5 @@
 // Small read-only pieces every post surface shares: badges, byline, and the closed/hidden notices.
+import { Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ageText, postStatusLabel, visibilityLabel } from '@/lib/exchange';
 import type { SharesNeedsPost } from '@/types/api';
@@ -9,7 +10,20 @@ function formatDay(value: string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-/** Status, hidden and (when not public) visibility badges. */
+/** The Shares + needs list heading (SharesNeedsList), where focus lands when a post's detail closes on nothing. */
+export const SHARES_NEEDS_HEADING_ID = 'shares-needs-heading';
+
+/** Focus the list heading, else the page's main region (the post was opened away from the list). */
+export function focusSharesNeedsHeading(): void {
+  (document.getElementById(SHARES_NEEDS_HEADING_ID) ?? document.getElementById('main-content'))?.focus();
+}
+
+/** Who can see a post, in the form's words; a hidden post only by its author and the stewards, whatever it was posted as. */
+export function postAudienceLabel(post: Pick<SharesNeedsPost, 'hidden' | 'visibility'>): string {
+  return post.hidden ? 'Only its author and the stewards' : visibilityLabel(post.visibility);
+}
+
+/** Status, hidden and visibility badges; every card says who can see it (p3-plain-words-and-joining-4). */
 export function PostBadges({ post }: { post: SharesNeedsPost }) {
   return (
     <span className="flex flex-wrap items-center gap-2">
@@ -19,9 +33,11 @@ export function PostBadges({ post }: { post: SharesNeedsPost }) {
       {post.hidden && (
         <Badge variant="destructive" className="rounded-none">Hidden</Badge>
       )}
-      {post.visibility !== 'public' && (
-        <Badge variant="outline" className="rounded-none">{visibilityLabel(post.visibility)}</Badge>
-      )}
+      <Badge variant="outline" className="gap-1 rounded-none">
+        <Eye className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span className="sr-only">Who can see it: </span>
+        {postAudienceLabel(post)}
+      </Badge>
     </span>
   );
 }

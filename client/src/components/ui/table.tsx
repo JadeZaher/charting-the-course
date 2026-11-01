@@ -2,18 +2,45 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/** True while the element's content overflows it (re-measured on resize of the element or its content). */
+function useOverflows(element: React.RefObject<HTMLElement>): boolean {
+  const [overflows, setOverflows] = React.useState(false)
+  React.useLayoutEffect(() => {
+    const node = element.current
+    if (!node || typeof ResizeObserver === "undefined") return
+    const measure = () => setOverflows(node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1)
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    if (node.firstElementChild) observer.observe(node.firstElementChild)
+    measure()
+    return () => observer.disconnect()
+  }, [element])
+  return overflows
+}
+
+// A table that overflows its box becomes a focusable, named region so keyboard users can scroll it
+// (axe scrollable-region-focusable, p3-health-audit-and-review-13). Name it with `aria-label` on <Table>.
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto border-2 border-card-border">
-    <table
-      ref={ref}
-      className={cn("w-full caption-bottom border-collapse text-sm tabular-nums", className)}
-      {...props}
-    />
-  </div>
-))
+>(({ className, "aria-label": label, ...props }, ref) => {
+  const scrollRef = React.useRef<HTMLDivElement>(null)
+  const scrollable = useOverflows(scrollRef)
+  return (
+    <div
+      ref={scrollRef}
+      className="relative w-full overflow-auto border-2 border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {...(scrollable ? { tabIndex: 0, role: "region", "aria-label": `${label ?? "Table"} (scrollable)` } : {})}
+    >
+      <table
+        ref={ref}
+        aria-label={label}
+        className={cn("w-full caption-bottom border-collapse text-sm tabular-nums", className)}
+        {...props}
+      />
+    </div>
+  )
+})
 Table.displayName = "Table"
 
 const TableHeader = React.forwardRef<

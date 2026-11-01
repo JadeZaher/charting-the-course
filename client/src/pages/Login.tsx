@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Vote, Users, Globe, Sparkles, Loader2, KeyRound, UserPlus, LogIn, RefreshCw, ChevronDown } from "lucide-react";
 import loginHeroImage from "@assets/generated_images/Login_hero_collaboration_illustration_547be2cb.png";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Redirect, useLocation, useSearch } from "wouter";
@@ -57,6 +57,12 @@ export default function Login() {
   const [didOpen, setDidOpen] = useState(false);
   // A check the form makes before sending; server failures arrive as authError. Either way one inline line.
   const [formError, setFormError] = useState<string | null>(null);
+  // A taken username (409) is shown on the username field, not as the form line (p3-plain-words-and-joining-1).
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const regUsernameRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (usernameError && !isSubmitting) regUsernameRef.current?.focus();
+  }, [usernameError, isSubmitting]);
   // G-Onboard: an invite link (?ecosystem=<id>, or ?redirect=/ethos/<id>) places the newcomer in that ecosystem.
   const [signupEcosystem] = useState(() => signupEcosystemId(window.location.search));
 
@@ -172,6 +178,7 @@ export default function Login() {
     }
 
     setFormError(null);
+    setUsernameError(null);
     setIsSubmitting(true);
     stashRedirect(null);
 
@@ -184,8 +191,10 @@ export default function Login() {
           : "Welcome to NEOS!",
       });
       setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
-    } catch {
-      // Shown inline as authError (a sign-up link to a private or unknown ecosystem reads "Ecosystem not found").
+    } catch (err) {
+      // Shown inline as authError (a sign-up link to a private or unknown ecosystem reads "Ecosystem not found"),
+      // except a taken username, which goes under its field.
+      if ((err as { status?: unknown } | null)?.status === 409) setUsernameError("That username is already taken. Choose another one.");
     } finally {
       setIsSubmitting(false);
     }
@@ -202,7 +211,8 @@ export default function Login() {
     }
   };
 
-  const shownError = formError ?? authError;
+  const fieldErrorShown = usernameError !== null && authMode === "register";
+  const shownError = formError ?? (fieldErrorShown ? null : authError);
 
   if (isAuthLoading) {
     return (
@@ -463,15 +473,21 @@ export default function Login() {
                     <div className="space-y-2">
                       <Label htmlFor="reg-username">Username</Label>
                       <Input
+                        ref={regUsernameRef}
                         id="reg-username"
                         type="text"
                         placeholder="Choose a username"
                         value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        onChange={(e) => { setUsername(e.target.value); setUsernameError(null); }}
                         disabled={isSubmitting}
                         autoComplete="username"
+                        aria-invalid={usernameError ? true : undefined}
+                        aria-describedby={usernameError ? "reg-username-error reg-username-hint" : "reg-username-hint"}
                       />
-                      <p className="text-xs text-muted-foreground">3-50 characters, letters, numbers, and underscores</p>
+                      {usernameError && (
+                        <p id="reg-username-error" role="alert" className="text-sm font-semibold text-destructive">{usernameError}</p>
+                      )}
+                      <p id="reg-username-hint" className="text-xs text-muted-foreground">3-50 characters, letters, numbers, and underscores</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="reg-password">Password</Label>

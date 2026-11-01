@@ -1,4 +1,4 @@
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -12,6 +12,19 @@ import { AGREEMENT_STATUS_OPTIONS, agreementStatusLabel, agreementStatusVariant 
 import { AGREEMENT_TYPE_OPTIONS, agreementTypeLabel } from '@/lib/agreement-type';
 import { Plus } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { formatDate } from '@/lib/utils';
+import type { AgreementListItem } from '@/types/api';
+
+/** In force and so on a review cycle: the statuses whose card shows the next review date. */
+const REVIEWED_STATUSES = new Set(['active', 'under_review']);
+
+/** "Next review 3 Mar 2027", or "Review overdue since ..." when the server flags it; nothing outside a review cycle. */
+function reviewLine(agreement: AgreementListItem): string | null {
+  if (!REVIEWED_STATUSES.has(agreement.status) || !agreement.review_date) return null;
+  return agreement.review_overdue
+    ? `Review overdue since ${formatDate(agreement.review_date)}`
+    : `Next review ${formatDate(agreement.review_date)}`;
+}
 
 const FILTERS: FilterDef[] = [
   {
@@ -28,7 +41,11 @@ const FILTERS: FilterDef[] = [
 export default function AgreementList() {
   const list = useGovernanceList({ entity: 'agreements', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
-  const { data, isLoading, error } = useAgreements(list.params);
+  // `?review=overdue` is where the health page's "N agreement reviews overdue" lands (p3-health-audit-and-review-9).
+  const overdueOnly = new URLSearchParams(useSearch()).get('review') === 'overdue';
+  const { data, isLoading, error } = useAgreements(overdueOnly ? { ...list.params, review: 'overdue' } : list.params);
+  // An older server ignores `review`; the page still shows only what it flags overdue.
+  const items = overdueOnly ? (data?.items ?? []).filter((agreement) => agreement.review_overdue) : data?.items ?? [];
 
   if (isLoading) return <LoadingState message="Loading agreements..." />;
 
@@ -55,6 +72,13 @@ export default function AgreementList() {
         </Button>
       </div>
 
+      {overdueOnly && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-2 border-warning p-3 text-sm" role="status">
+          <span>Showing agreements whose review is overdue.</span>
+          <Link href="/agreements" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2">Show all agreements</Link>
+        </p>
+      )}
+
       <FilterBar
         filters={list.filters}
         filterValues={list.filterValues}
@@ -64,12 +88,12 @@ export default function AgreementList() {
       />
 
       <CollectionGrid aria-label="Agreements">
-        {data?.items.length === 0 ? (
+        {items.length === 0 ? (
           <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">
-            No agreements found
+            {overdueOnly ? 'No agreement review is overdue' : 'No agreements found'}
           </div>
         ) : (
-          data?.items.map((a) => (
+          items.map((a) => (
             <CollectionCard key={a.id} asChild>
               <Link href={`/agreements/${a.id}`} aria-label={`View agreement: ${a.title}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -82,6 +106,9 @@ export default function AgreementList() {
                   {a.domain && <Badge variant="outline">{a.domain}</Badge>}
                   {a.review_overdue && <Badge variant="outline" className="border-warning text-warning">Review overdue</Badge>}
                 </div>
+                {reviewLine(a) && (
+                  <p className={`mt-3 text-sm ${a.review_overdue ? 'font-semibold text-warning' : 'text-muted-foreground'}`}>{reviewLine(a)}</p>
+                )}
                 <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
                   {getEcosystemName(a.ecosystem_id) || 'Unknown ecosystem'} · Created {new Date(a.created_at).toLocaleDateString()}
                 </p>
