@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  canOpenAdminPanel, ecosystemPickerLabel, navPermissionsFor, readPlatformAdmin, showsNewcomers, visibleNavItems, type NavAccess,
+  canOpenAdminPanel, ecosystemPickerLabel, navPermissionsFor, readPlatformAdmin, routeAccess, showsNewcomers, visibleNavItems,
+  type NavAccess,
 } from './nav-access';
 import type { MembershipRow } from './ecosystem-join';
 
@@ -31,6 +32,37 @@ test('each member sees only the links whose page admits them', () => {
     assert.deepEqual(visibleNavItems(links, permissions).map((link) => link.title), titles, who);
     assert.equal(canOpenAdminPanel(permissions), adminPanel, who);
   }
+});
+
+test('Manage Quizzes and the /quiz/manage route admit the same members', () => {
+  // The route used to read the profile of the /auth/me `member` row (the oldest active one), so a member whose sign-up row
+  // has no profile (services/member_lifecycle.py sets none) and who founded or stewards the selected ecosystem saw the
+  // link and landed on Access Denied. The route now asks routeAccess over the link's permissions; no profile is an input.
+  const signUp = { id: 'omni', membership_status: 'active', role: 'user', is_steward: false }; // profile null, oldest
+  const founded = { id: 'fresh', membership_status: 'active', role: 'user', is_steward: true }; // co_creator row, newer
+  const moderates = { id: 'river', membership_status: 'active', role: 'mod', is_steward: true }; // mod rank, profile null
+  const cases: [string, boolean, string[], MembershipRow[], boolean][] = [
+    ['founder, sign-up row has no profile, own ecosystem selected', false, ['fresh'], [signUp, founded], true],
+    ['steward by rank with no profile, that ecosystem selected', false, ['river'], [signUp, moderates], true],
+    ['same founder with the sign-up ecosystem selected', false, ['omni'], [signUp, founded], false],
+    ['townhall or collaborator, not a steward', false, ['omni'], [signUp], false],
+    ['platform admin', true, ['omni'], [signUp], true],
+  ];
+  for (const [who, isPlatformAdmin, selectedIds, memberships, admitted] of cases) {
+    const permissions = navPermissionsFor({ isPlatformAdmin, selectedIds, memberships });
+    const linkShown = visibleNavItems(links, permissions).some((link) => link.title === 'Manage Quizzes');
+    assert.equal(linkShown, admitted, `${who}: link`);
+    assert.equal(routeAccess('quiz-steward', permissions, true), admitted ? 'allow' : 'deny', `${who}: route`);
+  }
+});
+
+test('the quiz route waits for the header selection instead of refusing a steward before it is restored', () => {
+  const founded = { id: 'fresh', membership_status: 'active', role: 'user', is_steward: true };
+  const restoring = navPermissionsFor({ isPlatformAdmin: false, selectedIds: [], memberships: [founded] });
+  assert.equal(routeAccess('quiz-steward', restoring, false), 'wait');
+  assert.equal(routeAccess('quiz-steward', restoring, true), 'deny'); // restored to nothing: held at the consent gate
+  const admin = navPermissionsFor({ isPlatformAdmin: true, selectedIds: [], memberships: [] });
+  assert.equal(routeAccess('quiz-steward', admin, false), 'allow');
 });
 
 test('the ecosystem picker never reads "0 ecosystems"', () => {

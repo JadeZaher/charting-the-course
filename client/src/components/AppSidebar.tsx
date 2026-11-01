@@ -46,8 +46,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
-import { canOpenAdminPanel, navPermissionsFor, readPlatformAdmin, visibleNavItems, type NavAccess } from "@/lib/nav-access";
+import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useNavPermissions } from "@/hooks/use-nav-permissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
 import { useModeratedEcosystems } from "@/hooks/use-discover"; // FX-Exchange
 import { useConversations } from "@/hooks/use-messaging";
@@ -231,8 +232,7 @@ function CollapsibleGovernanceGroup({
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const auth = useAuth();
-  const { member, logout } = auth;
+  const { member, logout } = useAuth();
   const { canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
@@ -246,8 +246,9 @@ export function AppSidebar() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
   // G-Authority: Administration and AdminPanel links follow the server's platform-admin flag, not the profile;
-  // Manage Quizzes and Newcomers follow the server's steward rule for the selected ecosystems (FX-Onboard, pass 03).
-  const permissions = navPermissionsFor({ isPlatformAdmin: readPlatformAdmin(auth), selectedIds, memberships: ecosystems });
+  // Manage Quizzes and Newcomers follow the server's steward rule for the selected ecosystems (FX-Onboard, pass 03);
+  // the /quiz/manage route and the Dashboard read the same permissions, so no link opens Access Denied.
+  const permissions = useNavPermissions();
   const showAdministration = canOpenAdminPanel(permissions);
   const visibleFacilitatorItems = visibleNavItems(facilitatorItems, permissions);
   const showNewcomers = permissions.stewardsSelection;

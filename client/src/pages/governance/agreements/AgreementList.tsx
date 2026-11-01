@@ -12,6 +12,7 @@ import { AGREEMENT_STATUS_OPTIONS, agreementStatusLabel, agreementStatusVariant 
 import { AGREEMENT_TYPE_OPTIONS, agreementTypeLabel } from '@/lib/agreement-type';
 import { Plus } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { agreementListParams, agreementListScope, inAgreementListScope } from '@/lib/agreement-list';
 import { formatDate } from '@/lib/utils';
 import type { AgreementListItem } from '@/types/api';
 
@@ -41,11 +42,12 @@ const FILTERS: FilterDef[] = [
 export default function AgreementList() {
   const list = useGovernanceList({ entity: 'agreements', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
-  // `?review=overdue` is where the health page's "N agreement reviews overdue" lands (p3-health-audit-and-review-9).
-  const overdueOnly = new URLSearchParams(useSearch()).get('review') === 'overdue';
-  const { data, isLoading, error } = useAgreements(overdueOnly ? { ...list.params, review: 'overdue' } : list.params);
-  // An older server ignores `review`; the page still shows only what it flags overdue.
-  const items = overdueOnly ? (data?.items ?? []).filter((agreement) => agreement.review_overdue) : data?.items ?? [];
+  // `?review=overdue&ecosystem_id=<id>` is where the health page's "N agreement reviews overdue" lands (p3-health-audit-and-review-9).
+  const scope = agreementListScope(useSearch());
+  const { overdueOnly } = scope;
+  const { data, isLoading, error } = useAgreements(agreementListParams(list.params, scope));
+  const items = inAgreementListScope(data?.items ?? [], scope);
+  const scopedName = scope.ecosystemId ? getEcosystemName(scope.ecosystemId) ?? 'one ecosystem' : null;
 
   if (isLoading) return <LoadingState message="Loading agreements..." />;
 
@@ -72,9 +74,9 @@ export default function AgreementList() {
         </Button>
       </div>
 
-      {overdueOnly && (
+      {(overdueOnly || scopedName) && (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-2 border-warning p-3 text-sm" role="status">
-          <span>Showing agreements whose review is overdue.</span>
+          <span>Showing {scopedName ? `${scopedName}'s own agreements` : 'agreements'}{overdueOnly ? ' whose review is overdue' : ''}.</span>
           <Link href="/agreements" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2">Show all agreements</Link>
         </p>
       )}

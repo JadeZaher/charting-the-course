@@ -6,12 +6,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { QueryState } from '@/components/QueryState';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useNavPermissions } from '@/hooks/use-nav-permissions';
 import { useDashboardSummary } from '@/hooks/use-api';
 import { useMyNextSteps } from '@/hooks/use-next-steps';
 import { useSafeguards } from '@/hooks/use-care';
 import { agreementStatusLabel } from '@/lib/agreement-status';
 import { auditDueText } from '@/lib/health';
+import { canManageQuizzes } from '@/lib/nav-access';
 import { formatDate as formatDateOnly } from '@/lib/utils';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
 import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
@@ -111,7 +112,8 @@ function ActivityRow({ activity }: { activity: ActivityItem }) {
 export default function Dashboard() {
   const { member } = useAuth();
   const { selected, selectedIds, ecosystems, isAll, isMulti } = useEcosystem();
-  const { canManageContent } = usePermissions();
+  // Manage learning opens /quiz/manage: the sidebar's and the route's rule (lib/nav-access.ts), not the profile (collab-10).
+  const showManageLearning = canManageQuizzes(useNavPermissions());
   const ecosystemIds = Array.from(new Set(selectedIds)).sort();
   const summaryQuery = useDashboardSummary(ecosystemIds);
   // G-Next: the member's own queue in every ecosystem they are active in; the header bell reads the same list.
@@ -154,7 +156,7 @@ export default function Dashboard() {
       : []),
     { label: 'My solutions', detail: 'Browse solutions on the Discover page', href: '/discover' },
     { label: 'Member profile', detail: 'Update identity and capabilities', href: '/profile' },
-    ...(canManageContent
+    ...(showManageLearning
       ? [{ label: 'Manage learning', detail: 'Publish quizzes and pathways', href: '/quiz/manage' }]
       : []),
   ];

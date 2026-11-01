@@ -1,4 +1,4 @@
-// Sidebar link gating: a link shows only to members its destination admits; see client/src/AGENTS.md §App shell.
+// Link and route gating: a destination's links and its route ask one rule; see client/src/AGENTS.md §App shell.
 import { isStewardIn, type MembershipRow } from './ecosystem-join';
 
 /** The gate of the page a link opens: `quiz-steward` = who the server lets write quizzes; `admin-panel` = AdminPanel's own check. */
@@ -31,9 +31,21 @@ export function canOpenAdminPanel(permissions: Pick<NavPermissions, 'isPlatformA
   return permissions.isPlatformAdmin;
 }
 
+/** Whether a page gated by `access` admits this member; its links and its route both ask this, so they never disagree. */
+export function admits(access: NavAccess, permissions: NavPermissions): boolean {
+  return access === 'quiz-steward' ? canManageQuizzes(permissions) : canOpenAdminPanel(permissions);
+}
+
 /** The links whose destination admits this member, in their declared order. */
 export function visibleNavItems<T extends { access: NavAccess }>(items: readonly T[], permissions: NavPermissions): T[] {
-  return items.filter((item) => (item.access === 'quiz-steward' ? canManageQuizzes(permissions) : canOpenAdminPanel(permissions)));
+  return items.filter((item) => admits(item.access, permissions));
+}
+
+/** A route gated like its links (`App.tsx` ProtectedRoute `access`): `wait` while the header selection is still being
+ * restored (it starts empty), so a steward's hard load never flashes Access Denied; see client/src/AGENTS.md "Pass 03 fixes". */
+export function routeAccess(access: NavAccess, permissions: NavPermissions, selectionRestored: boolean): 'allow' | 'wait' | 'deny' {
+  if (admits(access, permissions)) return 'allow';
+  return selectionRestored ? 'deny' : 'wait';
 }
 
 // G-Authority

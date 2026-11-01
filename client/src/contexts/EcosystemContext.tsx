@@ -16,6 +16,7 @@ interface EcosystemContextType {
   selectAll: () => void;                         // Select all ecosystems
   isMulti: boolean;
   isAll: boolean;                                // True when all ecosystems selected
+  selectionRestored: boolean;                    // False until the selection is restored for the member's ecosystems
 }
 
 const COOKIE_KEY = 'neos_selected_ecosystems';
@@ -42,6 +43,8 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   const { ecosystems, pendingConsents, member } = useAuth();
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // The selection starts empty and is restored in an effect; a gated route waits for it (lib/nav-access.ts routeAccess).
+  const [restored, setRestored] = useState(false);
   const prevIdsRef = useRef<string[]>([]);
 
   // Refetch every read the server scopes to the selection (lib/query-keys.ts ecosystemScoped) when it changes.
@@ -66,6 +69,7 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     const active = new Set(activeEcosystemIds(membershipsInput));
     const validIds = getSelectedFromCookie().filter(id => active.has(id));
 
+    setRestored(true);
     if (validIds.length > 0) {
       setSelectedIds(validIds);
       return;
@@ -128,6 +132,7 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         selectAll,
         isMulti: selectedIds.length > 1,
         isAll,
+        selectionRestored: restored || ecosystems.length === 0,
       }}
     >
       {children}

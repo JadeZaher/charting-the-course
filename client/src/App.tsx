@@ -9,9 +9,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { EcosystemProvider } from "@/contexts/EcosystemContext";
+import { EcosystemProvider, useEcosystem } from "@/contexts/EcosystemContext";
 import { PageContextProvider } from "@/contexts/PageContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useNavPermissions } from "@/hooks/use-nav-permissions";
+import { routeAccess, type NavAccess } from "@/lib/nav-access";
 import { Loader2 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import LandingPage from "@/pages/LandingPage";
@@ -107,16 +109,20 @@ function PublicPageFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Protected Route wrapper
+// Protected Route wrapper. `access` gates a page by the same rule as its links (lib/nav-access.ts), never the profile.
 function ProtectedRoute({ 
   component: Component,
   requiredPermission,
+  access,
 }: { 
   component: React.ComponentType;
   requiredPermission?: 'canManageUsers' | 'canManageContent' | 'canProxyQuiz' | 'canViewAnalytics' | 'isAdmin';
+  access?: NavAccess;
 }) {
   const { isAuthenticated, isLoading } = useAuth();
   const { canManageUsers, canManageContent, canProxyQuiz, canViewAnalytics, isAdmin, isLoading: permLoading, error: permError } = usePermissions();
+  const navPermissions = useNavPermissions();
+  const { selectionRestored } = useEcosystem();
   const [location] = useLocation();
 
   // Show loading only for auth check
@@ -143,6 +149,12 @@ function ProtectedRoute({
     );
   }
 
+  if (access) {
+    const verdict = routeAccess(access, navPermissions, selectionRestored);
+    if (verdict === 'wait') return <LoadingScreen />;
+    if (verdict === 'deny') return <AccessDenied reason={ACCESS_DENIED_REASONS[access]} />;
+  }
+
   // Check permission if required
   if (requiredPermission && !permLoading) {
     const permissionMap: Record<string, boolean> = {
@@ -153,20 +165,29 @@ function ProtectedRoute({
       isAdmin,
     };
     
-    if (!permissionMap[requiredPermission]) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center space-y-4">
-            <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-            <p className="text-muted-foreground">You don't have permission to access this page.</p>
-            <a href="/" className="text-primary underline">Go to Dashboard</a>
-          </div>
-        </div>
-      );
-    }
+    if (!permissionMap[requiredPermission]) return <AccessDenied />;
   }
 
   return <Component />;
+}
+
+/** Why a page gated by `access` refused, in the words of its rule. */
+const ACCESS_DENIED_REASONS: Record<NavAccess, string> = {
+  'quiz-steward': 'Managing quizzes is for a steward of the selected ecosystem or a platform admin.',
+  'admin-panel': 'This page is for platform admins.',
+};
+
+function AccessDenied({ reason }: { reason?: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center space-y-4">
+        <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
+        <p className="text-muted-foreground">You don't have permission to access this page.</p>
+        {reason && <p className="text-muted-foreground">{reason}</p>}
+        <a href="/" className="text-primary underline">Go to Dashboard</a>
+      </div>
+    </div>
+  );
 }
 
 // Public routes that don't require auth
@@ -259,9 +280,9 @@ function AuthenticatedRoutes() {
         <ProtectedRoute component={QuizResults} />
       </Route>
       
-      {/* Quiz management - requires canManageContent permission */}
+      {/* Quiz management: the same rule as its links, a steward of the selected ecosystem or a platform admin (pass 03) */}
       <Route path="/quiz/manage">
-        <ProtectedRoute component={QuizManagement} requiredPermission="canManageContent" />
+        <ProtectedRoute component={QuizManagement} access="quiz-steward" />
       </Route>
       
       {/* Me — member-owned surface: profile, notifications, quiz history */}
