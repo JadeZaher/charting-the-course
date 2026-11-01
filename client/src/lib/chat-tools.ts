@@ -9,6 +9,8 @@ export interface ToolResultEvent {
   success?: boolean;
   error?: string | null;
   needs_confirmation?: string;
+  data?: { link?: unknown } | null;
+  artifact?: { route?: unknown } | null;
 }
 
 /** A tool call as the drawer shows it. */
@@ -65,4 +67,36 @@ export function pendingConfirmation(
   if (!last || last.role !== 'assistant' || last.isStreaming) return null;
   const waiting = [...(last.tools ?? [])].reverse().find((chip) => chip.status === 'needs_confirmation' && chip.confirmation);
   return waiting?.confirmation ?? null;
+}
+
+/** Tools that only read: they cannot change what is waiting or a record's status. Unknown tools count as writes. */
+const READ_ONLY_TOOL = /^(get|list|search|check)_/;
+const READ_ONLY_TOOLS = new Set(['explain_status', 'what_needs_me']);
+
+export function isReadOnlyTool(name: string): boolean {
+  return READ_ONLY_TOOL.test(name) || READ_ONLY_TOOLS.has(name);
+}
+
+/** App route prefix -> query-key collection (client/src/lib/query-keys.ts). */
+const ROUTE_COLLECTIONS = {
+  proposals: 'proposals', agreements: 'agreements', domains: 'domains', conflicts: 'conflicts',
+  exit: 'exits', emergency: 'emergency', decisions: 'decisions', 'safeguards/audits': 'audits',
+} as const;
+
+export type RecordCollection = (typeof ROUTE_COLLECTIONS)[keyof typeof ROUTE_COLLECTIONS];
+
+/** The record a result points at, from its link (`/proposals/<id>`) or artifact route; null when it names none. */
+export function touchedRecord(event: ToolResultEvent): { collection: RecordCollection; id: string } | null {
+  for (const candidate of [event.data?.link, event.artifact?.route]) {
+    if (typeof candidate !== 'string') continue;
+    const match = /^\/(proposals|agreements|domains|conflicts|exit|emergency|decisions|safeguards\/audits)\/([^/?#]+)/.exec(candidate);
+    if (match) return { collection: ROUTE_COLLECTIONS[match[1] as keyof typeof ROUTE_COLLECTIONS], id: match[2] };
+  }
+  return null;
+}
+
+/** What a finished tool call makes stale: nothing for a failed or read-only call; else the queue and the touched record. */
+export function refreshAfterTool(event: ToolResultEvent): { nextSteps: boolean; record: ReturnType<typeof touchedRecord> } {
+  if (!event.success || event.needs_confirmation || isReadOnlyTool(event.name)) return { nextSteps: false, record: null };
+  return { nextSteps: true, record: touchedRecord(event) };
 }

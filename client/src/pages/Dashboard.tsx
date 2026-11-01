@@ -8,9 +8,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDashboardSummary } from '@/hooks/use-api';
-import { useProposals } from '@/hooks/use-governance';
+import { useMyNextSteps } from '@/hooks/use-next-steps';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
 import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
+import { dueStatus, formatDue, nextStepKindLabel } from '@/lib/next-steps';
 import { keys } from '@/lib/query-keys';
 import type { ActivityItem, SummaryCard } from '@/types/api';
 
@@ -99,10 +100,9 @@ export default function Dashboard() {
   const { selected, selectedIds, ecosystems, isAll, isMulti } = useEcosystem();
   const { canManageContent } = usePermissions();
   const ecosystemIds = Array.from(new Set(selectedIds)).sort();
-  const ecosystemScope = ecosystemIds.join(',');
   const summaryQuery = useDashboardSummary(ecosystemIds);
-  const adviceQuery = useProposals(ecosystemScope ? { phase: 'advice', ecosystem_ids: ecosystemScope } : false);
-  const consentQuery = useProposals(ecosystemScope ? { phase: 'consent', ecosystem_ids: ecosystemScope } : false);
+  // G-Next: the member's own queue in every ecosystem they are active in; the header bell reads the same list.
+  const queueQuery = useMyNextSteps();
   const scopedEcosystem = selectedIds.length === 1 ? selected : null;
 
   const sharesNeedsQuery = useQuery({
@@ -126,13 +126,10 @@ export default function Dashboard() {
         : 'No ecosystem selected';
   const ecosystemImage = resolveMediaUrl(scopedEcosystem?.logo_url);
 
-  const pendingActions = [
-    ...(adviceQuery.data?.items ?? []).map((proposal) => ({ ...proposal, phase: 'Advice' })),
-    ...(consentQuery.data?.items ?? []).map((proposal) => ({ ...proposal, phase: 'Consent' })),
-  ];
-  // The count is only a number once both queues have loaded; a dash never claims zero.
-  const queuesLoaded = adviceQuery.data !== undefined && consentQuery.data !== undefined;
-  const pendingActionCount = queuesLoaded ? adviceQuery.data!.total + consentQuery.data!.total : null;
+  // The count is only a number once the queue has loaded; a dash never claims zero.
+  const pendingActionCount = queueQuery.data?.count ?? null;
+  const showEcosystem = new Set((queueQuery.data?.items ?? []).map((item) => item.ecosystem_id)).size > 1;
+  const now = new Date();
 
   const quickActions = [
     { label: 'Draft proposal', detail: 'Open a governance change', href: '/proposals/new' },
@@ -235,56 +232,55 @@ export default function Dashboard() {
           </div>
 
           <QueryState
-            query={adviceQuery}
+            query={queueQuery}
             loading={
               <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
                 {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
               </div>
             }
-            idle={<p className="p-6 text-sm text-muted-foreground">Select an ecosystem to see your decision queue.</p>}
             errorTitle="The governance queue could not be loaded"
+            isEmpty={(queue) => queue.items.length === 0}
+            empty={
+              <div className="p-8 sm:p-10">
+                <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Nothing is waiting for you in any of your ecosystems.</p>
+              </div>
+            }
           >
-            {() => (
-              <QueryState
-                query={consentQuery}
-                loading={
-                  <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
-                    {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
-                  </div>
-                }
-                errorTitle="The governance queue could not be loaded"
-                isEmpty={() => pendingActions.length === 0}
-                empty={
-                  <div className="p-8 sm:p-10">
-                    <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">No advice or consent actions are waiting in this scope.</p>
-                  </div>
-                }
-              >
-                {() => (
-                    <ol className="divide-y divide-border">
-                      {pendingActions.slice(0, 6).map((action, index) => (
-                        <li key={`${action.phase}-${action.id}`}>
-                          <Link
-                            href={`/proposals/${action.id}`}
-                            className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
-                          >
-                            <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
-                              {String(index + 1).padStart(2, '0')}
-                            </span>
-                            <div>
-                              <p className="font-black leading-snug">{action.title}</p>
-                              <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">Opened {formatDate(action.created_at)}</p>
-                            </div>
-                            <Badge variant={action.phase === 'Consent' ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
-                              {action.phase}
-                            </Badge>
-                          </Link>
-                        </li>
-                      ))}
-                    </ol>
-                )}
-              </QueryState>
+            {(queue) => (
+              <ol className="divide-y divide-border">
+                {queue.items.map((item, index) => {
+                  const due = dueStatus(item.due, now, formatDue);
+                  return (
+                    <li key={item.uid}>
+                      <Link
+                        href={resolveInternalPath(item.link) ?? '/dashboard'}
+                        className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
+                      >
+                        <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <div>
+                          <p className="font-black leading-snug">{item.what}</p>
+                          <p className="mt-1 text-sm group-hover:text-background/90">{item.title}</p>
+                          <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">
+                            {item.why}
+                            {showEcosystem && item.ecosystem ? ` · ${item.ecosystem}` : ''}
+                          </p>
+                          {due && (
+                            <p className={`mt-1 text-xs ${due.overdue ? 'font-semibold text-destructive group-hover:text-background' : 'text-muted-foreground group-hover:text-background/75'}`}>
+                              {due.text}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={due?.overdue ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
+                          {nextStepKindLabel(item.kind)}
+                        </Badge>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
           </QueryState>
         </section>

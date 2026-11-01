@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
-import { applyToolResult, type ToolChip } from '@/lib/chat-tools';
+import { useQueryClient } from '@tanstack/react-query';
+import { keys } from '@/lib/query-keys';
+import { applyToolResult, refreshAfterTool, type ToolChip } from '@/lib/chat-tools';
 
 /** A tool call in an assistant message: plain label, status, and the confirmation it waits on. */
 export type ToolExecution = ToolChip;
@@ -58,6 +60,7 @@ function buildHistory(messages: ChatMessage[]): { role: string; content: string 
 }
 
 export function useSSEChat() {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -201,6 +204,10 @@ export function useSSEChat() {
           try {
             const event = JSON.parse(data);
             const { artifact } = event;
+            // G-Next: an act through the assistant can change what is waiting for the member (the bell, the queue).
+            const refresh = refreshAfterTool(event);
+            if (refresh.nextSteps) void queryClient.invalidateQueries({ queryKey: keys.nextSteps.all });
+            if (refresh.record) void queryClient.invalidateQueries({ queryKey: keys[refresh.record.collection].detail(refresh.record.id) });
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
@@ -316,7 +323,7 @@ export function useSSEChat() {
         }
       }
     }
-  }, [messages, activeSkill, sessionId]);
+  }, [messages, activeSkill, sessionId, queryClient]);
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();

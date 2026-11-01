@@ -1,123 +1,94 @@
 import { useState } from "react";
-import { Bell, Settings, AlertTriangle, MessageSquare, FileText } from "lucide-react";
+import { Bell } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { Link } from "wouter";
+import { QueryState } from "@/components/QueryState";
+import { useMyNextSteps } from "@/hooks/use-next-steps";
+import { bellBadge, bellLabel, dueStatus, formatDue, nextStepKindLabel } from "@/lib/next-steps";
 
-interface Notification {
-  id: string;
-  type: "urgent" | "standard" | "digest";
-  title: string;
-  description: string;
-  timestamp: string;
-  read: boolean;
-}
-
-// Placeholder notifications for UI shell - will be connected to real data later
-const PLACEHOLDER_NOTIFICATIONS: Notification[] = [];
-
+/** The header bell: what is waiting for the member (GET /me/next-steps, the same list as the dashboard queue). */
 export function NotificationCenter() {
   const [open, setOpen] = useState(false);
-  const [notifications] = useState<Notification[]>(PLACEHOLDER_NOTIFICATIONS);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const typeIcon = (type: Notification["type"]) => {
-    switch (type) {
-      case "urgent":
-        return <AlertTriangle className="h-4 w-4 text-destructive" />;
-      case "standard":
-        return <MessageSquare className="h-4 w-4 text-primary" />;
-      case "digest":
-        return <FileText className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
+  const query = useMyNextSteps({ poll: true });
+  const count = query.data?.count;
+  const badge = bellBadge(count);
+  const now = new Date();
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9">
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
+        <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={bellLabel(count)}>
+          <Bell className="h-4 w-4" aria-hidden="true" />
+          {badge && (
             <Badge
               variant="destructive"
-              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center border border-background p-0 text-[10px]"
+              aria-hidden="true"
+              className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center border border-background px-1 text-[10px]"
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {badge}
             </Badge>
           )}
-          <span className="sr-only">Notifications</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="p-4 pb-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm">Notifications</h3>
-            <Button asChild variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
-              <Link href="/me">
-                <Settings className="h-3.5 w-3.5" />
-                <span className="sr-only">Your profile</span>
-              </Link>
-            </Button>
-          </div>
+      <PopoverContent className="w-96 max-w-[calc(100vw-1rem)] p-0" align="end">
+        <div className="p-4 pb-3">
+          <h3 className="text-sm font-semibold">Waiting for you</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">In every ecosystem you are active in. Items leave once they are done.</p>
         </div>
         <Separator />
-        <div className="max-h-80 overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="p-8 text-center">
-              <Bell className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-sm text-muted-foreground">No new notifications</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                You'll see governance updates, proposal activity, and community alerts here.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 hover:bg-accent/50 cursor-pointer transition-colors ${
-                    !notification.read ? "bg-primary/5" : ""
-                  }`}
-                >
-                  <div className="flex gap-3">
-                    <div className="mt-0.5">{typeIcon(notification.type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!notification.read ? "font-medium" : ""}`}>
-                        {notification.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                        {notification.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {notification.timestamp}
-                      </p>
-                    </div>
-                    {!notification.read && (
-                      <div className="mt-1.5 h-2 w-2 flex-shrink-0 bg-primary" />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="max-h-96 overflow-y-auto">
+          <QueryState
+            query={query}
+            errorTitle="We couldn't load what is waiting for you"
+            isEmpty={(data) => data.items.length === 0}
+            empty={
+              <div className="p-8 text-center">
+                <Bell className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm font-medium">Nothing is waiting for you</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Advice to give, positions to record, emergencies to co-sign and steward steps show up here when they are yours.
+                </p>
+              </div>
+            }
+          >
+            {(data) => (
+              <ul className="divide-y divide-border">
+                {data.items.map((item) => {
+                  const due = dueStatus(item.due, now, formatDue);
+                  return (
+                    <li key={item.uid}>
+                      <Link
+                        href={item.link}
+                        onClick={() => setOpen(false)}
+                        className="block min-h-11 p-3 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      >
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-muted-foreground">
+                          {nextStepKindLabel(item.kind)}{item.ecosystem ? ` · ${item.ecosystem}` : ""}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold leading-snug">{item.what}</p>
+                        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.title}</p>
+                        {due && (
+                          <p className={`mt-1 text-xs ${due.overdue ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                            {due.text}
+                          </p>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </QueryState>
         </div>
-        {notifications.length > 0 && (
-          <>
-            <Separator />
-            <div className="p-2">
-              <Button variant="ghost" size="sm" className="w-full text-xs">
-                Mark all as read
-              </Button>
-            </div>
-          </>
-        )}
+        <Separator />
+        <div className="p-2">
+          <Button asChild variant="ghost" size="sm" className="w-full text-xs">
+            <Link href="/dashboard" onClick={() => setOpen(false)}>Open your decision queue</Link>
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );

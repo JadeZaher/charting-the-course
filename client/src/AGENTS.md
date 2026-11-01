@@ -104,7 +104,8 @@ file an exit) comes back as `needs_confirmation` instead of success or failure; 
 it under the latest finished reply, with "Yes, go ahead" / "No, cancel" sending an ordinary message
 (`CONFIRM_REPLY` / `DECLINE_REPLY`). The server accepts a yes only in a later turn of the same session, so
 the buttons are a shortcut for typing, not a bypass; see the API's `agent/AGENTS.md` "Confirmation of
-irreversible acts".
+irreversible acts". A successful tool result invalidates `keys.nextSteps.all`, so the bell and the dashboard
+queue follow acts taken through the assistant (G-Next).
 
 ## Documentation and verification
 
@@ -136,7 +137,7 @@ affects.<domain>                   // key prefixes a successful mutation of that
 ecosystemScoped                    // roots refetched when the ecosystem selection changes
 ```
 
-Every key an entity produces starts with its `all`, and a record's sub-resources extend its `detail`, so invalidating a prefix reaches everything beneath it. Each entity owns a distinct root string; the test fails if two entities share one (two response shapes in one cache entry) or if an `affects`/`ecosystemScoped` entry names a root the factory does not own (the phantom keys `TakeQuiz` invalidated). `affects` is the dependency map: a proposal move also refreshes decisions (ratification mints one), the dashboard queue and my decisions; a share or need change also refreshes public profiles and my decisions; agreement consent also refreshes members (it activates a pending membership). `ecosystemScoped` lists exactly the roots whose GET handlers filter by the selected-ecosystem cookie (`api/helpers.py get_ecosystem_ids`); the test's endpoint table is that backend survey. When a handler starts or stops reading `get_ecosystem_ids`, update both. The discover feed and the ecosystem catalogue are not selection-scoped.
+Every key an entity produces starts with its `all`, and a record's sub-resources extend its `detail`, so invalidating a prefix reaches everything beneath it. Each entity owns a distinct root string; the test fails if two entities share one (two response shapes in one cache entry) or if an `affects`/`ecosystemScoped` entry names a root the factory does not own (the phantom keys `TakeQuiz` invalidated). `affects` is the dependency map: a proposal move also refreshes decisions (ratification mints one), the dashboard queue and my decisions; every governance domain (proposals, agreements, conflicts, emergency, exits, audits) also refreshes `keys.nextSteps` (the bell and the queue), and each record's status banner key (`keys.<entity>.explain(id)`) extends its `detail`, so the page's own invalidation reaches it; a share or need change also refreshes public profiles and my decisions; agreement consent also refreshes members (it activates a pending membership). `ecosystemScoped` lists exactly the roots whose GET handlers filter by the selected-ecosystem cookie (`api/helpers.py get_ecosystem_ids`); the test's endpoint table is that backend survey. When a handler starts or stops reading `get_ecosystem_ids`, update both. The discover feed and the ecosystem catalogue are not selection-scoped.
 
 ```ts
 // before
@@ -232,7 +233,7 @@ if (!fields.validate({ observations, outcome })) return;
 
 ## Client tests
 
-`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `lib/act-participation.ts`, `lib/ecosystem-join.ts`, `lib/chat-tools.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
+`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `lib/act-participation.ts`, `lib/ecosystem-join.ts`, `lib/chat-tools.ts`, `lib/emergency-phase.ts`, `lib/exit-status.ts`, `lib/next-steps.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
 
 ## Pass 01 (first week) history note
 

@@ -26,6 +26,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ACTStepper } from '@/components/governance/ACTStepper';
+import { StatusBanner } from '@/components/governance/StatusBanner';
 import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
 import { RecordDecisionAction } from '@/components/governance/RecordDecisionDialog';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1016,6 +1017,9 @@ export default function ProposalDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Where it stands, in the same words as the assistant (GET /explain) */}
+      <StatusBanner kind="proposal" id={data.id} />
 
       {/* ACT Process Stepper */}
       <ACTStepper currentStatus={data.status} />

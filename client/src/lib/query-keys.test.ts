@@ -107,3 +107,20 @@ test('switching ecosystems refetches every read the server scopes to the selecti
     assert.ok(reached.has(hashKey(key)), `GET /api/v1${endpoint} keeps the previous ecosystem's data`);
   }
 });
+
+// G-Next: the bell and the dashboard queue (keys.nextSteps) and each record's status banner (`explain`).
+test("a governance act refreshes the member's queue and that record's status banner", async () => {
+  const banners: Array<[keyof typeof affects, QueryKey | null]> = [
+    ['proposals', keys.proposals.explain('p-1')],
+    ['agreements', keys.agreements.explain('a-1')],
+    ['conflicts', keys.conflicts.explain('c-1')],
+    ['emergency', keys.emergency.explain('em-1')],
+    ['exits', keys.exits.explain('x-1')],
+    ['audits', null],
+  ];
+  for (const [domain, banner] of banners) {
+    const surfaces = [keys.nextSteps.mine(), ...(banner ? [banner] : [])];
+    const reached = await invalidatedBy(affects[domain], surfaces);
+    for (const surface of surfaces) assert.ok(reached.has(hashKey(surface)), `${domain}: ${hashKey(surface)} stays stale`);
+  }
+});

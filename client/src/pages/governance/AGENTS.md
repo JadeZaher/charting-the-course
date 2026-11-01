@@ -163,3 +163,36 @@ and exit"); pages render its flags and words.
   and one button per `allowed_next` status with `EXIT_MOVE_COPY`.
   `ExitDataExportCard` renders for the leaver only and downloads the portable
   record as JSON; it never touches the exit status.
+
+## Next steps and the status banner (G-Next)
+
+One server source (`neos_agent` `services/next_steps.py`; API shapes in
+`api/AGENTS.md` "Next steps (G-Next)"), read through `hooks/use-next-steps.ts`:
+
+- **The bell** (`components/NotificationCenter`) and **the dashboard decision
+  queue** (`pages/Dashboard`) both read `GET /me/next-steps`
+  (`keys.nextSteps.mine()`; only the bell polls, every 5 minutes, and `affects.*`
+  invalidation refreshes both after actions): the same items, the same
+  count. The list covers every ecosystem the member is active in, not the
+  header selection, because it is the member's own to-do list; the queue names
+  the ecosystem when items span more than one. There is no read/unread state:
+  an item leaves when its act is done (advice given, position recorded,
+  emergency co-signed, ...). The bell's accessible name says the full count
+  (`bellLabel`); the badge caps at "9+" (`bellBadge`).
+- **`StatusBanner`** (`components/governance/StatusBanner`) shows
+  `GET /explain/<kind>/<id>`: state, next step, who decides, by when, and what
+  is waiting for the caller here. It is mounted on proposal, agreement,
+  conflict, emergency and exit detail pages; on emergency and exit pages it
+  replaced the card's own `next_step` line (the same words), and the remaining
+  card ("Timer and your options", "Handoff and your options") renders only
+  when it has dates or buttons. The conflict page's "What happens next" card
+  is the banner now.
+- Due dates: `lib/next-steps.ts dueStatus` reads `YYYY-MM-DD` as that local
+  calendar day (never the UTC midnight before it) and timestamps (ending in Z)
+  as instants; "Due today" lasts all day. The server's `overdue` orders the
+  list; the client's `dueStatus` decides the words and colour, so they agree
+  with the date shown.
+- Freshness: the banner key sits under the record's `detail` key and
+  `affects.*` include `keys.nextSteps.all`, so every governance mutation
+  refreshes both; the assistant drawer refreshes the queue after a successful
+  tool.

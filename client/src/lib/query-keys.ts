@@ -45,8 +45,12 @@ function resource<Root extends string, Extra extends object>(
 export const keys = {
   agreements: collection('agreements', (agreement) => ({
     history: (id: RecordId) => [...agreement.detail(id), 'history'] as const,
+    /** G-Next: the status banner (GET /explain/agreement/:id), refreshed with its record. */
+    explain: (id: RecordId) => [...agreement.detail(id), 'explain'] as const,
   })),
-  proposals: collection('proposals'),
+  proposals: collection('proposals', (proposal) => ({
+    explain: (id: RecordId) => [...proposal.detail(id), 'explain'] as const,
+  })),
   members: collection('members', (member) => ({
     onboarding: (id: RecordId) => [...member.detail(id), 'onboarding'] as const,
     quizHistory: (id: RecordId) => [...member.detail(id), 'quiz-history'] as const,
@@ -62,7 +66,9 @@ export const keys = {
   onboarding: collection('onboarding', (onboarding) => ({
     ceremony: (memberId: RecordId) => [...onboarding.detail(memberId), 'ceremony'] as const,
   })),
-  conflicts: collection('conflicts'),
+  conflicts: collection('conflicts', (conflict) => ({
+    explain: (id: RecordId) => [...conflict.detail(id), 'explain'] as const,
+  })),
   ecosystems: collection('ecosystems', (ecosystem) => ({
     members: (id: RecordId) => [...ecosystem.detail(id), 'members'] as const,
     /** Ethos access grants for an ecosystem (admin view). */
@@ -73,8 +79,11 @@ export const keys = {
   emergency: collection('emergency', (emergency) => ({
     /** G-Safety: live emergencies in every ecosystem the caller is active in (GET /emergency/active, the banner). */
     active: () => [...emergency.all, 'active'] as const,
+    explain: (id: RecordId) => [...emergency.detail(id), 'explain'] as const,
   })),
-  exits: collection('exits'),
+  exits: collection('exits', (exit) => ({
+    explain: (id: RecordId) => [...exit.detail(id), 'explain'] as const,
+  })),
   audits: collection('audits'),
   courses: collection('courses'),
   collaborations: collection('collaborations'),
@@ -138,25 +147,30 @@ export const keys = {
   omnibot: resource('omnibot', (omnibot) => ({
     sessions: () => [...omnibot.all, 'sessions'] as const,
   })),
+  // G-Next
+  /** The caller's own queue in every ecosystem they are active in (GET /me/next-steps): the bell and the dashboard. */
+  nextSteps: resource('next-steps', (nextSteps) => ({
+    mine: () => [...nextSteps.all, 'mine'] as const,
+  })),
 };
 
 // Dependency map: the key prefixes a successful mutation of each domain must invalidate.
 export const affects = {
-  /** Activation mints a decision; consent activates a pending membership. */
-  agreements: [keys.agreements.all, keys.decisions.all, keys.members.all, keys.dashboard.all, keys.myDecisions.all],
+  /** Activation mints a decision; consent activates a pending membership and leaves the caller's queue. */
+  agreements: [keys.agreements.all, keys.decisions.all, keys.members.all, keys.dashboard.all, keys.myDecisions.all, keys.nextSteps.all],
   /** ACT moves change list badges and the dashboard queue; ratification mints a decision. */
-  proposals: [keys.proposals.all, keys.decisions.all, keys.dashboard.all, keys.myDecisions.all],
+  proposals: [keys.proposals.all, keys.decisions.all, keys.dashboard.all, keys.myDecisions.all, keys.nextSteps.all],
   /** Roles and status show on public profiles. */
   members: [keys.members.all, keys.dashboard.all, keys.profiles.all],
   /** Domain participation shows on public profiles. */
   domains: [keys.domains.all, keys.dashboard.all, keys.profiles.all],
   myDecisions: [keys.myDecisions.all],
   onboarding: [keys.onboarding.all, keys.members.all],
-  conflicts: [keys.conflicts.all],
+  conflicts: [keys.conflicts.all, keys.nextSteps.all],
   ecosystems: [keys.ecosystems.all, keys.discover.all],
-  emergency: [keys.emergency.all],
-  exits: [keys.exits.all, keys.members.all],
-  audits: [keys.audits.all, keys.safeguards.all],
+  emergency: [keys.emergency.all, keys.nextSteps.all],
+  exits: [keys.exits.all, keys.members.all, keys.nextSteps.all],
+  audits: [keys.audits.all, keys.safeguards.all, keys.nextSteps.all],
   /** Every surface listing shares and needs, including public profiles and decisions about them. */
   sharesNeeds: [keys.sharesNeeds.all, keys.myDecisions.all, keys.profiles.all],
   collaborations: [keys.collaborations.all],

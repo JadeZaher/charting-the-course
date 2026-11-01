@@ -1389,3 +1389,59 @@ export interface OnboardingState {
   /** The member themselves or a steward of their ecosystem. */
   caller_can_record?: boolean;
 }
+
+// G-Next: "what is waiting for me" and "what happens next here" (neos_agent services/next_steps.py).
+// See api/AGENTS.md "Next steps (G-Next)"; the assistant's what_needs_me and explain_status return the same shapes.
+
+export type NextStepKind = 'proposal' | 'agreement' | 'conflict' | 'emergency' | 'exit' | 'audit';
+
+/** One thing waiting for the caller (GET /me/next-steps item). `due` is YYYY-MM-DD or an ISO timestamp ending in Z. */
+export interface NextStepItem {
+  uid: string;
+  kind: NextStepKind;
+  id: string;
+  key: string | null;
+  title: string;
+  ecosystem_id: string;
+  ecosystem: string | null;
+  action: string;
+  what: string;
+  why: string;
+  due: string | null;
+  overdue: boolean;
+  link: string;
+}
+
+export interface NextStepsResponse {
+  items: NextStepItem[];
+  count: number;
+}
+
+export type ExplainKind = 'proposal' | 'agreement' | 'conflict' | 'emergency' | 'exit';
+
+/** A move the caller may make now; `ready` false means its gate is not met yet. */
+export interface StatusMove {
+  move: string;
+  label: string;
+  ready: boolean;
+  blocked: string | null;
+}
+
+/** GET /explain/<kind>/<id>: state, what happens next, who decides, by when, the caller's moves. */
+export interface StatusExplanation {
+  kind: ExplainKind;
+  id: string;
+  key: string | null;
+  title: string;
+  ecosystem: string | null;
+  status: string;
+  state: string;
+  next_step: string;
+  decided_by: string | null;
+  due: string | null;
+  due_label: string | null;
+  overdue: boolean;
+  your_moves: StatusMove[];
+  waiting_on_you: NextStepItem[];
+  link: string;
+}

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { QueryState } from '@/components/QueryState';
+import { StatusBanner } from '@/components/governance/StatusBanner';
 import { ExitDataExportCard } from '@/components/governance/exit/ExitDataExportCard';
 import { useExitView, useMoveExit } from '@/hooks/use-exit';
 import { EXIT_MOVE_COPY, exitStatusLabel, exitStatusVariant, handoffNotice } from '@/lib/exit-status';
@@ -51,10 +52,12 @@ export default function ExitDetail() {
                 </div>
               </div>
 
+              <StatusBanner kind="exit" id={exit.id} />
+
+              {(notice || moves.length > 0 || move.error) && (
               <Card>
-                <CardHeader><CardTitle className="text-lg">What happens next</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Handoff and your options</CardTitle></CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                  <p>{exit.next_step}</p>
                   {notice && <p className="font-medium">{notice}</p>}
                   {moves.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -69,6 +72,7 @@ export default function ExitDetail() {
                   {move.error && <p role="alert" className="border-2 border-destructive p-3 text-sm text-destructive">{apiErrorMessage(move.error)}</p>}
                 </CardContent>
               </Card>
+              )}
 
               <Card>
                 <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>

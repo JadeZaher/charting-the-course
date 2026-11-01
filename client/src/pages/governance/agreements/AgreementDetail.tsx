@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { StatusBanner } from '@/components/governance/StatusBanner';
 import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
 import { RecordDecisionAction } from '@/components/governance/RecordDecisionDialog';
 import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useWithdrawAgreementConsent, useRecordAgreementCeremony } from '@/hooks/use-governance';
@@ -159,6 +160,8 @@ export default function AgreementDetail() {
           {apiErrorMessage(statusMutation.error)}
         </div>
       )}
+
+      <StatusBanner kind="agreement" id={data.id} />
 
       {/* Next action — the one thing this agreement needs from the caller right now */}
       {needsMyConsent && (

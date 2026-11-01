@@ -1,6 +1,7 @@
 import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, ConsentSubmitResult, TestReport, TestReportSubmitResult, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, ExitListItem, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState, AuditDraftFields } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 import type { EmergencyDeclaration, EmergencyOverview, EmergencyRecord, EmergencyReview, ExitFiling, ExitView, PortableRecord } from '@/types/api'; // G-Safety
+import type { ExplainKind, NextStepsResponse, StatusExplanation } from '@/types/api'; // G-Next
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -840,4 +841,12 @@ export function assignMemberRole(memberId: string, role: string): Promise<Member
 }
 export function grantMemberProfile(memberId: string, profile: string): Promise<MemberDetail> {
   return apiFetch<MemberDetail>(`/api/v1/members/${memberId}/profile-grant`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile }) });
+}
+
+// G-Next: one source for "what is waiting for me" and "what happens next here" (the queue, the bell, the status banner).
+export function fetchMyNextSteps(): Promise<NextStepsResponse> {
+  return apiFetch<NextStepsResponse>('/api/v1/me/next-steps');
+}
+export function fetchStatusExplanation(kind: ExplainKind, id: string): Promise<StatusExplanation> {
+  return apiFetch<StatusExplanation>(`/api/v1/explain/${kind}/${id}`);
 }

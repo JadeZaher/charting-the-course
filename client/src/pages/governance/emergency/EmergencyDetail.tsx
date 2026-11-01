@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { QueryState } from '@/components/QueryState';
+import { StatusBanner } from '@/components/governance/StatusBanner';
 import { CompleteRecoveryDialog } from '@/components/governance/emergency/CompleteRecoveryDialog';
 import { RecordReviewDialog } from '@/components/governance/emergency/RecordReviewDialog';
 import { useEmergencyCosign, useEmergencyRecord, useEmergencyWithdrawal, useEndEmergencyAuthority } from '@/hooks/use-emergency';
@@ -164,10 +165,12 @@ export default function EmergencyDetail() {
               <Badge variant={emergency.phase === 'open' ? 'destructive' : 'secondary'}>{emergencyPhaseLabel(emergency.phase)}</Badge>
             </div>
 
+            <StatusBanner kind="emergency" id={emergency.id} />
+
+            {(emergency.phase === 'pending' || emergency.phase === 'open') && (
             <Card>
-              <CardHeader><CardTitle className="text-lg">What happens next</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">Timer and your options</CardTitle></CardHeader>
               <CardContent className="space-y-4 text-sm">
-                <p>{emergency.next_step}</p>
                 {emergency.phase === 'pending' && (
                   <p>
                     Co-sign by <strong>{when(emergency.cosign_deadline)}</strong>
@@ -182,6 +185,7 @@ export default function EmergencyDetail() {
                 <EmergencyMoves emergency={emergency} />
               </CardContent>
             </Card>
+            )}
 
             {emergency.phase === 'recovery' && <RecoveryCard emergency={emergency} />}
 

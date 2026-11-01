@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyToolResult, pendingConfirmation, type ToolChip } from './chat-tools';
+import { applyToolResult, pendingConfirmation, refreshAfterTool, type ToolChip } from './chat-tools';
 
 const WITHDRAW = "Withdrawing 'Bike shed' ends it for good.";
 
@@ -36,4 +36,16 @@ test('the confirmation card shows only while the latest finished reply is waitin
   for (const { messages, expected } of rows) {
     assert.equal(pendingConfirmation(messages), expected);
   }
+});
+
+test('only a successful write refreshes the queue, and the record its link names', () => {
+  assert.deepEqual(refreshAfterTool({ name: 'get_proposal', success: true, data: { link: '/proposals/p1' } }), { nextSteps: false, record: null });
+  assert.deepEqual(refreshAfterTool({ name: 'explain_status', success: true }), { nextSteps: false, record: null });
+  assert.deepEqual(refreshAfterTool({ name: 'update_proposal_status', success: false, error: 'no' }), { nextSteps: false, record: null });
+  assert.deepEqual(refreshAfterTool({ name: 'update_proposal_status', success: false, needs_confirmation: 'Sure?' }), { nextSteps: false, record: null });
+  assert.deepEqual(refreshAfterTool({ name: 'update_proposal_status', success: true, data: { link: '/proposals/p1' } }),
+    { nextSteps: true, record: { collection: 'proposals', id: 'p1' } });
+  assert.deepEqual(refreshAfterTool({ name: 'create_exit_record', success: true, artifact: { route: '/exit/e9' } }),
+    { nextSteps: true, record: { collection: 'exits', id: 'e9' } });
+  assert.deepEqual(refreshAfterTool({ name: 'record_advice', success: true, data: {} }), { nextSteps: true, record: null });
 });

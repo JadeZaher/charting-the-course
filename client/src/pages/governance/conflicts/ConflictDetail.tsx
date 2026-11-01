@@ -1,5 +1,6 @@
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { StatusBanner } from '@/components/governance/StatusBanner';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -93,12 +94,7 @@ export default function ConflictDetail() {
         </div>
       </div>
 
-      <Card className="border-strong-border">
-        <CardContent className="pt-4 space-y-1 text-sm">
-          <p><span className="font-semibold">What happens next:</span> {data.next_step}</p>
-          <p className="text-muted-foreground">Who decides: {data.decided_by}</p>
-        </CardContent>
-      </Card>
+      <StatusBanner kind="conflict" id={data.id} />
 
       {data.caller_can_triage && (
         <ConflictTriageModal conflict={data} open={triaging} onOpenChange={setTriaging} />
