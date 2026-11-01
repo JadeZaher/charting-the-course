@@ -11,6 +11,7 @@ import {
   proposalEditLock,
   proposalPhaseAction,
   proposalPhaseAnnouncement,
+  proposerClosesAdviceNote,
   quorumExplanation,
   ratifiedBanner,
 } from './proposal-vocab';
@@ -63,7 +64,8 @@ test('offered moves are drawn by kind and only when ready', () => {
   assert.equal(groups.revise?.to, 'advice');
   assert.equal(groups.withdraw?.to, 'withdrawn');
   assert.deepEqual(groupProposalMoves([{ to: 'consent', ready: true, gate: 'advice' }]).forward.map((m) => m.to), ['consent']);
-  assert.deepEqual(groupProposalMoves(undefined), { forward: [], ratify: null, ratifyNeedsAnotherSteward: false, revise: null, withdraw: null });
+  assert.deepEqual(groupProposalMoves(undefined),
+    { forward: [], ratify: null, ratifyNeedsAnotherSteward: false, proposerClosesAdvice: false, revise: null, withdraw: null });
 });
 
 test('the author is told another steward confirms, and gets no ratify button', () => {
@@ -92,15 +94,37 @@ test('the quorum is explained from where the engine took it', () => {
 
 test('the proposer is prompted to close advice only once its gate is met, more firmly past the deadline', () => {
   const met = { met: true, deadline: '2026-10-01', deadline_passed: true };
-  assert.equal(adviceClosePrompt({ status: 'advice', adviceGate: met, canClose: true })?.title,
-    'Advice deadline passed: move to consent?');
-  const ready = adviceClosePrompt({ status: 'advice', adviceGate: { met: true }, canClose: true });
+  const proposer = { status: 'advice', canClose: true, isProposer: true };
+  assert.equal(adviceClosePrompt({ ...proposer, adviceGate: met })?.title, 'Advice deadline passed: move to consent?');
+  const ready = adviceClosePrompt({ ...proposer, adviceGate: { met: true } });
   assert.equal(ready?.tone, 'ready');
   // The heading names the act, word for word as the bell (services/next_steps.py ADVICE_READY_PROMPT).
   assert.equal(ready?.title, 'Close advice and move to consent: enough advice is in');
-  assert.equal(adviceClosePrompt({ status: 'advice', adviceGate: { ...met, met: false }, canClose: true }), null);
-  assert.equal(adviceClosePrompt({ status: 'advice', adviceGate: met, canClose: false }), null);  // not theirs to close
-  assert.equal(adviceClosePrompt({ status: 'consent', adviceGate: met, canClose: true }), null);
+  assert.ok(ready?.body.startsWith('You decide when advice closes'));
+  assert.equal(adviceClosePrompt({ ...proposer, adviceGate: { ...met, met: false } }), null);
+  assert.equal(adviceClosePrompt({ ...proposer, adviceGate: met, canClose: false }), null);  // not theirs to close
+  assert.equal(adviceClosePrompt({ ...proposer, status: 'consent', adviceGate: met }), null);
+});
+
+test('a steward is never told "You decide": before the deadline they are told when they may close advice', () => {
+  // Owner decision 2026-11-01: the server lists the move blocked, so the steward gets a note, not a button.
+  for (const ready of [true, false]) {
+    const groups = groupProposalMoves([{ to: 'consent', ready, gate: 'advice', blocked: 'proposer_closes_advice' }]);
+    assert.deepEqual([groups.forward, groups.proposerClosesAdvice], [[], true], `gate met: ${ready}`);
+  }
+  assert.equal(groupProposalMoves([{ to: 'consent', ready: true, gate: 'advice', blocked: null }]).proposerClosesAdvice, false);
+  assert.equal(proposerClosesAdviceNote({ proposer: 'Ines', deadlineLabel: '20/11/2026' }),
+    "The proposer, Ines, closes advice. You can close it after the deadline (20/11/2026) if they haven't.");
+  assert.equal(proposerClosesAdviceNote({ proposer: null, deadlineLabel: null }),
+    'The proposer closes advice. There is no advice deadline, so only they can close it.');
+
+  // Past the deadline the steward may close it for them, in the steward bell's words (ADVICE_DEADLINE_STEWARD_PROMPT).
+  const forThem = adviceClosePrompt({
+    status: 'advice', canClose: true, isProposer: false, proposer: 'Ines',
+    adviceGate: { met: true, deadline: '2026-10-01', deadline_passed: true },
+  });
+  assert.equal(forThem?.title, 'Advice deadline passed: close advice for the proposer?');
+  assert.ok(forThem?.body.startsWith('Ines has not closed advice') && !/you decide/i.test(forThem.body), forThem?.body);
 });
 
 test('the ratified banner says registered only when it is', () => {

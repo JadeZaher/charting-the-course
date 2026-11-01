@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/use-api-mutation";
+import { useAuth } from "@/contexts/AuthContext";
 import { affects, keys } from "@/lib/query-keys";
 import {
   Award,
@@ -284,6 +285,7 @@ function PublicationActions({ publication }: { publication: SharesNeeds }) {
 
 export default function Profile() {
   const queryClient = useQueryClient();
+  const { refreshSession } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
   const [projects, setProjects] = useState<PublicProfileProject[]>([]);
@@ -317,9 +319,13 @@ export default function Profile() {
 
   const updateProfile = useApiMutation({
     mutationFn: updateMyPublicProfile,
-    // The saved profile lands in the cache before the prefix refetch.
-    onSuccess: (updated) => { queryClient.setQueryData(keys.profiles.mine(), updated); },
-    invalidates: affects.profiles,
+    // The saved profile lands in the cache before the prefix refetch; the server renamed every member row,
+    // so the session (sidebar name) and every page that names members refresh too (client/src/AGENTS.md).
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(keys.profiles.mine(), updated);
+      await refreshSession();
+    },
+    invalidates: affects.profileName,
     success: {
       title: "Public profile saved",
       description: "Your changes are now visible to other users.",

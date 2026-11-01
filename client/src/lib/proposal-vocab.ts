@@ -56,8 +56,9 @@ export interface ProposalMove {
   gate?: string | null;
   note_required?: boolean;
   steward_only?: boolean;
-  /** Offered to show who decides, never as a button: the author cannot confirm their own ratification. */
-  blocked?: 'needs_another_steward' | null;
+  /** Listed to show who decides, never as a button: the author cannot confirm their own ratification,
+   *  and a steward cannot close someone else's advice before its deadline. */
+  blocked?: 'needs_another_steward' | 'proposer_closes_advice' | null;
 }
 
 /** Button label for a manual move. The trailing ellipsis marks a confirmation step. */
@@ -76,15 +77,18 @@ export function groupProposalMoves(moves: readonly ProposalMove[] | null | undef
   ratify: ProposalMove | null;
   /** The gate is met but the caller wrote the proposal: say "Another steward needs to confirm this". */
   ratifyNeedsAnotherSteward: boolean;
+  /** A steward who did not write it, before the advice deadline: say the proposer closes advice (gate met or not). */
+  proposerClosesAdvice: boolean;
   revise: ProposalMove | null;
   withdraw: ProposalMove | null;
 } {
   const ready = (moves ?? []).filter((move) => move.ready);
   return {
-    // Forward moves whose gate is met and that need no dialog (open advice, close advice, start test).
-    forward: ready.filter((move) => !move.note_required && !move.steward_only && move.to !== 'withdrawn'),
+    // Forward moves whose gate is met, that need no dialog and that the caller may make now.
+    forward: ready.filter((move) => !move.note_required && !move.steward_only && !move.blocked && move.to !== 'withdrawn'),
     ratify: ready.find((move) => move.to === 'ratified' && !move.blocked) ?? null,
     ratifyNeedsAnotherSteward: ready.some((move) => move.to === 'ratified' && move.blocked === 'needs_another_steward'),
+    proposerClosesAdvice: (moves ?? []).some((move) => move.to === 'consent' && move.blocked === 'proposer_closes_advice'),
     revise: ready.find((move) => move.note_required) ?? null,
     withdraw: ready.find((move) => move.to === 'withdrawn') ?? null,
   };
@@ -177,13 +181,29 @@ export function quorumExplanation(gate: ConsentGateView, governingTitle?: string
   return `${needs}${source}, and no open objection.${consensus}`;
 }
 
-/** The proposer's advice prompt: shown to whoever may close advice once its gate is met (server ADVICE_*_PROMPT). */
+/** The advice-close prompt for whoever may close advice once its gate is met, in the bell's words (server ADVICE_*_PROMPT).
+ *  Only the proposer is told "You decide"; a steward reaches it after the deadline (owner decision 2026-11-01). */
 export function adviceClosePrompt(input: {
   status: string;
   adviceGate: { met: boolean; deadline?: string | null; deadline_passed?: boolean } | null | undefined;
   canClose: boolean;
+  isProposer: boolean;
+  proposer?: string | null;
 }): { tone: 'due' | 'ready'; title: string; body: string } | null {
   if (input.status !== 'advice' || !input.canClose || !input.adviceGate?.met) return null;
+  if (!input.isProposer) {
+    return input.adviceGate.deadline_passed
+      ? {
+          tone: 'due',
+          title: 'Advice deadline passed: close advice for the proposer?',
+          body: `${input.proposer || 'The proposer'} has not closed advice and the deadline has passed, so as a steward you can close it for them.`,
+        }
+      : {
+          tone: 'ready',
+          title: 'Close advice and move to consent: enough advice is in',
+          body: 'As a steward you can close advice here; nothing moves by itself. Then members record whether they consent, stand aside or object.',
+        };
+  }
   if (input.adviceGate.deadline_passed) {
     return {
       tone: 'due',
@@ -196,6 +216,14 @@ export function adviceClosePrompt(input: {
     title: 'Close advice and move to consent: enough advice is in',
     body: 'You decide when advice closes; nothing moves by itself. Then members record whether they consent, stand aside or object.',
   };
+}
+
+/** What a steward who did not write it is told while advice is the proposer's to close (server advice_close_refusal). */
+export function proposerClosesAdviceNote(input: { proposer: string | null | undefined; deadlineLabel: string | null | undefined }): string {
+  const who = input.proposer ? `The proposer, ${input.proposer},` : 'The proposer';
+  return input.deadlineLabel
+    ? `${who} closes advice. You can close it after the deadline (${input.deadlineLabel}) if they haven't.`
+    : `${who} closes advice. There is no advice deadline, so only they can close it.`;
 }
 
 /** "Mo", "Mo or Sol", "Ari, Mo or Sol": the people who can take the next step. */

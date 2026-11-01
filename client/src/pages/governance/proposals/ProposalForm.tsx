@@ -164,6 +164,8 @@ export default function ProposalForm() {
   const editLocked = isEdit && existing != null && !existing.caller_can_manage;
   // Members decide on the text from consent on; the server refuses edits there too (409).
   const stageLock = isEdit && existing != null ? proposalEditLock(existing.status) : null;
+  // A proposal with a linked author: only that author moves the advice deadline (server: 403).
+  const deadlineAuthorOnly = isEdit && existing != null && !!existing.proposer_member_id && !existing.caller_is_proposer;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -299,7 +301,9 @@ export default function ProposalForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="advice_deadline">Advice Deadline</Label>
-                <Input id="advice_deadline" type="date" value={adviceDeadline} onChange={(e) => setAdviceDeadline(e.target.value)} />
+                <Input id="advice_deadline" type="date" value={adviceDeadline} disabled={deadlineAuthorOnly}
+                  onChange={(e) => setAdviceDeadline(e.target.value)} />
+                {deadlineAuthorOnly && <p className="text-xs text-muted-foreground">Only the proposer can change the advice deadline.</p>}
               </div>
             </div>
 

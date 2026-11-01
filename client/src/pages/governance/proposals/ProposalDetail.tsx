@@ -45,6 +45,7 @@ import {
   proposalEditLock,
   proposalPhaseAction,
   proposalPhaseLabel,
+  proposerClosesAdviceNote,
   quorumExplanation,
   ratifiedBanner,
 } from '@/lib/proposal-vocab';
@@ -967,7 +968,9 @@ export default function ProposalDetail() {
   const moves = groupProposalMoves(data.allowed_next);
   const canCloseAdvice = moves.forward.some((move) => move.to === 'consent');
   const adviceGate: (ActGates['advice'] & ActAdviceGateDetail) | undefined = data.gates?.advice;
-  const advicePrompt = adviceClosePrompt({ status: data.status, adviceGate, canClose: canCloseAdvice });
+  const advicePrompt = adviceClosePrompt({
+    status: data.status, adviceGate, canClose: canCloseAdvice, isProposer: data.caller_is_proposer ?? false, proposer: data.proposer,
+  });
   const proposerGathersAdvice = data.status === 'advice' && data.caller_is_proposer;
   const governingTitle = data.governing_agreement?.title ?? null;
   const banner = data.status === 'ratified' ? ratifiedBanner(data.registered_agreement, data.amends_agreement?.title) : null;
@@ -1239,6 +1242,19 @@ export default function ProposalDetail() {
             ) : (
               'No other steward can confirm it yet: an owner or admin first gives another member the moderator role.'
             )}
+          </p>
+        </div>
+      )}
+
+      {/* A steward who did not write it, before the advice deadline: who decides instead of a button. */}
+      {data.status === 'advice' && moves.proposerClosesAdvice && (
+        <div role="note" className="flex items-start gap-3 border-2 border-strong-border bg-muted p-4">
+          <Info className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">
+            {proposerClosesAdviceNote({
+              proposer: data.proposer,
+              deadlineLabel: data.advice_deadline ? formatDate(data.advice_deadline) : null,
+            })}
           </p>
         </div>
       )}

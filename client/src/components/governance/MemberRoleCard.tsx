@@ -15,7 +15,10 @@ import type { RoleGrant } from '@/types/api';
 const ROLE_WORDS: Record<string, { label: string; can: string }> = {
   user: { label: 'Member', can: 'takes part: gives advice, records positions and files test reports' },
   mod: { label: 'Moderator (steward)', can: 'also manages proposals and domains, and confirms ratifications' },
-  admin: { label: 'Admin (steward)', can: 'also conducts agreement ceremonies and gives the moderator role' },
+  admin: {
+    label: 'Admin (steward)',
+    can: 'also moves agreements from stage to stage with written evidence (each recorded move is the agreement ceremony) and gives the moderator role',
+  },
   owner: { label: 'Owner', can: 'also gives the admin role, and is the only one who can make another owner' },
 };
 

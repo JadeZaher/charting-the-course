@@ -24,8 +24,8 @@ function GateRow({ met, label, detail, note }: { met: boolean; label: string; de
 
 /** Who moves the record on, per kind (the server's lifecycle table; services/AGENTS.md "ACT lifecycle"). */
 const WHO_MOVES = {
-  proposal: 'The proposer closes advice; consent moves to Test by itself once its gate is met; a steward confirms ratification.',
-  agreement: 'Stewards conduct each ceremony; a stage moves on by itself once its gate is met.',
+  proposal: 'The proposer closes advice (another steward only after the advice deadline); consent moves to Test by itself once its gate is met; a steward confirms ratification.',
+  agreement: 'An admin or owner moves it to each stage with written evidence, and that recorded move is the ceremony; a stage moves on by itself once its gate is met.',
 } as const;
 
 /**

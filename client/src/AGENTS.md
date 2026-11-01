@@ -88,6 +88,8 @@ Platform-wide biography, links, skills, interests, and projects belong to the us
 
 `/profile` is the owner editor for the same contract. Do not reintroduce page-level profile visibility controls: individual operational records may retain their own visibility, but the member profile itself is public.
 
+The profile name is the member name everywhere (owner decision 2026-11-01): saving it renames every membership row on the server (`api/AGENTS.md` "Profile name is the member name"), so the save calls `refreshSession` (the sidebar reads the `/auth/me` member row, which is AuthContext state, not a query) and invalidates `affects.profileName` (profiles, members, the queue and the governance records that name people). Names are display only; never key UI permissions on them.
+
 In Me's "Your shares, needs & solutions" each item carries the author's Edit (title, description, capacity via `useUpdateSharesNeeds`) and Withdraw (confirm dialog, then `useUpdateSharesNeedsStatus` with `withdrawn`; the item leaves the list because `/profiles/me` lists only active public items). Both dialogs portal out of the profile `<form>`, but React events still bubble through portals, so the edit form's submit calls `stopPropagation`. The profile form re-seeds from `data.profile` only (structural sharing keeps it stable), so a publication change refetching the page does not discard unsaved profile edits.
 
 ## Component boundaries
@@ -131,7 +133,11 @@ The agreement form declares whether individual consent is required, the
 participation scopes it gates, and the alignment credit. The detail view is the
 member-facing ceremony surface: it records personal attestation, shows consent
 progress, collects test evidence before activation, and permits a reasoned
-withdrawal. Keep its labels and select values aligned with the backend
+withdrawal. An agreement's ceremonies are its recorded stage moves (an admin or
+owner changes the stage with written evidence) plus the advice rounds and test
+evidence recorded on the way; there is no separate "record a ceremony" action
+(owner decision 2026-11-01), so copy (role card, ceremonies box, gates panel)
+never implies one. Keep its labels and select values aligned with the backend
 agreement vocabulary; presentation cannot bypass the API lifecycle.
 
 ## Shared data and feedback contracts

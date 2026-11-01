@@ -1310,8 +1310,9 @@ export interface ProposalMoveOption {
   note_required: boolean;
   /** Only an ecosystem steward may make it (confirming ratification). */
   steward_only: boolean;
-  /** Shown, not offered: the caller wrote the proposal, so another steward must confirm it. */
-  blocked?: 'needs_another_steward' | null;
+  /** Shown, not offered: the caller wrote the proposal, so another steward must confirm it; or the caller is a
+   *  steward who did not write it, so the proposer closes advice until its deadline has passed. */
+  blocked?: 'needs_another_steward' | 'proposer_closes_advice' | null;
 }
 
 /** id, key, title, status and version of an agreement a proposal links to. */

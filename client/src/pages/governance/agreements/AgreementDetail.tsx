@@ -222,8 +222,8 @@ export default function AgreementDetail() {
         <div className="flex items-center gap-3 border-2 border-primary bg-primary/10 p-4">
           <Gavel className="h-5 w-5 shrink-0 text-primary" />
           <p className="text-sm font-medium">
-            Next ceremony: {agreementStatusLabel(nextCeremony)}. Record documented evidence below, then advance
-            the status.
+            Next stage: {agreementStatusLabel(nextCeremony)}. Write its evidence below, then change the status:
+            that recorded move is the {agreementStatusLabel(nextCeremony)} ceremony.
           </p>
         </div>
       )}
@@ -232,8 +232,8 @@ export default function AgreementDetail() {
         <div className="flex items-center gap-3 border-2 border-strong-border bg-muted p-4">
           <Gavel className="h-5 w-5 shrink-0 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Awaiting an ecosystem steward to open the {agreementStatusLabel(nextCeremony)} ceremony. Lifecycle
-            ceremonies are conducted by stewards (admin/owner).
+            Waiting for an admin or owner to move it to {agreementStatusLabel(nextCeremony)}. Each stage move, with
+            its written evidence, is the agreement's recorded ceremony.
           </p>
         </div>
       )}
@@ -288,7 +288,7 @@ export default function AgreementDetail() {
                     id="ceremony-evidence"
                     value={ceremonyEvidence}
                     onChange={(event) => setCeremonyEvidence(event.target.value)}
-                    placeholder="Record the participants, evidence, and outcome for this governance ceremony."
+                    placeholder="Who took part, the evidence and the outcome: recorded with this stage move."
                     rows={3}
                   />
                   <p className="text-xs text-muted-foreground">This lifecycle transition is blocked until documented evidence is recorded.</p>
@@ -380,7 +380,11 @@ export default function AgreementDetail() {
           {data.ceremonies.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Governance Ceremonies</CardTitle>
+                <CardTitle className="text-lg">Ceremonies</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Ceremonies are the recorded stage moves: each entry is a stage the agreement entered (or an advice
+                  round or test evidence recorded on the way), when, and the evidence written with it.
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2">

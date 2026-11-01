@@ -184,6 +184,9 @@ export const affects = {
   badges: [keys.badges.all],
   teams: [keys.teams.all],
   profiles: [keys.profiles.all, keys.members.all],
+  /** The profile name is the member name in every ecosystem: member pages and the governance records that name people. */
+  profileName: [keys.profiles.all, keys.members.all, keys.dashboard.all, keys.nextSteps.all, keys.proposals.all,
+    keys.agreements.all, keys.conflicts.all, keys.emergency.all, keys.exits.all],
   settings: [keys.settings.all],
   ctcHandoff: [keys.ctcHandoff.all],
   orientation: [keys.orientation.all],

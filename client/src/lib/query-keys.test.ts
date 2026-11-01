@@ -124,3 +124,23 @@ test("a governance act refreshes the member's queue and that record's status ban
     for (const surface of surfaces) assert.ok(reached.has(hashKey(surface)), `${domain}: ${hashKey(surface)} stays stale`);
   }
 });
+
+// Owner decision 2026-11-01: the profile name is the member name in every ecosystem (api/AGENTS.md).
+test('saving the profile name refreshes member pages and every governance record that names people', async () => {
+  const surfaces = [
+    keys.profiles.mine(),
+    keys.members.detail('m-1'),
+    keys.members.list(),
+    keys.nextSteps.mine(),
+    keys.proposals.detail('p-1'),
+    keys.proposals.explain('p-1'),
+    keys.agreements.detail('a-1'),
+    keys.conflicts.detail('c-1'),
+    keys.emergency.detail('em-1'),
+    keys.exits.detail('x-1'),
+  ];
+  const untouched = keys.courses.list();
+  const reached = await invalidatedBy(affects.profileName, [...surfaces, untouched]);
+  for (const surface of surfaces) assert.ok(reached.has(hashKey(surface)), `${hashKey(surface)} keeps the old name`);
+  assert.ok(!reached.has(hashKey(untouched)), 'a name change should not refetch unrelated lists');
+});

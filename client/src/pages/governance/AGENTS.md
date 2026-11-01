@@ -68,7 +68,16 @@ only when their gate is met. Owner decisions (2026-10-31) shape the rest:
   header and the prompt banner. `adviceClosePrompt` adds a banner once the gate
   is met ("Close advice and move to consent: enough advice is in", the bell's
   words), and "Advice deadline passed: move to consent?" once
-  `gates.advice.deadline_passed`. Nothing moves by itself.
+  `gates.advice.deadline_passed`. Nothing moves by itself. Only the proposer
+  reads "You decide" (`isProposer`). Owner decision 2026-11-01: a steward who
+  did not write it may close advice only once the deadline has passed (never
+  without one); before that `allowed_next` lists the move `blocked:
+  "proposer_closes_advice"`, `groupProposalMoves` keeps it out of `forward`
+  and sets `proposerClosesAdvice`, and the page shows
+  `proposerClosesAdviceNote` ("The proposer, Ines, closes advice. You can
+  close it after the deadline (<date>) if they haven't.") instead of a button.
+  After the deadline the steward's banner reads "Advice deadline passed: close
+  advice for the proposer?", the steward's bell item word for word.
 - **No preselected position.** The consent select starts empty (required),
   the hint defines Consent as well as Stand aside and Object, and
   `consentCompletesRound` warns before the press when this position would
