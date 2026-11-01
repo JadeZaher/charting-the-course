@@ -185,7 +185,7 @@ export default function AgreementForm() {
             <div className="space-y-2">
               <Label htmlFor="type">Type *</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
+                <SelectTrigger id="type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,7 +235,8 @@ export default function AgreementForm() {
             <div className="space-y-2">
               <Label htmlFor="hierarchy">Hierarchy Level</Label>
               <Select value={hierarchyLevel} onValueChange={setHierarchyLevel}>
-                <SelectTrigger>
+                {/* Named by its label: a seeded level outside HIERARCHY_OPTIONS renders an empty value. */}
+                <SelectTrigger id="hierarchy">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

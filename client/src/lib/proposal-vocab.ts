@@ -163,7 +163,7 @@ export function quorumExplanation(gate: ConsentGateView, governingTitle?: string
   if (!gate.required) return 'No consent round is required.';
   const consensus = gate.mode === 'consensus' ? ' Consensus: every position must be consent.' : '';
   if (gate.quorum_source === 'all_members') {
-    return "Needs every participating member's consent (no quorum declared).";
+    return 'Needs every member who takes part to consent (nobody set a smaller number).';
   }
   const count = gate.quorum ?? 1;
   const needs = gate.consented !== undefined
@@ -173,11 +173,11 @@ export function quorumExplanation(gate: ConsentGateView, governingTitle?: string
     ? governingTitle ? `, set by the governing agreement “${governingTitle}”` : ', declared on this agreement'
     : gate.quorum_source === 'proposal'
       ? ', declared on this proposal'
-      : ' (the default: no quorum declared)';
+      : ' (the usual number, since nobody set one)';
   return `${needs}${source}, and no open objection.${consensus}`;
 }
 
-/** The proposer's advice prompt: shown to whoever may close advice once its gate is met. */
+/** The proposer's advice prompt: shown to whoever may close advice once its gate is met (server ADVICE_*_PROMPT). */
 export function adviceClosePrompt(input: {
   status: string;
   adviceGate: { met: boolean; deadline?: string | null; deadline_passed?: boolean } | null | undefined;
@@ -193,9 +193,61 @@ export function adviceClosePrompt(input: {
   }
   return {
     tone: 'ready',
-    title: 'Enough advice to move on',
-    body: 'The advice gate is met. You decide when advice closes; members then record their positions.',
+    title: 'Close advice and move to consent: enough advice is in',
+    body: 'You decide when advice closes; nothing moves by itself. Then members record whether they consent, stand aside or object.',
   };
+}
+
+/** "Mo", "Mo or Sol", "Ari, Mo or Sol": the people who can take the next step. */
+export function joinNames(names: readonly string[], conjunction: 'or' | 'and' = 'or'): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} ${conjunction} ${names[names.length - 1]}`;
+}
+
+/** The close-advice confirmation: the author is "you"; a steward closing it acts for the proposer. */
+export function closeAdviceConfirmation(input: {
+  isProposer: boolean;
+  proposer: string | null | undefined;
+  adviceGate: { rounds: number; required_rounds: number; deadline?: string | null; deadline_passed?: boolean };
+  /** Advice entries in the current round, so the closer sees what they are closing on. */
+  entries: number;
+  /** The deadline as the page shows it (formatDate), when one is set. */
+  deadlineLabel?: string | null;
+}): { title: string; body: string[] } {
+  const { adviceGate: gate } = input;
+  const who = input.isProposer
+    ? 'You are closing advice on your proposal.'
+    : `You are closing advice for ${input.proposer || 'the proposer'}, acting as a steward for the proposer.`;
+  const received = `${gate.rounds} of ${gate.required_rounds} advice round${gate.required_rounds === 1 ? '' : 's'} `
+    + `${gate.required_rounds === 1 ? 'has' : 'have'} advice, with ${input.entries} piece${input.entries === 1 ? '' : 's'} of advice in this round.`;
+  const deadline = input.deadlineLabel
+    ? gate.deadline_passed
+      ? `The advice deadline (${input.deadlineLabel}) has passed.`
+      : `The advice deadline is ${input.deadlineLabel}: closing now ends advice early.`
+    : 'No advice deadline was set.';
+  return {
+    title: 'Close advice and move to consent?',
+    body: [
+      who,
+      `${received} ${deadline}`,
+      'Members can then record whether they consent, stand aside or object. Advice opens again only if the proposal is sent back for revision.',
+    ],
+  };
+}
+
+/** True when recording `position` would complete the consent round now, so the proposal moves to Test at once. */
+export function consentCompletesRound(input: {
+  gate: { required: boolean; quorum?: number | null; positions?: number; open_objections?: number; mode?: string | null } | null | undefined;
+  /** The caller's live position before this press (null when none). */
+  current: string | null | undefined;
+  position: string;
+}): boolean {
+  const { gate, current, position } = input;
+  if (!gate?.required || !position || position === 'object') return false;
+  if (gate.mode === 'consensus' && position !== 'consent') return false;
+  const positionsAfter = (gate.positions ?? 0) + (current ? 0 : 1);
+  const objectionsAfter = (gate.open_objections ?? 0) - (current === 'object' ? 1 : 0);
+  return objectionsAfter <= 0 && positionsAfter >= (gate.quorum ?? 1);
 }
 
 /** The ratified banner: never claims the proposal is in force until it is registered. */

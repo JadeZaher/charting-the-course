@@ -7,6 +7,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useDecision, useDomains } from '@/hooks/use-governance';
 import { ArrowLeft } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { formatDate } from '@/lib/utils';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -108,10 +109,15 @@ export default function DecisionDetail() {
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
           <span className="text-sm text-muted-foreground">
-            {data.date ? `Decided ${new Date(data.date).toLocaleDateString()}` : 'Date not recorded'}
+            {data.date ? `Decided ${formatDate(data.date)}` : 'Date not recorded'}
           </span>
         </div>
         {metaLine && <p className="text-sm text-muted-foreground">{metaLine}</p>}
+        {data.recorder && (
+          <p className="text-sm text-muted-foreground">
+            Recorded by {data.recorder}{data.recorder_role ? `, ${data.recorder_role}` : ''}
+          </p>
+        )}
       </div>
 
       <Card>
@@ -210,6 +216,21 @@ export default function DecisionDetail() {
               </div>
             )}
 
+            {data.source_proposal_id && (
+              <div>
+                <p className="text-xs text-muted-foreground">Agreement</p>
+                <div className="mt-1">
+                  {data.registered_agreement ? (
+                    <Link href={`/agreements/${data.registered_agreement.id}`} className={chipLinkClass}>
+                      Registered as “{data.registered_agreement.title}”
+                    </Link>
+                  ) : (
+                    <p className="text-sm">Not registered as an agreement yet: a steward registers it from the proposal page.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {relatedRecords.length > 0 && (
               <dl className="space-y-3 border-t border-border pt-4">
                 {relatedRecords.map(([key, value]) => (
@@ -270,7 +291,7 @@ export default function DecisionDetail() {
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <dt className="text-muted-foreground">Date decided</dt>
-              <dd className="font-medium">{data.date ? new Date(data.date).toLocaleDateString() : '-'}</dd>
+              <dd className="font-medium">{formatDate(data.date)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Domain</dt>
@@ -289,13 +310,13 @@ export default function DecisionDetail() {
             {data.recorder && (
               <div>
                 <dt className="text-muted-foreground">Recorded by</dt>
-                <dd className="font-medium">{data.recorder}{data.recorder_role ? ` (${data.recorder_role})` : ''}</dd>
+                <dd className="font-medium">{data.recorder}{data.recorder_role ? `, ${data.recorder_role}` : ''}</dd>
               </div>
             )}
             {data.review_date && (
               <div>
                 <dt className="text-muted-foreground">Review date</dt>
-                <dd className="font-medium">{new Date(data.review_date).toLocaleDateString()}</dd>
+                <dd className="font-medium">{formatDate(data.review_date)}</dd>
               </div>
             )}
             {data.superseded_by && (
@@ -315,7 +336,7 @@ export default function DecisionDetail() {
                 <dt className="text-muted-foreground">Verified by</dt>
                 <dd className="font-medium">
                   {data.verification_by}
-                  {data.verification_date ? ` on ${new Date(data.verification_date).toLocaleDateString()}` : ''}
+                  {data.verification_date ? ` on ${formatDate(data.verification_date)}` : ''}
                 </dd>
               </div>
             )}

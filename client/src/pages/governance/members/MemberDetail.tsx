@@ -8,7 +8,7 @@ import { apiErrorMessage } from '@/lib/api-error-message';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield, Network, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { toStringList } from '@/lib/utils';
+import { formatDate, toStringList } from '@/lib/utils';
 import { domainLabel } from '@/lib/domain-label';
 import { MemberRoleCard } from '@/components/governance/MemberRoleCard';
 
@@ -187,7 +187,7 @@ export default function MemberDetail() {
             {data.last_governance_activity_date && (
               <div>
                 <dt className="text-muted-foreground">Last governance activity</dt>
-                <dd className="font-medium">{new Date(data.last_governance_activity_date).toLocaleDateString()}</dd>
+                <dd className="font-medium">{formatDate(data.last_governance_activity_date)}</dd>
               </div>
             )}
             <div>
@@ -195,7 +195,6 @@ export default function MemberDetail() {
               <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
             </div>
           </dl>
-          <p className="text-xs text-muted-foreground">Full activity timeline — pending backend.</p>
         </CardContent>
       </Card>
 
@@ -216,7 +215,7 @@ export default function MemberDetail() {
               <span className="text-muted-foreground">Overall Completion</span>
               <span className="font-medium">{completionPct}%</span>
             </div>
-            <Progress value={completionPct} className="h-2" />
+            <Progress value={completionPct} className="h-2" aria-label="Quiz completion" />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

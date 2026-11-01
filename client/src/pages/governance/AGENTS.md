@@ -24,6 +24,19 @@ Proposals (`ProposalDetail`):
   "Withdraw my objection"; there is no member-name field (the server records the
   caller, one position per member).
 - `caller_can_register`: a steward may register this ratified proposal.
+- `caller_has_advised` / `caller_has_reported`: the advice and test forms start
+  collapsed to a done state ("You advised in this round" with an explicit "Add
+  more advice"; "You filed a test report" with "File another report"), and the
+  input panel stops saying "Your input is needed".
+- `caller_consent_pending`: the read-only note says the membership waits on
+  the consent gate instead of "not a member".
+- `ratification_confirmers`: "Another steward needs to confirm this" names
+  them, each linking to `/members/:id`.
+
+Agreements: `registered_from_proposal` makes `ActGatesPanel` say the proposal
+completed advice, consent and test (with a link) instead of showing the
+agreement's own (never run) gates as pending; member consent there is labelled
+"Member attestation", not a gate.
 
 Members (`MemberDetail` -> `components/governance/MemberRoleCard`):
 `caller_assignable_roles` is the role picker (empty: no picker, and the card
@@ -48,10 +61,18 @@ Proposal status changes use labelled buttons from `lib/proposal-vocab.ts`
 (`PROPOSAL_TRANSITION_LABELS`), drawn from `allowed_next`. Forward moves appear
 only when their gate is met. Owner decisions (2026-10-31) shape the rest:
 
-- **The proposer closes advice.** "Close advice and move to consent" is a
-  forward move; `adviceClosePrompt` adds a banner once the gate is met, and
-  "Advice deadline passed: move to consent?" once `gates.advice.deadline_passed`.
-  Nothing moves by itself.
+- **The proposer closes advice.** "Close advice and move to consent…" is a
+  forward move behind a confirmation (`closeAdviceConfirmation`: what advice
+  was received, the deadline, what happens next; the author is "you", a
+  non-author steward "acting as a steward for the proposer"), from both the
+  header and the prompt banner. `adviceClosePrompt` adds a banner once the gate
+  is met ("Close advice and move to consent: enough advice is in", the bell's
+  words), and "Advice deadline passed: move to consent?" once
+  `gates.advice.deadline_passed`. Nothing moves by itself.
+- **No preselected position.** The consent select starts empty (required),
+  the hint defines Consent as well as Stand aside and Object, and
+  `consentCompletesRound` warns before the press when this position would
+  complete the round (the proposal then moves to Test at once).
 - **A steward confirms ratification.** "Confirm ratification…" opens a dialog
   that shows every test report (outcome, reporter, criteria) as the evidence.
   A steward who wrote the proposal gets no button: `allowed_next` marks the move
@@ -68,7 +89,7 @@ only when their gate is met. Owner decisions (2026-10-31) shape the rest:
 
 The quorum is explained from `gates.consent.quorum_source`
 (`quorumExplanation`): "Needs 2 positions, set by the governing agreement
-“How we decide”" or "(the default: no quorum declared)". Decision types are
+“How we decide”" or "(the usual number, since nobody set one)". Decision types are
 `consent` and `consensus` only (`DECISION_TYPE_OPTIONS`); the governing
 agreement picker lists agreements in force. After a change, `useUpdateProposalStatus` toasts the phase
 the proposal actually landed in (`proposalPhaseAnnouncement(updated.status)`,
@@ -76,7 +97,18 @@ since gates can auto-advance further) and the page moves focus to the status
 region, because the button that was used unmounts. The same applies to advice,
 consent and test entries that auto-advance: their hooks announce the move
 (`announceActOutcome`) and the tab reads `auto_transitions` from the resolved
-result to move focus.
+result to move focus. Without an advance, focus still moves to a stable target
+(`useFocusAfterRender`): the advice and test done-state headings and the
+consent card's "Your position" heading (all `tabIndex=-1`), because the submit
+button disables itself while pending and focus would otherwise fall to BODY.
+`ConsentTab` is keyed on the version only for the same reason (a key on the
+position remounted it after every press).
+
+Dates: date-only values (`YYYY-MM-DD`: decision dates, review and
+verification dates, last governance activity) go through `formatDate`, never
+`new Date(value)`, which reads them as UTC midnight and shows the day before
+west of UTC. Decision cards are links named by what was decided (the
+holding's title, `aria-labelledby`), not by the opaque record id.
 
 ## Domain names
 

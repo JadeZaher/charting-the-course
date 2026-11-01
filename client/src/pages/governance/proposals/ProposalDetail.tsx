@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,10 @@ import {
   DECISION_TYPE_OPTIONS,
   PROPOSAL_TRANSITION_LABELS,
   adviceClosePrompt,
+  closeAdviceConfirmation,
+  consentCompletesRound,
   groupProposalMoves,
+  joinNames,
   positionLabel,
   proposalEditLock,
   proposalPhaseLabel,
@@ -51,9 +54,23 @@ import type {
   ActGates,
   AdviceLog,
   ConsentRecord,
+  MemberRef,
   ProposalDetail as ProposalDetailData,
   TestReport,
 } from '@/types/api';
+
+/** Focus `ref` after the render a state change causes: a submit button that disables itself would drop focus to BODY. */
+function useFocusAfterRender<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [request, setRequest] = useState(0);
+  useEffect(() => {
+    if (request) ref.current?.focus();
+  }, [request]);
+  return { ref, focus: () => setRequest((n) => n + 1) };
+}
+
+/** A stable focus target: focusable by script only, with a visible ring when it is. */
+const FOCUS_TARGET_CLASS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -149,12 +166,17 @@ function OverviewTab({ data }: { data: any }) {
 
 const ADVICE_REQUIRED_MESSAGE = 'Write your advice before submitting.';
 
-function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canParticipate, onAutoAdvance }: {
+function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canParticipate, hasAdvised, requiredRounds, proposer, onAutoAdvance }: {
   adviceLogs: AdviceLog[];
   proposalId: string;
   proposalStatus: string;
   isProposer: boolean;
   canParticipate: boolean;
+  /** The caller already advised in the current round (caller_has_advised): the form starts collapsed. */
+  hasAdvised: boolean;
+  /** Advice rounds this proposal needs before consent (gates.advice.required_rounds). */
+  requiredRounds: number;
+  proposer: string;
   /** Called after an advice entry auto-advanced the proposal (this form unmounts). */
   onAutoAdvance: () => void;
 }) {
@@ -164,7 +186,17 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canPart
   const [concerns, setConcerns] = useState('');
   const [newRound, setNewRound] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
+  // Advised from this form before the refetched caller_has_advised lands; the member may still add more.
+  const [advisedHere, setAdvisedHere] = useState(false);
+  const [addingMore, setAddingMore] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
+  const done = useFocusAfterRender<HTMLDivElement>();
+  const advised = hasAdvised || advisedHere;
+  const showForm = !advised || addingMore;
+
+  useEffect(() => {
+    if (addingMore) contentRef.current?.focus();
+  }, [addingMore]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +212,14 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canPart
       setConcerns('');
       setNewRound(false);
       // The hook announces the outcome; an advance unmounts this form, so focus moves to the status.
-      if (result.auto_transitions?.length) onAutoAdvance();
+      if (result.auto_transitions?.length) {
+        onAutoAdvance();
+      } else {
+        // The form collapses to its done state; focus lands on it instead of falling to BODY.
+        setAdvisedHere(true);
+        setAddingMore(false);
+        done.focus();
+      }
     } catch {
       // Rendered below from submitAdvice.error
     }
@@ -198,10 +237,28 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canPart
           </CardContent>
         </Card>
       )}
-      {/* Submit advice form — only during advice phase */}
-      {proposalStatus === 'advice' && !isProposer && canParticipate && (
+      {/* Done state: the caller advised in this round; more advice is an explicit choice. */}
+      {proposalStatus === 'advice' && !isProposer && canParticipate && advised && !addingMore && (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Submit Advice</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle ref={done.ref} tabIndex={-1} className={`text-lg ${FOCUS_TARGET_CLASS}`}>
+              You advised in this round
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Your advice is in the round below. {proposer} reads it and decides when to close advice.
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAddingMore(true)}>
+              Add more advice
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {/* Submit advice form — only during advice phase */}
+      {proposalStatus === 'advice' && !isProposer && canParticipate && showForm && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg">{advised ? 'Add more advice' : 'Submit Advice'}</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-3" noValidate>
               <div className="space-y-1">
@@ -235,16 +292,30 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canPart
                 <AITextarea id="advice-concerns" value={concerns} onChange={(e) => setConcerns(e.target.value)} placeholder="Any concerns..." rows={2} fieldLabel="Concerns" fieldContext="Concerns or potential issues with a governance proposal" />
               </div>
               {adviceLogs.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Checkbox id="advice-new-round" checked={newRound} onCheckedChange={(v) => setNewRound(v === true)} />
-                  <Label htmlFor="advice-new-round" className="text-sm font-normal">
-                    Open a new advice round with this entry (counts toward the declared minimum)
-                  </Label>
+                <div className="flex items-start gap-2">
+                  <Checkbox id="advice-new-round" className="mt-0.5" checked={newRound} onCheckedChange={(v) => setNewRound(v === true)}
+                    aria-describedby="advice-new-round-hint" />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="advice-new-round" className="text-sm font-normal">
+                      Start a new round of advice with this
+                    </Label>
+                    <p id="advice-new-round-hint" className="text-xs text-muted-foreground">
+                      Usually leave this off. Tick it when the proposal has changed and people should advise again.
+                      This proposal needs {requiredRounds} round{requiredRounds === 1 ? '' : 's'} with advice before consent.
+                    </p>
+                  </div>
                 </div>
               )}
-              <Button type="submit" disabled={submitAdvice.isPending}>
-                {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" disabled={submitAdvice.isPending}>
+                  {submitAdvice.isPending ? 'Submitting...' : 'Submit Advice'}
+                </Button>
+                {addingMore && (
+                  <Button type="button" variant="outline" onClick={() => { setAddingMore(false); done.focus(); }}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
               {submitAdvice.error && (
                 <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitAdvice.error)}</p>
               )}
@@ -338,12 +409,17 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
   const { member } = useAuth();
   const consensus = consentGate?.mode === 'consensus';
   const current = callerPosition && callerPosition.position !== 'withdrawn' ? callerPosition : null;
-  const [position, setPosition] = useState(current?.position ?? 'consent');
+  // No preselected position: choosing one is the member's act (one press can complete the round).
+  const [position, setPosition] = useState('');
   const [objection, setObjection] = useState(current?.position === 'object' ? current.reason ?? '' : '');
+  const positionField = useRequiredFields({ position: 'Choose your position.' });
   const fields = useRequiredFields({ objection: 'Say what your objection is, so the proposer can work with it.' });
+  const heading = useFocusAfterRender<HTMLDivElement>();
+  const completesRound = consentCompletesRound({ gate: consentGate, current: current?.position ?? null, position });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!positionField.validate({ position })) return;
     if (position === 'object' && !fields.validate({ objection })) return;
     try {
       // The server records the caller; one position per member, so this replaces any earlier one.
@@ -351,7 +427,12 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
         position,
         objection_text: position === 'object' ? objection.trim() : null,
       });
-      if (result.auto_transitions?.length) onAutoAdvance();
+      if (result.auto_transitions?.length) {
+        onAutoAdvance();
+      } else {
+        setPosition('');
+        heading.focus();  // the button disables while pending; "Your position" is the stable place to land
+      }
     } catch {
       // Rendered below from submitConsent.error
     }
@@ -360,9 +441,10 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
   const handleWithdraw = async () => {
     try {
       const result = await withdrawPosition.mutateAsync({});
-      setPosition('consent');
+      setPosition('');
       setObjection('');
       if (result.auto_transitions?.length) onAutoAdvance();
+      else heading.focus();  // the withdraw button unmounts with the position it withdrew
     } catch {
       // Rendered below from withdrawPosition.error
     }
@@ -375,7 +457,9 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
       {proposalStatus === 'consent' && canParticipate && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">{current ? 'Your position' : 'Record your position'}</CardTitle>
+            <CardTitle ref={heading.ref} tabIndex={-1} className={`text-lg ${FOCUS_TARGET_CLASS}`}>
+              {current ? 'Your position' : 'Record your position'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {current && (
@@ -399,10 +483,14 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
                 <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="consent-position">Position</Label>
-                <Select value={position} onValueChange={setPosition}>
-                  <SelectTrigger id="consent-position" aria-describedby="consent-position-hint">
-                    <SelectValue />
+                <Label htmlFor="consent-position">{current ? 'Change to' : 'Position *'}</Label>
+                <Select value={position} onValueChange={(value) => { setPosition(value); positionField.settle('position', value); }}>
+                  <SelectTrigger
+                    id="consent-position"
+                    {...positionField.field('position')}
+                    aria-describedby={[positionField.field('position')['aria-describedby'], 'consent-position-hint'].filter(Boolean).join(' ')}
+                  >
+                    <SelectValue placeholder="Choose a position" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="consent">Consent</SelectItem>
@@ -410,12 +498,23 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
                     {!consensus && <SelectItem value="stand_aside">Stand aside</SelectItem>}
                   </SelectContent>
                 </Select>
+                <FieldError {...positionField.error('position')} />
                 <p id="consent-position-hint" className="text-xs text-muted-foreground">
+                  Consent: you can live with this proposal, so it can go ahead.{' '}
                   {consensus
-                    ? 'This proposal decides by consensus: consent or object.'
+                    ? 'This proposal decides by consensus, so the choice is consent or object.'
                     : 'Stand aside: no objection, but you will not take part. Object: a reasoned concern the proposer must work with.'}
                 </p>
               </div>
+              {completesRound && (
+                <p role="note" className="flex items-start gap-2 border-2 border-warning bg-warning/10 p-3 text-sm">
+                  <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                  <span>
+                    Yours would complete the consent round: once you record it, the proposal moves to the Test stage
+                    straight away and positions close.
+                  </span>
+                </p>
+              )}
               {position === 'object' && (
                 <div className="space-y-1">
                   <Label htmlFor="objection">Objection *</Label>
@@ -434,6 +533,7 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition
               )}
               <Button type="submit" disabled={submitConsent.isPending}>
                 {submitConsent.isPending ? 'Saving...' : current ? 'Change my position' : 'Record my position'}
+                {!submitConsent.isPending && position ? `: ${positionLabel(position)}` : ''}
               </Button>
               {submitConsent.error && (
                 <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitConsent.error)}</p>
@@ -516,11 +616,14 @@ function TestReportCard({ report }: { report: TestReport }) {
           <CardTitle className="text-lg">Test Report</CardTitle>
           {report.outcome && <Badge variant={reportVariant(report.outcome)}>{report.outcome}</Badge>}
         </div>
-        <div className="text-xs text-muted-foreground space-x-3">
-          {report.reporter_name && <span>Reported by {report.reporter_name}</span>}
-          {report.test_start_date && <span>Start: {formatDate(report.test_start_date)}</span>}
-          {report.test_end_date && <span>End: {formatDate(report.test_end_date)}</span>}
-        </div>
+        {/* Separated in the text itself, so a screen reader does not run the parts together. */}
+        <p className="text-xs text-muted-foreground">
+          {[
+            report.reporter_name && `Reported by ${report.reporter_name}`,
+            report.test_start_date && `Start: ${formatDate(report.test_start_date)}`,
+            report.test_end_date && `End: ${formatDate(report.test_end_date)}`,
+          ].filter(Boolean).join(' · ')}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {report.observations && (
@@ -570,19 +673,27 @@ function TestReportCard({ report }: { report: TestReport }) {
   );
 }
 
-function TestTab({ testReports, proposalId, proposalStatus, declaredCases, canParticipate, onAutoAdvance }: {
+const TEST_OUTCOME_LABELS: Record<string, string> = { passed: 'Passed', failed: 'Failed', modified: 'Modified' };
+
+function TestTab({ testReports, proposalId, proposalStatus, declaredCases, canParticipate, hasReported, onAutoAdvance }: {
   testReports: TestReport[];
   proposalId: string;
   proposalStatus: string;
   /** The declared test cases; criteria must use these names to evidence them. */
   declaredCases: string[];
   canParticipate: boolean;
+  /** The caller filed a report in this test period (caller_has_reported): the form starts collapsed. */
+  hasReported: boolean;
   /** Called after a report auto-advanced the proposal (this form unmounts). */
   onAutoAdvance: () => void;
 }) {
   const submitTest = useSubmitTestReport(proposalId);
   const [observations, setObservations] = useState('');
   const [outcome, setOutcome] = useState('');
+  const [reportedHere, setReportedHere] = useState(false);
+  const [addingAnother, setAddingAnother] = useState(false);
+  const done = useFocusAfterRender<HTMLDivElement>();
+  const reported = hasReported || reportedHere;
   // Start from the declared cases, so a report evidences them by the names the gate checks.
   const [criteria, setCriteria] = useState<CriterionDraft[]>(() => declaredCases.map((c) => emptyCriterion(c)));
   const fields = useRequiredFields({
@@ -608,7 +719,13 @@ function TestTab({ testReports, proposalId, proposalStatus, declaredCases, canPa
       setObservations('');
       setOutcome('');
       setCriteria(declaredCases.map((c) => emptyCriterion(c)));
-      if (result.auto_transitions?.length) onAutoAdvance();
+      if (result.auto_transitions?.length) {
+        onAutoAdvance();
+      } else {
+        setReportedHere(true);
+        setAddingAnother(false);
+        done.focus();  // the form collapses; focus lands on its done state instead of BODY
+      }
     } catch {
       // Rendered below from submitTest.error
     }
@@ -616,11 +733,28 @@ function TestTab({ testReports, proposalId, proposalStatus, declaredCases, canPa
 
   return (
     <div className="space-y-6">
-      {/* Submit test report form — only during test phase */}
-      {proposalStatus === 'test' && canParticipate && (
+      {proposalStatus === 'test' && canParticipate && reported && !addingAnother && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Submit Test Report</CardTitle>
+            <CardTitle ref={done.ref} tabIndex={-1} className={`text-lg ${FOCUS_TARGET_CLASS}`}>
+              You filed a test report
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              It is listed below as evidence. A steward who did not write the proposal confirms the outcome.
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAddingAnother(true)}>
+              File another report
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {/* Submit test report form — only during test phase */}
+      {proposalStatus === 'test' && canParticipate && (!reported || addingAnother) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{reported ? 'File another report' : 'Submit Test Report'}</CardTitle>
             <p className="text-sm text-muted-foreground">
               Reports are evidence for a steward, who confirms the outcome. Your name is recorded with the report.
             </p>
@@ -679,10 +813,18 @@ function TestTab({ testReports, proposalId, proposalStatus, declaredCases, canPa
               <Button type="button" variant="outline" size="sm" onClick={addCriterion}>
                 Add Success Criterion
               </Button>
-              <div>
+              <div className="flex flex-wrap gap-2">
                 <Button type="submit" disabled={submitTest.isPending}>
-                  {submitTest.isPending ? 'Submitting...' : 'Submit Test Report'}
+                  {/* The outcome is echoed, so a mistaken choice shows before the report is filed. */}
+                  {submitTest.isPending
+                    ? 'Submitting...'
+                    : outcome ? `Submit report: ${TEST_OUTCOME_LABELS[outcome] ?? outcome}` : 'Submit Test Report'}
                 </Button>
+                {addingAnother && (
+                  <Button type="button" variant="outline" onClick={() => { setAddingAnother(false); done.focus(); }}>
+                    Cancel
+                  </Button>
+                )}
               </div>
               {submitTest.error && (
                 <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitTest.error)}</p>
@@ -763,6 +905,22 @@ function SendBackDialog({ open, onOpenChange, from, onConfirm, pending }: {
   );
 }
 
+/** "Ari, Mo or Sol", each linking to their member page. */
+function PeopleLinks({ people }: { people: MemberRef[] }) {
+  return (
+    <>
+      {people.map((person, index) => (
+        <span key={person.id}>
+          {index > 0 && (index === people.length - 1 ? ' or ' : ', ')}
+          <Link href={`/members/${person.id}`} className="underline underline-offset-2">{person.display_name}</Link>
+        </span>
+      ))}
+    </>
+  );
+}
+
+type PhaseAction = { tab: string; cta: string; title: string; text: string; done: boolean };
+
 // --- Main component ---
 
 export default function ProposalDetail() {
@@ -772,7 +930,7 @@ export default function ProposalDetail() {
   const statusMutation = useUpdateProposalStatus(id);
   const registerMutation = useRegisterProposalAgreement(id);
   const [statusChanging, setStatusChanging] = useState(false);
-  const [dialog, setDialog] = useState<'withdraw' | 'revise' | 'ratify' | 'register' | null>(null);
+  const [dialog, setDialog] = useState<'withdraw' | 'revise' | 'ratify' | 'register' | 'closeAdvice' | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   // Focus target after a lifecycle change unmounts the control that was used.
   const statusRegionRef = useRef<HTMLDivElement>(null);
@@ -817,15 +975,37 @@ export default function ProposalDetail() {
   const banner = data.status === 'ratified' ? ratifiedBanner(data.registered_agreement, data.amends_agreement?.title) : null;
   const decisionTypeLabel = DECISION_TYPE_OPTIONS.find((o) => o.value === data.decision_type)?.label ?? 'Consent';
   const callerPosition = data.caller_position && data.caller_position.position !== 'withdrawn' ? data.caller_position : null;
+  const confirmers = data.ratification_confirmers ?? [];
+  const proposerName = data.proposer || 'The proposer';
+  const closeAdvice = adviceGate ? closeAdviceConfirmation({
+    isProposer: data.caller_is_proposer ?? false,
+    proposer: data.proposer,
+    adviceGate,
+    entries: data.advice_logs[data.advice_logs.length - 1]?.entries.length ?? 0,
+    deadlineLabel: data.advice_deadline ? formatDate(data.advice_deadline) : null,
+  }) : null;
 
-  // The single participation action this phase asks of the caller, if any.
+  // The single participation action this phase asks of the caller, if any; `done` once they have taken it.
+  const needed = (phase: string) => `Your input is needed in the ${proposalPhaseLabel(phase)} phase`;
   const phaseAction = !canConduct ? undefined : ({
-    advice: { tab: 'advice', cta: 'Share Advice', text: 'This proposal is gathering advice. Your perspective shapes the final decision.' },
+    advice: data.caller_has_advised
+      ? { tab: 'advice', cta: 'View advice', done: true, title: 'You advised in this round',
+          text: `${proposerName} reads the advice and decides when to close it. You can add more if something changes.` }
+      : { tab: 'advice', cta: 'Share Advice', done: false, title: needed('advice'),
+          text: 'This proposal is gathering advice. Your perspective shapes the final decision.' },
     consent: callerPosition
-      ? { tab: 'consent', cta: 'Change your position', text: `Your position: ${positionLabel(callerPosition.position)}. You can change it or withdraw it while consent is open.` }
-      : { tab: 'consent', cta: 'Record Your Position', text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' },
-    test: { tab: 'test', cta: 'Submit a Test Report', text: 'The proposal is being tried in practice. Report observations against the success criteria; a steward confirms the outcome.' },
-  } as Record<string, { tab: string; cta: string; text: string }>)[data.status];
+      ? { tab: 'consent', cta: 'Change your position', done: true, title: 'Your position is recorded',
+          text: `Your position: ${positionLabel(callerPosition.position)}. You can change it or withdraw it while consent is open.` }
+      : { tab: 'consent', cta: 'Record Your Position', done: false, title: needed('consent'),
+          text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' },
+    test: data.caller_has_reported || data.gates?.test.met
+      ? { tab: 'test', cta: 'View reports', done: true,
+          title: data.caller_has_reported ? 'You filed a test report' : 'The test evidence is in',
+          text: `${joinNames(confirmers.map((person) => person.display_name)) || 'A steward who did not write the proposal'} `
+            + `can confirm the outcome.${data.caller_has_reported ? '' : ' You can still add a report of your own.'}` }
+      : { tab: 'test', cta: 'Submit a Test Report', done: false, title: needed('test'),
+          text: 'The proposal is being tried in practice. Report observations against the success criteria; a steward confirms the outcome.' },
+  } as Record<string, PhaseAction>)[data.status];
 
   const runTransition = async (target: string, note?: string) => {
     setStatusChanging(true);
@@ -918,8 +1098,10 @@ export default function ProposalDetail() {
               </Button>
             )}
             {moves.forward.map((move) => (
-              <Button key={move.to} size="sm" disabled={statusChanging} onClick={() => runTransition(move.to)}>
-                {PROPOSAL_TRANSITION_LABELS[move.to] ?? proposalPhaseLabel(move.to)}
+              // Closing advice cannot be taken back, so it confirms first (governance/plan.md: irreversible acts confirm).
+              <Button key={move.to} size="sm" disabled={statusChanging}
+                onClick={() => (move.to === 'consent' ? setDialog('closeAdvice') : runTransition(move.to))}>
+                {move.to === 'consent' ? `${PROPOSAL_TRANSITION_LABELS.consent}…` : PROPOSAL_TRANSITION_LABELS[move.to] ?? proposalPhaseLabel(move.to)}
               </Button>
             ))}
             {moves.ratify && (
@@ -954,6 +1136,29 @@ export default function ProposalDetail() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => runTransition('withdrawn')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Yes, withdraw
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Close advice: confirms what was received and who is acting (the author, or a steward for them). */}
+      <AlertDialog open={dialog === 'closeAdvice'} onOpenChange={(open) => { if (!open) setDialog(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{closeAdvice?.title}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {closeAdvice?.body.map((line) => <p key={line}>{line}</p>)}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep advice open</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={statusChanging}
+              onClick={(event) => { event.preventDefault(); void runTransition('consent'); }}
+            >
+              {statusChanging ? 'Closing advice...' : PROPOSAL_TRANSITION_LABELS.consent}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1040,7 +1245,12 @@ export default function ProposalDetail() {
           <Info className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             <strong className="text-foreground">Another steward needs to confirm this.</strong> The test gate is met, and
-            ratification is confirmed by a steward who did not write the proposal.
+            ratification is confirmed by a steward who did not write the proposal.{' '}
+            {confirmers.length > 0 ? (
+              <><PeopleLinks people={confirmers} /> can confirm it; it is waiting in their list.</>
+            ) : (
+              'No other steward can confirm it yet: an owner or admin first gives another member the moderator role.'
+            )}
           </p>
         </div>
       )}
@@ -1055,8 +1265,8 @@ export default function ProposalDetail() {
               <p className="text-sm text-muted-foreground">{advicePrompt.body}</p>
             </div>
           </div>
-          <Button size="sm" disabled={statusChanging} onClick={() => runTransition('consent')}>
-            {PROPOSAL_TRANSITION_LABELS.consent}
+          <Button size="sm" disabled={statusChanging} onClick={() => setDialog('closeAdvice')}>
+            {PROPOSAL_TRANSITION_LABELS.consent}…
           </Button>
         </div>
       )}
@@ -1078,17 +1288,17 @@ export default function ProposalDetail() {
 
       {/* Next action — what this phase asks of the caller */}
       {phaseAction && !proposerGathersAdvice && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-2 border-warning bg-warning/10 p-4">
+        <div className={`flex flex-col sm:flex-row sm:items-center gap-3 border-2 p-4 ${phaseAction.done ? 'border-strong-border bg-muted' : 'border-warning bg-warning/10'}`}>
           <div className="flex items-start gap-3 flex-1">
-            <CircleAlert className="h-5 w-5 shrink-0 text-warning mt-0.5" aria-hidden="true" />
+            {phaseAction.done
+              ? <Check className="h-5 w-5 shrink-0 text-success mt-0.5" aria-hidden="true" />
+              : <CircleAlert className="h-5 w-5 shrink-0 text-warning mt-0.5" aria-hidden="true" />}
             <div>
-              <p className="font-bold text-sm">
-                {callerPosition && data.status === 'consent' ? 'Your position is recorded' : `Your input is needed in the ${proposalPhaseLabel(data.status)} phase`}
-              </p>
+              <p className="font-bold text-sm">{phaseAction.title}</p>
               <p className="text-sm text-muted-foreground">{phaseAction.text}</p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setActiveTab(phaseAction.tab)}>
+          <Button size="sm" variant={phaseAction.done ? 'outline' : 'default'} onClick={() => setActiveTab(phaseAction.tab)}>
             {phaseAction.cta}
           </Button>
         </div>
@@ -1098,7 +1308,9 @@ export default function ProposalDetail() {
         <div className="flex items-center gap-3 border-2 border-strong-border bg-muted p-4">
           <CircleAlert className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
-            You are not a member of this proposal's ecosystem, so you can read it but not take part.
+            {data.caller_consent_pending
+              ? 'Your membership in this ecosystem is still waiting for your consent to its agreements, so you can read this proposal but not take part yet.'
+              : "You are not a member of this proposal's ecosystem, so you can read it but not take part."}
           </p>
         </div>
       )}
@@ -1159,13 +1371,17 @@ export default function ProposalDetail() {
             proposalStatus={data.status}
             isProposer={data.caller_is_proposer ?? false}
             canParticipate={canConduct}
+            hasAdvised={data.caller_has_advised ?? false}
+            requiredRounds={adviceGate?.required_rounds ?? 1}
+            proposer={proposerName}
             onAutoAdvance={focusStatusRegion}
           />
         </TabsContent>
 
         <TabsContent value="consent">
+          {/* Keyed on the version only: remounting on a new position would drop keyboard focus after recording it. */}
           <ConsentTab
-            key={`${data.version}-${data.caller_position?.position ?? 'none'}`}
+            key={data.version}
             consentRecords={data.consent_records}
             proposalId={id}
             proposalStatus={data.status}
@@ -1185,6 +1401,7 @@ export default function ProposalDetail() {
             proposalStatus={data.status}
             declaredCases={data.gates?.test.declared_cases ?? []}
             canParticipate={canConduct}
+            hasReported={data.caller_has_reported ?? false}
             onAutoAdvance={focusStatusRegion}
           />
         </TabsContent>

@@ -10,6 +10,7 @@ import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useDecisions, useDomains } from '@/hooks/use-governance';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { formatDate } from '@/lib/utils';
 
 const STATUS_FILTER: FilterDef = { key: 'status', label: 'Status', type: 'select', options: [
   { value: 'all', label: 'All Statuses' },
@@ -45,6 +46,13 @@ const statusVariant = (status: string) => {
 
 const humanize = (value: string) =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** What was decided, in words: the title the ACT engine puts before " — " in the holding, else its opening. */
+const decisionHeadline = (holding: string | null, recordId: string) => {
+  const lead = (holding ?? '').split(' — ')[0].trim();
+  if (!lead) return recordId;
+  return lead.length > 100 ? `${lead.slice(0, 99).trimEnd()}…` : lead;
+};
 
 export default function DecisionList() {
   const { data: domainsData } = useDomains({ per_page: '100' });
@@ -105,11 +113,12 @@ export default function DecisionList() {
           <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No decisions found</div>
         ) : data?.items.map((d) => (
           <CollectionCard key={d.id} asChild>
-            <Link href={`/decisions/${d.id}`} aria-label={`View decision: ${d.record_id}`}>
+            {/* Named by what was decided (the h2), not by the opaque record id. */}
+            <Link href={`/decisions/${d.id}`} aria-labelledby={`decision-${d.id}-title`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Decision record</p>
-                  <h2 className="mt-1 text-lg font-semibold">{d.record_id}</h2>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Decision record {d.record_id}</p>
+                  <h2 id={`decision-${d.id}-title`} className="mt-1 text-lg font-semibold">{decisionHeadline(d.holding, d.record_id)}</h2>
                 </div>
                 <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
               </div>
@@ -123,7 +132,7 @@ export default function DecisionList() {
                   </Badge>
                 )}
                 <span className="text-xs text-muted-foreground">
-                  {d.date ? `Decided ${new Date(d.date).toLocaleDateString()}` : 'Date not recorded'}
+                  {d.date ? `Decided ${formatDate(d.date)}` : 'Date not recorded'}
                 </span>
               </div>
               <dl className="mt-4 border-t border-border pt-4 text-sm">

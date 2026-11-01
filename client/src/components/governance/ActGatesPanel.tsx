@@ -1,3 +1,4 @@
+import { Link } from 'wouter';
 import { Check, CircleDashed, ListChecks } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
@@ -31,13 +32,16 @@ const WHO_MOVES = {
  * Live ACT gate checklist: the conditions declared at the record level (or inherited)
  * and whether each is currently satisfied, with the quorum explained in plain words.
  */
-export function ActGatesPanel({ gates, status, kind = 'proposal', governingTitle }: {
+export function ActGatesPanel({ gates, status, kind = 'proposal', governingTitle, registeredFrom }: {
   gates: ActGates;
   status: string;
   kind?: 'proposal' | 'agreement';
   /** Title of the governing agreement the gates are inherited from, if any. */
   governingTitle?: string | null;
+  /** An agreement registered from a ratified proposal: that proposal completed advice, consent and test. */
+  registeredFrom?: { id: string; proposal_id: string; title: string } | null;
 }) {
+  if (kind === 'agreement' && registeredFrom) return <RegisteredGates gates={gates} proposal={registeredFrom} />;
   const policy = gates.policy;
   const advice: ActGates['advice'] & ActAdviceGateDetail = gates.advice;
   const consent: ActGates['consent'] & ActConsentGateDetail = gates.consent;
@@ -107,6 +111,46 @@ export function ActGatesPanel({ gates, status, kind = 'proposal', governingTitle
           {status === 'ratified' || status === 'active'
             ? 'The process is complete and its decision record is kept.'
             : WHO_MOVES[kind]}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** A registered agreement's gates were met by its proposal; member consent here is each member's attestation. */
+function RegisteredGates({ gates, proposal }: { gates: ActGates; proposal: { id: string; proposal_id: string; title: string } }) {
+  const consent = gates.consent;
+  const completed = 'Completed by the proposal before it was registered';
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <ListChecks className="h-5 w-5" aria-hidden="true" />
+          ACT Gates
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm">
+          The proposal{' '}
+          <Link href={`/proposals/${proposal.id}`} className="font-medium underline underline-offset-2">
+            {proposal.title}
+          </Link>{' '}
+          went through advice, consent and test and was ratified; this agreement holds its text.
+        </p>
+        <GateRow met label="Advice" detail={completed} />
+        <GateRow met label="Consent" detail={completed} />
+        <GateRow met label="Test" detail={completed} />
+        {consent.required && (
+          <div className="border-t border-border pt-3">
+            <p className="text-sm font-medium">Member attestation</p>
+            <p className="text-xs text-muted-foreground">
+              {consent.consented ?? 0} attested, {consent.outstanding ?? 0} still to attest. Each member confirms
+              they have read the agreement in force; it is not a gate on it.
+            </p>
+          </div>
+        )}
+        <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+          The process is complete and its decision record is kept.
         </p>
       </CardContent>
     </Card>

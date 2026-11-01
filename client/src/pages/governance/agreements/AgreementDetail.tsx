@@ -399,7 +399,9 @@ export default function AgreementDetail() {
 
         {/* Rail column */}
         <div className="space-y-6">
-          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} kind="agreement" />}
+          {data.gates && (
+            <ActGatesPanel gates={data.gates} status={data.status} kind="agreement" registeredFrom={data.registered_from_proposal} />
+          )}
           {data.status === 'active' && (
             <Card>
               <CardHeader>

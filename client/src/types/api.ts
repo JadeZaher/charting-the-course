@@ -1351,6 +1351,31 @@ export interface TestReport {
 export interface AgreementDetail {
   /** An in-force agreement changes through an amending proposal. */
   caller_can_propose_change?: boolean;
+  /** The ratified proposal that created it: its ACT gates were completed there (api/agreements.py). */
+  registered_from_proposal?: { id: string; proposal_id: string; title: string } | null;
+}
+
+/** A member the page can name and link (/members/:id). */
+export interface MemberRef {
+  id: string;
+  display_name: string;
+}
+
+// Pass 02 (ACT lifecycle): what the proposal page needs to say who acts next.
+export interface ProposalDetail {
+  /** The caller gave advice in the current advice round (the form collapses to a done state). */
+  caller_has_advised?: boolean;
+  /** The caller filed a test report since the latest send-back. */
+  caller_has_reported?: boolean;
+  /** The caller's row here waits on the consent gate: they read, but cannot take part yet. */
+  caller_consent_pending?: boolean;
+  /** In test: the active stewards who may confirm ratification (never the author). */
+  ratification_confirmers?: MemberRef[];
+}
+
+export interface DecisionDetail {
+  /** The agreement its source proposal was registered as, once registered. */
+  registered_agreement?: { id: string; agreement_id: string; title: string } | null;
 }
 
 /** Extra fields of gates.advice on a proposal (the deadline is a prompt, never a move). */
