@@ -108,16 +108,19 @@ const commsItems = [
 ];
 
 
-const facilitatorItems = [
+// `access` mirrors the destination's own gate (App.tsx route permission / AdminPanel's check).
+const facilitatorItems: { title: string; url: string; icon: any; access: "content" | "admin-panel" }[] = [
   {
     title: "Manage Quizzes",
     url: "/quiz/manage",
     icon: FileEdit,
+    access: "content",
   },
   {
     title: "Manage Shares & Needs",
     url: "/admin#shares-needs",
     icon: Package,
+    access: "admin-panel",
   },
 ];
 
@@ -236,6 +239,10 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
+  const canOpenAdminPanel = isAdmin || canManageUsers;
+  const visibleFacilitatorItems = facilitatorItems.filter((item) =>
+    item.access === "content" ? canManageContent : canOpenAdminPanel,
+  );
 
   const displayName = member?.display_name || 'User';
 
@@ -361,12 +368,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {canManageContent && (
+        {visibleFacilitatorItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Content Management</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {facilitatorItems.map((item) => (
+                {visibleFacilitatorItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <MenuItemWithTooltip
                       item={item}
@@ -380,7 +387,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {(isAdmin || canManageUsers) && (
+        {canOpenAdminPanel && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -456,11 +463,17 @@ export function AppSidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <SidebarMenuButton asChild className="w-full justify-center">
-                <button onClick={handleLogout} disabled={isLoggingOut} data-testid="button-logout">
+                {/* Icon-only here; the tooltip is not its accessible name. */}
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  data-testid="button-logout"
+                  aria-label={isLoggingOut ? "Logging out" : "Logout"}
+                >
                   {isLoggingOut ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                   ) : (
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
                   )}
                 </button>
               </SidebarMenuButton>

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useConversations, useConversation, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useConversationTitle, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
 import { QueryState } from '@/components/QueryState';
 import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,9 @@ export default function MessagingLayout() {
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const threadHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Set when the member opens a conversation; the thread heading takes focus once it renders.
+  const focusThreadRef = useRef(false);
 
   const conversationsQuery = useConversations();
   const convData = conversationsQuery.data;
@@ -23,12 +26,25 @@ export default function MessagingLayout() {
   const { isConnected } = useWebSocket();
   const { member } = useAuth();
   const sendMessageMutation = useSendMessage(activeId || '');
+  const titleOf = useConversationTitle();
+
+  const openConversation = (id: string) => {
+    focusThreadRef.current = true;
+    setActiveId(id);
+  };
+
+  useEffect(() => {
+    if (!focusThreadRef.current || !activeConv || activeConv.id !== activeId) return;
+    focusThreadRef.current = false;
+    threadHeadingRef.current?.focus();
+  }, [activeConv, activeId]);
 
   const conversations = convData?.conversations || [];
+  const query = searchQuery.toLowerCase();
   const filtered = searchQuery
     ? conversations.filter(c =>
-        c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.last_message?.toLowerCase().includes(searchQuery.toLowerCase())
+        titleOf(c).toLowerCase().includes(query) ||
+        c.last_message?.toLowerCase().includes(query)
       )
     : conversations;
 
@@ -70,28 +86,38 @@ export default function MessagingLayout() {
           >
             {() => (
               <>
-                {filtered.map(conv => (
-                  <button
-                    key={conv.id}
-                    className={`w-full text-left p-3 border-b hover:bg-muted/50 transition-colors ${
-                      activeId === conv.id ? 'bg-muted' : ''
-                    }`}
-                    onClick={() => setActiveId(conv.id)}
-                    aria-current={activeId === conv.id ? 'true' : undefined}
-                  >
-                    <div className="flex justify-between items-start">
-                      <p className="font-medium text-sm truncate">
-                        {conv.title || conv.participants.map(p => p.display_name).join(', ')}
+                {filtered.map(conv => {
+                  // Name = title + unread; the preview is the description, not part of the name.
+                  const titleId = `conversation-${conv.id}-title`;
+                  const unreadId = `conversation-${conv.id}-unread`;
+                  const previewId = `conversation-${conv.id}-preview`;
+                  return (
+                    <button
+                      key={conv.id}
+                      className={`w-full text-left p-3 border-b hover:bg-muted/50 transition-colors ${
+                        activeId === conv.id ? 'bg-muted' : ''
+                      }`}
+                      onClick={() => openConversation(conv.id)}
+                      aria-current={activeId === conv.id ? 'true' : undefined}
+                      aria-labelledby={conv.unread_count > 0 ? `${titleId} ${unreadId}` : titleId}
+                      aria-describedby={previewId}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <p id={titleId} className="font-medium text-sm truncate">
+                          {titleOf(conv)}
+                        </p>
+                        {conv.unread_count > 0 && (
+                          <Badge id={unreadId} variant="default" className="shrink-0 text-xs">
+                            {conv.unread_count} unread
+                          </Badge>
+                        )}
+                      </div>
+                      <p id={previewId} className="text-xs text-muted-foreground truncate mt-1">
+                        {conv.last_message || 'No messages yet'}
                       </p>
-                      {conv.unread_count > 0 && (
-                        <Badge variant="default" className="text-xs">{conv.unread_count}</Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate mt-1">
-                      {conv.last_message || 'No messages yet'}
-                    </p>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
                 {filtered.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">No conversations</p>
                 )}
@@ -106,8 +132,8 @@ export default function MessagingLayout() {
         {activeConv ? (
           <>
             <div className="p-3 border-b">
-              <h3 className="font-semibold">
-                {activeConv.title || activeConv.participants.map(p => p.display_name).join(', ')}
+              <h3 ref={threadHeadingRef} tabIndex={-1} className="font-semibold">
+                {titleOf(activeConv)}
               </h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className={`h-2 w-2 ${isConnected ? 'bg-success' : 'bg-destructive'}`} />
@@ -166,7 +192,7 @@ export default function MessagingLayout() {
       <NewConversationDialog
         open={showNewDialog}
         onOpenChange={setShowNewDialog}
-        onCreated={(conversation) => setActiveId(conversation.id)}
+        onCreated={(conversation) => openConversation(conversation.id)}
       />
     </div>
   );

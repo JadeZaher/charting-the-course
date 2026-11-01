@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApiMutation } from '@/hooks/use-api-mutation';
+import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api-client';
 import { affects, keys } from '@/lib/query-keys';
 
@@ -9,8 +10,35 @@ export function useConversations() {
   return useQuery({ queryKey: keys.conversations.list(), queryFn: api.fetchConversations, refetchInterval: 30_000 });
 }
 
+/** Loading a conversation marks it read on the server, so each load refreshes the list's unread badges. */
 export function useConversation(id: string) {
-  return useQuery({ queryKey: keys.conversations.detail(id), queryFn: () => api.fetchConversation(id), enabled: !!id });
+  const qc = useQueryClient();
+  const query = useQuery({ queryKey: keys.conversations.detail(id), queryFn: () => api.fetchConversation(id), enabled: !!id });
+  const { dataUpdatedAt } = query;
+  useEffect(() => {
+    if (!id || !dataUpdatedAt) return;
+    // List keys only: invalidating `conversations.all` would refetch this detail and loop.
+    qc.invalidateQueries({ queryKey: keys.conversations.list() });
+  }, [id, dataUpdatedAt, qc]);
+  return query;
+}
+
+type NamedParticipant = { id: string; display_name: string };
+
+/** Conversation name for the signed-in member: its title, else the other participants (never the caller). */
+export function useConversationTitle() {
+  const { member } = useAuth();
+  return useCallback((conversation: { title?: string | null; participants: NamedParticipant[] }) => {
+    if (conversation.title) return conversation.title;
+    const everyone = conversation.participants;
+    // The caller may sit in this conversation through another ecosystem's member row, so fall back to their name.
+    let others = everyone.filter((p) => p.id !== member?.id);
+    if (others.length === everyone.length) {
+      const byName = everyone.filter((p) => p.display_name !== member?.display_name);
+      if (byName.length > 0) others = byName;
+    }
+    return (others.length > 0 ? others : everyone).map((p) => p.display_name).join(', ');
+  }, [member?.id, member?.display_name]);
 }
 
 // NewConversationDialog renders the failure inline and passes `silent`; other callers get the toast.

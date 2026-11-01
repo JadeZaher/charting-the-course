@@ -11,10 +11,10 @@ import { keys } from '@/lib/query-keys';
 import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@/lib/api-client';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
-import { useConversations, useConversation, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useConversationTitle, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
 import { CONFIRM_REPLY, DECLINE_REPLY, TOOL_STATUS_TEXT, pendingConfirmation } from '@/lib/chat-tools';
 import { useAuth } from '@/contexts/AuthContext';
@@ -74,9 +74,20 @@ export function FloatingComms() {
 
   const closePanel = () => { setOpen(false); setExpanded(false); };
 
+  // A link followed from the drawer (or any navigation) closes it so it never covers the new page.
+  // Focus is left to the shell's post-navigation focus, not returned to the launcher.
+  const [location] = useLocation();
+  const previousLocationRef = useRef(location);
+  useEffect(() => {
+    if (previousLocationRef.current === location) return;
+    previousLocationRef.current = location;
+    wasOpenRef.current = false;
+    setOpen(false);
+    setExpanded(false);
+  }, [location]);
+
   // Hide on the messaging page where full messaging + agent are available
-  const isMessagingPage = window.location.pathname.startsWith('/messaging');
-  if (isMessagingPage) return null;
+  if (location.startsWith('/messaging')) return null;
 
   return (
     <div className={cn('fixed z-50 flex flex-col items-end gap-3', isMobile ? 'bottom-4 right-4' : 'bottom-6 right-6')}>
@@ -350,6 +361,7 @@ function ConversationList({
   onSearchChange: (q: string) => void;
   onNewConversation?: () => void;
 }) {
+  const titleOf = useConversationTitle();
   return (
     <div className="flex flex-col h-full">
       <div className="p-2.5 border-b space-y-2">
@@ -373,37 +385,45 @@ function ConversationList({
         </div>
       </div>
       <ScrollArea className="flex-1">
-        {conversations.map(conv => (
-          <button
-            key={conv.id}
-            className={cn(
-              'w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors',
-              activeId === conv.id && 'bg-muted'
-            )}
-            onClick={() => onSelect(conv.id)}
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-1.5 min-w-0">
-                {conv.type === 'group' ? (
-                  <Users className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                )}
-                <p className="font-medium text-xs truncate">
-                  {conv.title || conv.participants.map((p: any) => p.display_name).join(', ')}
-                </p>
-              </div>
-              {conv.unread_count > 0 && (
-                <Badge variant="default" className="text-[10px] h-4 min-w-4 px-1 ml-1 flex-shrink-0">
-                  {conv.unread_count}
-                </Badge>
+        {conversations.map(conv => {
+          const titleId = `comms-conversation-${conv.id}-title`;
+          const unreadId = `comms-conversation-${conv.id}-unread`;
+          const previewId = `comms-conversation-${conv.id}-preview`;
+          return (
+            <button
+              key={conv.id}
+              className={cn(
+                'w-full text-left px-3 py-2.5 border-b hover:bg-muted/50 transition-colors',
+                activeId === conv.id && 'bg-muted'
               )}
-            </div>
-            <p className="text-[11px] text-muted-foreground truncate mt-0.5 pl-5">
-              {conv.last_message || 'No messages yet'}
-            </p>
-          </button>
-        ))}
+              onClick={() => onSelect(conv.id)}
+              aria-current={activeId === conv.id ? 'true' : undefined}
+              aria-labelledby={conv.unread_count > 0 ? `${titleId} ${unreadId}` : titleId}
+              aria-describedby={previewId}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {conv.type === 'group' ? (
+                    <Users className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                  ) : (
+                    <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                  )}
+                  <p id={titleId} className="font-medium text-xs truncate">
+                    {titleOf(conv)}
+                  </p>
+                </div>
+                {conv.unread_count > 0 && (
+                  <Badge id={unreadId} variant="default" className="text-[10px] h-4 min-w-4 px-1 ml-1 flex-shrink-0">
+                    {conv.unread_count} unread
+                  </Badge>
+                )}
+              </div>
+              <p id={previewId} className="text-[11px] text-muted-foreground truncate mt-0.5 pl-5">
+                {conv.last_message || 'No messages yet'}
+              </p>
+            </button>
+          );
+        })}
         {conversations.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-6">No conversations</p>
         )}
@@ -428,6 +448,7 @@ function ConversationView({
   onSend: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const titleOf = useConversationTitle();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -439,7 +460,7 @@ function ConversationView({
       <div className="px-3 py-2 border-b flex items-center justify-between">
         <div>
           <p className="font-semibold text-sm truncate">
-            {conv.title || conv.participants.map((p: any) => p.display_name).join(', ')}
+            {titleOf(conv)}
           </p>
           <div className="flex items-center gap-1 mt-0.5">
             <span className={cn('h-1.5 w-1.5', isConnected ? 'bg-success' : 'bg-destructive')} />

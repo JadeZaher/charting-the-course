@@ -28,13 +28,18 @@ function getYouTubeId(url?: string): string | null {
   return id && /^[a-z0-9_-]{11}$/i.test(id) ? id : null;
 }
 
+/** A required video gates Continue on an acknowledgement, which also covers a video that cannot load. See client/src/AGENTS.md §Orientation journeys. */
 export function VideoStep({ step, onComplete }: Props) {
   const [watched, setWatched] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const ytId = getYouTubeId(step.video_url);
   const videoUrl = resolveMediaUrl(step.video_url);
   const captionsUrl = resolveResourceUrl(step.captions_url);
   const transcriptUrl = resolveResourceUrl(step.transcript_url);
+  const hasTranscript = Boolean(step.transcript || transcriptUrl);
+  const unavailable = !ytId && (!videoUrl || loadFailed);
   const acknowledgementId = `video-acknowledgement-${step.step}`;
+  const unavailableId = `video-unavailable-${step.step}`;
 
   return (
     <div className="space-y-5">
@@ -58,13 +63,14 @@ export function VideoStep({ step, onComplete }: Props) {
             className="w-full h-full"
           />
         </div>
-      ) : videoUrl ? (
+      ) : videoUrl && !loadFailed ? (
         <div className="aspect-video overflow-hidden border border-strong-border bg-muted">
           <video
             src={videoUrl}
             controls
             className="w-full h-full"
             onEnded={() => setWatched(true)}
+            onError={() => setLoadFailed(true)}
           >
             {captionsUrl && (
               <track
@@ -79,27 +85,35 @@ export function VideoStep({ step, onComplete }: Props) {
         </div>
       ) : (
         <div className="flex aspect-video items-center justify-center border border-strong-border bg-muted">
-          <div className="text-center text-muted-foreground">
-            <Play className="h-12 w-12 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No video available for this step</p>
+          <div className="max-w-sm px-4 text-center text-muted-foreground" role="status" id={unavailableId}>
+            <Play className="h-12 w-12 mx-auto mb-2 opacity-30" aria-hidden="true" />
+            <p className="text-sm font-medium text-foreground">
+              {videoUrl ? 'This video could not be loaded.' : 'No video is available for this step yet.'}
+            </p>
+            <p className="mt-1 text-sm">
+              {hasTranscript ? 'You can read the transcript below and continue.' : 'You can continue without it.'}
+            </p>
           </div>
         </div>
       )}
 
-      {ytId && (
+      {(step.required || ytId) && (
         <div className="flex items-start gap-3 border-2 border-strong-border bg-card p-4">
           <Checkbox
             id={acknowledgementId}
             checked={watched}
             onCheckedChange={(checked) => setWatched(checked === true)}
+            aria-describedby={unavailable ? unavailableId : undefined}
           />
           <Label htmlFor={acknowledgementId} className="cursor-pointer text-sm leading-6">
-            I watched the video{step.transcript || transcriptUrl ? ' or reviewed its transcript' : ''}.
+            {unavailable
+              ? `I'll continue without the video${hasTranscript ? ' and have read its transcript' : ''}.`
+              : `I watched the video${hasTranscript ? ' or reviewed its transcript' : ''}.`}
           </Label>
         </div>
       )}
 
-      {(step.transcript || transcriptUrl) && (
+      {hasTranscript && (
         <section className="border-2 border-strong-border bg-card p-4" aria-labelledby={`video-transcript-${step.step}`}>
           <h3 id={`video-transcript-${step.step}`} className="text-sm font-black uppercase tracking-[0.12em]">
             Transcript
@@ -124,11 +138,11 @@ export function VideoStep({ step, onComplete }: Props) {
         )}
         <Button
           className="ml-auto"
-          onClick={() => onComplete({ watched })}
+          onClick={() => onComplete(unavailable ? { watched: false, acknowledged: watched, video_unavailable: true } : { watched })}
           disabled={step.required && !watched}
         >
-          <CheckCircle className="h-4 w-4 mr-1.5" />
-          {step.required && !watched ? 'Watch to continue' : 'Continue'}
+          <CheckCircle className="h-4 w-4 mr-1.5" aria-hidden="true" />
+          {step.required && !watched ? (unavailable ? 'Confirm to continue' : 'Watch to continue') : 'Continue'}
         </Button>
       </div>
     </div>

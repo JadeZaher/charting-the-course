@@ -13,20 +13,41 @@ import {
   Loader2,
   MapPin,
   Network,
+  Pencil,
   Plus,
   Save,
   Sparkles,
   Trash2,
+  Undo2,
   UserRound,
 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useUpdateSharesNeeds, useUpdateSharesNeedsStatus } from "@/hooks/use-discover";
 import { useToast } from "@/hooks/use-toast";
 import { fetchMyPublicProfile, updateMyPublicProfile } from "@/lib/api-client";
 import { resolveMediaUrl } from "@/lib/media";
@@ -89,6 +110,178 @@ function publicationLabel(type: SharesNeeds["type"]) {
   return "Solution";
 }
 
+/** The author's controls on one of their published items: edit its wording, or withdraw it after confirming. */
+function PublicationActions({ publication }: { publication: SharesNeeds }) {
+  const { toast } = useToast();
+  const updatePublication = useUpdateSharesNeeds();
+  const updateStatus = useUpdateSharesNeedsStatus();
+  const [editing, setEditing] = useState(false);
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
+  const [draft, setDraft] = useState({ title: "", description: "", capacity: "" });
+  const [titleError, setTitleError] = useState("");
+  const kind = publicationLabel(publication.type);
+  const fieldId = (field: string) => `publication-${publication.id}-${field}`;
+
+  const startEditing = () => {
+    setDraft({
+      title: publication.title,
+      description: publication.description ?? "",
+      capacity: publication.capacity ?? "",
+    });
+    setTitleError("");
+    setEditing(true);
+  };
+
+  const saveEdit = (event: React.FormEvent) => {
+    event.preventDefault();
+    // React events bubble through the dialog portal; keep this submit away from the profile form.
+    event.stopPropagation();
+    const title = draft.title.trim();
+    if (!title) {
+      setTitleError("Add a title.");
+      document.getElementById(fieldId("title"))?.focus();
+      return;
+    }
+    updatePublication.mutate(
+      {
+        id: publication.id,
+        data: {
+          title,
+          description: draft.description.trim() || null,
+          capacity: draft.capacity.trim() || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          toast({ title: `${kind} updated` });
+        },
+      },
+    );
+  };
+
+  const withdraw = () => {
+    updateStatus.mutate(
+      { id: publication.id, status: "withdrawn" },
+      {
+        onSuccess: () => {
+          setConfirmingWithdraw(false);
+          toast({
+            title: `${kind} withdrawn`,
+            description: "It no longer appears in Discover or on your profile.",
+          });
+        },
+      },
+    );
+  };
+
+  return (
+    <>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={startEditing}
+          aria-label={`Edit ${publication.title}`}
+        >
+          <Pencil aria-hidden="true" />
+          Edit
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setConfirmingWithdraw(true)}
+          aria-label={`Withdraw ${publication.title}`}
+        >
+          <Undo2 aria-hidden="true" />
+          Withdraw
+        </Button>
+      </div>
+
+      <Dialog open={editing} onOpenChange={(open) => { if (!updatePublication.isPending) setEditing(open); }}>
+        <DialogContent className="max-w-lg">
+          <form onSubmit={saveEdit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Edit {kind.toLowerCase()}</DialogTitle>
+              <DialogDescription>Changes show in Discover and on your profile once saved.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor={fieldId("title")}>Title *</Label>
+              <Input
+                id={fieldId("title")}
+                value={draft.title}
+                onChange={(event) => {
+                  setDraft((current) => ({ ...current, title: event.target.value }));
+                  setTitleError("");
+                }}
+                maxLength={255}
+                aria-invalid={Boolean(titleError)}
+                aria-describedby={titleError ? fieldId("title-error") : undefined}
+              />
+              {titleError && (
+                <p id={fieldId("title-error")} className="text-sm text-destructive">{titleError}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={fieldId("description")}>Description</Label>
+              <Textarea
+                id={fieldId("description")}
+                value={draft.description}
+                onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+                maxLength={20_000}
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={fieldId("capacity")}>Capacity / Scale</Label>
+              <Input
+                id={fieldId("capacity")}
+                value={draft.capacity}
+                onChange={(event) => setDraft((current) => ({ ...current, capacity: event.target.value }))}
+                maxLength={100}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={updatePublication.isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updatePublication.isPending}>
+                {updatePublication.isPending ? "Saving..." : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={confirmingWithdraw} onOpenChange={(open) => { if (!updateStatus.isPending) setConfirmingWithdraw(open); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Withdraw “{publication.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It will no longer appear in Discover or on your public profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateStatus.isPending}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={updateStatus.isPending}
+              onClick={(event) => {
+                // Stay open until the withdrawal lands; a failure toasts and leaves the choice here.
+                event.preventDefault();
+                withdraw();
+              }}
+            >
+              {updateStatus.isPending ? "Withdrawing..." : `Withdraw ${kind.toLowerCase()}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 export default function Profile() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -101,23 +294,26 @@ export default function Profile() {
     queryFn: fetchMyPublicProfile,
   });
 
+  // Keyed on the profile record only (structural sharing keeps it stable), so editing or
+  // withdrawing a publication refetches the page without discarding unsaved profile edits.
+  const savedProfile = data?.profile;
   useEffect(() => {
-    if (!data) return;
+    if (!savedProfile) return;
     setForm({
-      displayName: data.profile.display_name,
-      username: data.profile.username ?? "",
-      headline: data.profile.headline ?? "",
-      bio: data.profile.bio ?? "",
-      location: data.profile.location ?? "",
-      website: data.profile.website ?? "",
-      profilePicture: data.profile.profile_picture ?? "",
-      linkedin: data.profile.social_links.linkedin ?? "",
-      github: data.profile.social_links.github ?? "",
-      skills: data.profile.skills.join(", "),
-      interests: data.profile.interests.join(", "),
+      displayName: savedProfile.display_name,
+      username: savedProfile.username ?? "",
+      headline: savedProfile.headline ?? "",
+      bio: savedProfile.bio ?? "",
+      location: savedProfile.location ?? "",
+      website: savedProfile.website ?? "",
+      profilePicture: savedProfile.profile_picture ?? "",
+      linkedin: savedProfile.social_links.linkedin ?? "",
+      github: savedProfile.social_links.github ?? "",
+      skills: savedProfile.skills.join(", "),
+      interests: savedProfile.interests.join(", "),
     });
-    setProjects(data.profile.projects);
-  }, [data]);
+    setProjects(savedProfile.projects);
+  }, [savedProfile]);
 
   const updateProfile = useApiMutation({
     mutationFn: updateMyPublicProfile,
@@ -775,6 +971,7 @@ export default function Profile() {
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
+                  <PublicationActions publication={publication} />
                 </article>
               ))}
             </div>
