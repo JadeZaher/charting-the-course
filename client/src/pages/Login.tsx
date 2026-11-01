@@ -13,6 +13,7 @@ import { Link, Redirect, useLocation, useSearch } from "wouter";
 import { hasSavedIdentity, getSavedDid } from "@/lib/did-auth";
 import { DEFAULT_DESTINATION, safeRedirect } from "@/lib/post-login-redirect";
 import { CONSENT_GATE_PATH } from "@/lib/member-status";
+import { signupEcosystemId } from "@/lib/signup-ecosystem";
 
 type AuthMode = "did" | "password" | "register";
 
@@ -47,12 +48,17 @@ export default function Login() {
   const search = useSearch();
   const [displayName, setDisplayName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("password");
+  // An explicit invite link (?ecosystem=) opens on sign-up; a plain redirect may be a returning member, so it opens on sign-in.
+  const [authMode, setAuthMode] = useState<AuthMode>(() => (new URLSearchParams(window.location.search).has("ecosystem") ? "register" : "password"));
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [regDisplayName, setRegDisplayName] = useState("");
   const [didOpen, setDidOpen] = useState(false);
+  // A check the form makes before sending; server failures arrive as authError. Either way one inline line.
+  const [formError, setFormError] = useState<string | null>(null);
+  // G-Onboard: an invite link (?ecosystem=<id>, or ?redirect=/ethos/<id>) places the newcomer in that ecosystem.
+  const [signupEcosystem] = useState(() => signupEcosystemId(window.location.search));
 
   const {
     login,
@@ -109,8 +115,10 @@ export default function Login() {
     return <Redirect to={pendingConsents.length ? CONSENT_GATE_PATH : redirectTarget} replace />;
   }
 
+  // Every failure below renders once, inline (AuthContext's authError, in apiErrorMessage words); no failure toasts.
   const handleDIDLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setIsSubmitting(true);
     stashRedirect(null);
 
@@ -121,12 +129,8 @@ export default function Login() {
         description: "Welcome to NEOS!",
       });
       setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
-    } catch (err) {
-      toast({
-        title: "Authentication Failed",
-        description: err instanceof Error ? err.message : "Could not authenticate",
-        variant: "destructive",
-      });
+    } catch {
+      // Shown inline as authError.
     } finally {
       setIsSubmitting(false);
     }
@@ -135,6 +139,7 @@ export default function Login() {
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) return;
+    setFormError(null);
     setIsSubmitting(true);
     stashRedirect(null);
 
@@ -145,12 +150,8 @@ export default function Login() {
         description: "Welcome to NEOS!",
       });
       setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
-    } catch (err) {
-      toast({
-        title: "Authentication Failed",
-        description: err instanceof Error ? err.message : "Could not authenticate",
-        variant: "destructive",
-      });
+    } catch {
+      // Shown inline as authError.
     } finally {
       setIsSubmitting(false);
     }
@@ -161,28 +162,21 @@ export default function Login() {
     if (!username.trim() || !password.trim()) return;
 
     if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure both password fields match.",
-        variant: "destructive",
-      });
+      setFormError("The passwords don't match. Type the same password in both fields.");
       return;
     }
 
     if (password.length < 8) {
-      toast({
-        title: "Password too short",
-        description: "Password must be at least 8 characters.",
-        variant: "destructive",
-      });
+      setFormError("The password is too short. Use at least 8 characters.");
       return;
     }
 
+    setFormError(null);
     setIsSubmitting(true);
     stashRedirect(null);
 
     try {
-      const outcome = await register(username, password, regDisplayName || undefined);
+      const outcome = await register(username, password, regDisplayName || undefined, signupEcosystem ?? undefined);
       toast({
         title: "Account Created",
         description: outcome.consentRequired
@@ -190,12 +184,8 @@ export default function Login() {
           : "Welcome to NEOS!",
       });
       setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
-    } catch (err) {
-      toast({
-        title: "Registration Failed",
-        description: err instanceof Error ? err.message : "Could not create account",
-        variant: "destructive",
-      });
+    } catch {
+      // Shown inline as authError (a sign-up link to a private or unknown ecosystem reads "Ecosystem not found").
     } finally {
       setIsSubmitting(false);
     }
@@ -203,18 +193,16 @@ export default function Login() {
 
   const handleOAuth = async (provider: string) => {
     // The OAuth callback always lands on /dashboard; AppLayout resumes this destination.
+    setFormError(null);
     stashRedirect(redirectTarget);
     try {
       await loginWithOAuth(provider);
-    } catch (err) {
-      stashRedirect(null);
-      toast({
-        title: "OAuth Failed",
-        description: err instanceof Error ? err.message : "Could not start OAuth",
-        variant: "destructive",
-      });
+    } catch {
+      stashRedirect(null); // Shown inline as authError.
     }
   };
+
+  const shownError = formError ?? authError;
 
   if (isAuthLoading) {
     return (
@@ -456,6 +444,11 @@ export default function Login() {
               {authMode === "register" && (
                 <>
                   <form onSubmit={handleRegister} className="space-y-4">
+                    {signupEcosystem && (
+                      <p className="border-l-4 border-strong-border pl-3 text-sm text-muted-foreground">
+                        This sign-up link adds you to the ecosystem that shared it.
+                      </p>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="reg-display-name">Display Name (optional)</Label>
                       <Input
@@ -635,8 +628,8 @@ export default function Login() {
                 </>
               )}
 
-              {authError && (
-                <p className="border border-destructive p-3 text-center text-sm text-destructive" role="alert">{authError}</p>
+              {shownError && (
+                <p className="border border-destructive p-3 text-center text-sm text-destructive" role="alert">{shownError}</p>
               )}
 
               <div className="space-y-4 border-t border-foreground pt-6">

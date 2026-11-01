@@ -10,13 +10,14 @@ import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Plus } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { memberStatusLabel } from '@/lib/member-status';
 
 const FILTERS: FilterDef[] = [
   { key: 'status', label: 'Status', type: 'select', options: [
     { value: 'all', label: 'All Statuses' },
-    { value: 'prospective', label: 'Prospective' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
+    // G-Onboard: stewards find newcomers waiting on the membership agreements.
+    { value: 'pending_consent', label: 'Waiting on consent' },
+    ...['active', 'prospective', 'suspended', 'inactive', 'exited'].map((status) => ({ value: status, label: memberStatusLabel(status) })),
   ]},
   { key: 'profile', label: 'Profile', type: 'select', options: [
     { value: 'all', label: 'All Profiles' },
@@ -84,8 +85,8 @@ export default function MemberList() {
               <div className="flex items-start justify-between gap-3">
                 <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Member</p><h2 className="mt-1 text-lg font-semibold">{m.display_name}</h2></div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={statusVariant(m.current_status)}>{m.current_status}</Badge>
-                  {m.onboarding_status && <Badge variant="outline">{m.onboarding_status}</Badge>}
+                  <Badge variant={statusVariant(m.current_status)}>{memberStatusLabel(m.current_status)}</Badge>
+                  {m.onboarding_status && <Badge variant="outline">{memberStatusLabel(m.onboarding_status)}</Badge>}
                 </div>
               </div>
               <div className="mt-4"><Badge variant="outline">{m.profile || 'No profile'}</Badge></div>

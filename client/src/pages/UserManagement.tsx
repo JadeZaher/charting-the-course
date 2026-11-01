@@ -20,14 +20,14 @@ import {
 import {
   Search, Users, Loader2, Edit, History,
   Shield, UserCheck, Archive, ArchiveRestore,
-  Download, Mail, CheckSquare, XSquare, Plus, X
+  Download, CheckSquare, XSquare, Plus, X
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { affects, keys } from "@/lib/query-keys";
 import { Link, Redirect } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
-import { fetchMembers, updateMember, resendMemberInvite } from "@/lib/api-client";
+import { fetchMembers, updateMember } from "@/lib/api-client";
 
 import {
   Dialog,
@@ -150,12 +150,6 @@ export default function UserManagement() {
         : "User has been restored to active status",
     }),
     error: "User status not updated",
-  });
-
-  const resendInviteMutation = useApiMutation({
-    mutationFn: async (userId: string) => resendMemberInvite(userId),
-    success: (result) => ({ title: "Invite re-sent", description: result.message || undefined }),
-    error: "Invite not re-sent",
   });
 
   if (permLoading) {
@@ -493,7 +487,7 @@ export default function UserManagement() {
                     <RoleBadge role={getRoleBadgeRole(user.role)} />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-1">{user.permissions.length > 0 ? user.permissions.map(perm => <Badge key={perm} variant="outline" className="text-xs">{PERMISSION_LABELS[perm]}</Badge>) : <span className="text-xs text-muted-foreground">No permissions</span>}</div>
-                  <div className="mt-5 flex items-center justify-between border-t border-border pt-4"><Badge variant="secondary">{user.quiz_count} quizzes</Badge><div className="flex items-center gap-1"><Button asChild variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}><Link href={`/admin/users/${user.id}/history`}><History className="h-4 w-4" /></Link></Button><Button variant="ghost" size="icon" title="Edit Permissions" onClick={() => handleEditPermissions(user)} data-testid={`button-edit-${user.id}`}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title="Resend Invite" disabled={resendInviteMutation.isPending} onClick={() => resendInviteMutation.mutate(user.id)} data-testid={`button-invite-${user.id}`}><Mail className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title={user.isArchived ? "Restore User" : "Archive User"} onClick={() => handleArchiveUser(user)} data-testid={`button-archive-${user.id}`}>{user.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</Button></div></div>
+                  <div className="mt-5 flex items-center justify-between border-t border-border pt-4"><Badge variant="secondary">{user.quiz_count} quizzes</Badge><div className="flex items-center gap-1"><Button asChild variant="ghost" size="icon" title="View Quiz History" data-testid={`button-history-${user.id}`}><Link href={`/admin/users/${user.id}/history`}><History className="h-4 w-4" /></Link></Button><Button variant="ghost" size="icon" title="Edit Permissions" onClick={() => handleEditPermissions(user)} data-testid={`button-edit-${user.id}`}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title={user.isArchived ? "Restore User" : "Archive User"} onClick={() => handleArchiveUser(user)} data-testid={`button-archive-${user.id}`}>{user.isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</Button></div></div>
                 </CollectionCard>
               ))}
             </CollectionGrid>

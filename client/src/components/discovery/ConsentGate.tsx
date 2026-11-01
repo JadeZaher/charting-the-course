@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/hooks/use-api-mutation';
-import { useRequestJoinEcosystem } from '@/hooks/use-governance';
+import { useJoinEcosystem } from '@/hooks/use-onboarding';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiErrorMessage } from '@/lib/api-error-message';
 import { holdsMembershipIn, joinThen } from '@/lib/ecosystem-join';
@@ -30,7 +30,9 @@ export function ConsentGate({ ethosId, children }: Props) {
 
   // Consent is stored on the member row in this ethos, so a non-member joins first (one click).
   const { ecosystems } = useAuth();
-  const join = useRequestJoinEcosystem(ethosId);
+  // Silent: a failed join reaches the consent mutation below, which renders it inline once (M5).
+  const join = useJoinEcosystem(ethosId, { silent: true });
+  // A leaver (exited row) joins again first; any other row consents directly.
   const isMember = holdsMembershipIn(ethosId, ecosystems);
 
   // The failure renders inline below the explainer, so the mutation stays silent.
@@ -90,8 +92,8 @@ export function ConsentGate({ ethosId, children }: Props) {
       </p>
       {!isMember && (
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-          You are not a member of this ecosystem yet, so consenting also asks to join it. If it asks newcomers to
-          consent to its agreements first, your membership waits for that consent.
+          You are not a member of this ecosystem yet, so consenting also joins it. If it asks members to consent to
+          its agreements, your membership waits until you have.
         </p>
       )}
       {consent.isError && (

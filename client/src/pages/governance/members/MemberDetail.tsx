@@ -1,10 +1,17 @@
+import { useState } from 'react';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useDomains, useMemberProfile } from '@/hooks/use-governance';
+import { useMoveMember } from '@/hooks/use-onboarding';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { memberStatusLabel } from '@/lib/member-status';
+import type { MemberMove } from '@/types/api';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Tag, User, Shield, Network, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -68,7 +75,7 @@ export default function MemberDetail() {
             <p className="text-sm text-muted-foreground">Platform name: {data.user_display_name}</p>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.current_status)}>{data.current_status}</Badge>
+            <Badge variant={statusVariant(data.current_status)}>{memberStatusLabel(data.current_status)}</Badge>
             {data.profile && <Badge variant="outline">{data.profile}</Badge>}
             <span className="text-sm text-muted-foreground">{data.member_id}</span>
             {data.username && <span className="text-sm text-muted-foreground">@{data.username}</span>}
@@ -142,6 +149,13 @@ export default function MemberDetail() {
           )}
         </CardContent>
       </Card>
+
+      <MembershipMovesCard
+        memberId={data.id}
+        memberName={data.display_name}
+        status={data.current_status}
+        moves={data.caller_member_moves ?? []}
+      />
 
       <MemberRoleCard
         memberId={data.id}
@@ -427,5 +441,71 @@ export default function MemberDetail() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** A steward's moves on this membership: only the server's own list, each confirmed with its own sentence (G-Onboard). */
+function MembershipMovesCard({ memberId, memberName, status, moves }: { memberId: string; memberName: string; status: string; moves: MemberMove[] }) {
+  const moveMember = useMoveMember(memberId);
+  const [chosen, setChosen] = useState<MemberMove | null>(null);
+  const [notes, setNotes] = useState('');
+  if (moves.length === 0) return null;
+
+  const confirm = async () => {
+    if (!chosen) return;
+    const move = chosen;
+    setChosen(null);
+    try {
+      await moveMember.mutateAsync({ status: move.status, ...(notes.trim() ? { notes: notes.trim() } : {}) });
+      setNotes('');
+    } catch {
+      // Rendered below from moveMember.error (the mutation is silent).
+    }
+  };
+  // A 409 CONSENT_REQUIRED names the agreements still waiting (OnboardingApiError body, read by shape).
+  const waitingOn = (moveMember.error as { body?: { required_agreements?: { id: string; title: string }[] } } | null)?.body?.required_agreements ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Activity className="h-5 w-5" aria-hidden="true" />
+          Membership
+        </CardTitle>
+        <CardDescription>Status here: {memberStatusLabel(status)}. Each change is recorded with your name.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {moves.map((move) => (
+            <Button key={move.status} type="button" variant="outline" disabled={moveMember.isPending} onClick={() => setChosen(move)}>
+              {moveMember.isPending && moveMember.variables?.status === move.status ? 'Saving…' : `${move.label}…`}
+            </Button>
+          ))}
+        </div>
+        {moveMember.error && (
+          <div className="text-sm text-destructive" role="alert">
+            <p>{apiErrorMessage(moveMember.error)}</p>
+            {waitingOn.length > 0 && <p className="mt-1">Still waiting on: {waitingOn.map((agreement) => agreement.title).join(', ')}.</p>}
+          </div>
+        )}
+      </CardContent>
+
+      <AlertDialog open={chosen !== null} onOpenChange={(open) => { if (!open) setChosen(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{chosen?.label}: {memberName}?</AlertDialogTitle>
+            <AlertDialogDescription>{chosen?.confirm}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <Label htmlFor="member-move-notes">Note for the record (optional)</Label>
+            <Textarea id="member-move-notes" value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirm}>{chosen?.label}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
   );
 }

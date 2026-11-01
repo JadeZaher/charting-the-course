@@ -2,7 +2,7 @@
 // See pages/governance/AGENTS.md "Next steps and the status banner"; every mutation's `affects` entry refreshes them.
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import * as api from '@/lib/api-client';
-import { keys, type RecordId } from '@/lib/query-keys';
+import { healthKeys, keys, type RecordId } from '@/lib/query-keys';
 import type { ExplainKind } from '@/types/api';
 
 // Each banner key sits under its record's detail key, so the page's own invalidation reaches it.
@@ -12,6 +12,7 @@ const EXPLAIN_KEYS: Record<ExplainKind, (id: RecordId) => QueryKey> = {
   conflict: keys.conflicts.explain,
   emergency: keys.emergency.explain,
   exit: keys.exits.explain,
+  audit: healthKeys.auditExplain,
 };
 
 export const NEXT_STEPS_POLL_MS = 5 * 60_000;

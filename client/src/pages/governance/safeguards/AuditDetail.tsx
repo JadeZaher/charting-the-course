@@ -6,9 +6,13 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useState } from 'react';
 import { useAudit } from '@/hooks/use-care';
 import { GovernanceHealthAuditForm } from '@/components/governance/safeguards/GovernanceHealthAuditForm';
+import { AbandonAuditButton, AuditStewardRecordNote, RespondToAuditButton } from '@/components/governance/safeguards/AuditStewardActions';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { IndicatorScore, TriggeredSafeguard } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { StatusBanner } from '@/components/governance/StatusBanner';
+import { bandLabel, formatMeasured, trendLabel } from '@/lib/health';
+import { formatDate } from '@/lib/utils';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -105,13 +109,23 @@ export default function AuditDetail() {
             {triggerLabel && (
               <Badge variant="outline">{triggerLabel}</Badge>
             )}
+            {data.self_assessment && <Badge variant="outline">Self-assessment</Badge>}
             <span className="text-sm text-muted-foreground">by {data.auditor}</span>
           </div>
         </div>
-        {data.caller_can_edit && (
-          <Button onClick={() => setContinuing(true)}>Continue this audit</Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {data.caller_can_edit && (
+            <Button className="min-h-11" onClick={() => setContinuing(true)}>Continue this audit</Button>
+          )}
+          {data.caller_can_abandon && <AbandonAuditButton audit={data} />}
+          {data.caller_can_respond && <RespondToAuditButton audit={data} />}
+        </div>
       </div>
+
+      <StatusBanner kind="audit" id={data.id} />
+
+      {data.abandonment && <AuditStewardRecordNote record={data.abandonment} kind="abandonment" />}
+      {data.response && <AuditStewardRecordNote record={data.response} kind="response" />}
 
       {data.status === 'draft' && (
         <p className="border-2 border-warning bg-warning/10 p-3 text-sm">
@@ -120,7 +134,7 @@ export default function AuditDetail() {
             : `This is ${data.auditor}'s draft. It does not count toward the health score until they publish it.`}
         </p>
       )}
-      <GovernanceHealthAuditForm open={continuing} onOpenChange={setContinuing} audit={data} />
+      <GovernanceHealthAuditForm open={continuing} onOpenChange={setContinuing} audit={data} selfAssessment={data.self_assessment} />
 
       {/* Details Card */}
       <Card>
@@ -152,13 +166,9 @@ export default function AuditDetail() {
               <div>
                 <dt className="text-muted-foreground">Audit Period</dt>
                 <dd className="font-medium">
-                  {data.audit_period_start
-                    ? new Date(data.audit_period_start).toLocaleDateString()
-                    : '—'}
+                  {data.audit_period_start ? formatDate(data.audit_period_start) : '—'}
                   {' – '}
-                  {data.audit_period_end
-                    ? new Date(data.audit_period_end).toLocaleDateString()
-                    : '—'}
+                  {data.audit_period_end ? formatDate(data.audit_period_end) : '—'}
                 </dd>
               </div>
             )}
@@ -172,20 +182,20 @@ export default function AuditDetail() {
 
             <div>
               <dt className="text-muted-foreground">Created</dt>
-              <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
+              <dd className="font-medium">{formatDate(data.created_at)}</dd>
             </div>
 
             {data.completed_at && (
               <div>
                 <dt className="text-muted-foreground">Completed</dt>
-                <dd className="font-medium">{new Date(data.completed_at).toLocaleDateString()}</dd>
+                <dd className="font-medium">{formatDate(data.completed_at)}</dd>
               </div>
             )}
 
             {data.next_audit_due && (
               <div>
                 <dt className="text-muted-foreground">Next Audit Due</dt>
-                <dd className="font-medium">{new Date(data.next_audit_due).toLocaleDateString()}</dd>
+                <dd className="font-medium">{formatDate(data.next_audit_due)}</dd>
               </div>
             )}
           </dl>
@@ -208,16 +218,19 @@ export default function AuditDetail() {
                   </div>
                   <p className="text-sm font-semibold">{score.indicator_name}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold">{score.measured_value ?? '—'}</span>
-                    {score.trend && (
-                      <span className={trendColor(score.trend)}>
-                        {score.trend === 'improving' ? '↑' : score.trend === 'degrading' ? '↓' : '→'}
+                    <span className="text-xl font-bold">{formatMeasured(score.measured_value, score.unit)}</span>
+                    {score.trend && trendLabel(score.trend) && (
+                      <span className={`text-xs ${trendColor(score.trend)}`}>
+                        {score.trend === 'improving' ? '↑ ' : score.trend === 'degrading' ? '↓ ' : score.trend === 'stable' ? '→ ' : ''}{trendLabel(score.trend)}
                       </span>
                     )}
                   </div>
+                  {score.band && <p className="text-xs">Framework band: <span className="font-medium">{bandLabel(score.band)}</span></p>}
+                  {score.computable === false && <p className="text-xs text-muted-foreground">Not computable yet</p>}
                   {score.prior_value != null && (
-                    <p className="text-xs text-muted-foreground">Prior: {score.prior_value}</p>
+                    <p className="text-xs text-muted-foreground">Prior: {formatMeasured(score.prior_value, score.unit)}</p>
                   )}
+                  {score.basis && <p className="text-xs text-muted-foreground">{score.basis}</p>}
                   {score.notes && (
                     <p className="text-xs text-muted-foreground italic">{score.notes}</p>
                   )}
@@ -296,7 +309,7 @@ export default function AuditDetail() {
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
             Next audit due:{' '}
-            <strong>{new Date(data.next_audit_due).toLocaleDateString()}</strong>
+            <strong>{formatDate(data.next_audit_due)}</strong>
           </span>
         </div>
       )}

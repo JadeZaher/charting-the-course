@@ -2,27 +2,32 @@ import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useSafeguards } from '@/hooks/use-care';
+import { useHealthSnapshot } from '@/hooks/use-health';
 import { GovernanceHealthAuditForm } from '@/components/governance/safeguards/GovernanceHealthAuditForm';
 import { ShieldCheck, ClipboardList, TrendingUp, TrendingDown, ArrowRight, AlertTriangle } from 'lucide-react';
-import type { IndicatorScore } from '@/types/api';
+import type { EcosystemHealth, IndicatorScore } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { auditDueText, bandLabel, formatMeasured, scoreText, trendLabel } from '@/lib/health';
+import { formatDate } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // GHI indicator definitions
 // ---------------------------------------------------------------------------
 const GHI_INDICATORS = [
-  { id: 'GHI-01', name: 'Proposal Authorship Diversity', healthy: '\u2265 60%', warning: '40\u201359%', critical: '< 40%' },
-  { id: 'GHI-02', name: 'Approval Rate by Role', healthy: '\u2265 0.80', warning: '0.50\u20130.79', critical: '< 0.50' },
-  { id: 'GHI-03', name: 'Resource Concentration', healthy: '< 30%', warning: '30\u201349%', critical: '\u2265 50%' },
-  { id: 'GHI-04', name: 'Participation Trend', healthy: '\u2265 -5%', warning: '-5% to -20%', critical: '< -20%' },
-  { id: 'GHI-05', name: 'Leadership Tenure', healthy: '\u2264 2 cycles', warning: '3 cycles', critical: '\u2265 4 cycles' },
-  { id: 'GHI-06', name: 'Objection Integration', healthy: '\u2265 70%', warning: '40\u201369%', critical: '< 40%' },
-  { id: 'GHI-07', name: 'Review Compliance', healthy: '\u2265 85%', warning: '60\u201384%', critical: '< 60%' },
-  { id: 'GHI-08', name: 'Cross-Unit Engagement', healthy: '\u2265 4/qtr', warning: '2\u20133/qtr', critical: '\u2264 1/qtr' },
+  { id: 'GHI-01', name: 'Proposal Authorship Diversity', healthy: '≥ 60%', warning: '40–59%', critical: '< 40%' },
+  { id: 'GHI-02', name: 'Approval Rate by Role', healthy: '≥ 0.80', warning: '0.50–0.79', critical: '< 0.50' },
+  { id: 'GHI-03', name: 'Resource Concentration', healthy: '< 30%', warning: '30–49%', critical: '≥ 50%' },
+  { id: 'GHI-04', name: 'Participation Trend', healthy: '≥ -5%', warning: '-5% to -20%', critical: '< -20%' },
+  { id: 'GHI-05', name: 'Leadership Tenure', healthy: '≤ 2 cycles', warning: '3 cycles', critical: '≥ 4 cycles' },
+  { id: 'GHI-06', name: 'Objection Integration', healthy: '≥ 70%', warning: '40–69%', critical: '< 40%' },
+  { id: 'GHI-07', name: 'Review Compliance', healthy: '≥ 85%', warning: '60–84%', critical: '< 60%' },
+  { id: 'GHI-08', name: 'Cross-Unit Engagement', healthy: '≥ 4/qtr', warning: '2–3/qtr', critical: '≤ 1/qtr' },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -45,7 +50,7 @@ const overallHealthStyle: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// IndicatorCard
+// IndicatorCard: the last published value of one indicator
 // ---------------------------------------------------------------------------
 function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[number]; score?: IndicatorScore }) {
   const statusColor: Record<string, string> = {
@@ -77,27 +82,134 @@ function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[
         {score ? (
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold">{score.measured_value ?? '\u2014'}</span>
+              <span className="text-2xl font-bold">{formatMeasured(score.measured_value, score.unit)}</span>
               {score.trend && trendIcon[score.trend] && (
-                <span className={trendIcon[score.trend].color}>
-                  {React.createElement(trendIcon[score.trend].icon, { className: 'h-4 w-4' })}
+                <span className={trendIcon[score.trend].color} title={trendLabel(score.trend)}>
+                  {React.createElement(trendIcon[score.trend].icon, { className: 'h-4 w-4', 'aria-label': trendLabel(score.trend) })}
                 </span>
               )}
             </div>
             {score.prior_value != null && (
-              <p className="text-xs text-muted-foreground">Prior: {score.prior_value}</p>
+              <p className="text-xs text-muted-foreground">Prior: {formatMeasured(score.prior_value, score.unit)}</p>
             )}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground mt-1">No data</p>
         )}
-        <div className="mt-2 flex gap-2 text-[10px]">
-          <span className="text-success">{'\u2713'} {indicator.healthy}</span>
-          <span className="text-warning">{'\u26A0'} {indicator.warning}</span>
-          <span className="text-destructive">{'\u2717'} {indicator.critical}</span>
+        <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
+          <span className="text-success">{'✓'} {indicator.healthy}</span>
+          <span className="text-warning">{'⚠'} {indicator.warning}</span>
+          <span className="text-destructive">{'✗'} {indicator.critical}</span>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EcosystemHealthCard: one ecosystem's published score, due date and critical count
+// ---------------------------------------------------------------------------
+function EcosystemHealthCard({ health, onRecord }: { health: EcosystemHealth; onRecord: () => void }) {
+  const score = health.latest_audit?.overall_health_score ?? null;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          {health.ecosystem}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        {health.latest_audit && health.published_on ? (
+          <div>
+            <p className="text-4xl font-bold">
+              {scoreText(score)}
+              {score != null && <span className="text-lg text-muted-foreground font-normal"> / 100</span>}
+            </p>
+            <p className="text-muted-foreground">as of {formatDate(health.published_on)}</p>
+            {health.latest_audit.self_assessment && <Badge variant="outline" className="mt-1">Self-assessment</Badge>}
+          </div>
+        ) : (
+          <p className="text-muted-foreground">No published audit yet.</p>
+        )}
+        <p className={health.audit_overdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}>
+          {auditDueText(health.audit_due, health.audit_overdue, formatDate)}
+        </p>
+        {health.critical_count > 0 && (
+          <p className="flex items-center gap-2 font-medium text-destructive">
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            {health.critical_count} critical indicator{health.critical_count === 1 ? '' : 's'}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {health.latest_audit && (
+            <Button asChild variant="outline" size="sm" className="min-h-11">
+              <Link href={`/safeguards/audits/${health.latest_audit.id}`}>View the latest audit</Link>
+            </Button>
+          )}
+          {health.caller_can_record_audit && (
+            <Button size="sm" className="min-h-11" onClick={onRecord}>Record an audit</Button>
+          )}
+        </div>
+        {health.caller_can_record_audit && health.caller_records_self_assessment && (
+          <p className="text-xs text-muted-foreground">This will be a self-assessment: nobody outside the stewards can record it.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ComputedValues: indicator values worked out from the records, plus what needs attention
+// ---------------------------------------------------------------------------
+function ComputedValues({ ecosystemId }: { ecosystemId: string }) {
+  const snapshot = useHealthSnapshot({ ecosystem_id: ecosystemId });
+  if (snapshot.isLoading) return <p className="text-sm text-muted-foreground">Working out the current values{'…'}</p>;
+  if (snapshot.isError || !snapshot.data) {
+    return <p role="alert" className="text-sm text-destructive">We couldn{'’'}t work out the current values. {apiErrorMessage(snapshot.error)}</p>;
+  }
+  const { indicators, attention, period } = snapshot.data;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Worked out from the records for {formatDate(period.start)} to {formatDate(period.end)}. The framework band is a reference: whoever audits still rates each indicator.
+      </p>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {indicators.map((indicator) => (
+          <li key={indicator.indicator_id} className="border-2 border-strong-border p-3 text-sm">
+            <p className="text-xs font-medium text-muted-foreground">{indicator.indicator_id}</p>
+            <p className="font-semibold">{indicator.name}</p>
+            {indicator.computable ? (
+              <>
+                <p className="mt-1 text-xl font-bold">
+                  {formatMeasured(indicator.measured_value, indicator.unit)}
+                  {indicator.band && <span className="ml-2 text-sm font-medium">{bandLabel(indicator.band)}</span>}
+                </p>
+                <p className="text-xs text-muted-foreground">{indicator.basis}</p>
+                {indicator.detail && <p className="text-xs text-muted-foreground">{indicator.detail}</p>}
+              </>
+            ) : (
+              <p className="mt-1 text-muted-foreground">Not computable yet</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {attention.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold">Needs attention</h3>
+          <ul className="mt-2 space-y-1 text-sm">
+            {attention.map((item) => (
+              <li key={item.key}>
+                <Link href={item.link} className="inline-flex min-h-11 items-center underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {item.count} {item.label}
+                </Link>
+                {item.detail && <span className="text-muted-foreground"> {'—'} {item.detail}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -106,7 +218,8 @@ function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[
 // ---------------------------------------------------------------------------
 export default function SafeguardsDashboard() {
   const { data, isLoading, error } = useSafeguards();
-  const [recording, setRecording] = useState(false);
+  const [recordingFor, setRecordingFor] = useState<EcosystemHealth | null>(null);
+  const [chosenId, setChosenId] = useState<string | null>(null);
 
   if (isLoading) return <LoadingState message="Loading safeguards..." />;
 
@@ -119,97 +232,83 @@ export default function SafeguardsDashboard() {
     );
   }
 
-  // null when no audits exist — never render a fabricated 0
-  const healthScore = data?.health_score ?? null;
-  const latestAudit = data?.latest_audit;
+  const ecosystems = data?.ecosystems ?? [];
+  const chosen = ecosystems.find((eco) => eco.ecosystem_id === chosenId) ?? ecosystems[0];
   const recentAudits = data?.recent_audits ?? [];
-  const indicatorScores = data?.indicator_scores ?? latestAudit?.indicator_scores ?? [];
-  const triggeredSafeguards = data?.triggered_safeguards ?? latestAudit?.triggered_safeguards ?? [];
-
-  // Build a lookup map for indicator scores by id
-  const scoreMap = new Map<string, IndicatorScore>();
-  if (indicatorScores) {
-    for (const s of indicatorScores) {
-      scoreMap.set(s.indicator_id, s);
-    }
-  }
+  const latestAudit = chosen?.latest_audit ?? null;
+  const triggeredSafeguards = latestAudit?.triggered_safeguards ?? [];
+  const scoreMap = new Map<string, IndicatorScore>((latestAudit?.indicator_scores ?? []).map((score) => [score.indicator_id, score]));
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-3xl font-bold">Governance Safeguards</h1>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href="/safeguards/audits">
-              <ClipboardList className="h-4 w-4 mr-2" />
-              All Audits
-            </Link>
-          </Button>
-          <Button onClick={() => setRecording(true)}>Record an audit</Button>
-        </div>
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href="/safeguards/audits">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            All Audits
+          </Link>
+        </Button>
       </div>
 
-      <GovernanceHealthAuditForm open={recording} onOpenChange={setRecording} />
+      <GovernanceHealthAuditForm
+        open={recordingFor !== null}
+        onOpenChange={(open) => { if (!open) setRecordingFor(null); }}
+        ecosystemId={recordingFor?.ecosystem_id}
+        selfAssessment={recordingFor?.caller_records_self_assessment}
+      />
 
-      {/* Overall Health Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" />
-            Health Score
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {healthScore === null ? (
-            <p className="text-sm text-muted-foreground">
-              No published audit yet. Any member can record one: rate the indicators, write what you found and publish. The score is the average of the ratings.
-            </p>
-          ) : (
-          <div className="flex items-center gap-4">
-            <div>
-              <div className="text-4xl font-bold">
-                {healthScore}
-                <span className="text-lg text-muted-foreground font-normal"> / 100</span>
-              </div>
-              <div className="mt-2 h-2 w-48 overflow-hidden border border-strong-border bg-muted">
-                <div
-                  className={`h-full transition-[width] motion-reduce:transition-none ${
-                    healthScore >= 80 ? 'bg-success' : healthScore >= 50 ? 'bg-warning' : 'bg-destructive'
-                  }`}
-                  style={{ width: `${healthScore}%` }}
-                />
-              </div>
-            </div>
-            {latestAudit?.overall_health && (
-              <Badge className={overallHealthStyle[latestAudit.overall_health] ?? ''} variant="outline">
-                {latestAudit.overall_health}
-              </Badge>
-            )}
-          </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* GHI Indicator Cards */}
-      <div>
-        <h2 className="text-lg font-semibold">Governance Health Indicators</h2>
-        <p className="text-sm text-muted-foreground mb-3">
-          Standard GHI thresholds; scores appear once an audit is published.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {GHI_INDICATORS.map((indicator) => (
-            <IndicatorCard
-              key={indicator.id}
-              indicator={indicator}
-              score={scoreMap.get(indicator.id)}
-            />
+      {ecosystems.length === 0 ? (
+        <p className="text-sm text-muted-foreground">You are not an active member of an ecosystem yet, so there is no health result to show.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {ecosystems.map((health) => (
+            <EcosystemHealthCard key={health.ecosystem_id} health={health} onRecord={() => setRecordingFor(health)} />
           ))}
         </div>
-      </div>
+      )}
+
+      {chosen && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Current values{ecosystems.length === 1 ? ` in ${chosen.ecosystem}` : ''}</CardTitle>
+            {ecosystems.length > 1 && (
+              <div className="max-w-xs space-y-1">
+                <Label htmlFor="snapshot-ecosystem" className="text-sm">Ecosystem</Label>
+                <Select value={chosen.ecosystem_id} onValueChange={setChosenId}>
+                  <SelectTrigger id="snapshot-ecosystem" className="min-h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ecosystems.map((eco) => <SelectItem key={eco.ecosystem_id} value={eco.ecosystem_id}>{eco.ecosystem}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <ComputedValues ecosystemId={chosen.ecosystem_id} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* GHI Indicator Cards: last published values */}
+      {chosen && (
+        <div>
+          <h2 className="text-lg font-semibold">Last published indicators</h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            {latestAudit && chosen.published_on
+              ? `${chosen.ecosystem}, as published on ${formatDate(chosen.published_on)}. Values are frozen at publishing.`
+              : `${chosen.ecosystem} has no published audit yet.`}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {GHI_INDICATORS.map((indicator) => (
+              <IndicatorCard key={indicator.id} indicator={indicator} score={scoreMap.get(indicator.id)} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Triggered Safeguards Alert */}
-      {triggeredSafeguards && triggeredSafeguards.length > 0 && (
+      {triggeredSafeguards.length > 0 && (
         <Card className="border-warning bg-warning/10 text-warning">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -234,52 +333,6 @@ export default function SafeguardsDashboard() {
           </CardContent>
         </Card>
       )}
-
-      {/* Latest Audit Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Latest Audit</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {latestAudit ? (
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Auditor</dt>
-                <dd className="font-medium">{latestAudit.auditor}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Status</dt>
-                <dd><Badge variant={statusVariant(latestAudit.status)}>{latestAudit.status}</Badge></dd>
-              </div>
-              {latestAudit.overall_health && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Overall Health</dt>
-                  <dd>
-                    <Badge className={overallHealthStyle[latestAudit.overall_health] ?? ''} variant="outline">
-                      {latestAudit.overall_health}
-                    </Badge>
-                  </dd>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Date</dt>
-                <dd className="font-medium">{new Date(latestAudit.created_at).toLocaleDateString()}</dd>
-              </div>
-              {latestAudit.next_audit_due && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Next Audit Due</dt>
-                  <dd className="font-medium">{new Date(latestAudit.next_audit_due).toLocaleDateString()}</dd>
-                </div>
-              )}
-              <Button asChild variant="outline" size="sm" className="mt-2 w-full">
-                <Link href={`/safeguards/audits/${latestAudit.id}`}>View Details</Link>
-              </Button>
-            </dl>
-          ) : (
-            <p className="text-sm text-muted-foreground">No audits found.</p>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Recent Audits Table */}
       <Card>
@@ -324,8 +377,8 @@ export default function SafeguardsDashboard() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell>{new Date(audit.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>{audit.completed_at ? new Date(audit.completed_at).toLocaleDateString() : '-'}</TableCell>
+                    <TableCell>{formatDate(audit.created_at)}</TableCell>
+                    <TableCell>{audit.completed_at ? formatDate(audit.completed_at) : '-'}</TableCell>
                   </TableRow>
                 ))
               )}

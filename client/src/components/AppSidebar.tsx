@@ -42,12 +42,15 @@ import {
   ChevronDown,
   MessageSquare,
   Package,
+  Flag, // FX-Exchange: Moderation
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
-import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
+import { canOpenAdminPanel, readPlatformAdmin, showsNewcomers, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
+import { useModeratedEcosystems } from "@/hooks/use-discover"; // FX-Exchange
+import { moderatedInSelection } from "@/lib/exchange"; // FX-Exchange
 
 const menuItems = [
   {
@@ -87,7 +90,7 @@ const governanceGroups: { label: string; defaultOpen: boolean; items: Governance
       { title: "Members", url: "/members", icon: Users },
       { title: "Domains", url: "/domains", icon: Globe2 },
       { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
-      { title: "Onboarding", url: "/onboarding", icon: UserPlus },
+      { title: "Newcomers", url: "/onboarding", icon: UserPlus }, // FX-Onboard: stewards of a selected ecosystem only
     ],
   },
   {
@@ -97,7 +100,7 @@ const governanceGroups: { label: string; defaultOpen: boolean; items: Governance
       { title: "Conflicts", url: "/conflicts", icon: AlertTriangle, tier: "member" },
       { title: "Emergency", url: "/emergency", icon: Siren, tier: "member" }, // any member may declare (with a co-signer)
       { title: "Exit", url: "/exit", icon: DoorOpen, tier: "member" },
-      { title: "Safeguards", url: "/safeguards", icon: ShieldCheck, tier: "steward" },
+      { title: "Safeguards", url: "/safeguards", icon: ShieldCheck, tier: "member" },
       { title: "Compliance", url: "/compliance", icon: ClipboardCheck, tier: "steward" },
     ],
   },
@@ -227,7 +230,8 @@ function CollapsibleGovernanceGroup({
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { member, logout } = useAuth();
+  const auth = useAuth();
+  const { member, logout } = auth;
   const { canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
@@ -240,9 +244,13 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
-  const permissions = { isAdmin, canManageUsers, canManageContent };
+  // G-Authority: Administration and AdminPanel links follow the server's platform-admin flag, not the profile.
+  const permissions = { canManageContent, isPlatformAdmin: readPlatformAdmin(auth) };
   const showAdministration = canOpenAdminPanel(permissions);
   const visibleFacilitatorItems = visibleNavItems(facilitatorItems, permissions);
+  const showNewcomers = showsNewcomers(selectedIds, ecosystems); // FX-Onboard: the server's steward rule per ecosystem
+  // FX-Exchange: Moderation for an exchange steward of a selected ecosystem (the server's own steward list).
+  const showModeration = moderatedInSelection(useModeratedEcosystems().data, selectedIds).length > 0;
 
   const displayName = member?.display_name || 'User';
 
@@ -339,7 +347,7 @@ export function AppSidebar() {
           const items =
             group.label === "Safety & Integrity"
               ? group.items.filter((item) => item.tier === "member" || hasStewardAccess)
-              : group.items;
+              : group.items.filter((item) => item.url !== "/onboarding" || showNewcomers);
           return (
             <CollapsibleGovernanceGroup
               key={group.label}
@@ -367,6 +375,24 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* FX-Exchange: shares-and-needs moderation for stewards of the selected ecosystem */}
+        {showModeration && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Stewarding</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <MenuItemWithTooltip
+                    item={{ title: "Moderation", url: "/discover/moderation", icon: Flag }}
+                    isActive={location === "/discover/moderation"}
+                    isCollapsed={isCollapsed}
+                  />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {visibleFacilitatorItems.length > 0 && (
           <SidebarGroup>

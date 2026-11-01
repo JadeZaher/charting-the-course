@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { Loader2, RefreshCw, CheckCircle2, AlertTriangle, XCircle, ClipboardList, ShieldCheck } from 'lucide-react';
 import type { ComplianceSummary } from '@/types/api';
+import { scoreText } from '@/lib/health';
 
 
 // ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ function extractIssueList(flaggedIssues: Record<string, any> | null): string[] {
 }
 
 function ScoreIndicator({ score }: { score: number | null | undefined }) {
-  if (score == null) return <span className="text-muted-foreground text-sm">N/A</span>;
+  if (score == null) return <span className="text-muted-foreground text-sm">{scoreText(null)}</span>;
 
   const color = score >= 80 ? 'text-success' : score >= 50 ? 'text-warning' : 'text-destructive';
   const Icon = score >= 80 ? CheckCircle2 : score >= 50 ? AlertTriangle : XCircle;
@@ -49,7 +50,7 @@ function ScoreIndicator({ score }: { score: number | null | undefined }) {
 }
 
 function ScoreBadge({ score }: { score: number | null | undefined }) {
-  if (score == null) return <Badge variant="outline">N/A</Badge>;
+  if (score == null) return <Badge variant="outline">{scoreText(null)}</Badge>;
   if (score >= 80) return <Badge className="border-success bg-success/10 text-success">Good</Badge>;
   if (score >= 50) return <Badge className="border-warning bg-warning/10 text-warning">Fair</Badge>;
   return <Badge className="border-destructive bg-destructive/10 text-destructive">Poor</Badge>;
@@ -258,7 +259,7 @@ export default function ComplianceDashboard() {
                 {Object.entries(agreementCoverage).map(([key, val]) => (
                   <TableRow key={key}>
                     <TableCell className="font-medium capitalize">{key.replace(/_/g, ' ')}</TableCell>
-                    <TableCell>{typeof val === 'number' ? `${val}%` : String(val)}</TableCell>
+                    <TableCell>{val == null ? scoreText(null) : typeof val === 'number' ? `${val}%` : String(val)}</TableCell>
                     <TableCell>
                       {typeof val === 'number' && <ScoreBadge score={val <= 100 ? val : null} />}
                     </TableCell>
@@ -291,7 +292,9 @@ export default function ComplianceDashboard() {
                   <TableRow key={key}>
                     <TableCell className="font-medium capitalize">{key.replace(/_/g, ' ')}</TableCell>
                     <TableCell>
-                      {typeof val === 'number' ? (
+                      {val == null ? (
+                        <span className="text-sm text-muted-foreground">{scoreText(null)}</span>
+                      ) : typeof val === 'number' ? (
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-24 overflow-hidden border border-strong-border bg-muted">
                             <div

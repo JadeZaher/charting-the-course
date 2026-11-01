@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { QueryState } from '@/components/QueryState';
-import { useDomain, useDomainSharesNeeds, useJoinDomainParticipation } from '@/hooks/use-governance';
-import { useCreateSharesNeeds, useDeleteSharesNeeds, useUpdateSharesNeedsStatus } from '@/hooks/use-discover';
+import { useDomain, useJoinDomainParticipation } from '@/hooks/use-governance';
+import { DomainPostsSection } from '@/pages/discover/DomainPostsSection';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -89,18 +89,6 @@ function ElementValue({ value }: { value: unknown }) {
   return <span>{String(value)}</span>;
 }
 
-const EMPTY_SHARE_NEED_FORM = { type: 'share' as 'share' | 'need', title: '', description: '', category: '', capacity: '', visibility: 'public' };
-
-const snTypeColor = (type: string) => type === 'share' ? 'default' as const : 'secondary' as const;
-const snStatusColor = (status: string) => {
-  switch (status) {
-    case 'active': return 'default' as const;
-    case 'fulfilled': return 'outline' as const;
-    case 'withdrawn': return 'secondary' as const;
-    default: return 'secondary' as const;
-  }
-};
-
 export default function DomainDetail() {
   const [, params] = useRoute('/domains/:id');
   const id = params?.id ?? '';
@@ -137,14 +125,6 @@ export default function DomainDetail() {
   const [assignAsEntry, setAssignAsEntry] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
-  // --- Shares/Needs: server state; the use-discover writes invalidate keys.sharesNeeds.forDomain via affects.sharesNeeds ---
-  const sharesNeedsQuery = useDomainSharesNeeds(id);
-  const createShareNeed = useCreateSharesNeeds();
-  const updateShareNeedStatus = useUpdateSharesNeedsStatus();
-  const deleteShareNeed = useDeleteSharesNeeds();
-  const [showSnForm, setShowSnForm] = useState(false);
-  const [snForm, setSnForm] = useState(EMPTY_SHARE_NEED_FORM);
-
   // --- Load quiz data ---
   const loadQuizzes = useCallback(async () => {
     if (!id) return;
@@ -177,39 +157,6 @@ export default function DomainDetail() {
       await unassignQuizFromDomain(id, quizId);
       toast({ title: 'Quiz unassigned' }); await loadQuizzes();
     } catch (err) { toast({ title: 'Quiz not unassigned', description: apiErrorMessage(err), variant: 'destructive' }); }
-  };
-
-  // --- Shares/Needs handlers: the hooks refresh every listing and toast status/delete failures ---
-  const toggleShareNeedForm = () => {
-    createShareNeed.reset();
-    setShowSnForm(!showSnForm);
-  };
-  const handleCreateShareNeed = async () => {
-    if (!snForm.title.trim() || !data) return;
-    try {
-      await createShareNeed.mutateAsync({
-        ecosystem_id: data.ecosystem_id,
-        domain_id: id,
-        type: snForm.type,
-        title: snForm.title,
-        description: snForm.description || null,
-        category: snForm.category || null,
-        capacity: snForm.capacity || null,
-        visibility: snForm.visibility,
-      });
-      toast({ title: `${snForm.type === 'share' ? 'Share' : 'Need'} created` });
-      setShowSnForm(false);
-      setSnForm(EMPTY_SHARE_NEED_FORM);
-    } catch {
-      // Rendered in the form from createShareNeed.error
-    }
-  };
-  const handleSnStatusChange = (snId: string, newStatus: string) => {
-    updateShareNeedStatus.mutate({ id: snId, status: newStatus }, { onSuccess: () => toast({ title: `Status updated to ${newStatus}` }) });
-  };
-  const handleDeleteShareNeed = (snId: string) => {
-    if (!confirm('Delete this share/need?')) return;
-    deleteShareNeed.mutate(snId, { onSuccess: () => toast({ title: 'Deleted' }) });
   };
 
   if (isLoading) return <LoadingState message="Loading domain..." />;
@@ -408,127 +355,8 @@ export default function DomainDetail() {
         </CardContent>
       </Card>
 
-      {/* Shares & Needs Management */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2"><Handshake className="h-5 w-5" />Shares & Needs</CardTitle>
-            {permissions.canCreateSharesNeeds && (
-              <Button size="sm" variant="outline" onClick={toggleShareNeedForm}>
-                {showSnForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add</>}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {showSnForm && (
-            <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/30 p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Type</Label>
-                  <Select value={snForm.type} onValueChange={(v: any) => setSnForm({ ...snForm, type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="share">Share (offering)</SelectItem>
-                      <SelectItem value="need">Need (requesting)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Category</Label>
-                  <Select value={snForm.category} onValueChange={(v: string) => setSnForm({ ...snForm, category: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="skill">Skill</SelectItem>
-                      <SelectItem value="resource">Resource</SelectItem>
-                      <SelectItem value="knowledge">Knowledge</SelectItem>
-                      <SelectItem value="space">Space</SelectItem>
-                      <SelectItem value="labor">Labor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Title</Label>
-                <Input value={snForm.title} onChange={e => setSnForm({ ...snForm, title: e.target.value })} placeholder="What are you sharing or needing?" />
-              </div>
-              <div className="space-y-1">
-                <Label>Description</Label>
-                <Textarea value={snForm.description} onChange={e => setSnForm({ ...snForm, description: e.target.value })} placeholder="Details..." rows={2} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Capacity / Availability</Label>
-                  <Input value={snForm.capacity} onChange={e => setSnForm({ ...snForm, capacity: e.target.value })} placeholder="e.g. 10 hrs/week, 5 units" />
-                </div>
-                <div className="space-y-1">
-                  <Label>Visibility</Label>
-                  <Select value={snForm.visibility} onValueChange={(v: string) => setSnForm({ ...snForm, visibility: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">Public</SelectItem>
-                      <SelectItem value="ecosystem">Ecosystem Only</SelectItem>
-                      <SelectItem value="domain">Domain Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button size="sm" onClick={handleCreateShareNeed} disabled={createShareNeed.isPending || !snForm.title.trim()}>
-                {createShareNeed.isPending ? 'Creating...' : `Create ${snForm.type === 'share' ? 'Share' : 'Need'}`}
-              </Button>
-              {createShareNeed.error && (
-                <p className="text-sm text-destructive" role="alert">{apiErrorMessage(createShareNeed.error)}</p>
-              )}
-            </div>
-          )}
-
-          <QueryState
-            query={sharesNeedsQuery}
-            loading={<p className="text-sm text-muted-foreground">Loading shares & needs...</p>}
-            errorTitle="We couldn't load shares and needs"
-            isEmpty={(result) => (result.items ?? []).length === 0}
-            empty={<p className="text-sm text-muted-foreground">No shares or needs declared for this domain.</p>}
-          >
-            {(result) => (
-              <div className="space-y-2">
-                {(result.items ?? []).map(sn => (
-                  <div key={sn.id} className="flex items-start justify-between rounded-none border-2 border-strong-border p-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={snTypeColor(sn.type)} className="text-xs capitalize">{sn.type}</Badge>
-                        <span className="text-sm font-medium">{sn.title}</span>
-                        <Badge variant={snStatusColor(sn.status)} className="text-xs">{sn.status}</Badge>
-                      </div>
-                      {sn.description && <p className="text-xs text-muted-foreground">{sn.description}</p>}
-                      <div className="flex gap-2 text-xs text-muted-foreground">
-                        {sn.category && <span>{sn.category}</span>}
-                        {sn.capacity && <span>Capacity: {sn.capacity}</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      {sn.status === 'active' && permissions.canEditSharesNeeds && (
-                        <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'fulfilled')} title="Mark fulfilled">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {sn.status !== 'withdrawn' && permissions.canEditSharesNeeds && (
-                        <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'withdrawn')} title="Withdraw">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {permissions.canDeleteSharesNeeds && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteShareNeed(sn.id)} title="Delete">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </QueryState>
-        </CardContent>
-      </Card>
+      {/* Shares & Needs: pages/discover/DomainPostsSection (G-Exchange) */}
+      <DomainPostsSection domain={data} />
     </div>
   );
 }

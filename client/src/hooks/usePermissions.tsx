@@ -21,11 +21,13 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   view_analytics: 'Can view quiz analytics and reports'
 };
 
-function derivePermissions(profile: string | null | undefined): Permission[] {
+// FX-Onboard: "admin" (manage_users, isAdmin) is the server's platform-admin flag only. A co_creator/builder profile
+// administers its own ecosystem (server-checked per resource), so here it reads like a collaborator's.
+function derivePermissions(profile: string | null | undefined, isPlatformAdmin: boolean): Permission[] {
+  if (isPlatformAdmin) return ['manage_users', 'manage_content', 'proxy_quiz', 'view_analytics'];
   switch (profile) {
     case 'co_creator':
     case 'builder':
-      return ['manage_users', 'manage_content', 'proxy_quiz', 'view_analytics'];
     case 'collaborator':
       return ['manage_content', 'proxy_quiz', 'view_analytics'];
     case 'townhall':
@@ -35,11 +37,11 @@ function derivePermissions(profile: string | null | undefined): Permission[] {
   }
 }
 
-function deriveRole(profile: string | null | undefined): string {
+function deriveRole(profile: string | null | undefined, isPlatformAdmin: boolean): string {
+  if (isPlatformAdmin) return 'admin';
   switch (profile) {
     case 'co_creator':
     case 'builder':
-      return 'admin';
     case 'collaborator':
       return 'facilitator';
     case 'townhall':
@@ -50,10 +52,10 @@ function deriveRole(profile: string | null | undefined): string {
 }
 
 export function usePermissions() {
-  const { member, isLoading, isAuthenticated } = useAuth();
+  const { member, isLoading, isAuthenticated, isPlatformAdmin } = useAuth();
 
-  const permissions = useMemo(() => derivePermissions(member?.profile), [member?.profile]);
-  const legacyRole = useMemo(() => deriveRole(member?.profile), [member?.profile]);
+  const permissions = useMemo(() => derivePermissions(member?.profile, isPlatformAdmin), [member?.profile, isPlatformAdmin]);
+  const legacyRole = useMemo(() => deriveRole(member?.profile, isPlatformAdmin), [member?.profile, isPlatformAdmin]);
 
   const hasPermission = useCallback(
     (permission: Permission): boolean => permissions.includes(permission),

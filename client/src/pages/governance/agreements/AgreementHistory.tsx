@@ -8,6 +8,8 @@ import { useAgreementHistory, useRollbackAgreement } from '@/hooks/use-governanc
 import { ArrowLeft, FileEdit, Search, RotateCcw, GitBranch } from 'lucide-react';
 import type { AmendmentRecord, ReviewRecord, AgreementVersionRecord } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { parseDue } from '@/lib/next-steps';
+import { formatDate } from '@/lib/utils';
 
 type TimelineItem =
   | { kind: 'amendment'; date: string | null; data: AmendmentRecord }
@@ -29,8 +31,8 @@ export default function AgreementHistory() {
       ...(data.versions || []).map((v) => ({ kind: 'version' as const, date: v.created_at, data: v })),
     ];
     items.sort((a, b) => {
-      const da = a.date ? new Date(a.date).getTime() : 0;
-      const db = b.date ? new Date(b.date).getTime() : 0;
+      const da = a.date ? parseDue(a.date).getTime() : 0;
+      const db = b.date ? parseDue(b.date).getTime() : 0;
       return db - da; // newest first
     });
     return items;
@@ -105,7 +107,7 @@ export default function AgreementHistory() {
                         <Badge variant="outline">v{(item.data as AgreementVersionRecord).version}</Badge>
                       )}
                       <span className="text-xs text-muted-foreground ml-auto">
-                        {item.date ? new Date(item.date).toLocaleDateString() : 'No date'}
+                        {item.date ? formatDate(item.date) : 'No date'}
                       </span>
                     </div>
                   </CardHeader>
@@ -120,16 +122,18 @@ export default function AgreementHistory() {
                         {(item.data as AgreementVersionRecord).changed_by && (
                           <p><span className="text-muted-foreground">Changed by:</span> {(item.data as AgreementVersionRecord).changed_by}</p>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          disabled={rollingBack === item.data.id}
-                          onClick={() => handleRollback(item.data.id)}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          {rollingBack === item.data.id ? 'Rolling back...' : 'Rollback to this version'}
-                        </Button>
+                        {data?.caller_can_rollback && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 min-h-11"
+                            disabled={rollingBack === item.data.id}
+                            onClick={() => handleRollback(item.data.id)}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            {rollingBack === item.data.id ? 'Rolling back...' : 'Rollback to this version'}
+                          </Button>
+                        )}
                       </>
                     ) : isAmendment ? (
                       <>
@@ -154,7 +158,19 @@ export default function AgreementHistory() {
                           <p><span className="text-muted-foreground">Outcome:</span> {(item.data as ReviewRecord).outcome}</p>
                         )}
                         {(item.data as ReviewRecord).next_review_date && (
-                          <p><span className="text-muted-foreground">Next review:</span> {new Date((item.data as ReviewRecord).next_review_date!).toLocaleDateString()}</p>
+                          <p><span className="text-muted-foreground">Next review:</span> {formatDate((item.data as ReviewRecord).next_review_date)}</p>
+                        )}
+                        {(item.data as ReviewRecord).findings && (
+                          <p><span className="text-muted-foreground">Findings:</span> {(item.data as ReviewRecord).findings}</p>
+                        )}
+                        {(item.data as ReviewRecord).conducted_by && (
+                          <p><span className="text-muted-foreground">Conducted by:</span> {(item.data as ReviewRecord).conducted_by}</p>
+                        )}
+                        {(item.data as ReviewRecord).agreement_version && (
+                          <p><span className="text-muted-foreground">Agreement version:</span> {(item.data as ReviewRecord).agreement_version}</p>
+                        )}
+                        {(item.data as ReviewRecord).on_time != null && (
+                          <p><span className="text-muted-foreground">Timing:</span> {(item.data as ReviewRecord).on_time ? 'On time' : 'Late'}</p>
                         )}
                       </>
                     )}

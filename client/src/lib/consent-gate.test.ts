@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { consentGateRedirect, defaultEcosystemId, isHeldAtConsentGate } from './consent-gate';
+import { activeEcosystemIds, consentGateRedirect, defaultEcosystemId, isHeldAtConsentGate } from './consent-gate';
 import { CONSENT_GATE_PATH } from './member-status';
 
 const garden = { id: 'eco-garden' };
@@ -17,12 +17,19 @@ test('a newcomer waiting on consent is kept on the gate but can read what they a
     ['/agreements/new', CONSENT_GATE_PATH],
     ['/agreements/a-1/edit', CONSENT_GATE_PATH],
     ['/ethosx', CONSENT_GATE_PATH],
+    ['/orientation', CONSENT_GATE_PATH],
+    ['/orientation/garden/journey/extra', CONSENT_GATE_PATH],
+    ['/orientationx/garden', CONSENT_GATE_PATH],
     [CONSENT_GATE_PATH, null],
     ['/agreements/a-1', null],
     ['/agreements/a-1/', null],
     ['/agreements/a-1/history', null],
     ['/ethos/garden', null],
     ['/ethos/garden/detail', null],
+    // G-Onboard: walkthrough first, then consent.
+    ['/orientation/garden', null],
+    ['/orientation/garden/journey', null],
+    ['/orientation/garden/complete', null],
     ['/users/kofi', null],
     ['/about', null],
   ];
@@ -62,4 +69,35 @@ test('the default ecosystem is one the member is active in, the oldest when the 
     assert.equal(defaultEcosystemId(input), expected, moment);
   }
   assert.equal(defaultEcosystemId({ pendingConsents: pendingInGarden, memberships: [garden], member: null }), null, 'nothing active');
+});
+
+// G-Onboard: /auth/me reports each membership's own status; it wins over the pending list and the default row.
+test('with a per-ecosystem status, only an active row counts: a leaver or a paused member elsewhere is held', () => {
+  const withStatus = (ecosystem: { id: string }, membership_status: string) => ({ ...ecosystem, membership_status });
+  const cases: Array<[elsewhere: string, membershipStatus: string, held: boolean]> = [
+    ['active elsewhere', 'active', false],
+    ['left elsewhere', 'exited', true],
+    ['suspended elsewhere', 'suspended', true],
+    ['inactive elsewhere', 'inactive', true],
+  ];
+  for (const [elsewhere, membershipStatus, held] of cases) {
+    // The default row says active: under the old rule every case would pass the gate.
+    const input = {
+      isAuthenticated: true,
+      pendingConsents: pendingInGarden,
+      memberships: [withStatus(garden, 'pending_consent'), withStatus(commons, membershipStatus)],
+      member: memberRow(commons, 'active'),
+    };
+    assert.equal(isHeldAtConsentGate(input), held, elsewhere);
+  }
+  // A row the server calls pending is not active even when the gate list has not caught up.
+  assert.deepEqual(
+    activeEcosystemIds({ pendingConsents: [], memberships: [withStatus(garden, 'pending_consent'), withStatus(river, 'active')], member: null }),
+    [river.id],
+  );
+  // A leaver's old ecosystem is never selected, even when it is listed first.
+  assert.equal(
+    defaultEcosystemId({ pendingConsents: [], memberships: [withStatus(garden, 'exited'), withStatus(commons, 'active'), withStatus(river, 'active')], member: null }),
+    commons.id,
+  );
 });

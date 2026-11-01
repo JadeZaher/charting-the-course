@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useSearch } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 import { LinkifiedText } from '@/components/messaging/LinkifiedText';
+import { conversationIdFromQuery } from '@/lib/exchange';
 
 export default function MessagingLayout() {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -22,7 +24,8 @@ export default function MessagingLayout() {
 
   const conversationsQuery = useConversations();
   const convData = conversationsQuery.data;
-  const { data: activeConv } = useConversation(activeId || '');
+  const conversationQuery = useConversation(activeId || '');
+  const activeConv = conversationQuery.data;
   const { isConnected } = useWebSocket();
   const { member } = useAuth();
   const sendMessageMutation = useSendMessage(activeId || '');
@@ -32,6 +35,16 @@ export default function MessagingLayout() {
     focusThreadRef.current = true;
     setActiveId(id);
   };
+
+  // `/messaging?conversation=<id>` (the bell, "Open the conversation") opens that thread, then the link is dropped.
+  const [location, navigate] = useLocation();
+  const linkedId = conversationIdFromQuery(useSearch());
+  useEffect(() => {
+    if (!linkedId) return;
+    focusThreadRef.current = true;
+    setActiveId(linkedId);
+    navigate(location, { replace: true });
+  }, [linkedId, location, navigate]);
 
   useEffect(() => {
     if (!focusThreadRef.current || !activeConv || activeConv.id !== activeId) return;
@@ -179,6 +192,12 @@ export default function MessagingLayout() {
               </Button>
             </div>
           </>
+        ) : activeId && conversationQuery.isError ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <p role="alert" className="border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+              We couldn't open this conversation. It may not include you, or it no longer exists.
+            </p>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">

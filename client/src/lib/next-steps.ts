@@ -26,25 +26,23 @@ export function parseDue(value: string): Date {
 export type DueStatus = { text: string; overdue: boolean };
 
 /**
- * "Due today", "Due tomorrow", "Due <date>" or "Overdue since <date>".
- * A date-only value lasts its whole calendar day; a timestamp (UTC, ends in Z) passes at that instant.
+ * "Overdue since <date>" only when the server says `overdue`; otherwise "Due today", "Due tomorrow" or "Due <date>".
+ * The client never computes overdue (pages/governance/AGENTS.md "Next steps and the status banner").
  */
 export function dueStatus(
   due: string | null | undefined,
+  overdue: boolean | null | undefined,
   now: Date,
   format: (date: Date, withTime: boolean) => string,
 ): DueStatus | null {
   if (!due) return null;
   const date = parseDue(due);
   if (Number.isNaN(date.getTime())) return null;
-  if (!DATE_ONLY.test(due)) {
-    return date.getTime() < now.getTime()
-      ? { text: `Overdue since ${format(date, true)}`, overdue: true }
-      : { text: `Due ${format(date, true)}`, overdue: false };
-  }
+  const withTime = !DATE_ONLY.test(due);
+  if (overdue === true) return { text: `Overdue since ${format(date, withTime)}`, overdue: true };
+  if (withTime) return { text: `Due ${format(date, true)}`, overdue: false };
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const days = Math.round((date.getTime() - today.getTime()) / 86_400_000); // rounding absorbs a DST hour
-  if (days < 0) return { text: `Overdue since ${format(date, false)}`, overdue: true };
   if (days === 0) return { text: 'Due today', overdue: false };
   if (days === 1) return { text: 'Due tomorrow', overdue: false };
   return { text: `Due ${format(date, false)}`, overdue: false };
@@ -57,6 +55,10 @@ const KIND_LABELS: Record<NextStepKind, string> = {
   emergency: 'Emergency',
   exit: 'Exit',
   audit: 'Audit',
+  // FX-Maint: every kind a registered queue source emits (services/next_steps.py `_item(` kinds).
+  newcomer: 'Newcomer',
+  share_need: 'Share or need',
+  collaboration: 'Collaboration',
 };
 
 /** Plain name for an item's record kind; unknown kinds read as given. */

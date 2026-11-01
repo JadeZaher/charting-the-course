@@ -50,7 +50,7 @@ const guides: RouteGuide[] = [
         title: "Where to start",
         steps: [
           "Discover explores ecosystems and public dossiers across the network.",
-          "Onboarding continues any orientation journey you have started.",
+          "Each ecosystem's page starts or continues its orientation journey.",
           "Me holds your profile, consent scopes, and data rights.",
         ],
         link: { to: "/discover", label: "Open Discover" },
@@ -189,12 +189,12 @@ const guides: RouteGuide[] = [
         ],
       },
       {
-        title: "Join = request to begin orientation",
+        title: "Joining",
         steps: [
-          "Joining starts orientation: prospective, then onboarding, then active.",
-          "Walk the orientation journey at your own pace — the fit-check inside it is optional and only advisory.",
-          "A 48-hour reflection applies after the walkthrough before consent counts; it is enforced on server time.",
-          "A 7-day withdrawal window follows signature — leaving early is easy and non-punitive.",
+          "Join any public ecosystem from its page; private ecosystems are not open to self-service.",
+          "Nobody approves you: consenting to its membership agreements makes you an active member (no agreements: active at once).",
+          "Walk the orientation journey at your own pace, before or after consenting — the fit-check inside it is optional and only advisory.",
+          "Leaving is your own exit; if you join again later you start as a member and consent to the current agreements.",
         ],
       },
       {
@@ -275,30 +275,32 @@ const guides: RouteGuide[] = [
   },
   {
     prefix: "/onboarding",
-    title: "Onboarding",
-    intro: "Orientation journeys and consent ceremonies.",
+    title: "Newcomers",
+    intro: "Who is joining the ecosystems you steward, and who is stuck.",
     sections: [
       {
-        title: "The journey",
+        title: "How someone becomes a member",
         steps: [
-          "Each journey walks the ecosystem's orientation steps in order.",
-          "The fit-check is an optional stage inside orientation — its estimate is advisory only.",
+          "Joining makes someone a member. Where an ecosystem has membership agreements, they stay pending until they consent to each one.",
+          "Consenting is what makes them active. Nobody needs a steward's approval.",
+          "Orientation is open to them before they consent: the walkthrough comes first.",
         ],
       },
       {
-        title: "Ceremony positions",
+        title: "What this list shows",
         steps: [
-          "Positions are distinct: consent, stand aside, object, withdrawn, pending.",
-          "A stand-aside never counts as consent and must be resolved before the lifecycle advances.",
-          "Objections carry their reasoning into the record.",
+          "Everyone still waiting on consent, and everyone who joined in the last 30 days.",
+          "For each: the agreements left to consent to and how far their orientation has gone.",
+          "Stuck newcomers come first.",
         ],
       },
       {
-        title: "Reflection & withdrawal",
+        title: "When to step in",
         steps: [
-          "A 48-hour reflection runs on server time before consent becomes eligible.",
-          "After signature, a 7-day withdrawal window remains open.",
+          "\"Stuck\" means pending with nothing left to consent to, usually because an agreement was retired.",
+          "Open their member page and confirm the membership. The move is recorded with your name.",
         ],
+        link: { to: "/members", label: "Open members" },
       },
     ],
   },
@@ -355,7 +357,7 @@ const guides: RouteGuide[] = [
         title: "After leaving",
         steps: [
           "Matching data can be revoked and deleted from Me.",
-          "Rejoining later starts a fresh orientation — there is no penalty record.",
+          "You can join again later: you come back as a member (no role carried over) and consent to the current agreements — there is no penalty record.",
         ],
       },
     ],
@@ -450,7 +452,7 @@ const guides: RouteGuide[] = [
       {
         title: "Engage",
         steps: [
-          "Request to begin orientation from an ethos dossier when one resonates.",
+          "Join from an ethos dossier when one resonates — no request, nobody approves you.",
           "Cross-ecosystem collaboration uses collaboration agreements requiring consent from both ecosystems' admins.",
         ],
       },
@@ -478,7 +480,7 @@ const guides: RouteGuide[] = [
       {
         title: "Next step",
         steps: [
-          "Begin orientation from here when ready — it starts as a request, not a commitment.",
+          "Begin orientation from here when ready — it joins you, and consenting to the agreements is a separate, later step.",
         ],
       },
     ],

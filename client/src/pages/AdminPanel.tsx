@@ -18,6 +18,8 @@ import { useApiMutation } from "@/hooks/use-api-mutation";
 import { affects, keys } from "@/lib/query-keys";
 import { Link, Redirect, useLocation } from "wouter";
 import { usePermissions, Permission, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "@/hooks/usePermissions";
+import { useAuth } from "@/contexts/AuthContext";
+import { canOpenAdminPanel, readPlatformAdmin } from "@/lib/nav-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   fetchMembers, fetchQuizzes as apiFetchQuizzes, fetchEcosystems, createEcosystemRecord, updateEcosystemRecord, fetchQuizResultsAdmin,
@@ -30,7 +32,7 @@ import {
 import { APP_SETTINGS_KEYS } from "@/lib/utils";
 import { SHARESNEEDS_CATEGORY_OPTIONS } from "@/lib/sharesneeds-vocab";
 import type { BadgeDefinition, Team, TeamMember, QuizAssignment, CtcHandoffItem, EthosAccessGrant } from "@/types/api";
-import { useSharesNeedsAdmin, useUpdateSharesNeeds, useUpdateSharesNeedsStatus, useDeleteSharesNeeds } from "@/hooks/use-discover";
+import { ModerationPanel } from "@/pages/discover/ModerationPanel";
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -123,6 +125,7 @@ function selectUsers(result: Awaited<ReturnType<typeof fetchMembers>>) {
 export default function AdminPanel() {
   // All hooks must be called at the top, before any conditional returns
   const { isAdmin, canManageUsers, canManageContent, isLoading: roleLoading } = usePermissions();
+  const isPlatformAdmin = readPlatformAdmin(useAuth());
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
@@ -191,15 +194,6 @@ export default function AdminPanel() {
   const [omnibotSessionTypeFilter, setOmnibotSessionTypeFilter] = useState("all");
   const [omnibotSearch, setOmnibotSearch] = useState("");
 
-
-  // Shares & Needs admin state
-  const [snSearch, setSnSearch] = useState("");
-  const [snTypeFilter, setSnTypeFilter] = useState("all");
-  const [snCategoryFilter, setSnCategoryFilter] = useState("all");
-  const [snStatusFilter, setSnStatusFilter] = useState("all");
-  const [editingSn, setEditingSn] = useState<any>(null);
-  const [snForm, setSnForm] = useState({ title: "", description: "", category: "", capacity: "", visibility: "public", domain_id: "" });
-  const [isSnEditOpen, setIsSnEditOpen] = useState(false);
 
   // Active tab from URL hash
   const [activeTab, setActiveTab] = useState(() => {
@@ -333,25 +327,6 @@ export default function AdminPanel() {
     success: "Map settings saved!",
     error: "Save failed",
   });
-
-  // Shares & Needs admin query
-  const snAdminParams = useMemo(() => {
-    const p: Record<string, string> = { per_page: '100' };
-    if (snTypeFilter !== 'all') p.type = snTypeFilter;
-    if (snCategoryFilter !== 'all') p.category = snCategoryFilter;
-    if (snStatusFilter !== 'all') p.status = snStatusFilter;
-    if (snSearch) p.q = snSearch;
-    return p;
-  }, [snTypeFilter, snCategoryFilter, snStatusFilter, snSearch]);
-
-  const { data: snAdminData, isLoading: snAdminLoading, refetch: refetchSnAdmin } = useSharesNeedsAdmin(snAdminParams);
-  const snAdminItems = (snAdminData as any)?.items ?? [];
-  const snAdminStats = (snAdminData as any)?.stats ?? { total: 0, shares: 0, needs: 0, active: 0, fulfilled: 0, withdrawn: 0 };
-
-  // Shares & Needs mutations
-  const updateSnMutation = useUpdateSharesNeeds();
-  const updateSnStatusMutation = useUpdateSharesNeedsStatus();
-  const deleteSnMutation = useDeleteSharesNeeds();
 
   // Quiz results admin query (for completion counts)
   const { data: quizResultsMap = {} } = useQuery({
@@ -731,7 +706,8 @@ export default function AdminPanel() {
     );
   }
 
-  if (!isAdmin && !canManageUsers) {
+  // G-Authority: the panel is platform administration; an ecosystem's founder administers it on its own pages.
+  if (!canOpenAdminPanel({ isPlatformAdmin })) {
     return <Redirect to="/" />;
   }
 
@@ -903,8 +879,8 @@ export default function AdminPanel() {
             Assignments
           </TabsTrigger>
           <TabsTrigger value="shares-needs" data-testid="tab-shares-needs">
-            <Package className="h-4 w-4 mr-2" />
-            Shares & Needs
+            <Package className="h-4 w-4 mr-2" aria-hidden="true" />
+            Moderation
           </TabsTrigger>
           <TabsTrigger value="badges" data-testid="tab-badges">
             <Award className="h-4 w-4 mr-2" />
@@ -1580,288 +1556,9 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
-        {/* Shares & Needs Tab */}
+        {/* Moderation tab (G-Exchange): pages/discover/ModerationPanel; the "shares-needs" hash stays for old links */}
         <TabsContent value="shares-needs" className="mt-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <Package className="h-8 w-8 text-muted-foreground/50" />
-                <div>
-                  <div className="text-xl font-bold">{snAdminStats.total}</div>
-                  <div className="text-xs text-muted-foreground">Total</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <ArrowUpCircle className="h-8 w-8 text-primary/50" />
-                <div>
-                  <div className="text-xl font-bold">{snAdminStats.shares}</div>
-                  <div className="text-xs text-muted-foreground">Shares</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <ArrowDownCircle className="h-8 w-8 text-warning" />
-                <div>
-                  <div className="text-xl font-bold tabular-nums">{snAdminStats.needs}</div>
-                  <div className="text-xs text-muted-foreground">Needs</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle2 className="h-8 w-8 text-success" />
-                <div>
-                  <div className="text-xl font-bold tabular-nums">{snAdminStats.active}</div>
-                  <div className="text-xs text-muted-foreground">Active</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle className="h-8 w-8 text-info" />
-                <div>
-                  <div className="text-xl font-bold tabular-nums">{snAdminStats.fulfilled}</div>
-                  <div className="text-xs text-muted-foreground">Fulfilled</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <XCircle className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <div className="text-xl font-bold tabular-nums">{snAdminStats.withdrawn}</div>
-                  <div className="text-xs text-muted-foreground">Withdrawn</div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>Shares & Needs Management</CardTitle>
-                  <CardDescription>Manage cross-ecosystem resource sharing and requests</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Filter bar */}
-              <div className="flex flex-wrap gap-3 mb-4">
-                <Input
-                  placeholder="Search..."
-                  value={snSearch}
-                  onChange={(e) => setSnSearch(e.target.value)}
-                  className="w-[200px]"
-                />
-                <Select value={snTypeFilter} onValueChange={setSnTypeFilter}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="share">Shares</SelectItem>
-                    <SelectItem value="need">Needs</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={snCategoryFilter} onValueChange={setSnCategoryFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {SHARESNEEDS_CATEGORY_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={snStatusFilter} onValueChange={setSnStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="fulfilled">Fulfilled</SelectItem>
-                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {snAdminLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : snAdminItems.length > 0 ? (
-                <div className="space-y-3">
-                  {snAdminItems.map((item: any) => (
-                    <div
-                      key={item.id}
-                      className="flex items-start justify-between border border-strong-border p-5"
-                      data-testid={`sn-row-${item.id}`}
-                    >
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {item.type === 'share' ? (
-                            <ArrowUpCircle className="h-4 w-4 text-primary shrink-0" />
-                          ) : (
-                            <ArrowDownCircle className="h-4 w-4 shrink-0 text-warning" />
-                          )}
-                          <p className="font-medium truncate">{item.title}</p>
-                          <Badge variant={item.type === 'share' ? 'default' : 'secondary'} className="capitalize text-xs">{item.type}</Badge>
-                          <Badge variant={item.status === 'active' ? 'default' : item.status === 'fulfilled' ? 'outline' : 'secondary'} className="capitalize text-xs">{item.status}</Badge>
-                          <Badge variant="outline" className="capitalize text-xs">{item.category || 'uncategorized'}</Badge>
-                          {item.visibility !== 'public' && (
-                            <Badge variant="outline" className="text-xs">{item.visibility}</Badge>
-                          )}
-                        </div>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                        )}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {item.ecosystem_name && <span>{item.ecosystem_name}</span>}
-                          {item.domain_name && <span>{item.domain_name}</span>}
-                          {item.capacity && <span>Capacity: {item.capacity}</span>}
-                        </div>
-                      </div>
-                      <div className="flex gap-1 shrink-0 ml-4">
-                        {/* Status quick-toggle */}
-                        {item.status === 'active' && (
-                          <Button
-                            variant="ghost" size="sm" className="h-8 px-2 text-xs"
-                            onClick={() => updateSnStatusMutation.mutate({ id: item.id, status: 'fulfilled' })}
-                            title="Mark as Fulfilled"
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> Fulfill
-                          </Button>
-                        )}
-                        {item.status !== 'withdrawn' && (
-                          <Button
-                            variant="ghost" size="sm" className="h-8 px-2 text-xs"
-                            onClick={() => updateSnStatusMutation.mutate({ id: item.id, status: 'withdrawn' })}
-                            title="Withdraw"
-                          >
-                            <X className="h-3.5 w-3.5 mr-1" /> Withdraw
-                          </Button>
-                        )}
-                        {item.status === 'withdrawn' && (
-                          <Button
-                            variant="ghost" size="sm" className="h-8 px-2 text-xs"
-                            onClick={() => updateSnStatusMutation.mutate({ id: item.id, status: 'active' })}
-                            title="Reactivate"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Activate
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost" size="sm" className="h-8 w-8 p-0"
-                          onClick={() => {
-                            setEditingSn(item);
-                            setSnForm({
-                              title: item.title,
-                              description: item.description || "",
-                              category: item.category || "",
-                              capacity: item.capacity || "",
-                              visibility: item.visibility,
-                              domain_id: item.domain_id,
-                            });
-                            setIsSnEditOpen(true);
-                          }}
-                          title="Edit"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost" size="sm" className="h-8 w-8 p-0"
-                          onClick={() => {
-                            if (confirm(`Delete "${item.title}"?`)) {
-                              deleteSnMutation.mutate(item.id);
-                            }
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  {snSearch || snTypeFilter !== 'all' || snStatusFilter !== 'all' ? "No items match your filters" : "No shares or needs found"}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Edit Dialog */}
-          <Dialog open={isSnEditOpen} onOpenChange={(open) => { if (!open) { setIsSnEditOpen(false); setEditingSn(null); } }}>
-            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Edit Share / Need</DialogTitle>
-                <DialogDescription>Update details for this item</DialogDescription>
-              </DialogHeader>
-              {editingSn && (
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <Label>Title</Label>
-                    <Input value={snForm.title} onChange={(e) => setSnForm(f => ({ ...f, title: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Description</Label>
-                    <Textarea value={snForm.description} onChange={(e) => setSnForm(f => ({ ...f, description: e.target.value }))} rows={3} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Category</Label>
-                      <Select value={snForm.category} onValueChange={(v) => setSnForm(f => ({ ...f, category: v }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          <SelectItem value="skill">Skill</SelectItem>
-                          <SelectItem value="resource">Resource</SelectItem>
-                          <SelectItem value="knowledge">Knowledge</SelectItem>
-                          <SelectItem value="technology">Technology</SelectItem>
-                          <SelectItem value="infrastructure">Infrastructure</SelectItem>
-                          <SelectItem value="funding">Funding</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Capacity</Label>
-                      <Input value={snForm.capacity} onChange={(e) => setSnForm(f => ({ ...f, capacity: e.target.value }))} placeholder="e.g. ongoing, high" />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Visibility</Label>
-                    <Select value={snForm.visibility} onValueChange={(v) => setSnForm(f => ({ ...f, visibility: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="public">Public</SelectItem>
-                        <SelectItem value="ecosystem">Ecosystem</SelectItem>
-                        <SelectItem value="domain">Domain</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button onClick={() => {
-                      updateSnMutation.mutate({ id: editingSn.id, data: snForm }, {
-                        onSuccess: () => { setIsSnEditOpen(false); setEditingSn(null); refetchSnAdmin(); toast({ title: 'Updated' }); }
-                      });
-                    }} disabled={updateSnMutation.isPending}>
-                      {updateSnMutation.isPending ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                    <Button variant="outline" onClick={() => { setIsSnEditOpen(false); setEditingSn(null); }}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
+          <ModerationPanel />
         </TabsContent>
 
         {/* Badges Tab */}

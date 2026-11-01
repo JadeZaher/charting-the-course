@@ -236,11 +236,13 @@ One server source (`neos_agent` `services/next_steps.py`; API shapes in
   card ("Timer and your options", "Handoff and your options") renders only
   when it has dates or buttons. The conflict page's "What happens next" card
   is the banner now.
-- Due dates: `lib/next-steps.ts dueStatus` reads `YYYY-MM-DD` as that local
-  calendar day (never the UTC midnight before it) and timestamps (ending in Z)
-  as instants; "Due today" lasts all day. The server's `overdue` orders the
-  list; the client's `dueStatus` decides the words and colour, so they agree
-  with the date shown.
+- Due dates: the server decides overdue (a date-only due passes when its day has ended
+  everywhere on Earth) and the client only words it. `lib/next-steps.ts
+  dueStatus(due, overdue, now, format)` says "Overdue since <date>" only when the
+  server's `overdue` is true; otherwise "Due today", "Due tomorrow" (local
+  calendar) or "Due <date>". `YYYY-MM-DD` is read as that local calendar day
+  (`parseDue`, never the UTC midnight before it). The bell, the dashboard queue
+  and the banner therefore agree.
 - Freshness: the banner key sits under the record's `detail` key and
   `affects.*` include `keys.nextSteps.all`, so every governance mutation
   refreshes both; the assistant drawer refreshes the queue after a successful

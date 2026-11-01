@@ -9,16 +9,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { StatusBanner } from '@/components/governance/StatusBanner';
+import { AgreementReviewDialog } from '@/components/governance/agreements/AgreementReviewDialog';
 import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
 import { RecordDecisionAction } from '@/components/governance/RecordDecisionDialog';
 import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useWithdrawAgreementConsent, useRecordAgreementCeremony } from '@/hooks/use-governance';
+import { useStatusExplanation } from '@/hooks/use-next-steps';
 import { formatDate } from '@/lib/utils';
 import { agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
 import { agreementTypeLabel } from '@/lib/agreement-type';
 import { Pencil, History, ArrowLeft, CircleAlert, CheckCircle2, Gavel, FilePen } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { agreementMoveControl, isMembershipAgreement } from '@/lib/agreement-moves';
+import { membershipWithdrawalWarning } from '@/lib/consent-gate';
 
 const CONSENT_OPEN_STATUSES = ['consent', 'test', 'active', 'under_review'];
+/** Statuses whose moves are review outcomes (buttons from the banner's moves), not ceremonies. */
+const IN_FORCE_STATUSES = ['active', 'under_review', 'sunset'];
+
+/** Bring the consent form into view and put the cursor in it (the `attest` move's own control). */
+function focusConsentForm() {
+  const field = document.getElementById('agreement-attestation');
+  field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  field?.focus();
+}
 
 export default function AgreementDetail() {
   const [, params] = useRoute('/agreements/:id');
@@ -26,6 +40,7 @@ export default function AgreementDetail() {
   const [, navigate] = useLocation();
   const { data, isLoading, error } = useAgreement(id);
   const statusMutation = useUpdateAgreementStatus(id);
+  const explanation = useStatusExplanation('agreement', id);
   const consentMutation = useAttestAgreementConsent(id);
   const withdrawalMutation = useWithdrawAgreementConsent(id);
   const ceremonyMutation = useRecordAgreementCeremony(id);
@@ -34,6 +49,7 @@ export default function AgreementDetail() {
   const [actNote, setActNote] = useState('');
   const [attestation, setAttestation] = useState('I have read and explicitly consent to this agreement.');
   const [withdrawalReason, setWithdrawalReason] = useState('');
+  const [confirmingWithdrawal, setConfirmingWithdrawal] = useState(false);
 
   if (isLoading) return <LoadingState message="Loading agreement..." />;
 
@@ -68,6 +84,14 @@ export default function AgreementDetail() {
   const consentSummary = data.consent_summary;
   const nextCeremony = ({ draft: 'advice', advice: 'consent', consent: 'test', test: 'active' } as Record<string, string>)[data.status];
   const canConduct = data.caller_can_conduct ?? false;
+  const inForce = IN_FORCE_STATUSES.includes(data.status);
+  // FX-Maint (F2): each server move renders as its own control or not at all; `attest` is the consent form, never /status.
+  const serverMoves = inForce && canConduct ? (explanation.data?.your_moves ?? []) : [];
+  const reviewMoves = serverMoves.filter((move) => agreementMoveControl(move) === 'review');
+  const consentMove = serverMoves.find((move) => agreementMoveControl(move) === 'consent');
+  const blockedNotes = reviewMoves.filter((move) => !move.ready && move.blocked).map((move) => move.blocked as string);
+  const ecosystemName = explanation.data?.ecosystem ?? 'this ecosystem';
+  const membership = isMembershipAgreement(data);
   const isMember = data.caller_role != null;
   const canRecordActEvidence = isMember && (data.status === 'advice' || data.status === 'test');
   const declaredTestCases = data.act_policy?.test_cases ?? [];
@@ -129,7 +153,7 @@ export default function AgreementDetail() {
               </Link>
             </Button>
           )}
-          {canConduct && (
+          {canConduct && !inForce && (
             <Select onValueChange={handleStatusChange} disabled={statusChanging}>
               <SelectTrigger className="w-[160px] h-9">
                 <SelectValue placeholder="Change Status" />
@@ -141,19 +165,23 @@ export default function AgreementDetail() {
                   <SelectItem value="test">Begin Test Ceremony</SelectItem>
                 )}
                 {data.status === 'test' && <SelectItem value="active">Active</SelectItem>}
-                {data.status === 'active' && <SelectItem value="under_review">Under Review</SelectItem>}
-                {data.status === 'under_review' && (
-                  <>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="sunset">Sunset</SelectItem>
-                  </>
-                )}
-                {data.status === 'sunset' && <SelectItem value="archived">Archived</SelectItem>}
               </SelectContent>
             </Select>
           )}
+          {reviewMoves.map((move) => (
+            <AgreementReviewDialog key={move.move} agreement={data} move={move} />
+          ))}
+          {consentMove && needsMyConsent && (
+            <Button type="button" size="sm" className="min-h-11" onClick={focusConsentForm}>
+              {consentMove.label}
+            </Button>
+          )}
         </div>
       </div>
+
+      {blockedNotes.map((note) => (
+        <p key={note} className="border-2 border-strong-border bg-muted p-3 text-sm" role="status">{note}</p>
+      ))}
 
       {statusMutation.error && (
         <div className="border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
@@ -162,6 +190,12 @@ export default function AgreementDetail() {
       )}
 
       <StatusBanner kind="agreement" id={data.id} />
+
+      {data.review_overdue && (
+        <p className="border-2 border-warning bg-warning/10 p-3 text-sm font-medium">
+          Review overdue: this agreement is still in force, and its review date ({formatDate(data.review_date)}) has passed.
+        </p>
+      )}
 
       {/* Next action — the one thing this agreement needs from the caller right now */}
       {needsMyConsent && (
@@ -310,7 +344,7 @@ export default function AgreementDetail() {
                     variant="destructive"
                     size="sm"
                     disabled={withdrawalReason.trim().length < 3 || withdrawalMutation.isPending}
-                    onClick={() => withdrawalMutation.mutate(withdrawalReason.trim())}
+                    onClick={() => (membership ? setConfirmingWithdrawal(true) : withdrawalMutation.mutate(withdrawalReason.trim()))}
                   >
                     Withdraw Consent
                   </Button>
@@ -319,6 +353,24 @@ export default function AgreementDetail() {
                       {apiErrorMessage(withdrawalMutation.error)}
                     </p>
                   )}
+                  {/* Owner default: withdrawing consent to a membership agreement returns the member to pending. */}
+                  <AlertDialog open={confirmingWithdrawal} onOpenChange={setConfirmingWithdrawal}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Withdraw your consent to this membership agreement?</AlertDialogTitle>
+                        <AlertDialogDescription>{membershipWithdrawalWarning(ecosystemName)}</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="min-h-11">Keep my consent</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="min-h-11"
+                          onClick={() => withdrawalMutation.mutate(withdrawalReason.trim())}
+                        >
+                          Withdraw consent
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               )}
             </CardContent>

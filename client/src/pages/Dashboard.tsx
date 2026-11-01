@@ -9,6 +9,9 @@ import { useEcosystem } from '@/contexts/EcosystemContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDashboardSummary } from '@/hooks/use-api';
 import { useMyNextSteps } from '@/hooks/use-next-steps';
+import { useSafeguards } from '@/hooks/use-care';
+import { auditDueText } from '@/lib/health';
+import { formatDate as formatDateOnly } from '@/lib/utils';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
 import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { dueStatus, formatDue, nextStepKindLabel } from '@/lib/next-steps';
@@ -103,6 +106,7 @@ export default function Dashboard() {
   const summaryQuery = useDashboardSummary(ecosystemIds);
   // G-Next: the member's own queue in every ecosystem they are active in; the header bell reads the same list.
   const queueQuery = useMyNextSteps();
+  const healthEcosystems = useSafeguards().data?.ecosystems ?? [];
   const scopedEcosystem = selectedIds.length === 1 ? selected : null;
 
   const sharesNeedsQuery = useQuery({
@@ -249,8 +253,9 @@ export default function Dashboard() {
           >
             {(queue) => (
               <ol className="divide-y divide-border">
-                {queue.items.map((item, index) => {
-                  const due = dueStatus(item.due, now, formatDue);
+                {/* G-Onboard: newcomer steps (consent to join, orientation, a stuck newcomer) first; sort is stable, so server order holds within each group. */}
+                {[...queue.items].sort((a, b) => Number(String(b.kind) === 'newcomer') - Number(String(a.kind) === 'newcomer')).map((item, index) => {
+                  const due = dueStatus(item.due, item.overdue, now, formatDue);
                   return (
                     <li key={item.uid}>
                       <Link
@@ -283,6 +288,23 @@ export default function Dashboard() {
               </ol>
             )}
           </QueryState>
+          {healthEcosystems.length > 0 && (
+            <ul aria-label="Governance health" className="divide-y divide-border border-t-2 border-strong-border">
+              {healthEcosystems.map((health) => (
+                <li key={health.ecosystem_id}>
+                  <Link
+                    href="/safeguards"
+                    className="flex min-h-11 flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-6"
+                  >
+                    <span className="font-semibold">Governance health{healthEcosystems.length > 1 ? ` · ${health.ecosystem}` : ''}</span>
+                    <span className={health.audit_overdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}>
+                      {auditDueText(health.audit_due, health.audit_overdue, formatDateOnly)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section aria-labelledby="activity-title" className="border-2 border-strong-border bg-card p-5 sm:p-6 lg:col-span-5">
@@ -339,14 +361,15 @@ export default function Dashboard() {
                   errorTitle="Local ecosystem activity could not be loaded"
                 >
                   {(quizzesData) => {
-                    const sharesNeeds = sharesNeedsData.items ?? [];
+                    // G-Exchange: count open posts only (not fulfilled, withdrawn or hidden).
+                    const sharesNeeds = (sharesNeedsData.items ?? []).filter((item) => item.status === 'active' && !('hidden' in item && item.hidden));
                     const quizCount = quizzesData.quizzes?.length ?? 0;
                     return (
                       <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
                         {[
-                          { label: 'Shares', value: sharesNeeds.filter((item) => item.type === 'share').length, detail: 'Resources offered', href: '/discover' },
-                          { label: 'Needs', value: sharesNeeds.filter((item) => item.type === 'need').length, detail: 'Requests in the network', href: '/discover' },
-                          { label: 'Solutions', value: sharesNeeds.filter((item) => item.type === 'solution').length, detail: 'Published approaches', href: '/discover' },
+                          { label: 'Shares', value: sharesNeeds.filter((item) => item.type === 'share').length, detail: 'Open offers', href: '/discover?tab=shares-needs' },
+                          { label: 'Needs', value: sharesNeeds.filter((item) => item.type === 'need').length, detail: 'Open requests', href: '/discover?tab=shares-needs' },
+                          { label: 'Solutions', value: sharesNeeds.filter((item) => item.type === 'solution').length, detail: 'Published approaches', href: '/discover?tab=shares-needs' },
                           { label: 'Quizzes', value: quizCount, detail: 'Learning pathways', href: '/quizzes' },
                         ].map((item) => (
                           <Link key={item.label} href={item.href} className="group min-h-44 bg-card p-6 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

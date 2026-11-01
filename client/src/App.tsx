@@ -33,6 +33,7 @@ const DiscoverHub = lazy(() => import("@/pages/discover/DiscoverHub"));
 const SharesNeedsForm = lazy(() => import("@/pages/discover/SharesNeedsForm"));
 const CollaborationForm = lazy(() => import("@/pages/discover/CollaborationForm"));
 const CollaborationDetail = lazy(() => import("@/pages/discover/CollaborationDetail"));
+const ModerationPage = lazy(() => import("@/pages/discover/ModerationPanel")); // FX-Exchange
 import NotFound from "@/pages/not-found";
 // Orientation Portal pages
 import EthosDetail from "@/pages/EthosDetail";
@@ -247,9 +248,9 @@ function AuthenticatedRoutes() {
         <Redirect to="/discover" />
       </Route>
 
-      {/* Quiz & Onboarding hub — folded into onboarding */}
+      {/* Quizzes land on the member's own quiz history (G-Onboard; /onboarding is the stewards' Newcomers list) */}
       <Route path="/quizzes">
-        <Redirect to="/onboarding" />
+        <Redirect to="/my-quiz-history" />
       </Route>
       <Route path="/quiz/take/:id">
         <ProtectedRoute component={TakeQuiz} />
@@ -290,6 +291,10 @@ function AuthenticatedRoutes() {
       </Route>
       <Route path="/discover/collaborations/:id">
         <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={CollaborationDetail} /></Suspense>
+      </Route>
+      {/* FX-Exchange: moderation for every exchange steward (the list is steward-scoped by the server) */}
+      <Route path="/discover/moderation">
+        <Suspense fallback={<LoadingScreen />}><ProtectedRoute component={ModerationPage} /></Suspense>
       </Route>
       <Route path="/discover/hub">
         <Redirect to="/discover" />

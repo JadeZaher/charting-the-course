@@ -14,9 +14,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useEcosystemDetail, useRequestJoinEcosystem, useAgreements, useProposals } from '@/hooks/use-governance';
-import { useEcosystem } from '@/contexts/EcosystemContext';
-import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useEcosystemDetail, useAgreements, useProposals } from '@/hooks/use-governance';
+import { useJoinEcosystem } from '@/hooks/use-onboarding';
+import { useAuth } from '@/contexts/AuthContext';
+import { isStewardIn, membershipStanding } from '@/lib/ecosystem-join';
+import { CONSENT_GATE_PATH, memberStatusLabel } from '@/lib/member-status';
 import { useToast } from '@/hooks/use-toast';
 import {
   Pencil, ArrowLeft, UserPlus, Lock, FileText, Check, Clock, ClipboardList, Eye,
@@ -31,16 +33,13 @@ import {
   createJourneyMap,
   updateJourneyMap,
   deleteJourneyMap,
-  fetchEcosystemSharesNeeds,
-  createSharesNeeds,
-  updateSharesNeedsStatus,
-  deleteSharesNeeds,
   fetchDomains,
 } from '@/lib/api-client';
-import type { QuizListItem, SharesNeeds, DomainListItem } from '@/types/api';
+import type { QuizListItem, DomainListItem } from '@/types/api';
 import { resolveExternalUrl } from '@/lib/media';
-import { domainCode, domainLabel, domainOptionLabel } from '@/lib/domain-label';
+import { domainCode, domainLabel } from '@/lib/domain-label';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { EcosystemPostsSection } from '@/pages/discover/EcosystemPostsSection';
 
 interface EcoQuiz {
   id: string;
@@ -76,26 +75,20 @@ const statusVariant = (status: string) => {
   }
 };
 
-const snTypeColor = (type: string) => type === 'share' ? 'default' as const : 'secondary' as const;
-const snStatusColor = (status: string) => {
-  switch (status) {
-    case 'active': return 'default' as const;
-    case 'fulfilled': return 'outline' as const;
-    case 'withdrawn': return 'secondary' as const;
-    default: return 'secondary' as const;
-  }
-};
-
 export default function EcosystemDetail() {
   const [, params] = useRoute('/ecosystems/:id');
   const id = params?.id ?? '';
   const { data, isLoading, error } = useEcosystemDetail(id);
-  const { ecosystems } = useEcosystem();
+  const { ecosystems } = useAuth();
   const { toast } = useToast();
-  const joinMutation = useRequestJoinEcosystem(id);
+  // The hook refreshes the session (the standing below follows) and toasts the outcome or the one failure.
+  const joinMutation = useJoinEcosystem(id, { ecosystemName: data?.name });
 
-  const { permissions } = useRoleAccess();
-  const isMember = ecosystems.some(e => e.id === id);
+  // G-Onboard: the caller's own row here decides; only an active row is a member, only an active mod+ row a steward.
+  const standing = membershipStanding(id, ecosystems);
+  const membershipStatus = ecosystems.find(e => e.id === id)?.membership_status;
+  const isMember = standing === 'active';
+  const isSteward = isStewardIn(id, ecosystems);
 
   // --- Quiz management state ---
   const [ecoQuizzes, setEcoQuizzes] = useState<EcoQuiz[]>([]);
@@ -112,12 +105,8 @@ export default function EcosystemDetail() {
   const [jmForm, setJmForm] = useState({ title: '', description: '', contentJson: '', exitJson: '', is_default: false });
   const [jmSaving, setJmSaving] = useState(false);
 
-  // --- Shares/Needs state ---
-  const [sharesNeeds, setSharesNeeds] = useState<SharesNeeds[]>([]);
-  const [snLoading, setSnLoading] = useState(false);
-  const [showSnForm, setShowSnForm] = useState(false);
-  const [snForm, setSnForm] = useState({ type: 'share' as 'share' | 'need', title: '', description: '', category: '', capacity: '', visibility: 'public', domain_id: '' });
-  const [snSaving, setSnSaving] = useState(false);
+  // --- Domains (the Domains card); the shares card is EcosystemPostsSection (FX-Exchange) ---
+  const [domainsLoading, setDomainsLoading] = useState(false);
   const [ecoDomains, setEcoDomains] = useState<DomainListItem[]>([]);
 
   // --- Load quiz data ---
@@ -145,25 +134,21 @@ export default function EcosystemDetail() {
     } catch { /* silent */ } finally { setJmLoading(false); }
   }, [id, isMember]);
 
-  // --- Load shares/needs ---
-  const loadSharesNeeds = useCallback(async () => {
+  // --- Load domains ---
+  const loadDomains = useCallback(async () => {
     if (!id || !isMember) return;
-    setSnLoading(true);
+    setDomainsLoading(true);
     try {
-      const [snResult, domResult] = await Promise.all([
-        fetchEcosystemSharesNeeds(id),
-        fetchDomains({ ecosystem_id: id }),
-      ]);
-      setSharesNeeds(snResult.items ?? []);
+      const domResult = await fetchDomains({ ecosystem_id: id });
       setEcoDomains(domResult.items ?? []);
-    } catch { /* silent */ } finally { setSnLoading(false); }
+    } catch { /* silent */ } finally { setDomainsLoading(false); }
   }, [id, isMember]);
 
   useEffect(() => {
     loadQuizzes();
     loadJourneyMaps();
-    loadSharesNeeds();
-  }, [loadQuizzes, loadJourneyMaps, loadSharesNeeds]);
+    loadDomains();
+  }, [loadQuizzes, loadJourneyMaps, loadDomains]);
 
   // --- Quiz handlers ---
   const handleAssignQuiz = async () => {
@@ -226,47 +211,6 @@ export default function EcosystemDetail() {
     } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
 
-  // --- Shares/Needs handlers ---
-  const handleCreateShareNeed = async () => {
-    if (!snForm.title.trim()) return;
-    const domainId = snForm.domain_id || ecoDomains[0]?.id;
-    if (!domainId) {
-      toast({ title: 'No domains available', description: 'Create a domain first before adding shares/needs.', variant: 'destructive' });
-      return;
-    }
-    setSnSaving(true);
-    try {
-      await createSharesNeeds({
-        ecosystem_id: id,
-        domain_id: domainId,
-        type: snForm.type,
-        title: snForm.title,
-        description: snForm.description || null,
-        category: snForm.category || null,
-        capacity: snForm.capacity || null,
-        visibility: snForm.visibility,
-      });
-      toast({ title: `${snForm.type === 'share' ? 'Share' : 'Need'} created` });
-      setShowSnForm(false);
-      setSnForm({ type: 'share', title: '', description: '', category: '', capacity: '', visibility: 'public', domain_id: '' });
-      await loadSharesNeeds();
-    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
-    finally { setSnSaving(false); }
-  };
-  const handleSnStatusChange = async (snId: string, newStatus: string) => {
-    try {
-      await updateSharesNeedsStatus(snId, newStatus);
-      toast({ title: `Status updated to ${newStatus}` }); await loadSharesNeeds();
-    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
-  };
-  const handleDeleteShareNeed = async (snId: string) => {
-    if (!confirm('Delete this share/need?')) return;
-    try {
-      await deleteSharesNeeds(snId);
-      toast({ title: 'Deleted' }); await loadSharesNeeds();
-    } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
-  };
-
   // Fetch agreements only when user is a member
   const { data: agreementsData } = useAgreements(isMember ? {} : false);
   const allEcoAgreements = (agreementsData?.items ?? []).filter((a: any) => a.ecosystem_id === id);
@@ -293,7 +237,7 @@ export default function EcosystemDetail() {
     );
   }
 
-  // The hook refreshes the session (an "already a member" 409 resolves) and toasts the outcome or failure.
+  // A newcomer or a leaver joins; an "already in" 409 resolves and refreshes the stale session.
   const handleJoin = () => joinMutation.mutate();
 
   const assignedIds = new Set(ecoQuizzes.map(q => q.id));
@@ -313,18 +257,23 @@ export default function EcosystemDetail() {
             <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
             {data.visibility && <Badge variant="outline">{data.visibility}</Badge>}
             {isMember && <Badge variant="default">Member</Badge>}
+            {(standing === 'left' || standing === 'paused') && <Badge variant="outline">{memberStatusLabel(membershipStatus)}</Badge>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {isMember ? (
+          {isSteward && (
             <Button asChild variant="outline" size="sm">
               <Link href={`/ecosystems/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>
             </Button>
-          ) : joinMutation.isSuccess ? (
-            <Button variant="outline" size="sm" disabled><Clock className="h-4 w-4 mr-1" />Orientation requested</Button>
-          ) : (
+          )}
+          {standing === 'pending' && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={CONSENT_GATE_PATH}><Clock className="h-4 w-4 mr-1" />Waiting on your consent</Link>
+            </Button>
+          )}
+          {(standing === 'none' || standing === 'left') && (
             <Button size="sm" onClick={handleJoin} disabled={joinMutation.isPending}>
-              <UserPlus className="h-4 w-4 mr-1" />{joinMutation.isPending ? 'Requesting...' : 'Request to begin orientation'}
+              <UserPlus className="h-4 w-4 mr-1" />{joinMutation.isPending ? 'Joining…' : `Join ${data.name}`}
             </Button>
           )}
         </div>
@@ -418,7 +367,7 @@ export default function EcosystemDetail() {
             </div>
           </CardHeader>
           <CardContent>
-            {snLoading ? (
+            {domainsLoading ? (
               <p className="text-sm text-muted-foreground">Loading domains...</p>
             ) : ecoDomains.length === 0 ? (
               <p className="text-sm text-muted-foreground">No domains documented yet.</p>
@@ -477,7 +426,7 @@ export default function EcosystemDetail() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2"><Map className="h-5 w-5" />Orientation Journey Maps</CardTitle>
-              {permissions.canManageJourneyMaps && (
+              {isSteward && (
                 <Button size="sm" variant="outline" onClick={() => setShowJmForm(!showJmForm)}>
                   {showJmForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />New Journey Map</>}
                 </Button>
@@ -532,7 +481,7 @@ export default function EcosystemDetail() {
                       {jm.description && <p className="text-xs text-muted-foreground mt-0.5">{jm.description}</p>}
                       <p className="text-xs text-muted-foreground">{jm.step_count} step{jm.step_count !== 1 ? 's' : ''}</p>
                     </div>
-                    {permissions.canManageJourneyMaps && (
+                    {isSteward && (
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleToggleJmActive(jm)} title={jm.is_active ? 'Deactivate' : 'Activate'}>
                           <ArrowUpDown className="h-4 w-4" />
@@ -579,7 +528,7 @@ export default function EcosystemDetail() {
                         <td className="p-2 text-right">
                           <div className="flex gap-1 justify-end">
                             <Button asChild variant="ghost" size="sm"><Link href={`/quiz/results/${q.id}`}><Eye className="h-4 w-4 mr-1" />Results</Link></Button>
-                            {permissions.canAssignQuizzes && (
+                            {isSteward && (
                               <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
                             )}
                           </div>
@@ -590,7 +539,7 @@ export default function EcosystemDetail() {
                 </table>
               </div>
             )}
-            {permissions.canAssignQuizzes && (
+            {isSteward && (
               <div className="border-t pt-4">
                 <p className="text-sm font-medium mb-2">Assign a Quiz</p>
                 <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
@@ -614,134 +563,8 @@ export default function EcosystemDetail() {
         </Card>
       )}
 
-      {/* Shares & Needs Management (members only) */}
-      {isMember && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2"><Handshake className="h-5 w-5" />Shares & Needs</CardTitle>
-              {permissions.canCreateSharesNeeds && (
-                <Button size="sm" variant="outline" onClick={() => setShowSnForm(!showSnForm)}>
-                  {showSnForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add</>}
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {showSnForm && (
-              <div className="space-y-3 rounded-none border-2 border-strong-border bg-muted/30 p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="share-need-type">Type</Label>
-                    <Select value={snForm.type} onValueChange={(v: any) => setSnForm({ ...snForm, type: v })}>
-                      <SelectTrigger id="share-need-type"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="share">Share (offering)</SelectItem>
-                        <SelectItem value="need">Need (requesting)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="share-need-category">Category</Label>
-                    <Select value={snForm.category} onValueChange={(v: string) => setSnForm({ ...snForm, category: v })}>
-                      <SelectTrigger id="share-need-category"><SelectValue placeholder="Select category..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="skill">Skill</SelectItem>
-                        <SelectItem value="resource">Resource</SelectItem>
-                        <SelectItem value="knowledge">Knowledge</SelectItem>
-                        <SelectItem value="space">Space</SelectItem>
-                        <SelectItem value="labor">Labor</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="share-need-title">Title</Label>
-                  <Input id="share-need-title" value={snForm.title} onChange={e => setSnForm({ ...snForm, title: e.target.value })} placeholder="What are you sharing or needing?" />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="share-need-description">Description</Label>
-                  <Textarea id="share-need-description" value={snForm.description} onChange={e => setSnForm({ ...snForm, description: e.target.value })} placeholder="Details..." rows={2} />
-                </div>
-                {ecoDomains.length > 1 && (
-                  <div className="space-y-1">
-                    <Label htmlFor="share-need-domain">Domain</Label>
-                    <Select value={snForm.domain_id} onValueChange={(v: string) => setSnForm({ ...snForm, domain_id: v })}>
-                      <SelectTrigger id="share-need-domain"><SelectValue placeholder="Select domain..." /></SelectTrigger>
-                      <SelectContent>
-                        {ecoDomains.map(d => <SelectItem key={d.id} value={d.id}>{domainOptionLabel(d)}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="share-need-capacity">Capacity / Availability</Label>
-                    <Input id="share-need-capacity" value={snForm.capacity} onChange={e => setSnForm({ ...snForm, capacity: e.target.value })} placeholder="e.g. 10 hrs/week, 5 units" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="share-need-visibility">Visibility</Label>
-                    <Select value={snForm.visibility} onValueChange={(v: string) => setSnForm({ ...snForm, visibility: v })}>
-                      <SelectTrigger id="share-need-visibility"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="public">Public</SelectItem>
-                        <SelectItem value="ecosystem">Ecosystem Only</SelectItem>
-                        <SelectItem value="domain">Domain Only</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button size="sm" onClick={handleCreateShareNeed} disabled={snSaving || !snForm.title.trim()}>
-                  {snSaving ? 'Creating...' : `Create ${snForm.type === 'share' ? 'Share' : 'Need'}`}
-                </Button>
-              </div>
-            )}
-
-            {snLoading ? (
-              <p className="text-sm text-muted-foreground">Loading shares & needs...</p>
-            ) : sharesNeeds.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No shares or needs declared yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {sharesNeeds.map(sn => (
-                  <div key={sn.id} className="flex items-start justify-between rounded-none border-2 border-strong-border p-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={snTypeColor(sn.type)} className="text-xs capitalize">{sn.type}</Badge>
-                        <span className="text-sm font-medium">{sn.title}</span>
-                        <Badge variant={snStatusColor(sn.status)} className="text-xs">{sn.status}</Badge>
-                      </div>
-                      {sn.description && <p className="text-xs text-muted-foreground">{sn.description}</p>}
-                      <div className="flex gap-2 text-xs text-muted-foreground">
-                        {sn.category && <span>{sn.category}</span>}
-                        {sn.capacity && <span>Capacity: {sn.capacity}</span>}
-                        {sn.domain_name && <span>Domain: {sn.domain_name}</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      {sn.status === 'active' && permissions.canEditSharesNeeds && (
-                        <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'fulfilled')} title="Mark fulfilled">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {sn.status !== 'withdrawn' && permissions.canEditSharesNeeds && (
-                        <Button variant="ghost" size="sm" onClick={() => handleSnStatusChange(sn.id, 'withdrawn')} title="Withdraw">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {permissions.canDeleteSharesNeeds && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteShareNeed(sn.id)} title="Delete">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Shares & Needs (members only): FX-Exchange's EcosystemPostsSection, server flags for every control */}
+      {isMember && <EcosystemPostsSection ecosystemId={id} ecosystemName={data.name} />}
     </div>
   );
 }

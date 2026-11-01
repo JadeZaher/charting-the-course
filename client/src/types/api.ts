@@ -1023,7 +1023,7 @@ export interface IndicatorScore {
   measured_value: string | number | null;
   status: 'healthy' | 'warning' | 'critical' | null;
   prior_value: string | number | null;
-  trend: 'improving' | 'stable' | 'degrading' | null;
+  trend: 'improving' | 'stable' | 'degrading' | 'baseline' | null;
   notes: string | null;
 }
 
@@ -1419,7 +1419,8 @@ export interface OnboardingState {
 // G-Next: "what is waiting for me" and "what happens next here" (neos_agent services/next_steps.py).
 // See api/AGENTS.md "Next steps (G-Next)"; the assistant's what_needs_me and explain_status return the same shapes.
 
-export type NextStepKind = 'proposal' | 'agreement' | 'conflict' | 'emergency' | 'exit' | 'audit';
+export type NextStepKind = 'proposal' | 'agreement' | 'conflict' | 'emergency' | 'exit' | 'audit'
+  | 'newcomer' | 'share_need' | 'collaboration'; // FX-Maint: the kinds the registered queue sources emit
 
 /** One thing waiting for the caller (GET /me/next-steps item). `due` is YYYY-MM-DD or an ISO timestamp ending in Z. */
 export interface NextStepItem {
@@ -1443,7 +1444,7 @@ export interface NextStepsResponse {
   count: number;
 }
 
-export type ExplainKind = 'proposal' | 'agreement' | 'conflict' | 'emergency' | 'exit';
+export type ExplainKind = 'proposal' | 'agreement' | 'conflict' | 'emergency' | 'exit' | 'audit';
 
 /** A move the caller may make now; `ready` false means its gate is not met yet. */
 export interface StatusMove {
@@ -1470,4 +1471,375 @@ export interface StatusExplanation {
   your_moves: StatusMove[];
   waiting_on_you: NextStepItem[];
   link: string;
+}
+
+// G-Maint: agreement review outcomes, per-ecosystem health, the computed snapshot (see AGENTS.md "Maintenance and health").
+export type HealthBand = 'healthy' | 'warning' | 'critical';
+export type MeasuredUnit = '%' | 'ratio' | 'cycles' | 'per quarter';
+
+export interface AgreementListItem {
+  /** In force and its review date has passed; never invalidates the agreement. */
+  review_overdue: boolean;
+}
+
+export interface AgreementDetail {
+  /** While under review: the per-type default for the next review date, and the sunset end date, YYYY-MM-DD. */
+  default_next_review_date: string | null;
+  sunset_ends_on: string | null;
+  caller_can_rollback: boolean;
+}
+
+export interface ReviewRecord {
+  findings: string | null;
+  conducted_by: string | null;
+  agreement_version: string | null;
+  on_time: boolean | null;
+}
+
+export interface AgreementHistory {
+  caller_can_rollback: boolean;
+}
+
+/** POST /agreements/:id/status: leaving under_review needs findings; renew may set the next review date. */
+export interface AgreementStatusChange {
+  status: string;
+  evidence?: string;
+  next_review_date?: string;
+}
+
+export interface IndicatorScore {
+  unit?: MeasuredUnit | null;
+  basis?: string | null;
+  band?: HealthBand | null;
+  computable?: boolean;
+}
+
+export interface GovernanceAudit {
+  self_assessment?: boolean;
+}
+
+export interface EcosystemHealth {
+  ecosystem_id: string;
+  ecosystem: string;
+  latest_audit: GovernanceAudit | null;
+  published_on: string | null;
+  /** Null when the ecosystem has no start date and no audit yet (FX-Maint F17). */
+  audit_due: string | null;
+  audit_overdue: boolean;
+  critical_count: number;
+  caller_can_record_audit: boolean;
+  caller_records_self_assessment: boolean;
+}
+
+export interface SafeguardsOverview {
+  ecosystems: EcosystemHealth[];
+}
+
+export interface HealthIndicatorValue {
+  indicator_id: string;
+  name: string;
+  measured_value: number | null;
+  unit: MeasuredUnit | null;
+  computable: boolean;
+  basis: string;
+  band: HealthBand | null;
+  thresholds: { healthy: string; warning: string; critical: string };
+  higher_is_better: boolean;
+  detail: string | null;
+}
+
+export interface HealthAttention {
+  key: string;
+  label: string;
+  count: number;
+  detail: string | null;
+  link: string;
+}
+
+/** GET /safeguards/snapshot: values computed from the records, statuses still rated by a person. */
+export interface HealthSnapshot {
+  ecosystem_id: string;
+  ecosystem: string;
+  period: { start: string; end: string };
+  generated_at: string;
+  indicators: HealthIndicatorValue[];
+  attention: HealthAttention[];
+}
+
+// FX-Maint: closing loops (wave-c F2, F6, F7, domain authority); interface merging onto earlier shapes.
+export interface StatusMove {
+  /** "consent": the consent act (POST /agreements/:id/consent), never a status move (F2). */
+  kind?: 'consent';
+}
+
+/** What a steward recorded on an audit: the response to a published one, or why a draft was abandoned. */
+export interface AuditStewardRecord {
+  note: string;
+  recorded_by: string | null;
+  date: string | null;
+  proposal: { id: string; proposal_id: string; title: string } | null;
+}
+
+export interface GovernanceAudit {
+  response?: AuditStewardRecord | null;
+  abandonment?: AuditStewardRecord | null;
+  /** A draft: its auditor or a steward of the ecosystem. */
+  caller_can_abandon?: boolean;
+  /** A published audit with no response yet: a steward of the ecosystem. */
+  caller_can_respond?: boolean;
+}
+
+/** POST /safeguards/audits/:id/respond. */
+export interface AuditResponseRequest {
+  note: string;
+  proposal_id?: string;
+}
+
+export interface DomainDetail {
+  /** A steward of the ecosystem who does not steward this domain: may change its steward or status, with a reason. */
+  caller_can_change_authority?: boolean;
+}
+
+// G-Exchange: shares, needs and the collaborations they lead to (see client/src/AGENTS.md "Exchange (G-Exchange)").
+export type SharesNeedsType = 'share' | 'need' | 'solution';
+export type SharesNeedsVisibility = 'public' | 'ecosystem' | 'domain';
+export type SharesNeedsStatus = 'active' | 'fulfilled' | 'withdrawn';
+/** Why the caller may not answer a post; null when they may. */
+export type SharesNeedsRespondBlocked = 'OWN_POST' | 'POST_CLOSED' | 'AUTHOR_INACTIVE' | 'CONSENT_PENDING' | 'MEMBERSHIP_REQUIRED';
+
+/** A status move the author may make now, labelled by the server. */
+export interface SharesNeedsMove {
+  status: SharesNeedsStatus;
+  label: string;
+}
+
+export interface SharesNeedsResponder {
+  member_id: string;
+  name: string;
+}
+
+/** One share, need or solution as every exchange read and write returns it, with the caller's flags. */
+export interface SharesNeedsPost {
+  id: string;
+  type: SharesNeedsType;
+  title: string;
+  description: string | null;
+  category: string | null;
+  capacity: string | null;
+  tags: string[];
+  visibility: SharesNeedsVisibility;
+  status: SharesNeedsStatus;
+  ecosystem_id: string;
+  ecosystem_name: string | null;
+  domain_id: string;
+  domain_name: string | null;
+  author_member_id: string | null;
+  author_name: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Whole days since it was posted, reopened or kept open. */
+  age_days: number;
+  status_reason: string | null;
+  status_changed_at: string | null;
+  fulfilled_by_member_id: string | null;
+  fulfilled_by_name: string | null;
+  hidden: boolean;
+  hidden_reason: string | null;
+  hidden_at: string | null;
+  hidden_by_name: string | null;
+  /** Author and moderators only; null for everyone else. */
+  response_count: number | null;
+  /** Author only; empty for everyone else. */
+  responders: SharesNeedsResponder[];
+  caller_is_author: boolean;
+  caller_can_edit: boolean;
+  /** A steward of the post's ecosystem. */
+  caller_can_moderate: boolean;
+  caller_can_manage: boolean;
+  /** The author, while nobody has answered. */
+  caller_can_delete: boolean;
+  caller_can_respond: boolean;
+  respond_blocked: SharesNeedsRespondBlocked | null;
+  caller_has_responded: boolean;
+  caller_conversation_id: string | null;
+  /** The author's moves now; empty for everyone else. */
+  allowed_next: SharesNeedsMove[];
+}
+
+/** Fields an author writes on create (plus ecosystem_id/domain_id) and edit. */
+export interface SharesNeedsDraft {
+  type: SharesNeedsType;
+  title: string;
+  description: string | null;
+  category: string | null;
+  capacity: string | null;
+  visibility: SharesNeedsVisibility;
+  tags?: string[];
+}
+
+export interface SharesNeedsStatusChange {
+  status: SharesNeedsStatus;
+  note?: string;
+  fulfilled_by_member_id?: string;
+}
+
+export interface SharesNeedsRespondResult {
+  conversation_id: string;
+  created: boolean;
+  post: SharesNeedsPost;
+}
+
+export interface ExchangeEcosystemRef {
+  id: string;
+  name: string;
+}
+
+/** GET /discover/shares-needs/admin: posts in the ecosystems the caller stewards. */
+export interface SharesNeedsModerationPage extends PaginatedResponse<SharesNeedsPost> {
+  stats: { total: number; shares: number; needs: number; solutions: number; active: number; fulfilled: number; withdrawn: number; hidden: number };
+  moderated_ecosystems: ExchangeEcosystemRef[];
+}
+
+export interface PublicProfileResponse {
+  /** GET /profiles/me only: every post the caller wrote, in every status, visibility and hidden state, newest first. */
+  own_publications?: SharesNeedsPost[];
+}
+
+export type CollaborationStatus = 'proposed' | 'active' | 'completed' | 'dissolved';
+export type CollaborationEndOutcome = 'completed' | 'dissolved';
+
+export interface CollaborationSide {
+  ecosystem_id: string;
+  ecosystem_name: string | null;
+}
+
+export interface CollaborationApprovalRecord extends CollaborationSide {
+  approved_by: string | null;
+  approved_at: string | null;
+}
+
+export interface CollaborationLinkedPost {
+  id: string;
+  title: string;
+  type: SharesNeedsType;
+  status: SharesNeedsStatus;
+}
+
+/** GET /discover/collaborations/:id and every collaboration write. */
+export interface CollaborationDetailView {
+  id: string;
+  title: string;
+  description: string | null;
+  status: CollaborationStatus;
+  engagement_tier: string;
+  terms: Record<string, unknown> | null;
+  required_agreement_ids: string[];
+  source_domain_id: string;
+  source_domain_name: string | null;
+  source_ecosystem_id: string;
+  source_ecosystem_name: string | null;
+  target_domain_id: string;
+  target_domain_name: string | null;
+  target_ecosystem_id: string;
+  target_ecosystem_name: string | null;
+  started_date: string | null;
+  review_date: string | null;
+  review_due: boolean;
+  created_at: string | null;
+  proposed_by_member_id: string | null;
+  proposed_by_name: string | null;
+  approvals: CollaborationApprovalRecord[];
+  awaiting: CollaborationSide[];
+  caller_can_approve_for: CollaborationSide[];
+  caller_can_end: boolean;
+  end_outcomes: CollaborationEndOutcome[];
+  ended_by_name: string | null;
+  end_reason: string | null;
+  ended_at: string | null;
+  linked_publications: CollaborationLinkedPost[];
+  /** FX-Exchange: a steward of either side may record a review of an active collaboration. */
+  caller_can_review: boolean;
+  /** The last recorded review: who, what it found, when (it also set `review_date`). */
+  reviewed_by_name: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+}
+
+/** FX-Exchange: POST /discover/collaborations/:id/review (next review date YYYY-MM-DD; omitted = a year out). */
+export interface CollaborationReview {
+  note: string;
+  next_review_date?: string;
+}
+
+export interface CollaborationProposal {
+  source_domain_id: string;
+  target_domain_id: string;
+  title: string;
+  description?: string | null;
+  engagement_tier?: string;
+  terms?: Record<string, unknown> | null;
+  /** YYYY-MM-DD */
+  review_date?: string;
+  linked_share_need_id?: string;
+}
+
+// G-Onboard: per-ecosystem membership status on /auth/me, join answers, steward member moves and the newcomers list
+// (see client/src/AGENTS.md "Onboarding (G-Onboard)"; shapes of neos_agent api/auth.py, api/ecosystems.py, api/members.py, api/onboarding.py).
+export type MembershipRole = 'user' | 'mod' | 'admin' | 'owner';
+
+export interface AuthMeResponse {
+  /** Co-creator/builder on the caller's home-ecosystem row (set server-side; never derived from a member profile). */
+  is_platform_admin?: boolean;
+}
+
+export interface EcosystemSummary {
+  /** /auth/me `ecosystems[]` only: the caller's own row status there (active, pending_consent, exited, suspended, ...). */
+  membership_status?: string;
+  /** /auth/me `ecosystems[]` only: the caller's role tier there. */
+  role?: MembershipRole;
+  /** /auth/me `ecosystems[]` only (FX-Onboard): the server's "steward of this ecosystem" (mod+ or a founder there). */
+  is_steward?: boolean;
+}
+
+/** POST /ecosystems/:id/join (201 new membership, 200 an existing row changed). */
+export interface JoinEcosystemResponse {
+  status: 'joined' | 'consent_required';
+  outcome: 'joined' | 'gate_cleared' | 're_entry';
+  membership_status: 'active' | 'pending_consent';
+  message: string;
+  ecosystem_name: string;
+  required_agreements: RequiredAgreement[];
+}
+
+/** A status move the caller may make on this member now, with the server's own label and confirm sentence. */
+export interface MemberMove {
+  status: string;
+  label: string;
+  confirm: string;
+}
+
+export interface MemberProfileResponse {
+  /** Empty when the caller may make no move. */
+  caller_member_moves?: MemberMove[];
+}
+
+export type NewcomerOrientationStatus = 'not_started' | 'in_progress' | 'complete' | 'opted_out';
+
+/** GET /onboarding/newcomers item: a pending member, or one who joined in the last 30 days, in an ecosystem the caller stewards. */
+export interface NewcomerItem {
+  id: string;
+  display_name: string;
+  ecosystem_id: string;
+  ecosystem_name: string;
+  current_status: string;
+  joined_at: string | null;
+  required_agreements: RequiredAgreement[];
+  orientation_status: NewcomerOrientationStatus;
+  /** Pending with nothing left to consent to: a steward confirms them on their member page. */
+  stuck: boolean;
+}
+
+export interface NewcomersResponse {
+  items: NewcomerItem[];
+  total: number;
 }

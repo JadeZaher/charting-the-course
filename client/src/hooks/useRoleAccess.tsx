@@ -194,11 +194,13 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
   },
 };
 
-function profileToRole(profile: string | null | undefined): UserRole {
+// FX-Onboard: 'admin' is the server's platform-admin flag only; a co_creator/builder profile administers its own
+// ecosystem (server-checked per resource), so here it reads like a collaborator's.
+function profileToRole(profile: string | null | undefined, isPlatformAdmin: boolean): UserRole {
+  if (isPlatformAdmin) return 'admin';
   switch (profile) {
     case 'co_creator':
     case 'builder':
-      return 'admin';
     case 'collaborator':
       return 'facilitator';
     case 'townhall':
@@ -218,13 +220,12 @@ function roleToDisplayName(role: UserRole): string {
 }
 
 /**
- * Hook for role-based access control.
- * Derives role from the DID auth member's profile field.
+ * Hook for role-based access control: admin from the server's platform-admin flag, the rest from the member profile.
  */
 export function useRoleAccess() {
-  const { member, isLoading } = useAuth();
+  const { member, isLoading, isPlatformAdmin } = useAuth();
 
-  const role = useMemo(() => profileToRole(member?.profile), [member?.profile]);
+  const role = useMemo(() => profileToRole(member?.profile, isPlatformAdmin), [member?.profile, isPlatformAdmin]);
   const permissions = useMemo(
     () => rolePermissions[role] || rolePermissions.viewer,
     [role]

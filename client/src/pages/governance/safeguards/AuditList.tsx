@@ -9,6 +9,7 @@ import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useAudits } from '@/hooks/use-care';
 import { ArrowLeft } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
 const FILTERS: FilterDef[] = [
@@ -100,7 +101,7 @@ export default function AuditList() {
             <Link href={`/safeguards/audits/${audit.id}`} aria-label={`View audit by ${audit.auditor}`}>
               <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Governance audit</p><h2 className="mt-1 text-lg font-semibold">{audit.auditor}</h2></div><Badge variant={statusVariant(audit.status)}>{audit.status}</Badge></div>
               <div className="mt-4 flex flex-wrap gap-2">{audit.overall_health && <Badge className={healthColorClass(audit.overall_health)}>{audit.overall_health}</Badge>}{audit.trigger_type && <Badge variant="outline">{audit.trigger_type}</Badge>}</div>
-              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div className="col-span-2"><dt className="text-xs text-muted-foreground">Scope</dt><dd className="mt-1 font-medium">{audit.audit_scope || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(audit.created_at).toLocaleDateString()}</dd></div><div><dt className="text-xs text-muted-foreground">Completed</dt><dd className="mt-1 font-medium">{audit.completed_at ? new Date(audit.completed_at).toLocaleDateString() : '-'}</dd></div><div className="col-span-2"><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(audit.ecosystem_id) || '-'}</dd></div></dl>
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div className="col-span-2"><dt className="text-xs text-muted-foreground">Scope</dt><dd className="mt-1 font-medium">{audit.audit_scope || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{formatDate(audit.created_at)}</dd></div><div><dt className="text-xs text-muted-foreground">Completed</dt><dd className="mt-1 font-medium">{audit.completed_at ? formatDate(audit.completed_at) : '-'}</dd></div><div className="col-span-2"><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(audit.ecosystem_id) || '-'}</dd></div></dl>
             </Link>
           </CollectionCard>
         ))}

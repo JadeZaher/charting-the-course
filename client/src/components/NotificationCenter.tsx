@@ -57,7 +57,7 @@ export function NotificationCenter() {
             {(data) => (
               <ul className="divide-y divide-border">
                 {data.items.map((item) => {
-                  const due = dueStatus(item.due, now, formatDue);
+                  const due = dueStatus(item.due, item.overdue, now, formatDue);
                   return (
                     <li key={item.uid}>
                       <Link

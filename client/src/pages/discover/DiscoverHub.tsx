@@ -15,6 +15,8 @@ import SharesNeedsList from './SharesNeedsList';
 import CollaborationsList from './CollaborationsList';
 import SolutionsCatalogue from './SolutionsCatalogue';
 import { type DiscoverTab, discoverTabFromQuery, discoverTabHref, isDiscoverTab } from './discover-tabs';
+import { PostDetailDialog } from './PostDetailDialog';
+import { discoverWithoutPost, postIdFromQuery } from '@/lib/exchange';
 
 function formatFoundedDate(value: string | null) {
   if (!value) return null;
@@ -191,6 +193,9 @@ export default function DiscoverHub() {
     if (!isDiscoverTab(tab) || tab === activeTab) return;
     navigate(discoverTabHref(location, queryString, tab), { replace: true });
   };
+  // ?post=<id> opens one post's detail over the hub (cards' "Details", the bell's "Still open?").
+  const openPostId = useMemo(() => postIdFromQuery(queryString), [queryString]);
+  const closePost = () => navigate(discoverWithoutPost(location, queryString), { replace: true });
 
   return (
     <div className="space-y-10">
@@ -256,6 +261,8 @@ export default function DiscoverHub() {
           <CollaborationsList searchProp={search} />
         </TabsContent>
       </Tabs>
+
+      <PostDetailDialog postId={openPostId} onClose={closePost} />
     </div>
   );
 }

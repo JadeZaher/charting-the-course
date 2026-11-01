@@ -193,6 +193,11 @@ export const affects = {
   notifications: [keys.notifications.all],
   agentTokens: [keys.agentTokens.all],
   chatSessions: [keys.chatSessions.all],
+  // G-Exchange
+  /** A post write: every list and detail of posts, decisions about them, profiles, the queue ("still open?") and messages (an answer opens a conversation). */
+  exchangePosts: [keys.sharesNeeds.all, keys.myDecisions.all, keys.profiles.all, keys.nextSteps.all, keys.conversations.all],
+  /** A collaboration write: its lists and detail, and the stewards' approve/review queue. */
+  exchangeCollaborations: [keys.collaborations.all, keys.nextSteps.all],
 } as const satisfies Record<string, readonly QueryKey[]>;
 
 /** Roots whose server reads filter by the selected-ecosystem cookie; refetched when the selection changes. */
@@ -217,3 +222,25 @@ export const ecosystemScoped = [
   keys.safeguards.all,
   keys.teams.all,
 ] as const satisfies readonly QueryKey[];
+
+// G-Maint
+/** Health keys under the safeguards and audits roots, so `affects.audits` refreshes them. */
+export const healthKeys = {
+  snapshot: (params: ListParams = {}) => [...keys.safeguards.all, 'snapshot', params] as const,
+  auditExplain: (id: RecordId) => [...keys.audits.detail(id), 'explain'] as const,
+};
+
+// G-Onboard
+/** Onboarding keys under the `onboarding` root, so `affects.onboarding` and the ecosystem switch reach them. */
+export const onboardingKeys = {
+  /** The steward's newcomers list (GET /onboarding/newcomers). */
+  newcomers: () => [...keys.onboarding.all, 'newcomers'] as const,
+};
+
+/** What each onboarding write invalidates (lib/ecosystem-join.ts, hooks/use-onboarding.ts). */
+export const onboardingAffects = {
+  /** A join: the catalogue's buttons, the discover feed, the newcomer's queue, and the ecosystem's member and newcomer lists. */
+  joinEcosystem: [keys.ecosystems.all, keys.discover.all, keys.nextSteps.all, keys.members.all, keys.onboarding.all],
+  /** A steward's member move: member pages and lists, public profiles, the dashboard, the queue and the newcomers list. */
+  memberMove: [keys.members.all, keys.dashboard.all, keys.profiles.all, keys.nextSteps.all, keys.onboarding.all],
+} as const satisfies Record<string, readonly QueryKey[]>;

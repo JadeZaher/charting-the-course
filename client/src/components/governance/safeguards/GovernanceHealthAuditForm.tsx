@@ -13,7 +13,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useStartAudit, useSaveAuditDraft, usePublishAudit } from '@/hooks/use-care';
+import { useHealthSnapshot } from '@/hooks/use-health';
 import { useEcosystem } from '@/contexts/EcosystemContext';
+import { bandLabel, formatMeasured, ratingsNeeded } from '@/lib/health';
 import type { AuditDraftFields, GovernanceAudit, RatedIndicator } from '@/types/api';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
@@ -42,14 +44,19 @@ interface GovernanceHealthAuditFormProps {
   onOpenChange: (open: boolean) => void;
   /** A draft the caller is recording; without it the form starts a new audit. */
   audit?: GovernanceAudit;
+  /** The ecosystem to audit when starting a new audit; defaults to the selected one. */
+  ecosystemId?: string;
+  /** Nobody outside the stewards can record this audit: say so before it is saved. */
+  selfAssessment?: boolean;
 }
 
 /** Record a governance health audit by hand: rate indicators, write findings, save a draft, publish. */
-export function GovernanceHealthAuditForm({ open, onOpenChange, audit }: GovernanceHealthAuditFormProps) {
+export function GovernanceHealthAuditForm({ open, onOpenChange, audit, ecosystemId, selfAssessment }: GovernanceHealthAuditFormProps) {
   const { selected: selectedEcosystem } = useEcosystem();
   const startMutation = useStartAudit();
   const saveMutation = useSaveAuditDraft();
   const publishMutation = usePublishAudit();
+  const auditedEcosystemId = audit?.ecosystem_id ?? ecosystemId ?? selectedEcosystem?.id;
   // A draft created by this dialog is kept, so a failed publish retries on it instead of starting another.
   const [draftId, setDraftId] = useState<string | undefined>(audit?.id);
 
@@ -73,6 +80,14 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit }: Governa
     setConfirmingPublish(false);
   }, [open, audit]);
 
+  const snapshot = useHealthSnapshot({
+    ecosystem_id: open ? auditedEcosystemId : undefined,
+    from: periodStart || undefined,
+    to: periodEnd || undefined,
+  });
+  const liveValues = new Map((snapshot.data?.indicators ?? []).map((value) => [value.indicator_id, value]));
+  const requiredIds = new Set(ratingsNeeded(snapshot.data?.indicators ?? []));
+  const missingRequired = Array.from(requiredIds).filter((id) => !ratings[id] || ratings[id] === NOT_RATED);
   const ratedCount = Object.values(ratings).filter((value) => value !== NOT_RATED).length;
   const busy = startMutation.isPending || saveMutation.isPending || publishMutation.isPending;
   const failure = startMutation.error ?? saveMutation.error ?? publishMutation.error;
@@ -101,8 +116,8 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit }: Governa
       await saveMutation.mutateAsync({ id: draftId, data: fields() });
       return draftId;
     }
-    if (!selectedEcosystem) throw new Error('Choose an ecosystem first');
-    const created = await startMutation.mutateAsync({ ecosystem_id: selectedEcosystem.id, ...fields() });
+    if (!auditedEcosystemId) throw new Error('Choose an ecosystem first');
+    const created = await startMutation.mutateAsync({ ecosystem_id: auditedEcosystemId, ...fields() });
     setDraftId(created.id);
     return created.id;
   };
@@ -135,11 +150,16 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit }: Governa
           </DialogTitle>
           <DialogDescription>
             You are the auditor. Rate each indicator you have looked at, write what you found, and publish when you are done.
-            The health score is the average of your ratings. Nothing here waits for an AI.
+            The values beside each indicator are worked out from the records; the rating is your call.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {selfAssessment && (
+            <p className="border-2 border-warning bg-warning/10 p-3 text-sm">
+              This will be a self-assessment: nobody outside the stewards can record it.
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label htmlFor="audit-scope">Scope</Label>
@@ -164,21 +184,35 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit }: Governa
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Indicators</legend>
-            {GHI_INDICATORS.map((indicator) => (
-              <div key={indicator.id} className="flex items-center justify-between gap-3 border-2 border-strong-border px-2 py-1.5">
-                <div className="min-w-0">
-                  <Label htmlFor={`rating-${indicator.id}`} className="text-sm">{indicator.name}</Label>
-                  <p className="text-xs text-muted-foreground">{indicator.hint}</p>
+            {snapshot.isError && <p className="text-xs text-muted-foreground">The live values could not be loaded. You can still rate.</p>}
+            {GHI_INDICATORS.map((indicator) => {
+              const live = liveValues.get(indicator.id);
+              const needed = requiredIds.has(indicator.id);
+              return (
+                <div key={indicator.id} className="flex flex-col gap-2 border-2 border-strong-border px-2 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div className="min-w-0">
+                    <Label htmlFor={`rating-${indicator.id}`} className="text-sm">
+                      {indicator.name}{needed ? ' (required to publish)' : ''}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">{indicator.hint}</p>
+                    {live && (
+                      <p className="text-xs">
+                        {live.computable
+                          ? <><span className="font-semibold">{formatMeasured(live.measured_value, live.unit)}</span> · {bandLabel(live.band)} by the framework · {live.basis}</>
+                          : <span className="text-muted-foreground">Not computable yet</span>}
+                      </p>
+                    )}
+                  </div>
+                  <Select value={ratings[indicator.id] ?? NOT_RATED} onValueChange={(value) => setRatings((previous) => ({ ...previous, [indicator.id]: value }))}>
+                    <SelectTrigger id={`rating-${indicator.id}`} className="min-h-11 w-full shrink-0 sm:w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NOT_RATED}>Not rated</SelectItem>
+                      {RATINGS.map((rating) => <SelectItem key={rating.value} value={rating.value}>{rating.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={ratings[indicator.id] ?? NOT_RATED} onValueChange={(value) => setRatings((previous) => ({ ...previous, [indicator.id]: value }))}>
-                  <SelectTrigger id={`rating-${indicator.id}`} className="w-32 shrink-0"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NOT_RATED}>Not rated</SelectItem>
-                    {RATINGS.map((rating) => <SelectItem key={rating.value} value={rating.value}>{rating.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
+              );
+            })}
           </fieldset>
 
           <div className="space-y-2">
@@ -192,20 +226,20 @@ export function GovernanceHealthAuditForm({ open, onOpenChange, audit }: Governa
 
           {confirmingPublish && (
             <div className="border-2 border-warning bg-warning/10 p-3 text-sm" role="alert">
-              Publishing sets the ecosystem's health score from your {ratedCount} rating{ratedCount === 1 ? '' : 's'} and locks the audit. You can't edit it afterwards.
+              Publishing freezes the measured values with your {ratedCount} rating{ratedCount === 1 ? '' : 's'} and locks the audit. You can't edit it afterwards.{missingRequired.length > 0 ? ` Still to rate: ${missingRequired.join(', ')}.` : ''}
             </div>
           )}
         </div>
 
         {failure && (
-          <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          <div role="alert" className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
             {apiErrorMessage(failure)}
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button variant="secondary" onClick={handleSave} disabled={busy}>
+          <Button variant="outline" className="min-h-11" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+          <Button variant="secondary" className="min-h-11" onClick={handleSave} disabled={busy}>
             {busy && !confirmingPublish ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Save draft
           </Button>

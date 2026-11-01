@@ -15,6 +15,7 @@ import { useRecordRepairCheckin } from '@/hooks/use-care';
 import type { RepairAgreement } from '@/types/api';
 import { CalendarCheck, CheckCircle2, Loader2, Clock } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { formatDate } from '@/lib/utils';
 
 type CheckinMilestone = '30' | '60' | '90';
 
@@ -43,16 +44,12 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
   const getDateDisplay = (dateKey: keyof RepairAgreement): string => {
     const val = repairAgreement[dateKey];
     if (!val) return 'Not scheduled';
-    return new Date(String(val)).toLocaleDateString();
+    return formatDate(String(val)); // a date-only value is that calendar day, never the UTC midnight before it
   };
 
-  // A scheduled check-in with no notes whose date has passed.
-  const isOverdue = (dateKey: keyof RepairAgreement): boolean => {
-    const val = repairAgreement[dateKey];
-    if (!val || isComplete) return false;
-    const notesKey = dateKey.replace('_date', '_notes') as keyof RepairAgreement;
-    return !repairAgreement[notesKey] && new Date(String(val)) < new Date(new Date().toDateString());
-  };
+  // FX-Maint (F18): the server decides overdue (services/dates); this marks the next check-in it flagged.
+  const isOverdue = (dateKey: keyof RepairAgreement): boolean =>
+    !isComplete && repairAgreement.next_checkin_overdue && repairAgreement[dateKey] === repairAgreement.next_checkin_date;
 
   const isComplete = repairAgreement.status === 'fulfilled' || repairAgreement.status === 'completed';
 
@@ -115,7 +112,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
           {isComplete ? (
             <div className="flex items-center gap-2 border border-success bg-success/10 p-3 text-sm text-success">
               <CheckCircle2 className="h-4 w-4" />
-              Completed {repairAgreement.completed_date ? new Date(repairAgreement.completed_date).toLocaleDateString() : ''}
+              Completed {repairAgreement.completed_date ? formatDate(repairAgreement.completed_date) : ''}
             </div>
           ) : null}
 

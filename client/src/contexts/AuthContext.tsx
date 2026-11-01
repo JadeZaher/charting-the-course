@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword, registerWithPassword, resetDid, linkDid, getOAuthUrl, fetchOAuthProviders } from '@/lib/api-client';
+import { fetchMe, fetchChallenge, fetchVerify, fetchLogout, loginWithPassword, registerAccount, resetDid, linkDid, getOAuthUrl, fetchOAuthProviders } from '@/lib/api-client';
 import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, clearKeyPair, publicKeyToDid } from '@/lib/did-auth';
-import type { MemberSummary, EcosystemSummary, OAuthProvider, PendingConsentGate } from '@/types/api';
+import type { AuthMeResponse, MemberSummary, EcosystemSummary, OAuthProvider, PendingConsentGate } from '@/types/api';
 import { resolveExternalUrl } from '@/lib/media';
+import { apiErrorMessage } from '@/lib/api-error-message';
 
 /** Result of a sign-in: whether a membership still waits on the agreement-consent gate. */
 export interface SignInOutcome {
@@ -11,16 +12,21 @@ export interface SignInOutcome {
 }
 
 interface AuthContextType {
+  /** The server's default row: the oldest active membership, else the oldest. */
   member: MemberSummary | null;
+  /** Every membership, each with the caller's own `membership_status` and `role` there. */
   ecosystems: EcosystemSummary[];
   /** Memberships behind their ecosystem's agreement-consent gate (from /auth/me). */
   pendingConsents: PendingConsentGate[];
+  /** Platform admin, set server-side (/auth/me `is_platform_admin`): the one source; never derived from a profile. */
+  isPlatformAdmin: boolean;
   oauthProviders: OAuthProvider[];
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (displayName?: string) => Promise<SignInOutcome>;
   loginWithCredentials: (username: string, password: string) => Promise<SignInOutcome>;
-  register: (username: string, password: string, displayName?: string) => Promise<SignInOutcome>;
+  /** `ecosystemId` places the newcomer in the ecosystem their sign-up link names (lib/signup-ecosystem.ts). */
+  register: (username: string, password: string, displayName?: string, ecosystemId?: string) => Promise<SignInOutcome>;
   loginWithOAuth: (provider: string) => Promise<void>;
   regenerateDid: () => Promise<void>;
   logout: () => Promise<void>;
@@ -35,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [member, setMember] = useState<MemberSummary | null>(null);
   const [ecosystems, setEcosystems] = useState<EcosystemSummary[]>([]);
   const [pendingConsents, setPendingConsents] = useState<PendingConsentGate[]>([]);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,21 +58,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie = 'neos_selected_ecosystems=; Max-Age=0; path=/;';
   }
 
+  /** Store one /auth/me answer. */
+  function applySession(data: AuthMeResponse) {
+    setMember(data.member);
+    setEcosystems(data.ecosystems);
+    setPendingConsents(data.pending_consents ?? []);
+    setIsPlatformAdmin(data.is_platform_admin === true);
+  }
+
+  function clearSession() {
+    setMember(null);
+    setEcosystems([]);
+    setPendingConsents([]);
+    setIsPlatformAdmin(false);
+  }
+
   /** Load /auth/me; the outcome says whether the signed-in user still faces a consent gate. */
   async function checkSession(): Promise<SignInOutcome> {
     try {
       const data = await fetchMe();
-      const gates = data.pending_consents ?? [];
-      setMember(data.member);
-      setEcosystems(data.ecosystems);
-      setPendingConsents(gates);
-      return { consentRequired: gates.length > 0 };
+      applySession(data);
+      return { consentRequired: (data.pending_consents ?? []).length > 0 };
     } catch {
       // No valid session — clear any stale cookies
       clearAuthCookies();
-      setMember(null);
-      setEcosystems([]);
-      setPendingConsents([]);
+      clearSession();
       return { consentRequired: false };
     } finally {
       setIsLoading(false);
@@ -125,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Session cookie is set by the response. Now fetch full member data.
       return await checkSession();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setError(apiErrorMessage(err));
       setIsLoading(false);
       throw err;
     }
@@ -141,22 +158,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await checkSession();
     } catch (err) {
       clearAuthCookies();
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setError(apiErrorMessage(err));
       setIsLoading(false);
       throw err;
     }
   }, []);
 
-  const register = useCallback(async (username: string, password: string, displayName?: string) => {
+  const register = useCallback(async (username: string, password: string, displayName?: string, ecosystemId?: string) => {
     setError(null);
     setIsLoading(true);
 
     try {
-      const registered = await registerWithPassword(username, password, displayName);
+      const registered = await registerAccount({ username, password, display_name: displayName, ecosystem_id: ecosystemId });
       const session = await checkSession();
       return { consentRequired: session.consentRequired || registered.status === 'consent_required' };
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(apiErrorMessage(err));
       setIsLoading(false);
       throw err;
     }
@@ -171,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to OAuth provider — callback will set cookie and redirect back
       window.location.assign(safeUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'OAuth failed');
+      setError(apiErrorMessage(err));
       throw err;
     }
   }, []);
@@ -199,17 +216,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Refresh session data
       await checkSession();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'DID regeneration failed');
+      setError(apiErrorMessage(err));
       throw err;
     }
   }, []);
 
   const refreshSession = useCallback(async () => {
     try {
-      const data = await fetchMe();
-      setMember(data.member);
-      setEcosystems(data.ecosystems);
-      setPendingConsents(data.pending_consents ?? []);
+      applySession(await fetchMe());
     } catch {
       // Silent — session still valid, just couldn't refresh
     }
@@ -222,9 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Proceed with local cleanup even if server call fails
     }
     clearAuthCookies();
-    setMember(null);
-    setEcosystems([]);
-    setPendingConsents([]);
+    clearSession();
     queryClient.clear();
   }, [queryClient]);
 
@@ -234,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         member,
         ecosystems,
         pendingConsents,
+        isPlatformAdmin,
         oauthProviders,
         isAuthenticated: !!member,
         isLoading,

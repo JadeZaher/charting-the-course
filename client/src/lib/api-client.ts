@@ -1,4 +1,4 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, ConsentSubmitResult, TestReport, TestReportSubmitResult, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, ExitListItem, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState, AuditDraftFields } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, ConsentSubmitResult, TestReport, TestReportSubmitResult, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, ExitListItem, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState, AuditDraftFields, AgreementStatusChange, HealthSnapshot } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
 import type { EmergencyDeclaration, EmergencyOverview, EmergencyRecord, EmergencyReview, ExitFiling, ExitView, PortableRecord } from '@/types/api'; // G-Safety
 import type { ExplainKind, NextStepsResponse, StatusExplanation } from '@/types/api'; // G-Next
@@ -82,14 +82,6 @@ export function setCredentials(username: string, password: string): Promise<{ su
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
-  });
-}
-
-export function registerWithPassword(username: string, password: string, display_name?: string): Promise<AuthVerifyResponse> {
-  return apiFetch<AuthVerifyResponse>('/api/v1/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, display_name }),
   });
 }
 
@@ -284,16 +276,9 @@ export function deleteMyDecision(id: string): Promise<{ deleted: boolean; id: st
   return apiFetch<{ deleted: boolean; id: string }>(`/api/v1/my-decisions/${id}`, { method: 'DELETE' });
 }
 
-// Onboarding API
-export function fetchOnboardings(params?: Record<string, string>): Promise<{ items: OnboardingState[]; total: number }> {
-  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch<{ items: OnboardingState[]; total: number }>(`/api/v1/onboarding${qs}`);
-}
+// Onboarding API (the ceremony is read-only history)
 export function fetchOnboardingCeremony(memberId: string): Promise<OnboardingState> {
   return apiFetch<OnboardingState>(`/api/v1/onboarding/${memberId}/ceremony`);
-}
-export function submitCeremonyConsent(memberId: string, data: CeremonyConsentRequest): Promise<OnboardingState> {
-  return apiFetch<OnboardingState>(`/api/v1/onboarding/${memberId}/ceremony`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
 // Conflicts API
@@ -327,9 +312,6 @@ export function createEcosystemRecord(data: Record<string, any>): Promise<Ecosys
 }
 export function updateEcosystemRecord(id: string, data: Record<string, any>): Promise<EcosystemDetail> {
   return apiFetch<EcosystemDetail>(`/api/v1/ecosystems/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function requestJoinEcosystem(id: string): Promise<{ status: string; message: string }> {
-  return apiFetch<{ status: string; message: string }>(`/api/v1/ecosystems/${id}/join`, { method: 'POST' });
 }
 export function fetchEcosystemQuizzes(ecosystemId: string): Promise<{ quizzes: QuizListItem[] }> {
   return apiFetch<{ quizzes: QuizListItem[] }>(`/api/v1/ecosystems/${ecosystemId}/quizzes`);
@@ -490,41 +472,10 @@ export function requestAudit(data: Record<string, any>): Promise<GovernanceAudit
   return apiFetch<GovernanceAudit>('/api/v1/safeguards/audits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
-// Shares & Needs API
-export function fetchSharesNeeds(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeeds>> {
-  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch<PaginatedResponse<SharesNeeds>>(`/api/v1/discover/shares-needs${qs}`);
-}
-export function fetchSharesNeedsAdmin(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeeds> & { stats: { total: number; shares: number; needs: number; solutions: number; active: number; fulfilled: number; withdrawn: number } }> {
-  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch(`/api/v1/discover/shares-needs/admin${qs}`);
-}
-export function createSharesNeeds(data: Record<string, any>): Promise<SharesNeeds> {
-  return apiFetch<SharesNeeds>('/api/v1/discover/shares-needs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function updateSharesNeeds(id: string, data: Record<string, any>): Promise<SharesNeeds> {
-  return apiFetch<SharesNeeds>(`/api/v1/discover/shares-needs/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function updateSharesNeedsStatus(id: string, status: string): Promise<SharesNeeds> {
-  return apiFetch<SharesNeeds>(`/api/v1/discover/shares-needs/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
-}
-export function deleteSharesNeeds(id: string): Promise<{ ok: boolean; message: string }> {
-  return apiFetch<{ ok: boolean; message: string }>(`/api/v1/discover/shares-needs/${id}`, { method: 'DELETE' });
-}
-
-// Collaborations API
+// Collaborations API (the list; every other exchange call is in the G-Exchange section below)
 export function fetchCollaborations(params?: Record<string, string>): Promise<PaginatedResponse<Collaboration>> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch<PaginatedResponse<Collaboration>>(`/api/v1/discover/collaborations${qs}`);
-}
-export function fetchCollaboration(id: string): Promise<Collaboration> {
-  return apiFetch<Collaboration>(`/api/v1/discover/collaborations/${id}`);
-}
-export function createCollaboration(data: Record<string, any>): Promise<Collaboration> {
-  return apiFetch<Collaboration>('/api/v1/discover/collaborations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function activateCollaboration(id: string): Promise<Collaboration> {
-  return apiFetch<Collaboration>(`/api/v1/discover/collaborations/${id}/activate`, { method: 'POST' });
 }
 
 // Agent tokens (MCP access)
@@ -600,12 +551,6 @@ export function fetchEcosystemSharesNeeds(ecosystemId: string, params?: Record<s
   return apiFetch(`/api/v1/ecosystems/${ecosystemId}/shares-needs${qs}`);
 }
 
-// Domain-scoped shares/needs
-export function fetchDomainSharesNeeds(domainId: string, params?: Record<string, string>): Promise<{ items: SharesNeeds[] }> {
-  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  return apiFetch(`/api/v1/domains/${domainId}/shares-needs${qs}`);
-}
-
 // Notifications API
 export function subscribeNotifications(data: { endpoint: string; keys: { p256dh: string; auth: string }; notification_types?: Record<string, boolean> }): Promise<{ status: string }> {
   return apiFetch<{ status: string }>('/api/v1/notifications/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -618,11 +563,6 @@ export function fetchNotificationPreferences(): Promise<{ notification_types: Re
 }
 export function updateNotificationPreferences(types: Record<string, boolean>): Promise<{ status: string; notification_types: Record<string, boolean> }> {
   return apiFetch<{ status: string; notification_types: Record<string, boolean> }>('/api/v1/notifications/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notification_types: types }) });
-}
-
-// Member status transition
-export function transitionMemberStatus(memberId: string, data: { status: string; trigger?: string; notes?: string }): Promise<MemberDetail> {
-  return apiFetch<MemberDetail>(`/api/v1/members/${memberId}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 
 // Course update
@@ -768,14 +708,6 @@ export function setNeosDenReady(memberId: string, ready: boolean): Promise<CtcHa
   return apiFetch<CtcHandoffItem>(`/api/v1/admin/ctc-handoff/${memberId}`, jsonBody({ ready_for_neos_den: ready }));
 }
 
-// ---------------------------------------------------------------------------
-// Member invite
-// ---------------------------------------------------------------------------
-
-export function resendMemberInvite(memberId: string): Promise<{ success: boolean; message?: string; resent_at?: string }> {
-  return apiFetch<{ success: boolean; message?: string; resent_at?: string }>(`/api/v1/members/${memberId}/resend-invite`, { method: 'POST' });
-}
-
 // G-Care
 
 export function updateAudit(id: string, data: AuditDraftFields): Promise<GovernanceAudit> {
@@ -849,4 +781,168 @@ export function fetchMyNextSteps(): Promise<NextStepsResponse> {
 }
 export function fetchStatusExplanation(kind: ExplainKind, id: string): Promise<StatusExplanation> {
   return apiFetch<StatusExplanation>(`/api/v1/explain/${kind}/${id}`);
+}
+
+// G-Maint: agreement review outcomes and the health snapshot.
+export function changeAgreementStatus(id: string, data: AgreementStatusChange): Promise<AgreementDetail> {
+  return apiFetch<AgreementDetail>(`/api/v1/agreements/${id}/status`, jsonBody(data));
+}
+export function fetchHealthSnapshot(params: { ecosystem_id: string; from?: string; to?: string }): Promise<HealthSnapshot> {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, value]) => value) as [string, string][]).toString();
+  return apiFetch<HealthSnapshot>(`/api/v1/safeguards/snapshot?${qs}`);
+}
+// FX-Maint: a draft audit abandoned with a reason (F6); the stewards' recorded response to a published one (F7).
+import type { AuditResponseRequest } from '@/types/api';
+export function abandonAudit(id: string, reason: string): Promise<GovernanceAudit> {
+  return apiFetch<GovernanceAudit>(`/api/v1/safeguards/audits/${id}/abandon`, jsonBody({ reason }));
+}
+export function respondToAudit(id: string, data: AuditResponseRequest): Promise<GovernanceAudit> {
+  return apiFetch<GovernanceAudit>(`/api/v1/safeguards/audits/${id}/respond`, jsonBody(data));
+}
+
+// G-Exchange: shares, needs and collaborations (see client/src/AGENTS.md "Exchange (G-Exchange)").
+import type {
+  CollaborationDetailView, CollaborationEndOutcome, CollaborationProposal, CollaborationReview, SharesNeedsDraft, SharesNeedsModerationPage,
+  SharesNeedsPost, SharesNeedsRespondResult, SharesNeedsStatusChange,
+} from '@/types/api';
+
+/** An API error that keeps the server's `code`, `field` and extra keys (`existing_id`, `allowed`, `options`). */
+export class ExchangeApiError extends ApiFetchError {
+  code: string | null;
+  field: string | null;
+  details: Record<string, unknown>;
+  constructor(message: string, status: number, details: Record<string, unknown>) {
+    super(message, status);
+    this.name = 'ExchangeApiError';
+    this.code = typeof details.code === 'string' ? details.code : null;
+    this.field = typeof details.field === 'string' ? details.field : null;
+    this.details = details;
+  }
+}
+
+/** apiFetch for exchange writes: a JSON body in, an ExchangeApiError out. */
+async function exchangeFetch<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    credentials: 'include',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const parsed: unknown = await res.json().catch(() => null);
+    const details = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    const message = typeof details.error === 'string' && details.error ? details.error : res.statusText;
+    throw new ExchangeApiError(message, res.status, details);
+  }
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+const exchangeQuery = (params?: Record<string, string>) => (params ? `?${new URLSearchParams(params).toString()}` : '');
+const exchangePostPath = (id: string) => `/api/v1/discover/shares-needs/${encodeURIComponent(id)}`;
+const exchangeCollaborationPath = (id: string) => `/api/v1/discover/collaborations/${encodeURIComponent(id)}`;
+
+export function fetchSharesNeedsPage(params?: Record<string, string>): Promise<PaginatedResponse<SharesNeedsPost>> {
+  return apiFetch(`/api/v1/discover/shares-needs${exchangeQuery(params)}`);
+}
+export function fetchSharesNeedsPost(id: string): Promise<SharesNeedsPost> {
+  return apiFetch(exchangePostPath(id));
+}
+export function fetchSharesNeedsModeration(params?: Record<string, string>): Promise<SharesNeedsModerationPage> {
+  return apiFetch(`/api/v1/discover/shares-needs/admin${exchangeQuery(params)}`);
+}
+export function fetchDomainPosts(domainId: string, params?: Record<string, string>): Promise<{ items: SharesNeedsPost[] }> {
+  return apiFetch(`/api/v1/domains/${encodeURIComponent(domainId)}/shares-needs${exchangeQuery(params)}`);
+}
+export function publishSharesNeeds(data: SharesNeedsDraft & { ecosystem_id: string; domain_id: string }): Promise<SharesNeedsPost> {
+  return exchangeFetch('/api/v1/discover/shares-needs', 'POST', data);
+}
+export function editSharesNeeds(id: string, data: Partial<SharesNeedsDraft>): Promise<SharesNeedsPost> {
+  return exchangeFetch(exchangePostPath(id), 'PUT', data);
+}
+export function moveSharesNeeds(id: string, change: SharesNeedsStatusChange): Promise<SharesNeedsPost> {
+  return exchangeFetch(`${exchangePostPath(id)}/status`, 'POST', change);
+}
+export function hideSharesNeeds(id: string, reason: string): Promise<SharesNeedsPost> {
+  return exchangeFetch(`${exchangePostPath(id)}/hide`, 'POST', { reason });
+}
+/** Restoring takes no note: the server records none (FX-Exchange F10); the last hide's reason stays on the row. */
+export function restoreSharesNeeds(id: string): Promise<SharesNeedsPost> {
+  return exchangeFetch(`${exchangePostPath(id)}/restore`, 'POST', {});
+}
+export function removeSharesNeeds(id: string): Promise<{ ok: boolean }> {
+  return exchangeFetch(exchangePostPath(id), 'DELETE');
+}
+export function respondToSharesNeeds(id: string, message: string): Promise<SharesNeedsRespondResult> {
+  return exchangeFetch(`${exchangePostPath(id)}/respond`, 'POST', { message });
+}
+export function fetchCollaborationDetail(id: string): Promise<CollaborationDetailView> {
+  return apiFetch(exchangeCollaborationPath(id));
+}
+export function proposeCollaboration(data: CollaborationProposal): Promise<CollaborationDetailView> {
+  return exchangeFetch('/api/v1/discover/collaborations', 'POST', data);
+}
+export function approveCollaboration(id: string, ecosystemId?: string): Promise<CollaborationDetailView> {
+  return exchangeFetch(`${exchangeCollaborationPath(id)}/approve`, 'POST', ecosystemId ? { ecosystem_id: ecosystemId } : {});
+}
+export function endCollaboration(id: string, data: { outcome: CollaborationEndOutcome; reason: string }): Promise<CollaborationDetailView> {
+  return exchangeFetch(`${exchangeCollaborationPath(id)}/end`, 'POST', data);
+}
+// FX-Exchange: record a collaboration's review; an ecosystem page's posts (the ACTIVE members' list there).
+export function reviewCollaboration(id: string, data: CollaborationReview): Promise<CollaborationDetailView> {
+  return exchangeFetch(`${exchangeCollaborationPath(id)}/review`, 'POST', data);
+}
+export function fetchEcosystemPosts(ecosystemId: string): Promise<{ items: SharesNeedsPost[] }> {
+  return apiFetch(`/api/v1/ecosystems/${encodeURIComponent(ecosystemId)}/shares-needs`);
+}
+
+// G-Onboard: sign-up into a named ecosystem, join with its outcome, steward member moves, the newcomers list
+// (see client/src/AGENTS.md "Onboarding (G-Onboard)").
+import type { JoinEcosystemResponse, NewcomersResponse } from '@/types/api';
+
+/** An API error that keeps the server's `code` and body (`required_agreements`, `allowed`). */
+export class OnboardingApiError extends ApiFetchError {
+  code: string | null;
+  body: Record<string, unknown>;
+  constructor(message: string, status: number, body: Record<string, unknown>) {
+    super(message, status);
+    this.name = 'OnboardingApiError';
+    this.code = typeof body.code === 'string' ? body.code : null;
+    this.body = body;
+  }
+}
+
+/** apiFetch for onboarding writes: a JSON body in, an OnboardingApiError (with the server's code) out. */
+async function onboardingFetch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const parsed: unknown = await res.json().catch(() => null);
+    const details = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    const message = typeof details.error === 'string' && details.error ? details.error : res.statusText;
+    throw new OnboardingApiError(message, res.status, details);
+  }
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/** POST /auth/register; `ecosystem_id` places the newcomer in the ecosystem a sign-up link names (a private or unknown one is a 404). */
+export function registerAccount(data: { username: string; password: string; display_name?: string; ecosystem_id?: string }): Promise<AuthVerifyResponse> {
+  return onboardingFetch<AuthVerifyResponse>('/api/v1/auth/register', data);
+}
+/** POST /ecosystems/:id/join: joined, consent required, gate cleared or re-entry; refusals carry a code (ALREADY_MEMBER, CONSENT_REQUIRED, MEMBERSHIP_PAUSED, RE_ENTRY_CLOSED). */
+export function joinEcosystem(ecosystemId: string): Promise<JoinEcosystemResponse> {
+  return onboardingFetch<JoinEcosystemResponse>(`/api/v1/ecosystems/${encodeURIComponent(ecosystemId)}/join`);
+}
+/** POST /members/:id/status with one of the profile's `caller_member_moves`; a 409 CONSENT_REQUIRED names the agreements left. */
+export function moveMember(memberId: string, data: { status: string; notes?: string }): Promise<MemberDetail> {
+  return onboardingFetch<MemberDetail>(`/api/v1/members/${encodeURIComponent(memberId)}/status`, data);
+}
+/** GET /onboarding/newcomers: stewards only (403 otherwise), stuck newcomers first. */
+export function fetchNewcomers(): Promise<NewcomersResponse> {
+  return apiFetch<NewcomersResponse>('/api/v1/onboarding/newcomers');
 }

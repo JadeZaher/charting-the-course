@@ -80,6 +80,7 @@ export default function AgreementList() {
                   <Badge variant="outline">{agreementTypeLabel(a.type)}</Badge>
                   <Badge variant="outline">v{a.version}</Badge>
                   {a.domain && <Badge variant="outline">{a.domain}</Badge>}
+                  {a.review_overdue && <Badge variant="outline" className="border-warning text-warning">Review overdue</Badge>}
                 </div>
                 <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
                   {getEcosystemName(a.ecosystem_id) || 'Unknown ecosystem'} · Created {new Date(a.created_at).toLocaleDateString()}

@@ -48,7 +48,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useUpdateSharesNeeds, useUpdateSharesNeedsStatus } from "@/hooks/use-discover";
+import { OwnPublications } from "@/pages/discover/OwnPublications";
 import { useToast } from "@/hooks/use-toast";
 import { fetchMyPublicProfile, updateMyPublicProfile } from "@/lib/api-client";
 import { resolveMediaUrl } from "@/lib/media";
@@ -103,184 +103,6 @@ function newProject(): PublicProfileProject {
     started_at: null,
     ended_at: null,
   };
-}
-
-function publicationLabel(type: SharesNeeds["type"]) {
-  if (type === "share") return "Share";
-  if (type === "need") return "Need";
-  return "Solution";
-}
-
-/** The author's controls on one of their published items: edit its wording, or withdraw it after confirming. */
-function PublicationActions({ publication }: { publication: SharesNeeds }) {
-  const { toast } = useToast();
-  const updatePublication = useUpdateSharesNeeds();
-  const updateStatus = useUpdateSharesNeedsStatus();
-  const [editing, setEditing] = useState(false);
-  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
-  const [draft, setDraft] = useState({ title: "", description: "", capacity: "" });
-  const [titleError, setTitleError] = useState("");
-  const kind = publicationLabel(publication.type);
-  const fieldId = (field: string) => `publication-${publication.id}-${field}`;
-
-  const startEditing = () => {
-    setDraft({
-      title: publication.title,
-      description: publication.description ?? "",
-      capacity: publication.capacity ?? "",
-    });
-    setTitleError("");
-    setEditing(true);
-  };
-
-  const saveEdit = (event: React.FormEvent) => {
-    event.preventDefault();
-    // React events bubble through the dialog portal; keep this submit away from the profile form.
-    event.stopPropagation();
-    const title = draft.title.trim();
-    if (!title) {
-      setTitleError("Add a title.");
-      document.getElementById(fieldId("title"))?.focus();
-      return;
-    }
-    updatePublication.mutate(
-      {
-        id: publication.id,
-        data: {
-          title,
-          description: draft.description.trim() || null,
-          capacity: draft.capacity.trim() || null,
-        },
-      },
-      {
-        onSuccess: () => {
-          setEditing(false);
-          toast({ title: `${kind} updated` });
-        },
-      },
-    );
-  };
-
-  const withdraw = () => {
-    updateStatus.mutate(
-      { id: publication.id, status: "withdrawn" },
-      {
-        onSuccess: () => {
-          setConfirmingWithdraw(false);
-          toast({
-            title: `${kind} withdrawn`,
-            description: "It no longer appears in Discover or on your profile.",
-          });
-        },
-      },
-    );
-  };
-
-  return (
-    <>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={startEditing}
-          aria-label={`Edit ${publication.title}`}
-        >
-          <Pencil aria-hidden="true" />
-          Edit
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setConfirmingWithdraw(true)}
-          aria-label={`Withdraw ${publication.title}`}
-        >
-          <Undo2 aria-hidden="true" />
-          Withdraw
-        </Button>
-      </div>
-
-      <Dialog open={editing} onOpenChange={(open) => { if (!updatePublication.isPending) setEditing(open); }}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={saveEdit} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Edit {kind.toLowerCase()}</DialogTitle>
-              <DialogDescription>Changes show in Discover and on your profile once saved.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor={fieldId("title")}>Title *</Label>
-              <Input
-                id={fieldId("title")}
-                value={draft.title}
-                onChange={(event) => {
-                  setDraft((current) => ({ ...current, title: event.target.value }));
-                  setTitleError("");
-                }}
-                maxLength={255}
-                aria-invalid={Boolean(titleError)}
-                aria-describedby={titleError ? fieldId("title-error") : undefined}
-              />
-              {titleError && (
-                <p id={fieldId("title-error")} className="text-sm text-destructive">{titleError}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={fieldId("description")}>Description</Label>
-              <Textarea
-                id={fieldId("description")}
-                value={draft.description}
-                onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                maxLength={20_000}
-                rows={4}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={fieldId("capacity")}>Capacity / Scale</Label>
-              <Input
-                id={fieldId("capacity")}
-                value={draft.capacity}
-                onChange={(event) => setDraft((current) => ({ ...current, capacity: event.target.value }))}
-                maxLength={100}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={updatePublication.isPending}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updatePublication.isPending}>
-                {updatePublication.isPending ? "Saving..." : "Save changes"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={confirmingWithdraw} onOpenChange={(open) => { if (!updateStatus.isPending) setConfirmingWithdraw(open); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Withdraw “{publication.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              It will no longer appear in Discover or on your public profile.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={updateStatus.isPending}>Keep it</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={updateStatus.isPending}
-              onClick={(event) => {
-                // Stay open until the withdrawal lands; a failure toasts and leaves the choice here.
-                event.preventDefault();
-                withdraw();
-              }}
-            >
-              {updateStatus.isPending ? "Withdrawing..." : `Withdraw ${kind.toLowerCase()}`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
 }
 
 export default function Profile() {
@@ -947,7 +769,7 @@ export default function Profile() {
                 Your shares, needs & solutions
               </CardTitle>
               <CardDescription className="mt-1">
-                Public active signals are included on your profile.
+                Everything you have posted, in every state. Only open, public posts show on your public profile.
               </CardDescription>
             </div>
             <Button asChild type="button">
@@ -959,36 +781,7 @@ export default function Profile() {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          {data.publications.length ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {data.publications.map((publication) => (
-                <article key={publication.id} className="border border-border p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="font-black">{publication.title}</h3>
-                    <Badge variant="outline">{publicationLabel(publication.type)}</Badge>
-                  </div>
-                  {publication.description && (
-                    <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">
-                      {publication.description}
-                    </p>
-                  )}
-                  <p className="mt-4 text-xs text-muted-foreground">
-                    {[publication.ecosystem_name, publication.domain_name]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  <PublicationActions publication={publication} />
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="border border-dashed border-foreground p-8 text-center">
-              <p className="font-black">You have not published a signal yet.</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Share a capability, name a need, or publish a solution.
-              </p>
-            </div>
-          )}
+          <OwnPublications profile={data} />
         </CardContent>
       </Card>
 

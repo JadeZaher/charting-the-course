@@ -8,7 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
-import { useDomain, useCreateDomain, useUpdateDomain } from '@/hooks/use-governance';
+import { useDomain, useCreateDomain, useMembers, useUpdateDomain } from '@/hooks/use-governance';
+import { Textarea } from '@/components/ui/textarea';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useToast } from '@/hooks/use-toast';
 import { ApiFetchError } from '@/lib/api-client';
@@ -20,6 +21,8 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
   { value: 'archived', label: 'Archived' },
 ];
+const NO_STEWARD = 'none';
+const MIN_REASON_LENGTH = 8;
 
 export default function DomainForm() {
   const [, editParams] = useRoute('/domains/:id/edit');
@@ -32,10 +35,13 @@ export default function DomainForm() {
   const { data: existing, isLoading: loadingExisting } = useDomain(editId ?? '');
   const createMutation = useCreateDomain();
   const updateMutation = useUpdateDomain(editId ?? '');
+  const members = useMembers({ status: 'active', per_page: '100' });
 
   const [name, setName] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [currentSteward, setCurrentSteward] = useState('');
+  // FX-Maint: the steward is a member (steward_id); the name members see follows it on the server.
+  const [stewardId, setStewardId] = useState(NO_STEWARD);
+  const [reason, setReason] = useState('');
   const [status, setStatus] = useState('draft');
   const [metricDefinitions, setMetricDefinitions] = useState('');
   const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
@@ -46,7 +52,7 @@ export default function DomainForm() {
       // Legacy rows have no stored name: seed the field with the derived label unless that is just the code.
       setName(existing.name ?? (existing.display_name !== existing.domain_id ? existing.display_name : ''));
       setPurpose(existing.purpose || '');
-      setCurrentSteward(existing.current_steward || '');
+      setStewardId(existing.steward_id ?? NO_STEWARD);
       setStatus(existing.status || 'draft');
       setMetricDefinitions(
         typeof existing.metric_definitions === 'string'
@@ -61,13 +67,24 @@ export default function DomainForm() {
 
   if (isEdit && loadingExisting) return <LoadingState message="Loading domain..." />;
 
+  // Who holds a domain and whether it continues: a steward of the ecosystem who does not steward it, with a reason.
+  const canChangeAuthority = !isEdit || (existing?.caller_can_change_authority ?? false);
+  const stewardChanged = isEdit && (existing?.steward_id ?? NO_STEWARD) !== stewardId;
+  const statusChanged = isEdit && (existing?.status ?? status) !== status;
+  const needsReason = stewardChanged || statusChanged;
+  const ecosystemId = isEdit ? existing?.ecosystem_id : selectedEcosystem?.id;
+  const stewardOptions = (members.data?.items ?? []).filter((member) => member.ecosystem_id === ecosystemId);
+
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = 'Name is required';
     else if (name.trim().length > 200) errs.name = 'Name must be 200 characters or fewer';
     if (!purpose.trim()) errs.purpose = 'Purpose is required';
+    if (needsReason && reason.trim().length < MIN_REASON_LENGTH) {
+      errs.reason = `Give a reason for the change (at least ${MIN_REASON_LENGTH} characters); it is recorded.`;
+    }
     setErrors(errs);
-    const firstInvalidId = errs.name ? 'name' : errs.purpose ? 'purpose' : null;
+    const firstInvalidId = errs.name ? 'name' : errs.purpose ? 'purpose' : errs.reason ? 'authority_reason' : null;
     if (firstInvalidId) window.requestAnimationFrame(() => document.getElementById(firstInvalidId)?.focus());
     return Object.keys(errs).length === 0;
   };
@@ -79,11 +96,13 @@ export default function DomainForm() {
     const payload: Record<string, any> = {
       name: name.trim(),
       purpose: purpose.trim(),
-      current_steward: currentSteward || null,
-      status,
       metric_definitions: metricDefinitions || null,
       shared_ecosystem_ids: sharedEcosystemIds,
     };
+    if (!isEdit && stewardId !== NO_STEWARD) payload.steward_id = stewardId;
+    if (stewardChanged && stewardId !== NO_STEWARD) payload.steward_id = stewardId;
+    if (statusChanged) payload.status = status;
+    if (needsReason) payload.reason = reason.trim();
 
     if (!isEdit && selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
@@ -170,19 +189,32 @@ export default function DomainForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="current_steward">Current Steward</Label>
-              <Input
-                id="current_steward"
-                value={currentSteward}
-                onChange={(e) => setCurrentSteward(e.target.value)}
-                placeholder="Steward name"
-              />
+              <Label htmlFor="steward_id">Steward</Label>
+              <Select value={stewardId} onValueChange={setStewardId} disabled={!canChangeAuthority}>
+                <SelectTrigger id="steward_id" className="min-h-11">
+                  <SelectValue placeholder="Choose a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(!isEdit || !existing?.steward_id) && <SelectItem value={NO_STEWARD}>No steward yet</SelectItem>}
+                  {existing?.steward_id && !stewardOptions.some((m) => m.id === existing.steward_id) && (
+                    <SelectItem value={existing.steward_id}>{existing.current_steward ?? 'Current steward'}</SelectItem>
+                  )}
+                  {stewardOptions.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>{member.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isEdit && !existing?.steward_id && existing?.current_steward && (
+                <p className="text-xs text-muted-foreground">Shown today as “{existing.current_steward}”, who is not linked to a member.</p>
+              )}
+              {members.error && <p className="text-sm text-destructive">{apiErrorMessage(members.error)}</p>}
             </div>
 
-            <div className="space-y-2">
+            {/* A new domain starts active (the server sets it); status changes are an edit, with a reason. */}
+            {isEdit && <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="status">
+              <Select value={status} onValueChange={setStatus} disabled={!canChangeAuthority}>
+                <SelectTrigger id="status" className="min-h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -191,7 +223,29 @@ export default function DomainForm() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+              {!canChangeAuthority && (
+                <p className="text-xs text-muted-foreground">
+                  A steward of this ecosystem who does not steward this domain changes its steward or status, with a recorded reason.
+                </p>
+              )}
+            </div>}
+
+            {needsReason && (
+              <div className="space-y-2">
+                <Label htmlFor="authority_reason">Why change the {stewardChanged && statusChanged ? 'steward and status' : stewardChanged ? 'steward' : 'status'}? *</Label>
+                <Textarea
+                  id="authority_reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={3}
+                  aria-required="true"
+                  aria-invalid={errors.reason ? true : undefined}
+                  aria-describedby={errors.reason ? 'authority-reason-hint authority-reason-error' : 'authority-reason-hint'}
+                />
+                <p id="authority-reason-hint" className="text-xs text-muted-foreground">It is recorded in the decision registry.</p>
+                {errors.reason && <p id="authority-reason-error" className="text-sm text-destructive">{errors.reason}</p>}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="metric_definitions">Metric Definitions</Label>

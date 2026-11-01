@@ -10,10 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useEcosystems, useRequestJoinEcosystem } from '@/hooks/use-governance';
-import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useEcosystems } from '@/hooks/use-governance';
+import { useJoinEcosystem } from '@/hooks/use-onboarding';
+import { useAuth } from '@/contexts/AuthContext';
 import { fetchDiscover } from '@/lib/api-client';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { membershipStanding, type MembershipRow } from '@/lib/ecosystem-join';
+import { CONSENT_GATE_PATH, memberStatusLabel } from '@/lib/member-status';
 import { keys } from '@/lib/query-keys';
 import { ECOSYSTEM_STATUS_OPTIONS } from '@/lib/ecosystem-vocab';
 import { Plus, Check, UserPlus } from 'lucide-react';
@@ -30,37 +33,31 @@ const statusVariant = (status: string) => {
   }
 };
 
-function JoinButton({ ecosystemId, isMember }: { ecosystemId: string; isMember: boolean }) {
-  const joinMutation = useRequestJoinEcosystem(ecosystemId);
+/** What the caller can do about one ecosystem: their row's own status decides (G-Onboard). */
+function MembershipAction({ ecosystem, memberships }: { ecosystem: { id: string; name: string }; memberships: readonly MembershipRow[] }) {
+  // The hook refreshes the session (the standing below follows) and toasts the outcome or the one failure.
+  const joinMutation = useJoinEcosystem(ecosystem.id, { ecosystemName: ecosystem.name });
+  const standing = membershipStanding(ecosystem.id, memberships);
+  const status = memberships.find((row) => row.id === ecosystem.id)?.membership_status;
 
-  if (isMember) {
+  if (standing === 'active') {
+    return <Badge variant="default" className="gap-1"><Check className="h-3 w-3" aria-hidden="true" />Member</Badge>;
+  }
+  if (standing === 'pending') {
     return (
-      <Button variant="outline" size="sm" disabled className="gap-1 opacity-50">
-        <Check className="h-3 w-3" />
-        Joined
+      <Button asChild variant="outline" size="sm">
+        <Link href={CONSENT_GATE_PATH}>Waiting on your consent</Link>
       </Button>
     );
   }
-
+  if (standing === 'paused') {
+    return <Badge variant="outline">{memberStatusLabel(status)}</Badge>;
+  }
+  // No row, or a leaver joining again.
   return (
-    <Button
-      variant="secondary"
-      size="sm"
-      className="gap-1"
-      disabled={joinMutation.isPending || joinMutation.isSuccess}
-      onClick={(e) => {
-        e.stopPropagation();
-        // The hook refreshes the session and toasts the outcome or failure.
-        joinMutation.mutate();
-      }}
-    >
-      {joinMutation.isSuccess ? (
-        <><Check className="h-3 w-3" /> Requested</>
-      ) : joinMutation.isPending ? (
-        'Requesting...'
-      ) : (
-        <><UserPlus className="h-3 w-3" /> Request to begin orientation</>
-      )}
+    <Button variant="secondary" size="sm" className="gap-1" disabled={joinMutation.isPending} onClick={() => joinMutation.mutate()}>
+      <UserPlus className="h-3 w-3" aria-hidden="true" />
+      {joinMutation.isPending ? 'Joining…' : `Join ${ecosystem.name}`}
     </Button>
   );
 }
@@ -72,8 +69,12 @@ export default function EcosystemList() {
   const [discoverSearch, setDiscoverSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const { ecosystems: memberEcosystems } = useEcosystem();
-  const memberEcoIds = new Set(memberEcosystems.map(e => e.id));
+  // /auth/me rows, each with the caller's own membership_status there.
+  const { ecosystems: memberships } = useAuth();
+  const standingLabel = (ecosystemId: string) => {
+    const standing = membershipStanding(ecosystemId, memberships);
+    return standing === 'none' || standing === 'active' ? null : memberStatusLabel(memberships.find((row) => row.id === ecosystemId)?.membership_status);
+  };
 
   const params = useMemo(() => {
     const p: Record<string, string> = { page: String(page), per_page: '20' };
@@ -156,7 +157,7 @@ export default function EcosystemList() {
                 {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No ecosystems found</div> : data?.items.map((e) => (
                   <CollectionCard key={e.id} asChild>
                     <Link href={`/ecosystems/${e.id}`} aria-label={`View ecosystem: ${e.name}`}>
-                      <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ecosystem</p><h2 className="mt-1 text-lg font-semibold">{e.name}</h2></div><Badge variant={statusVariant(e.status)}>{e.status}</Badge></div>
+                      <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ecosystem</p><h2 className="mt-1 text-lg font-semibold">{e.name}</h2></div><div className="flex flex-wrap justify-end gap-1"><Badge variant={statusVariant(e.status)}>{e.status}</Badge>{standingLabel(e.id) && <Badge variant="outline">{standingLabel(e.id)}</Badge>}</div></div>
                       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Location</dt><dd className="mt-1 font-medium">{e.location || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Members</dt><dd className="mt-1 font-medium">{e.member_count ?? '-'}</dd></div></dl>
                     </Link>
                   </CollectionCard>
@@ -223,7 +224,7 @@ export default function EcosystemList() {
                     <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Public ecosystem</p><h2 className="mt-1 text-lg font-semibold">{e.name}</h2></div><Badge variant={statusVariant(e.status)}>{e.status}</Badge></div>
                     <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Location</dt><dd className="mt-1 font-medium">{e.location || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Members</dt><dd className="mt-1 font-medium">{e.member_count ?? '-'}</dd></div></dl>
                   </Link>
-                  <div className="mt-5 border-t border-border pt-4"><JoinButton ecosystemId={e.id} isMember={memberEcoIds.has(e.id)} /></div>
+                  <div className="mt-5 border-t border-border pt-4"><MembershipAction ecosystem={e} memberships={memberships} /></div>
                 </CollectionCard>
               ))}
             </CollectionGrid>

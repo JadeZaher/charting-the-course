@@ -8,8 +8,7 @@ import { affects, keys } from '@/lib/query-keys';
 import { proposalPhaseAnnouncement } from '@/lib/proposal-vocab';
 import { agreementStatusLabel } from '@/lib/agreement-status';
 import { actParticipationMutation } from '@/lib/act-participation';
-import { joinEcosystemMutation } from '@/lib/ecosystem-join';
-import type { CeremonyConsentRequest, MemberDecisionState } from '@/types/api';
+import type { MemberDecisionState } from '@/types/api';
 
 // A list hook given `false` is disabled and keyed on the bare root, which no request fills,
 // so another page's cached list never shows as its data.
@@ -226,11 +225,6 @@ export function useJoinDomainParticipation(domainId: string) {
     silent: true,
   });
 }
-/** Shares and needs declared in one domain; writes go through the use-discover hooks (affects.sharesNeeds reaches this key). */
-export function useDomainSharesNeeds(domainId: string) {
-  return useQuery({ queryKey: keys.sharesNeeds.forDomain(domainId), queryFn: () => api.fetchDomainSharesNeeds(domainId), enabled: !!domainId });
-}
-
 // Decision hooks
 export function useDecisions(params?: Record<string, string>) {
   return useQuery({ queryKey: keys.decisions.list(params), queryFn: () => api.fetchDecisions(params), staleTime: 30_000 });
@@ -258,20 +252,9 @@ export function useDeleteMyDecision() {
   return useApiMutation({ mutationFn: (id: string) => api.deleteMyDecision(id), invalidates: affects.myDecisions, error: 'Could not delete the decision' });
 }
 
-// Onboarding hooks
-export function useOnboardings(params?: Record<string, string>) {
-  return useQuery({ queryKey: keys.onboarding.list(params), queryFn: () => api.fetchOnboardings(params), staleTime: 30_000 });
-}
+// Onboarding hooks (the ceremony is read-only history; join and steward moves live in hooks/use-onboarding.ts)
 export function useOnboardingCeremony(memberId: string) {
   return useQuery({ queryKey: keys.onboarding.ceremony(memberId), queryFn: () => api.fetchOnboardingCeremony(memberId), enabled: !!memberId, staleTime: 30_000 });
-}
-/** OnboardingCeremony shows no inline error, so failures toast. */
-export function useSubmitCeremonyConsent(memberId: string) {
-  return useApiMutation({
-    mutationFn: (data: CeremonyConsentRequest) => api.submitCeremonyConsent(memberId, data),
-    invalidates: affects.onboarding,
-    error: 'Position not recorded',
-  });
 }
 
 // Conflict hooks: every form and modal renders its failure inline.
@@ -321,11 +304,6 @@ export function useCreateEcosystem() {
 export function useUpdateEcosystem(id: string) {
   return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateEcosystemRecord(id, data), invalidates: affects.ecosystems, silent: true });
 }
-/** Joining changes /auth/me (memberships, pending consents), so the session is refreshed; "already a member" resolves (lib/ecosystem-join.ts). */
-export function useRequestJoinEcosystem(id: string) {
-  const { refreshSession } = useAuth();
-  return useApiMutation(joinEcosystemMutation(() => api.requestJoinEcosystem(id), refreshSession));
-}
 
 // Emergency and exit hooks live in hooks/use-emergency.ts and hooks/use-exit.ts (G-Safety).
 
@@ -366,13 +344,4 @@ export function useMintAgentToken() {
 }
 export function useRevokeAgentToken() {
   return useApiMutation({ mutationFn: (id: string) => api.revokeAgentToken(id), invalidates: affects.agentTokens, error: 'Could not revoke token' });
-}
-
-// Member status transition
-export function useTransitionMemberStatus(memberId: string) {
-  return useApiMutation({
-    mutationFn: (data: { status: string; trigger?: string; notes?: string }) => api.transitionMemberStatus(memberId, data),
-    invalidates: affects.members,
-    error: 'Status not changed',
-  });
 }

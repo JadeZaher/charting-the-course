@@ -3,8 +3,9 @@ import { useRoute, useLocation, useSearch } from 'wouter';
 import { Link } from 'wouter';
 import { useDetectPath, useRecommendJourney, useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
 import { useEthosDetail } from '@/hooks/useEthos';
-import { useRequestJoinEcosystem } from '@/hooks/use-governance';
+import { useJoinEcosystem } from '@/hooks/use-onboarding';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiErrorMessage } from '@/lib/api-error-message';
 import { holdsMembershipIn, joinThen } from '@/lib/ecosystem-join';
 import { JourneyMapCard } from '@/components/orientation/JourneyMapCard';
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,9 @@ export default function OrientationGate() {
   const { data: existingProgress, isLoading: progressLoading } = useUserProgress(ethosId);
   const saveProgress = useSaveProgress();
   const { ecosystems } = useAuth();
-  const join = useRequestJoinEcosystem(ethosId);
-  // Progress is stored on the member row in this ecosystem, so a non-member joins first (api/AGENTS.md "Join-first").
+  // Silent: a failed join renders once, inline below the start button (M5); useSaveProgress toasts its own failures.
+  const join = useJoinEcosystem(ethosId, { ecosystemName: ethos?.name, silent: true });
+  // Progress is stored on the member row in this ecosystem, so a non-member (or a leaver) joins first (api/AGENTS.md "Join-first").
   const isMember = holdsMembershipIn(ethosId, ecosystems);
   const isStarting = join.isPending || saveProgress.isPending;
 
@@ -61,7 +63,7 @@ export default function OrientationGate() {
         { isMember, join: () => join.mutateAsync() },
       );
     } catch {
-      return; // The join or useSaveProgress already toasted the failure; stay on the picker.
+      return; // A failed join shows below the button; useSaveProgress toasted its own. Stay on the picker.
     }
     navigate(`/orientation/${ethosSlug}/journey`);
   }
@@ -168,11 +170,11 @@ export default function OrientationGate() {
       {/* Start CTA */}
       {!isLoading && !isMember && (
         <p id="orientation-join-note" className="border-l-4 border-strong-border pl-4 text-sm leading-6 text-muted-foreground">
-          You are not a member of {ethos?.name ?? 'this ecosystem'} yet. Starting a journey asks to join it. If it asks
-          newcomers to consent to its agreements first, your membership waits for that consent.
+          You are not a member of {ethos?.name ?? 'this ecosystem'} yet. Starting a journey also joins it. If it asks
+          members to consent to its agreements, your membership waits until you have.
         </p>
       )}
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-2">
         <Button
           size="lg"
           disabled={!chosen || isStarting}
@@ -182,6 +184,11 @@ export default function OrientationGate() {
           {join.isPending ? 'Joining…' : saveProgress.isPending ? 'Starting…' : isMember ? 'Start Journey' : 'Join and start journey'}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
+        {join.isError && (
+          <p className="text-sm text-destructive" role="alert">
+            Could not join {ethos?.name ?? 'this ecosystem'}: {apiErrorMessage(join.error)}
+          </p>
+        )}
       </div>
     </div>
   );
