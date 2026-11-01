@@ -1,4 +1,7 @@
 // Assistant drawer: tool chips and the confirmation step; see client/src/AGENTS.md "Assistant drawer".
+import type { QueryKey } from '@tanstack/react-query';
+import { resolveInternalPath } from './internal-path';
+import { affects, keys, onboardingAffects } from './query-keys';
 
 export type ToolStatus = 'running' | 'success' | 'error' | 'needs_confirmation';
 
@@ -71,7 +74,7 @@ export function pendingConfirmation(
 
 /** Tools that only read: they cannot change what is waiting or a record's status. Unknown tools count as writes. */
 const READ_ONLY_TOOL = /^(get|list|search|check)_/;
-const READ_ONLY_TOOLS = new Set(['explain_status', 'what_needs_me']);
+const READ_ONLY_TOOLS = new Set(['explain_status', 'what_needs_me', 'find_shares_needs']);
 
 export function isReadOnlyTool(name: string): boolean {
   return READ_ONLY_TOOL.test(name) || READ_ONLY_TOOLS.has(name);
@@ -81,22 +84,63 @@ export function isReadOnlyTool(name: string): boolean {
 const ROUTE_COLLECTIONS = {
   proposals: 'proposals', agreements: 'agreements', domains: 'domains', conflicts: 'conflicts',
   exit: 'exits', emergency: 'emergency', decisions: 'decisions', 'safeguards/audits': 'audits',
+  collaborations: 'collaborations', ecosystems: 'ecosystems', members: 'members',
+  'discover/collaborations': 'collaborations',
 } as const;
 
-export type RecordCollection = (typeof ROUTE_COLLECTIONS)[keyof typeof ROUTE_COLLECTIONS];
+export type RecordCollection = (typeof ROUTE_COLLECTIONS)[keyof typeof ROUTE_COLLECTIONS] | 'sharesNeeds' | 'conversations';
 
 /** The record a result points at, from its link (`/proposals/<id>`) or artifact route; null when it names none. */
 export function touchedRecord(event: ToolResultEvent): { collection: RecordCollection; id: string } | null {
   for (const candidate of [event.data?.link, event.artifact?.route]) {
     if (typeof candidate !== 'string') continue;
-    const match = /^\/(proposals|agreements|domains|conflicts|exit|emergency|decisions|safeguards\/audits)\/([^/?#]+)/.exec(candidate);
+    const path = resolveInternalPath(candidate);
+    if (!path) continue;
+    const url = new URL(path, 'https://neos.local');
+    const match = /^\/(proposals|agreements|domains|conflicts|exit|emergency|decisions|safeguards\/audits|discover\/collaborations|collaborations|ecosystems|members)\/([\w-]+)(?:\/|$)/.exec(url.pathname);
     if (match) return { collection: ROUTE_COLLECTIONS[match[1] as keyof typeof ROUTE_COLLECTIONS], id: match[2] };
+    const collection = url.pathname === '/discover' && url.searchParams.get('tab') === 'shares-needs' ? 'sharesNeeds'
+      : url.pathname === '/messaging' ? 'conversations' : null;
+    const id = collection && url.searchParams.get(collection === 'sharesNeeds' ? 'post' : 'conversation');
+    if (collection && id && /^[\w-]+$/.test(id)) return { collection, id };
   }
   return null;
 }
 
-/** What a finished tool call makes stale: nothing for a failed or read-only call; else the queue and the touched record. */
-export function refreshAfterTool(event: ToolResultEvent): { nextSteps: boolean; record: ReturnType<typeof touchedRecord> } {
-  if (!event.success || event.needs_confirmation || isReadOnlyTool(event.name)) return { nextSteps: false, record: null };
-  return { nextSteps: true, record: touchedRecord(event) };
+const RECORD_AFFECTS: Record<RecordCollection, readonly QueryKey[]> = {
+  proposals: affects.proposals, agreements: affects.agreements, domains: affects.domains,
+  conflicts: affects.conflicts, exits: affects.exits, emergency: affects.emergency,
+  decisions: [keys.decisions.all, keys.myDecisions.all], audits: affects.audits,
+  collaborations: affects.exchangeCollaborations, ecosystems: affects.ecosystems, members: onboardingAffects.memberMove,
+  sharesNeeds: affects.exchangePosts, conversations: affects.conversations,
+};
+
+const TOOL_AFFECTS: Readonly<Record<string, readonly QueryKey[]>> = {
+  create_proposal: affects.proposals, record_advice: affects.proposals, record_consent_position: affects.proposals,
+  withdraw_consent_position: affects.proposals, update_proposal_status: affects.proposals, submit_test_report: affects.proposals,
+  create_agreement_draft: affects.agreements, update_agreement_status: affects.agreements,
+  record_agreement_evidence: affects.agreements,
+  attest_agreement_consent: [...affects.agreements, ...onboardingAffects.joinEcosystem],
+  create_decision_record: RECORD_AFFECTS.decisions, create_domain_draft: affects.domains, join_domain: affects.domains,
+  create_conflict_case: affects.conflicts, triage_conflict: affects.conflicts, create_repair_agreement: affects.conflicts,
+  declare_emergency: affects.emergency, cosign_emergency: affects.emergency,
+  end_emergency_authority: affects.emergency, record_emergency_review: affects.emergency, create_exit_record: affects.exits,
+  create_ecosystem: affects.ecosystems, join_ecosystem: onboardingAffects.joinEcosystem,
+  move_member: onboardingAffects.memberMove, create_safeguard_audit: affects.audits, respond_to_health_audit: affects.audits,
+  publish_share_need: affects.exchangePosts, respond_to_share_need: affects.exchangePosts, update_share_need_status: affects.exchangePosts,
+  approve_collaboration: affects.exchangeCollaborations, end_collaboration: affects.exchangeCollaborations,
+  review_collaboration: affects.exchangeCollaborations,
+};
+
+/** Data and membership refreshed after a completed assistant write; see the directory's "Assistant drawer" contract. */
+export function refreshAfterTool(event: ToolResultEvent): { queryKeys: readonly QueryKey[]; refreshSession: boolean } {
+  if (!event.success || event.needs_confirmation || isReadOnlyTool(event.name)) return { queryKeys: [], refreshSession: false };
+  const record = touchedRecord(event);
+  const toolPrefixes = Object.hasOwn(TOOL_AFFECTS, event.name) ? TOOL_AFFECTS[event.name] : [];
+  const prefixes = [keys.nextSteps.all, keys.dashboard.all, keys.safeguards.all,
+    ...toolPrefixes, ...(record ? RECORD_AFFECTS[record.collection] : [])];
+  return {
+    queryKeys: Array.from(new Map(prefixes.map((key) => [JSON.stringify(key), key] as const)).values()),
+    refreshSession: event.name === 'join_ecosystem' || event.name === 'attest_agreement_consent',
+  };
 }

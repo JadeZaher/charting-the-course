@@ -118,8 +118,15 @@ file an exit) comes back as `needs_confirmation` instead of success or failure; 
 it under the latest finished reply, with "Yes, go ahead" / "No, cancel" sending an ordinary message
 (`CONFIRM_REPLY` / `DECLINE_REPLY`). The server accepts a yes only in a later turn of the same session, so
 the buttons are a shortcut for typing, not a bypass; see the API's `agent/AGENTS.md` "Confirmation of
-irreversible acts". A successful tool result invalidates `keys.nextSteps.all`, so the bell and the dashboard
-queue follow acts taken through the assistant (G-Next).
+irreversible acts". Successful assistant writes use the same `affects` dependencies as page mutations:
+record details, filtered lists, derived decisions and profiles follow the act, together with the queue,
+dashboard and computed health. `refreshAfterTool` combines the tool's write family with a safe internal
+result link; exchange responses must refresh posts even when they link only to a conversation. The
+canonical collaboration route is `/discover/collaborations/:id`; Discover post and messaging
+conversation query links count as record links. Failed, read-only (including
+`find_shares_needs`) and confirmation-waiting calls refresh nothing. Joining an ecosystem or attesting
+agreement consent also refreshes `AuthContext`, so membership, navigation and the consent gate update
+without reloading. Tests exercise invalidation through a real `QueryClient` and reject external links.
 
 ## Documentation and verification
 
