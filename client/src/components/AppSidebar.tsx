@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
+import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
 
@@ -108,8 +109,8 @@ const commsItems = [
 ];
 
 
-// `access` mirrors the destination's own gate (App.tsx route permission / AdminPanel's check).
-const facilitatorItems: { title: string; url: string; icon: any; access: "content" | "admin-panel" }[] = [
+// `access` names the destination's own gate (lib/nav-access.ts).
+const facilitatorItems: { title: string; url: string; icon: any; access: NavAccess }[] = [
   {
     title: "Manage Quizzes",
     url: "/quiz/manage",
@@ -239,10 +240,9 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
-  const canOpenAdminPanel = isAdmin || canManageUsers;
-  const visibleFacilitatorItems = facilitatorItems.filter((item) =>
-    item.access === "content" ? canManageContent : canOpenAdminPanel,
-  );
+  const permissions = { isAdmin, canManageUsers, canManageContent };
+  const showAdministration = canOpenAdminPanel(permissions);
+  const visibleFacilitatorItems = visibleNavItems(facilitatorItems, permissions);
 
   const displayName = member?.display_name || 'User';
 
@@ -387,7 +387,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {canOpenAdminPanel && (
+        {showAdministration && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>

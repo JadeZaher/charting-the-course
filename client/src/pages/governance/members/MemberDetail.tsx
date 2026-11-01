@@ -413,13 +413,13 @@ export default function MemberDetail() {
               {data.onboarding.consent_date && (
                 <div>
                   <dt className="text-muted-foreground">Consent Date</dt>
-                  <dd className="font-medium">{new Date(data.onboarding.consent_date).toLocaleDateString()}</dd>
+                  <dd className="font-medium">{formatDate(data.onboarding.consent_date)}</dd>
                 </div>
               )}
               {data.onboarding.cooling_off_end && (
                 <div>
                   <dt className="text-muted-foreground">Cooling Off Ends</dt>
-                  <dd className="font-medium">{new Date(data.onboarding.cooling_off_end).toLocaleDateString()}</dd>
+                  <dd className="font-medium">{formatDate(data.onboarding.cooling_off_end)}</dd>
                 </div>
               )}
             </div>

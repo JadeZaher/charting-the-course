@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Play, CheckCircle } from 'lucide-react';
 import { resolveExternalUrl, resolveMediaUrl, resolveResourceUrl } from '@/lib/media';
+import { videoStepResponse, videoStepView } from '@/lib/orientation-video';
 
 interface Props {
   step: JourneyStep;
@@ -37,7 +38,10 @@ export function VideoStep({ step, onComplete }: Props) {
   const captionsUrl = resolveResourceUrl(step.captions_url);
   const transcriptUrl = resolveResourceUrl(step.transcript_url);
   const hasTranscript = Boolean(step.transcript || transcriptUrl);
-  const unavailable = !ytId && (!videoUrl || loadFailed);
+  const view = videoStepView({
+    youTube: Boolean(ytId), selfHosted: Boolean(videoUrl), loadFailed, required: Boolean(step.required), hasTranscript,
+    acknowledged: watched,
+  });
   const acknowledgementId = `video-acknowledgement-${step.step}`;
   const unavailableId = `video-unavailable-${step.step}`;
 
@@ -87,28 +91,22 @@ export function VideoStep({ step, onComplete }: Props) {
         <div className="flex aspect-video items-center justify-center border border-strong-border bg-muted">
           <div className="max-w-sm px-4 text-center text-muted-foreground" role="status" id={unavailableId}>
             <Play className="h-12 w-12 mx-auto mb-2 opacity-30" aria-hidden="true" />
-            <p className="text-sm font-medium text-foreground">
-              {videoUrl ? 'This video could not be loaded.' : 'No video is available for this step yet.'}
-            </p>
-            <p className="mt-1 text-sm">
-              {hasTranscript ? 'You can read the transcript below and continue.' : 'You can continue without it.'}
-            </p>
+            <p className="text-sm font-medium text-foreground">{view.unavailableMessage}</p>
+            <p className="mt-1 text-sm">{view.unavailableHint}</p>
           </div>
         </div>
       )}
 
-      {(step.required || ytId) && (
+      {view.showsAcknowledgement && (
         <div className="flex items-start gap-3 border-2 border-strong-border bg-card p-4">
           <Checkbox
             id={acknowledgementId}
             checked={watched}
             onCheckedChange={(checked) => setWatched(checked === true)}
-            aria-describedby={unavailable ? unavailableId : undefined}
+            aria-describedby={view.unavailable ? unavailableId : undefined}
           />
           <Label htmlFor={acknowledgementId} className="cursor-pointer text-sm leading-6">
-            {unavailable
-              ? `I'll continue without the video${hasTranscript ? ' and have read its transcript' : ''}.`
-              : `I watched the video${hasTranscript ? ' or reviewed its transcript' : ''}.`}
+            {view.acknowledgementLabel}
           </Label>
         </div>
       )}
@@ -138,11 +136,11 @@ export function VideoStep({ step, onComplete }: Props) {
         )}
         <Button
           className="ml-auto"
-          onClick={() => onComplete(unavailable ? { watched: false, acknowledged: watched, video_unavailable: true } : { watched })}
-          disabled={step.required && !watched}
+          onClick={() => onComplete(videoStepResponse(view, watched))}
+          disabled={!view.canContinue}
         >
           <CheckCircle className="h-4 w-4 mr-1.5" aria-hidden="true" />
-          {step.required && !watched ? (unavailable ? 'Confirm to continue' : 'Watch to continue') : 'Continue'}
+          {view.continueLabel}
         </Button>
       </div>
     </div>

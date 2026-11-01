@@ -105,10 +105,18 @@ button disables itself while pending and focus would otherwise fall to BODY.
 position remounted it after every press).
 
 Dates: date-only values (`YYYY-MM-DD`: decision dates, review and
-verification dates, last governance activity) go through `formatDate`, never
-`new Date(value)`, which reads them as UTC midnight and shows the day before
-west of UTC. Decision cards are links named by what was decided (the
-holding's title, `aria-labelledby`), not by the opaque record id.
+verification dates, last governance activity, onboarding consent and
+cooling-off dates) go through `formatDate`, never `new Date(value)`, which
+reads them as UTC midnight and shows the day before west of UTC. Decision
+cards are links named by what was decided (`lib/decision-vocab.ts`
+`decisionHeadline`: the holding's title, `aria-labelledby`), not by the opaque
+record id.
+
+The next-action box (`proposalPhaseAction` in `lib/proposal-vocab.ts`) asks
+for the one step the phase needs and turns into a done state once the caller
+took it (advised this round, a live position, a report on this version, or the
+test gate already met), so a member who has advised is never shown "Your
+input is needed" over an empty form again.
 
 ## Domain names
 

@@ -10,6 +10,7 @@ import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useDecisions, useDomains } from '@/hooks/use-governance';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { decisionHeadline } from '@/lib/decision-vocab';
 import { formatDate } from '@/lib/utils';
 
 const STATUS_FILTER: FilterDef = { key: 'status', label: 'Status', type: 'select', options: [
@@ -46,13 +47,6 @@ const statusVariant = (status: string) => {
 
 const humanize = (value: string) =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-/** What was decided, in words: the title the ACT engine puts before " — " in the holding, else its opening. */
-const decisionHeadline = (holding: string | null, recordId: string) => {
-  const lead = (holding ?? '').split(' — ')[0].trim();
-  if (!lead) return recordId;
-  return lead.length > 100 ? `${lead.slice(0, 99).trimEnd()}…` : lead;
-};
 
 export default function DecisionList() {
   const { data: domainsData } = useDomains({ per_page: '100' });

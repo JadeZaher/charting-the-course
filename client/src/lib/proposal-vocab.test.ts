@@ -9,6 +9,7 @@ import {
   joinNames,
   positionLabel,
   proposalEditLock,
+  proposalPhaseAction,
   proposalPhaseAnnouncement,
   quorumExplanation,
   ratifiedBanner,
@@ -155,4 +156,39 @@ test('closing advice confirms what was received, and a steward is told they act 
   assert.equal(forThem.body[0], 'You are closing advice for Ines, acting as a steward for the proposer.');
   assert.ok(forThem.body[1].endsWith('The advice deadline (20/11/2026) has passed.'));
   assert.ok(closeAdviceConfirmation({ isProposer: true, proposer: null, adviceGate, entries: 0 }).body[1].endsWith('No advice deadline was set.'));
+});
+
+test('the next-action box asks for the step this phase needs, and turns into a done state once the caller took it', () => {
+  type PhaseInput = Parameters<typeof proposalPhaseAction>[0];
+  const caller: PhaseInput = {
+    status: 'advice', canConduct: true, proposer: 'Ines', hasAdvised: false, position: null, hasReported: false,
+    testGateMet: false, confirmers: ['Mo', 'Sol'],
+  };
+  const shown = (input: Partial<PhaseInput>) => {
+    const action = proposalPhaseAction({ ...caller, ...input });
+    return action && [action.done, action.title, action.cta];
+  };
+  const cases: [Partial<PhaseInput>, unknown, string][] = [
+    [{}, [false, 'Your input is needed in the Advice phase', 'Share Advice'], 'advice not given yet'],
+    [{ hasAdvised: true }, [true, 'You advised in this round', 'View advice'], 'advised: no second empty form'],
+    [{ status: 'consent' }, [false, 'Your input is needed in the Consent phase', 'Record Your Position'], 'no position'],
+    [{ status: 'consent', position: 'withdrawn' }, [false, 'Your input is needed in the Consent phase', 'Record Your Position'],
+      'a withdrawn position is none'],
+    [{ status: 'consent', position: 'stand_aside' }, [true, 'Your position is recorded', 'Change your position'], 'positioned'],
+    [{ status: 'test' }, [false, 'Your input is needed in the Test phase', 'Submit a Test Report'], 'no evidence yet'],
+    [{ status: 'test', hasReported: true }, [true, 'You filed a test report', 'View reports'], 'reported'],
+    [{ status: 'test', testGateMet: true }, [true, 'The test evidence is in', 'View reports'], 'someone else met the gate'],
+    [{ canConduct: false }, undefined, 'a reader takes no part'],
+    [{ status: 'draft' }, undefined, 'nothing to do in draft'],
+    [{ status: 'ratified' }, undefined, 'nothing to do once ratified'],
+  ];
+  for (const [input, expected, why] of cases) assert.deepEqual(shown(input), expected, why);
+
+  assert.equal(proposalPhaseAction({ ...caller, hasAdvised: true, proposer: null })?.text,
+    'The proposer reads the advice and decides when to close it. You can add more if something changes.');
+  assert.equal(proposalPhaseAction({ ...caller, status: 'consent', position: 'object' })?.text,
+    'Your position: Object. You can change it or withdraw it while consent is open.');
+  assert.equal(proposalPhaseAction({ ...caller, status: 'test', hasReported: true })?.text, 'Mo or Sol can confirm the outcome.');
+  assert.equal(proposalPhaseAction({ ...caller, status: 'test', testGateMet: true, confirmers: [] })?.text,
+    'A steward who did not write the proposal can confirm the outcome. You can still add a report of your own.');
 });

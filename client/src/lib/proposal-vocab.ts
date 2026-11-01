@@ -204,6 +204,59 @@ export function joinNames(names: readonly string[], conjunction: 'or' | 'and' = 
   return `${names.slice(0, -1).join(', ')} ${conjunction} ${names[names.length - 1]}`;
 }
 
+/** The participation step a phase asks of the caller; `done` once they have taken it (the page's next-action box). */
+export interface PhaseAction {
+  tab: string;
+  cta: string;
+  title: string;
+  text: string;
+  done: boolean;
+}
+
+/** The single participation step this phase asks of the caller, or undefined when there is none. */
+export function proposalPhaseAction(input: {
+  status: string;
+  canConduct: boolean;
+  proposer: string | null | undefined;
+  /** caller_has_advised: advised in the current advice round. */
+  hasAdvised: boolean;
+  /** The caller's position in the latest consent record ('withdrawn' counts as none). */
+  position: string | null | undefined;
+  /** caller_has_reported: filed a test report on this version. */
+  hasReported: boolean;
+  testGateMet: boolean;
+  /** Stewards who may confirm ratification, by name. */
+  confirmers: readonly string[];
+}): PhaseAction | undefined {
+  if (!input.canConduct) return undefined;
+  const needed = `Your input is needed in the ${proposalPhaseLabel(input.status)} phase`;
+  const position = input.position && input.position !== 'withdrawn' ? input.position : null;
+  switch (input.status) {
+    case 'advice':
+      return input.hasAdvised
+        ? { tab: 'advice', cta: 'View advice', done: true, title: 'You advised in this round',
+            text: `${input.proposer || 'The proposer'} reads the advice and decides when to close it. You can add more if something changes.` }
+        : { tab: 'advice', cta: 'Share Advice', done: false, title: needed,
+            text: 'This proposal is gathering advice. Your perspective shapes the final decision.' };
+    case 'consent':
+      return position
+        ? { tab: 'consent', cta: 'Change your position', done: true, title: 'Your position is recorded',
+            text: `Your position: ${positionLabel(position)}. You can change it or withdraw it while consent is open.` }
+        : { tab: 'consent', cta: 'Record Your Position', done: false, title: needed,
+            text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' };
+    case 'test':
+      return input.hasReported || input.testGateMet
+        ? { tab: 'test', cta: 'View reports', done: true,
+            title: input.hasReported ? 'You filed a test report' : 'The test evidence is in',
+            text: `${joinNames(input.confirmers) || 'A steward who did not write the proposal'} can confirm the outcome.`
+              + (input.hasReported ? '' : ' You can still add a report of your own.') }
+        : { tab: 'test', cta: 'Submit a Test Report', done: false, title: needed,
+            text: 'The proposal is being tried in practice. Report observations against the success criteria; a steward confirms the outcome.' };
+    default:
+      return undefined;
+  }
+}
+
 /** The close-advice confirmation: the author is "you"; a steward closing it acts for the proposer. */
 export function closeAdviceConfirmation(input: {
   isProposer: boolean;

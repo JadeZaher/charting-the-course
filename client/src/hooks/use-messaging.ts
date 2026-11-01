@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api-client';
+import { conversationTitle } from '@/lib/conversation-title';
 import { affects, keys } from '@/lib/query-keys';
 
 // REST hooks
@@ -23,22 +24,15 @@ export function useConversation(id: string) {
   return query;
 }
 
-type NamedParticipant = { id: string; display_name: string };
-
 /** Conversation name for the signed-in member: its title, else the other participants (never the caller). */
 export function useConversationTitle() {
   const { member } = useAuth();
-  return useCallback((conversation: { title?: string | null; participants: NamedParticipant[] }) => {
-    if (conversation.title) return conversation.title;
-    const everyone = conversation.participants;
-    // The caller may sit in this conversation through another ecosystem's member row, so fall back to their name.
-    let others = everyone.filter((p) => p.id !== member?.id);
-    if (others.length === everyone.length) {
-      const byName = everyone.filter((p) => p.display_name !== member?.display_name);
-      if (byName.length > 0) others = byName;
-    }
-    return (others.length > 0 ? others : everyone).map((p) => p.display_name).join(', ');
-  }, [member?.id, member?.display_name]);
+  const id = member?.id;
+  const displayName = member?.display_name;
+  return useCallback(
+    (conversation: Parameters<typeof conversationTitle>[0]) => conversationTitle(conversation, { id, display_name: displayName }),
+    [id, displayName],
+  );
 }
 
 // NewConversationDialog renders the failure inline and passes `silent`; other callers get the toast.

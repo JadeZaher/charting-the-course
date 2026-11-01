@@ -41,9 +41,9 @@ import {
   closeAdviceConfirmation,
   consentCompletesRound,
   groupProposalMoves,
-  joinNames,
   positionLabel,
   proposalEditLock,
+  proposalPhaseAction,
   proposalPhaseLabel,
   quorumExplanation,
   ratifiedBanner,
@@ -919,8 +919,6 @@ function PeopleLinks({ people }: { people: MemberRef[] }) {
   );
 }
 
-type PhaseAction = { tab: string; cta: string; title: string; text: string; done: boolean };
-
 // --- Main component ---
 
 export default function ProposalDetail() {
@@ -986,26 +984,16 @@ export default function ProposalDetail() {
   }) : null;
 
   // The single participation action this phase asks of the caller, if any; `done` once they have taken it.
-  const needed = (phase: string) => `Your input is needed in the ${proposalPhaseLabel(phase)} phase`;
-  const phaseAction = !canConduct ? undefined : ({
-    advice: data.caller_has_advised
-      ? { tab: 'advice', cta: 'View advice', done: true, title: 'You advised in this round',
-          text: `${proposerName} reads the advice and decides when to close it. You can add more if something changes.` }
-      : { tab: 'advice', cta: 'Share Advice', done: false, title: needed('advice'),
-          text: 'This proposal is gathering advice. Your perspective shapes the final decision.' },
-    consent: callerPosition
-      ? { tab: 'consent', cta: 'Change your position', done: true, title: 'Your position is recorded',
-          text: `Your position: ${positionLabel(callerPosition.position)}. You can change it or withdraw it while consent is open.` }
-      : { tab: 'consent', cta: 'Record Your Position', done: false, title: needed('consent'),
-          text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' },
-    test: data.caller_has_reported || data.gates?.test.met
-      ? { tab: 'test', cta: 'View reports', done: true,
-          title: data.caller_has_reported ? 'You filed a test report' : 'The test evidence is in',
-          text: `${joinNames(confirmers.map((person) => person.display_name)) || 'A steward who did not write the proposal'} `
-            + `can confirm the outcome.${data.caller_has_reported ? '' : ' You can still add a report of your own.'}` }
-      : { tab: 'test', cta: 'Submit a Test Report', done: false, title: needed('test'),
-          text: 'The proposal is being tried in practice. Report observations against the success criteria; a steward confirms the outcome.' },
-  } as Record<string, PhaseAction>)[data.status];
+  const phaseAction = proposalPhaseAction({
+    status: data.status,
+    canConduct,
+    proposer: data.proposer,
+    hasAdvised: data.caller_has_advised ?? false,
+    position: callerPosition?.position,
+    hasReported: data.caller_has_reported ?? false,
+    testGateMet: data.gates?.test.met ?? false,
+    confirmers: confirmers.map((person) => person.display_name),
+  });
 
   const runTransition = async (target: string, note?: string) => {
     setStatusChanging(true);
