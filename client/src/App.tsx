@@ -18,6 +18,7 @@ import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
 import GovernanceModel from "@/pages/GovernanceModel";
 import Login, { takeStashedRedirect } from "@/pages/Login";
+import { consentGateRedirect, isHeldAtConsentGate } from "@/lib/consent-gate";
 import Dashboard from "@/pages/Dashboard";
 import QuizManagement from "@/pages/QuizManagement";
 import TakeQuiz from "@/pages/TakeQuiz";
@@ -419,19 +420,20 @@ function AuthenticatedRoutes() {
 
 // Main app layout with authentication
 function AppLayout() {
-  const { isAuthenticated, isLoading, pendingConsents } = useAuth();
+  const { isAuthenticated, isLoading, pendingConsents, ecosystems, member } = useAuth();
   const [location, navigate] = useLocation();
   useFocusMainOnNavigate(location);
+  const gateInput = { isAuthenticated, pendingConsents, memberships: ecosystems, member };
+  const heldAtGate = isHeldAtConsentGate(gateInput);
 
   // OAuth returns to /dashboard; resume the deep link stashed before leaving (see Login.tsx).
-  // Keyed on auth state only: it runs once per sign-in, not on every navigation.
-  // A newcomer behind the consent gate stays on the gate (the callback sent them there).
+  // Keyed on auth and gate state, not navigation: it runs once per sign-in, or once when consent lifts the gate.
+  // While the gate holds the member the stash stays put, so consenting lands them where they were going.
   useEffect(() => {
-    if (isLoading || !isAuthenticated) return;
+    if (isLoading || !isAuthenticated || heldAtGate) return;
     const destination = takeStashedRedirect();
-    if (pendingConsents.length) return;
     if (destination && destination !== location) navigate(destination, { replace: true });
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, heldAtGate]);
 
   // Public routes that don't need the sidebar
   const publicPaths = ['/login', '/about', '/governance-model', '/users/'];
@@ -440,6 +442,12 @@ function AppLayout() {
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  // Pending members stay on the consent gate wherever a link lands them (lib/consent-gate.ts).
+  const consentRedirect = consentGateRedirect({ ...gateInput, path: location });
+  if (consentRedirect) {
+    return <Redirect to={consentRedirect} replace />;
   }
 
   // Show landing page for unauthenticated users at root

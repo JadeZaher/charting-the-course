@@ -46,11 +46,15 @@ On mobile the sidebar is a sheet; `AppSidebar` closes it whenever the location c
 
 `pages/Login.tsx` reads `?redirect=` from the raw `window.location.search` (wouter's `useSearch()` unescapes it, which would split a nested `&`) and passes it through `safeRedirect` (`lib/post-login-redirect.ts`): only same-origin in-app paths that are not `/login…` are honoured; anything else becomes `/dashboard`. `resolveInternalPath` (`lib/internal-path.ts`, re-exported by `lib/media.ts`) requires a leading `/`, no `//`, no backslash, and also rejects a path that only becomes `//host` after URL normalisation (`/.//evil.example`, `/%2e//evil.example`); `LinkifiedText` likewise treats a same-origin URL whose path starts with `//` as external. Every sign-in path (password, register, DID, already-authenticated visit) lands on that target with `replace`, unless the member is behind the consent gate (below).
 
-OAuth cannot carry the parameter: the backend callback always returns to `/dashboard`. Before leaving, `handleOAuth` stashes the target in `sessionStorage["neos:post-login-redirect"]`; `AppLayout` consumes it once (`takeStashedRedirect`) when the session becomes authenticated. Non-OAuth submits clear the stash first so a stale OAuth attempt cannot redirect a later password sign-in.
+OAuth cannot carry the parameter: the backend callback always returns to `/dashboard`. Before leaving, `handleOAuth` stashes the target in `sessionStorage["neos:post-login-redirect"]`; `AppLayout` consumes it once (`takeStashedRedirect`) when the session becomes authenticated and the consent gate is not holding the member (below). Non-OAuth submits clear the stash first so a stale OAuth attempt cannot redirect a later password sign-in.
 
 ## Sign-up consent gate
 
-A self sign-up joins the server's default ecosystem behind its agreement-consent gate (`pending_consent` until each membership agreement is attested; see the API's `api/AGENTS.md` "Sign-up placement and the consent gate"). `AuthContext` exposes `pendingConsents` from `/auth/me` and every sign-in method returns `{ consentRequired }`; `Login` then lands on `CONSENT_GATE_PATH` (`/welcome/consent`, `lib/member-status.ts`) instead of the redirect target. The OAuth callback redirects a gated newcomer there itself, and `AppLayout` drops the stashed OAuth destination while a gate is pending. `pages/ConsentGatePage` lists each pending ecosystem's agreements with links to `/agreements/:id` (where consent is recorded) and re-reads `/auth/me` on mount and on "check again". Statuses are shown through `memberStatusLabel` (never raw `pending_consent`); the sidebar's pending label links to the gate.
+A self sign-up joins the server's default ecosystem behind its agreement-consent gate (`pending_consent` until each membership agreement is attested; see the API's `api/AGENTS.md` "Sign-up placement and the consent gate"). `AuthContext` exposes `pendingConsents` from `/auth/me` and every sign-in method returns `{ consentRequired }`; `Login` then lands on `CONSENT_GATE_PATH` (`/welcome/consent`, `lib/member-status.ts`) instead of the redirect target. The OAuth callback redirects a gated newcomer there itself, and `AppLayout` leaves the stashed OAuth destination in place while the gate holds them. `pages/ConsentGatePage` lists each pending ecosystem's agreements with links to `/agreements/:id` (where consent is recorded) and re-reads `/auth/me` on mount and on "check again". Statuses are shown through `memberStatusLabel` (never raw `pending_consent`); the sidebar's pending label links to the gate.
+
+The gate is also a route guard, not only a sign-in redirect: `AppLayout` asks `consentGateRedirect` (`lib/consent-gate.ts`) on every render after auth has loaded. A member the gate holds (`isHeldAtConsentGate`: a pending consent and no ACTIVE membership) is sent to the gate from any path except the gate itself, `/agreements/:id` and `/agreements/:id/history` (they must read what they consent to; `new` and `edit` stay closed), `/ethos` and below, and the public pages (`/about`, `/governance-model`, `/users/:username`). The API serves those agreement routes to pending members on purpose (`api/AGENTS.md` "Handler contracts" rule 5). A member who is active in at least one ecosystem is never trapped: their pending gate is reached through the sidebar label. "Active" is `activeEcosystemIds`: not in `pendingConsents`, and not the `/auth/me` member row when that row's `current_status` is anything but `active` (exited, suspended, prospective). That row, the oldest membership, is the only one whose status `/auth/me` reports; an exited membership elsewhere still counts as active until the API reports a status per ecosystem (wave 2). While the gate holds the member, the stashed OAuth destination is not consumed; when consent lifts the gate, `AppLayout` takes it and lands them there, an agreement link included. AuthContext state is not a query, so consent recorded on an agreement page lifts the gate only after `refreshSession` (the gate page calls it on mount and on "check again").
+
+`EcosystemContext` applies the server's scope rule (`main._load_ecosystems`): it restores only the cookie ids in `activeEcosystemIds`, and otherwise selects `defaultEcosystemId`, which is the `/auth/me` member row's ecosystem when that row is active (the oldest membership being active makes it the server's oldest-active default), else the first active one. A member active nowhere gets no selection and the cookie is left alone, rather than a pending ecosystem the server refuses.
 
 ## Orientation journeys
 
@@ -103,9 +107,158 @@ progress, collects test evidence before activation, and permits a reasoned
 withdrawal. Keep its labels and select values aligned with the backend
 agreement vocabulary; presentation cannot bypass the API lifecycle.
 
+## Shared data and feedback contracts
+
+Pass-01 defects F01, F02, F05, F07, F10 and F17 came from three copies drifting apart: hand-typed query keys and invalidation lists, mutations with no shared feedback path, and per-page loading/error/empty chains. Each contract below owns one of those decisions once. The decision lives in a pure `lib/*.ts` module with a node:test; the hook or component around it stays thin.
+
+### Query keys: `lib/query-keys.ts`
+
+```ts
+keys.<entity>.all                  // ['proposals']                    every entity
+keys.<entity>.list(params = {})    // ['proposals', 'list', params]    collections
+keys.<entity>.detail(id)           // ['proposals', 'detail', id]      collections
+keys.<entity>.<subKey>(…)          // keys.agreements.history(id) = [...detail(id), 'history']
+affects.<domain>                   // key prefixes a successful mutation of that domain invalidates
+ecosystemScoped                    // roots refetched when the ecosystem selection changes
+```
+
+Every key an entity produces starts with its `all`, and a record's sub-resources extend its `detail`, so invalidating a prefix reaches everything beneath it. Each entity owns a distinct root string; the test fails if two entities share one (two response shapes in one cache entry) or if an `affects`/`ecosystemScoped` entry names a root the factory does not own (the phantom keys `TakeQuiz` invalidated). `affects` is the dependency map: a proposal move also refreshes decisions (ratification mints one), the dashboard queue and my decisions; a share or need change also refreshes public profiles and my decisions; agreement consent also refreshes members (it activates a pending membership). `ecosystemScoped` lists exactly the roots whose GET handlers filter by the selected-ecosystem cookie (`api/helpers.py get_ecosystem_ids`); the test's endpoint table is that backend survey. When a handler starts or stops reading `get_ecosystem_ids`, update both. The discover feed and the ecosystem catalogue are not selection-scoped.
+
+```ts
+// before
+useQuery({ queryKey: ['proposals', id], queryFn: () => api.fetchProposal(id), enabled: !!id });
+onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', proposalId] }),
+// after
+useQuery({ queryKey: keys.proposals.detail(id), queryFn: () => api.fetchProposal(id), enabled: !!id });
+invalidates: affects.proposals,
+```
+
+Rules: a key names one request and one response shape. `list(params)` carries the parameters sent to the server; client-side filtering, slicing and mapping go in `select`. Call sites that share a key share one `queryFn` that returns the API response untouched (put it in the hook) and shape their view with `select`. Migrate a root's reads and its exact writes (`setQueryData`, `getQueryData`, `cancelQueries`) in the same change: prefix invalidation reaches old and new shapes during a migration, exact writes do not. A `detail(undefined)` key is only for a disabled query. Never derive a key from a URL; `lib/queryClient.ts` has no default `queryFn`, so every query names its fetcher.
+
+### Mutations: `hooks/use-api-mutation.ts`, `lib/api-mutation-options.ts`, `lib/api-error-message.ts`, `announceActOutcome`
+
+```ts
+useApiMutation<TData, TVariables, TContext>({
+  mutationFn,                       // (variables) => Promise<TData>
+  invalidates?,                     // readonly QueryKey[] | (data, variables) => readonly QueryKey[]
+  success?,                         // ToastCopy | (data, variables) => ToastCopy | null; ToastCopy = string | { title, description? }
+  error?,                           // error toast title; default "That didn't go through"
+  silent?,                          // true only when the error renders inline
+  ...useMutationOptions             // onMutate/onSuccess/onError/onSettled still compose
+}): UseMutationResult<TData, Error, TVariables, TContext>
+apiErrorMessage(error: unknown): string
+announceActOutcome({ auto_transitions, decision_record_id }): { title, description } | null
+```
+
+The hook is a thin wrapper: `apiMutationOptions(options, { queryClient, toast })` in `lib/api-mutation-options.ts` builds the TanStack options, so `lib/api-mutation-options.test.ts` drives them through a real `MutationObserver` and `QueryClient` without React. On success the caller's `onSuccess` runs first (so an optimistic `setQueryData` lands before the refetch), then the success toast, then every invalidation, awaited: `mutateAsync` resolves and `isPending` clears only once fresh data is in. If the caller's `onSuccess` throws, the error goes to `console.error` and the write still counts as a success: the success toast and invalidations run, the caller's `onError` (its rollback) does not, and `mutateAsync` resolves. TanStack would otherwise send a thrown `onSuccess` down the error path, toasting failure and rolling back a write the server kept. On error the toast fires unless `silent`, then the caller's `onError` (rollback). `apiErrorMessage` replaces `(err as Error).message`: the server's own sentence when it sent one, plain words for a bare status line (`Unauthorized`, `Not found`, `Internal Server Error`), a connection message for a failed `fetch`, and never engine text (`Cannot read properties of undefined`, a JSON parse error). It matches `ApiFetchError` by shape (`status: number`) because importing `lib/api-client.ts` would pull `import.meta.env` into node tests. `announceActOutcome` turns the ACT engine's `auto_transitions` (`advice->consent`, `consent->test`, `test->ratified`) into "Proposal moved to Consent / The advice round is complete. Members can now record…"; it returns null when nothing moved, so the caller's own confirmation shows instead.
+
+```ts
+// before: no onError, outcome ignored (F01, F07)
+const submitConsent = useMutation({ mutationFn: (d) => api.submitConsent(id, d), onSuccess: () => qc.invalidateQueries({ queryKey: ['proposals', id] }) });
+// after
+const submitConsent = useApiMutation({
+  mutationFn: (data: Record<string, any>) => api.submitConsent(id, data),
+  invalidates: affects.proposals,
+  success: (result) => announceActOutcome(result) ?? { title: 'Consent recorded', description: 'Your position has been recorded.' },
+  error: 'Consent not recorded',
+});
+```
+
+### Async states: `components/QueryState.tsx`, `lib/query-state.ts`
+
+```tsx
+<QueryState query={proposalsQuery} isEmpty={(page) => page.items.length === 0} empty={<EmptyState … />}
+            loading={<Skeleton … />} errorTitle="We couldn't load proposals">
+  {(page) => <ProposalTable items={page.items} />}
+</QueryState>
+```
+
+`queryStatePhase(query, isEmpty?)` decides: no data and an error is `error`; no data and no error is `idle` when `fetchStatus` is `'idle'` (a disabled query such as `enabled: ecosystemIds.length > 0` or a search under three letters) and `loading` otherwise; data that `isEmpty` calls empty is `empty`, unless the latest fetch failed, which is `error` (never claim absence after a failure: the F02 "no steps" bug); otherwise `ready`, including when a background refresh failed over real data, so content and half-filled forms stay mounted. A query that resolved to `null` has loaded. `isEmpty` and `empty` are typed as a pair, so an empty result cannot render as nothing. The error panel puts `role="alert"` on its text, shows `apiErrorMessage(error)`, and offers Retry (`refetch`, disabled while fetching). Loading is a `role="status"` region around `LoadingState` or the given skeleton. `idle` renders the optional `idle` node (a prompt such as "Type three letters to search"), else nothing, so a disabled query never spins forever. Pass the whole query result: `fetchStatus` is part of the snapshot.
+
+```tsx
+// before: error tested after emptiness, raw message
+if (isLoading) return <Spinner />;
+if (!data?.items.length) return <p>No proposals</p>;
+if (error) return <p>{(error as Error).message}</p>;
+// after: the QueryState above
+```
+
+### Required fields: `hooks/use-required-fields.ts`, `components/FieldError.tsx`, `lib/required-fields.ts`
+
+```ts
+const fields = useRequiredFields({ content: 'Write your advice before submitting.' }); // key order = focus order
+fields.validate(values): boolean        // sets every blank field's error, focuses the first, true when valid
+fields.settle(name, value)              // onChange: clears that field's error once it holds text; never adds one
+fields.field(name)                      // { ref, aria-required, aria-invalid, aria-describedby }; spread on the input
+fields.error(name)                      // { id, message }; spread on <FieldError>
+```
+
+Modelled on the advice form in `ProposalDetail.tsx`: errors appear on submit and leave while typing ("reward early, punish late"), whitespace counts as blank, and the error text is `role="alert"` and linked by `aria-describedby`. The caller keeps owning each value. Put `noValidate` on the form and do not add native `required` (the browser bubble would pre-empt the message). If the input already has a hint, join its id with `field(name)['aria-describedby']`.
+
+```tsx
+// before (silent guard, F10)
+if (!observations.trim() || !outcome) return;
+// after
+if (!fields.validate({ observations, outcome })) return;
+<Textarea {...fields.field('observations')} value={observations}
+          onChange={(e) => { setObservations(e.target.value); fields.settle('observations', e.target.value); }} />
+<FieldError {...fields.error('observations')} />
+```
+
+### Rules for migrating lanes (wave 1)
+
+- Replace every `useMutation` with `useApiMutation`; delete hand-written error toasts. Use `silent: true` only where the error renders inline, and render it with `apiErrorMessage(mutation.error)`.
+- Replace every `(err as Error).message` with `apiErrorMessage(err)`.
+- Replace loading/error/empty chains with `QueryState`; where a page needs a custom layout, branch on `queryStatePhase` instead of re-deriving the order.
+- Replace silent `if (!x.trim()) return;` guards with `useRequiredFields`.
+- `EcosystemContext` invalidates `ecosystemScoped` instead of its hand list.
+- One lane owns `lib/query-keys.ts` at a time; others ask for new keys rather than writing literals. A new key goes through `collection`/`resource` and keeps `npm test` green.
+- Do not wrap `useQuery`, adopt react-hook-form, or derive keys from URLs.
+
+Legacy roots and their factory keys (delete this table once `queryKey: \[` no longer matches in `client/src`). *select* marks a legacy query whose `queryFn` reshapes the response: move the reshaping into `select` before sharing the key.
+
+| Legacy key | Factory key |
+|---|---|
+| `['proposals' \| 'domains' \| 'decisions' \| 'conflicts' \| 'exits' \| 'audits' \| 'courses' \| 'collaborations', params \| id]` | `keys.<entity>.list(params)` / `.detail(id)` |
+| `['agreements', id, 'history']` | `agreements.history(id)` |
+| `['my-decisions', params]` | `myDecisions.list(params)` |
+| `['members', params]`; `['admin-users']`, `['admin-users-management']` *select* | `members.list(params)` |
+| `['members', id]`; `['user-profile', id]`, `['personal-map', id]`, `['profile', id]` *select* | `members.detail(id)` |
+| `['members', id, 'onboarding' \| 'quiz-history' \| 'badges' \| 'tags']`, `['member-profile', id]` | `members.onboarding / quizHistory / badges / tags / profile(id)` |
+| `['user-quiz-results', id]`, `['my-quiz-history', id]`, `['quiz-result', resultId, memberId]` *select* | `members.quizHistory(memberId)` |
+| `['user-badges', id]`, `['user-badges-history', id]` *select* | `members.badges(id)` |
+| `['members', 'picker']` | `members.picker()` |
+| `['onboarding', params]`; `['onboarding-hub']` *select* | `onboarding.list(params)` |
+| `['onboarding', memberId, 'ceremony']` | `onboarding.ceremony(memberId)` |
+| `['ecosystems', params]`; `['ethos-list', …]`, `['admin-ethos']` *select* | `ecosystems.list(params)` |
+| `['ecosystems', id]`; `['ethos-detail', id]` *select* | `ecosystems.detail(id)` |
+| `['admin-ethos-members', id]`, `['admin-ethos-access', id]`, `['ethos-access', id]` | `ecosystems.members / accessGrants / myAccess(id)` |
+| `['emergency']`, `['emergency', id]` | `emergency.list()`, `emergency.detail(id)` |
+| `['safeguards']`, `['notifications', 'preferences']`, `['agent-tokens']` | `safeguards.overview()`, `notifications.preferences()`, `agentTokens.list()` |
+| `['dashboard', 'summary', ids]` | `dashboard.summary(ids)` |
+| `['discover', params]`, `['discover', 'ecosystems', search]` | `discover.list(params)` with the params `fetchDiscover` sends |
+| `['shares-needs', p]`, `['shares-needs-admin', p]`, `['ecosystem-shares-needs', id]` | `sharesNeeds.list(p)`, `.moderation(p)`, `.forEcosystem(id)`; `.forDomain(id)` for the domain page |
+| `['compliance', 'latest' \| 'history', x]` | `compliance.latest(params)`, `compliance.history(params)` |
+| `['conversations']`, `[…, id]`, `[…, id, 'messages', page]`, `['messages', 'search', q]` | `conversations.list()`, `.detail(id)`, `.messages(id, page)`, `.search(q)` |
+| `['chat', 'sessions']` | `chatSessions.list(params)` |
+| `['quizzes', params]`, `['quizzes-manage', p]`; `['quizzes-list', …]`, `['quizzes-hub', …]`, `['admin-quizzes']` *select* | `quizzes.list(params)` |
+| `['quizzes', id]`, `['quiz', id]` | `quizzes.detail(id)` |
+| `['quiz-results', quizId]`, `['admin-quiz-results-counts']`, `['ecosystem-quizzes', id]` | `quizzes.results(quizId)`, `.resultCounts()`, `.forEcosystem(id)` |
+| `['admin-quiz-assignments']` | `quizAssignments.list()` |
+| `['badge-definitions', options]`, `['admin-badges']` *select* | `badges.list(params)` |
+| `['admin-teams']`, `['admin-team-members', id]` | `teams.list()`, `teams.members(id)` |
+| `['my-public-profile']`, `['public-profile', identifier]` | `profiles.mine()`, `profiles.detail(identifier)` |
+| `['ctc-map-settings']`, `['ctc-map-settings-admin']` *select* | `settings.detail(APP_SETTINGS_KEYS.ctcMap)` |
+| `['admin-ctc-handoff']` | `ctcHandoff.list()` |
+| `['orientation-path' \| 'journey-recommendation' \| 'journey-progress', ethosId]` | `orientation.path / recommendation / progress(ethosId)` |
+| `['journey-map', id]`, `['ethos-journey-maps', ethosId]` | `orientation.journeyMap(id)`, `orientation.journeyMaps(ethosId)` |
+| `['achievements', userId, options]`, `['user-xp', id]`, `['levels']` | `achievements.forMember(memberId, params)`, `.experience(id)`, `.levels()` |
+| `['health']`, `['skills', layer]`, `['admin-omnibot-sessions']` | `platform.health()`, `platform.skills(layer)`, `omnibot.sessions()` |
+| `['my-quiz-results']`, `['profile-tiles']`, `['my-profile-data']` | nothing queries these: delete them and invalidate `affects.quizResults` |
+
 ## Client tests
 
-`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
+`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
 
 ## Pass 01 (first week) history note
 

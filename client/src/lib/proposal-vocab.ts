@@ -70,3 +70,46 @@ export function proposalPhaseAnnouncement(status: string): { title: string; desc
     description: PROPOSAL_PHASE_ANNOUNCEMENTS[status] ?? '',
   };
 }
+
+/** What the ACT gate engine reports after advice, consent, a test report or a status change (api/proposals.py). */
+export interface ActOutcome {
+  /** Automatic moves in order, e.g. ['advice->consent', 'consent->test']. */
+  auto_transitions?: readonly string[] | null;
+  /** Set when the cascade reached ratified and minted a decision record. */
+  decision_record_id?: string | null;
+}
+
+/** The ACT step whose gate was met when a proposal left each status. */
+const COMPLETED_STEPS: Record<string, string> = {
+  advice: 'the advice round',
+  consent: 'the consent round',
+  test: 'the test period',
+};
+
+/** Toast explaining an automatic ACT advance, or null when the proposal stayed in its phase. */
+export function announceActOutcome(outcome: ActOutcome): { title: string; description: string } | null {
+  const moves = (outcome.auto_transitions ?? [])
+    .map((transition) => transition.split('->'))
+    .filter((parts): parts is [string, string] => parts.length === 2 && parts.every(Boolean));
+  if (moves.length === 0) return null;
+
+  const finalStatus = moves[moves.length - 1][1];
+  const steps = moves.map(([from]) => COMPLETED_STEPS[from]).filter(Boolean);
+  const sentences = [
+    steps.length ? `${capitalize(joinWords(steps))} ${steps.length > 1 ? 'are' : 'is'} complete.` : '',
+    PROPOSAL_PHASE_ANNOUNCEMENTS[finalStatus] ?? '',
+    finalStatus === 'ratified' && outcome.decision_record_id ? 'A decision record was created.' : '',
+  ];
+  return {
+    title: finalStatus === 'ratified' ? 'Proposal ratified' : `Proposal moved to ${proposalPhaseLabel(finalStatus)}`,
+    description: sentences.filter(Boolean).join(' '),
+  };
+}
+
+function joinWords(words: string[]): string {
+  return words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : words[0];
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

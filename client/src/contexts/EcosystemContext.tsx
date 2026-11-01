@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
+import { activeEcosystemIds, defaultEcosystemId } from '@/lib/consent-gate';
 import type { EcosystemSummary } from '@/types/api';
 
 interface EcosystemContextType {
@@ -37,7 +38,7 @@ function setSelectedCookie(ids: string[]) {
 const EcosystemContext = createContext<EcosystemContextType | null>(null);
 
 export function EcosystemProvider({ children }: { children: ReactNode }) {
-  const { ecosystems } = useAuth();
+  const { ecosystems, pendingConsents, member } = useAuth();
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const prevIdsRef = useRef<string[]>([]);
@@ -69,21 +70,23 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedIds, queryClient]);
 
-  // Initialize from cookie or first ecosystem
+  // Initialize from the cookie's active ids, else the default active ecosystem: the server's rule (api/AGENTS.md "Handler contracts").
   useEffect(() => {
     if (ecosystems.length === 0) return;
 
-    const cookieIds = getSelectedFromCookie();
-    const validIds = cookieIds.filter(id => ecosystems.some(e => e.id === id));
+    const membershipsInput = { pendingConsents, memberships: ecosystems, member };
+    const active = new Set(activeEcosystemIds(membershipsInput));
+    const validIds = getSelectedFromCookie().filter(id => active.has(id));
 
     if (validIds.length > 0) {
       setSelectedIds(validIds);
-    } else {
-      // Default to a single current ecosystem
-      setSelectedIds([ecosystems[0].id]);
-      setSelectedCookie([ecosystems[0].id]);
+      return;
     }
-  }, [ecosystems]);
+    // Active nowhere (held at the consent gate): select nothing rather than a scope the server refuses.
+    const fallbackId = defaultEcosystemId(membershipsInput);
+    setSelectedIds(fallbackId ? [fallbackId] : []);
+    if (fallbackId) setSelectedCookie([fallbackId]);
+  }, [ecosystems, pendingConsents, member]);
 
   const selectEcosystem = useCallback((id: string) => {
     setSelectedIds([id]);
