@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useAudit } from '@/hooks/use-governance';
+import { useState } from 'react';
+import { useAudit } from '@/hooks/use-care';
+import { GovernanceHealthAuditForm } from '@/components/governance/safeguards/GovernanceHealthAuditForm';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { IndicatorScore, TriggeredSafeguard } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
@@ -50,12 +52,14 @@ const TRIGGER_TYPE_LABELS: Record<string, string> = {
   participant_request: 'Participant Request',
   post_emergency: 'Post-Emergency',
   mass_exit: 'Mass Exit',
+  human: 'Recorded by a member',
 };
 
 export default function AuditDetail() {
   const [, params] = useRoute('/safeguards/audits/:id');
   const id = params?.id ?? '';
   const { data, isLoading, error, refetch } = useAudit(id);
+  const [continuing, setContinuing] = useState(false);
 
   if (isLoading) return <LoadingState message="Loading audit..." />;
 
@@ -101,12 +105,22 @@ export default function AuditDetail() {
             {triggerLabel && (
               <Badge variant="outline">{triggerLabel}</Badge>
             )}
-            {!data.auditor_ids?.length && (
-              <span className="text-sm text-muted-foreground">by {data.auditor}</span>
-            )}
+            <span className="text-sm text-muted-foreground">by {data.auditor}</span>
           </div>
         </div>
+        {data.caller_can_edit && (
+          <Button onClick={() => setContinuing(true)}>Continue this audit</Button>
+        )}
       </div>
+
+      {data.status === 'draft' && (
+        <p className="border-2 border-warning bg-warning/10 p-3 text-sm">
+          {data.caller_can_edit
+            ? 'This is your draft. It does not count toward the health score until you publish it.'
+            : `This is ${data.auditor}'s draft. It does not count toward the health score until they publish it.`}
+        </p>
+      )}
+      <GovernanceHealthAuditForm open={continuing} onOpenChange={setContinuing} audit={data} />
 
       {/* Details Card */}
       <Card>
@@ -116,22 +130,8 @@ export default function AuditDetail() {
         <CardContent>
           <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
-              <dt className="text-muted-foreground">
-                {data.auditor_ids && data.auditor_ids.length > 1 ? 'Audit Team' : 'Auditor'}
-              </dt>
-              <dd className="font-medium">
-                {data.auditor_ids && data.auditor_ids.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {data.auditor_ids.map((auditorId) => (
-                      <Badge key={auditorId} variant="outline" className="text-xs">
-                        {auditorId}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  data.auditor
-                )}
-              </dd>
+              <dt className="text-muted-foreground">Auditor</dt>
+              <dd className="font-medium">{data.auditor}</dd>
             </div>
 
             <div>

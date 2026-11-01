@@ -10,6 +10,7 @@ import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Ta
 import { Progress } from '@/components/ui/progress';
 import { toStringList } from '@/lib/utils';
 import { domainLabel } from '@/lib/domain-label';
+import { MemberRoleCard } from '@/components/governance/MemberRoleCard';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -139,9 +140,19 @@ export default function MemberDetail() {
               ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">Per-ecosystem role tiers arrive with the role model (H4).</p>
         </CardContent>
       </Card>
+
+      <MemberRoleCard
+        memberId={data.id}
+        memberName={data.display_name}
+        role={data.role}
+        assignable={data.caller_assignable_roles ?? []}
+        history={data.role_history ?? []}
+        isSelf={data.caller_is_self ?? false}
+        profile={data.profile ?? null}
+        grantableProfiles={data.caller_grantable_profiles ?? []}
+      />
 
       {/* Domains Stewarded */}
       <Card>

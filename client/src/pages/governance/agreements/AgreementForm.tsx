@@ -60,6 +60,7 @@ export default function AgreementForm() {
   const [alignmentPoints, setAlignmentPoints] = useState('5');
   const [minAdviceRounds, setMinAdviceRounds] = useState('1');
   const [actTestCases, setActTestCases] = useState('');
+  const [consentQuorum, setConsentQuorum] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function AgreementForm() {
       if (policy) {
         setMinAdviceRounds(String(policy.min_advice_rounds ?? 1));
         setActTestCases((policy.test_cases ?? []).join('\n'));
+        setConsentQuorum(policy.consent_quorum != null ? String(policy.consent_quorum) : '');
       }
     }
   }, [existing, isEdit]);
@@ -119,7 +121,7 @@ export default function AgreementForm() {
       act_policy: {
         min_advice_rounds: Math.max(0, parseInt(minAdviceRounds, 10) || 0),
         consent_required: true,
-        consent_quorum: null,
+        consent_quorum: consentQuorum.trim() ? Math.max(1, parseInt(consentQuorum, 10) || 1) : null,
         test_cases: actTestCases.split('\n').map((c) => c.trim()).filter(Boolean),
       },
     };
@@ -287,8 +289,8 @@ export default function AgreementForm() {
                 <div>
                   <p className="text-sm font-medium">ACT Gates</p>
                   <p className="text-xs text-muted-foreground">
-                    Declared at the agreement level: the advice rounds and test evidence this agreement
-                    must complete. Status moves automatically when the conditions are met.
+                    Declared at the agreement level: the advice rounds, consent and test evidence this
+                    agreement must complete. A stage moves on by itself once its conditions are met.
                     {isEdit && existing && !['draft', 'advice'].includes(existing.status) && (
                       <span className="block mt-1 text-warning">Gates apply on save only while the agreement is in draft or advice.</span>
                     )}
@@ -298,6 +300,22 @@ export default function AgreementForm() {
                   <div className="space-y-2">
                     <Label htmlFor="min_advice_rounds">Minimum advice rounds</Label>
                     <Input id="min_advice_rounds" type="number" min={0} value={minAdviceRounds} onChange={(e) => setMinAdviceRounds(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="agreement_consent_quorum">Consent quorum (optional)</Label>
+                    <Input
+                      id="agreement_consent_quorum"
+                      type="number"
+                      min={1}
+                      value={consentQuorum}
+                      onChange={(e) => setConsentQuorum(e.target.value)}
+                      placeholder="Every member"
+                      aria-describedby="agreement_consent_quorum-hint"
+                    />
+                    <p id="agreement_consent_quorum-hint" className="text-xs text-muted-foreground">
+                      Blank: every participating member must consent to this agreement. A number: that many
+                      members. Proposals this agreement governs need that many positions (default 1).
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-2">

@@ -7,7 +7,8 @@ import { AITextarea } from '@/components/ui/ai-textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
-import { useCreateConflict } from '@/hooks/use-governance';
+import { useReportConflict } from '@/hooks/use-care';
+import { useMembers } from '@/hooks/use-governance';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { CONFLICT_SCOPE_OPTIONS } from '@/lib/conflict-vocab';
@@ -25,7 +26,7 @@ const SEVERITY_OPTIONS = [
 export default function ConflictForm() {
   const [, navigate] = useLocation();
   const { selected: selectedEcosystem } = useEcosystem();
-  const createMutation = useCreateConflict();
+  const createMutation = useReportConflict();
   const { toast } = useToast();
 
   const [title, setTitle] = useState('');
@@ -33,6 +34,9 @@ export default function ConflictForm() {
   const [severity, setSeverity] = useState('');
   const [urgency, setUrgency] = useState('');
   const [domain, setDomain] = useState('');
+  const [involvedIds, setInvolvedIds] = useState<string[]>([]);
+  const { data: memberPage } = useMembers(selectedEcosystem ? { ecosystem_ids: selectedEcosystem.id, per_page: '100' } : { per_page: '1' });
+  const memberOptions = selectedEcosystem ? (memberPage?.items ?? []).filter((member) => member.current_status === 'active') : [];
   const [scope, setScope] = useState('');
   const [safetyFlag, setSafetyFlag] = useState(false);
   const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
@@ -61,6 +65,7 @@ export default function ConflictForm() {
       scope: scope || null,
       safety_flag: safetyFlag,
     };
+    if (involvedIds.length > 0) payload.party_member_ids = involvedIds;
 
     if (selectedEcosystem) {
       payload.ecosystem_id = selectedEcosystem.id;
@@ -74,7 +79,7 @@ export default function ConflictForm() {
       const result = await createMutation.mutateAsync(payload);
       toast({
         title: 'Thank you for coming forward',
-        description: 'A conflict steward will be assigned within 48 hours. You\'ll be notified when the process begins. Take care of yourself.',
+        description: 'A steward of your ecosystem will look at it. The case page shows the next step. Take care of yourself.',
       });
       navigate(`/conflicts/${result.id}`);
     } catch {
@@ -172,6 +177,27 @@ export default function ConflictForm() {
               </div>
             </div>
 
+            <fieldset className="space-y-2" aria-describedby="involved-hint">
+              <legend className="text-sm font-medium">Who is involved?</legend>
+              <p id="involved-hint" className="text-xs text-muted-foreground">
+                The members you pick can read this case. Nobody else can, except the stewards who triage it.
+              </p>
+              <div className="max-h-40 overflow-y-auto border-2 border-strong-border p-2 space-y-1">
+                {memberOptions.length === 0 && <p className="text-sm text-muted-foreground">No members to choose from.</p>}
+                {memberOptions.map((member) => (
+                  <label key={member.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={involvedIds.includes(member.id)}
+                      onChange={(e) => setInvolvedIds((previous) => (e.target.checked ? [...previous, member.id] : previous.filter((id) => id !== member.id)))}
+                    />
+                    {member.display_name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="domain">Domain</Label>
@@ -214,11 +240,11 @@ export default function ConflictForm() {
             <div className="text-sm text-muted-foreground space-y-1 border-t pt-4 mt-4">
               <p className="font-medium text-foreground">What happens after you submit:</p>
               <ol className="list-decimal list-inside space-y-1">
-                <li>A conflict steward will be assigned within 48 hours</li>
-                <li>Both parties will be contacted for initial perspectives</li>
-                <li>A facilitated dialogue process will be designed</li>
-                <li>The goal is a repair agreement that strengthens the community</li>
+                <li>Your case is saved as reported, and you are recorded as the reporter.</li>
+                <li>A steward of your ecosystem triages it: they choose a process and a facilitator. Until then the case page says it is waiting for a steward.</li>
+                <li>The facilitator works with the people involved toward a repair agreement, with follow-ups at 30, 60 and 90 days.</li>
               </ol>
+              <p>Only you, the people you name, the facilitator and triage stewards can read the case.</p>
             </div>
 
             <EcosystemMultiSelect

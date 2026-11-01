@@ -102,6 +102,8 @@ export default function OnboardingCeremony() {
   }
 
   const completedSections = CEREMONY_STEPS.filter((step) => hasConsented(data.section_consents[step.key]));
+  // Only the member themselves, or a steward of their ecosystem facilitating, records these (server rule).
+  const canRecord = data.caller_can_record ?? false;
   const completionPct = data.completion_percentage;
 
   const isSectionComplete = (key: string) => {
@@ -164,6 +166,13 @@ export default function OnboardingCeremony() {
           Member {data.member_id}
         </p>
       </div>
+
+      {!canRecord && (
+        <div role="note" className="border-2 border-strong-border bg-muted p-3 text-sm text-muted-foreground">
+          Only this member, or a steward of their ecosystem facilitating the ceremony, can record these consents.
+          You can read where they are.
+        </div>
+      )}
 
       {/* Progress bar */}
       <Card>
@@ -233,7 +242,7 @@ export default function OnboardingCeremony() {
                 </CollapsibleContent>
               </Collapsible>
 
-              {!completed && (
+              {!completed && canRecord && (
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center gap-3">
                     <Button

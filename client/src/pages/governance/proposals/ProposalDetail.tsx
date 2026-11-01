@@ -9,10 +9,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useProposal, useUpdateProposalStatus, useSubmitAdvice, useSubmitConsent, useSubmitTestReport } from '@/hooks/use-governance';
+import {
+  useProposal,
+  useRegisterProposalAgreement,
+  useSubmitAdvice,
+  useSubmitConsent,
+  useSubmitTestReport,
+  useUpdateProposalStatus,
+  useWithdrawConsentPosition,
+} from '@/hooks/use-governance';
+import { useRequiredFields } from '@/hooks/use-required-fields';
+import { FieldError } from '@/components/FieldError';
 import { formatDate } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api-error-message';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ACTStepper } from '@/components/governance/ACTStepper';
 import { ActGatesPanel } from '@/components/governance/ActGatesPanel';
@@ -20,15 +31,28 @@ import { RecordDecisionAction } from '@/components/governance/RecordDecisionDial
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Pencil, ArrowLeft, Check, X, Award, Trash2, CircleAlert, Info } from 'lucide-react';
+import { Pencil, ArrowLeft, Check, X, Award, Trash2, CircleAlert, Info, Clock } from 'lucide-react';
 import { ApiFetchError } from '@/lib/api-client';
 import {
-  PROPOSAL_GATE_FOR_STATUS,
-  PROPOSAL_NEXT_STATUSES,
+  DECISION_TYPE_OPTIONS,
   PROPOSAL_TRANSITION_LABELS,
+  adviceClosePrompt,
+  groupProposalMoves,
+  positionLabel,
+  proposalEditLock,
   proposalPhaseLabel,
+  quorumExplanation,
+  ratifiedBanner,
 } from '@/lib/proposal-vocab';
-import type { AdviceLog, ConsentRecord, ProposalDetail as ProposalDetailData, TestReport } from '@/types/api';
+import type {
+  ActAdviceGateDetail,
+  ActConsentGateDetail,
+  ActGates,
+  AdviceLog,
+  ConsentRecord,
+  ProposalDetail as ProposalDetailData,
+  TestReport,
+} from '@/types/api';
 
 const statusVariant = (status: string) => {
   switch (status) {
@@ -51,13 +75,11 @@ const urgencyVariant = (urgency: string | null) => {
   }
 };
 
-/** Manual moves offered now: forward moves only once their ACT gate is met (the server would 409 otherwise). */
-function availableTransitions(data: ProposalDetailData): string[] {
-  return (PROPOSAL_NEXT_STATUSES[data.status] ?? []).filter((target) => {
-    const gate = PROPOSAL_GATE_FOR_STATUS[target];
-    return !gate || Boolean(data.gates?.[gate]?.met);
-  });
-}
+const positionVariant = (position: string | null) =>
+  position === 'consent' ? 'default' as const : position === 'object' ? 'destructive' as const : 'secondary' as const;
+
+const reportVariant = (outcome: string | null) =>
+  outcome === 'passed' ? 'default' as const : outcome === 'failed' ? 'destructive' as const : 'secondary' as const;
 
 // --- Sub-components ---
 
@@ -126,11 +148,12 @@ function OverviewTab({ data }: { data: any }) {
 
 const ADVICE_REQUIRED_MESSAGE = 'Write your advice before submitting.';
 
-function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoAdvance }: {
+function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, canParticipate, onAutoAdvance }: {
   adviceLogs: AdviceLog[];
   proposalId: string;
   proposalStatus: string;
   isProposer: boolean;
+  canParticipate: boolean;
   /** Called after an advice entry auto-advanced the proposal (this form unmounts). */
   onAutoAdvance: () => void;
 }) {
@@ -169,13 +192,13 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
         <Card className="border-muted">
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground text-center">
-              You are the proposer: advice from others appears here.
+              You are the proposer: advice from others appears here. You decide when advice closes.
             </p>
           </CardContent>
         </Card>
       )}
       {/* Submit advice form — only during advice phase */}
-      {proposalStatus === 'advice' && !isProposer && (
+      {proposalStatus === 'advice' && !isProposer && canParticipate && (
         <Card>
           <CardHeader><CardTitle className="text-lg">Submit Advice</CardTitle></CardHeader>
           <CardContent>
@@ -232,18 +255,20 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
         <Card className="border-muted">
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground text-center">
-              Advice can only be submitted during the advice phase. Current status: <Badge variant="secondary">{proposalStatus}</Badge>
+              Advice can only be submitted during the advice phase. Current status: <Badge variant="secondary">{proposalPhaseLabel(proposalStatus)}</Badge>
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Advice logs */}
-      {adviceLogs.map((log) => (
+      {/* Advice rounds, oldest first; a round opened by a send-back carries the proposer's revision note. */}
+      {adviceLogs.map((log, index) => (
         <Card key={log.id}>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Advice Log</CardTitle>
+              <CardTitle className="text-lg">
+                {log.proposer_modifications ? 'Revision round' : `Advice round ${index + 1}`}
+              </CardTitle>
               {log.urgency && <Badge variant="secondary">{log.urgency}</Badge>}
             </div>
             {log.advice_window_start && log.advice_window_end && (
@@ -261,8 +286,8 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
             )}
             {log.proposer_modifications && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Proposer Modifications</p>
-                <p className="text-sm">{log.proposer_modifications}</p>
+                <p className="text-sm font-medium text-muted-foreground">What the proposer is changing</p>
+                <p className="text-sm whitespace-pre-wrap">{log.proposer_modifications}</p>
               </div>
             )}
             {log.entries.length > 0 && (
@@ -282,6 +307,9 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
                 ))}
               </div>
             )}
+            {log.entries.length === 0 && (
+              <p className="text-sm text-muted-foreground">No advice in this round yet.</p>
+            )}
           </CardContent>
         </Card>
       ))}
@@ -293,68 +321,118 @@ function AdviceTab({ adviceLogs, proposalId, proposalStatus, isProposer, onAutoA
   );
 }
 
-function ConsentTab({ consentRecords, proposalId, proposalStatus, onAutoAdvance }: {
+function ConsentTab({ consentRecords, proposalId, proposalStatus, callerPosition, canParticipate, consentGate, governingTitle, onAutoAdvance }: {
   consentRecords: ConsentRecord[];
   proposalId: string;
   proposalStatus: string;
+  callerPosition: ProposalDetailData['caller_position'];
+  canParticipate: boolean;
+  consentGate: (ActGates['consent'] & ActConsentGateDetail) | null;
+  governingTitle: string | null;
   /** Called after a position auto-advanced the proposal (this form unmounts). */
   onAutoAdvance: () => void;
 }) {
   const submitConsent = useSubmitConsent(proposalId);
+  const withdrawPosition = useWithdrawConsentPosition(proposalId);
   const { member } = useAuth();
-  const [position, setPosition] = useState('consent');
-  const [objection, setObjection] = useState('');
+  const consensus = consentGate?.mode === 'consensus';
+  const current = callerPosition && callerPosition.position !== 'withdrawn' ? callerPosition : null;
+  const [position, setPosition] = useState(current?.position ?? 'consent');
+  const [objection, setObjection] = useState(current?.position === 'object' ? current.reason ?? '' : '');
+  const fields = useRequiredFields({ objection: 'Say what your objection is, so the proposer can work with it.' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const displayName = member?.display_name ?? 'Unknown';
+    if (position === 'object' && !fields.validate({ objection })) return;
     try {
+      // The server records the caller; one position per member, so this replaces any earlier one.
       const result = await submitConsent.mutateAsync({
-        member_name: displayName,
         position,
-        objection_text: position === 'object' ? objection.trim() || null : null,
+        objection_text: position === 'object' ? objection.trim() : null,
       });
-      setPosition('consent');
-      setObjection('');
       if (result.auto_transitions?.length) onAutoAdvance();
     } catch {
       // Rendered below from submitConsent.error
     }
   };
 
+  const handleWithdraw = async () => {
+    try {
+      const result = await withdrawPosition.mutateAsync({});
+      setPosition('consent');
+      setObjection('');
+      if (result.auto_transitions?.length) onAutoAdvance();
+    } catch {
+      // Rendered below from withdrawPosition.error
+    }
+  };
+
+  const latest = consentRecords[consentRecords.length - 1];
+
   return (
     <div className="space-y-6">
-      {/* Submit consent form — only during consent phase */}
-      {proposalStatus === 'consent' && (
+      {proposalStatus === 'consent' && canParticipate && (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Submit Consent</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-3">
+          <CardHeader>
+            <CardTitle className="text-lg">{current ? 'Your position' : 'Record your position'}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {current && (
+              <div className="flex flex-col gap-2 border-2 border-strong-border p-3 sm:flex-row sm:items-center">
+                <p className="flex-1 text-sm">
+                  You recorded <Badge variant={positionVariant(current.position)}>{positionLabel(current.position)}</Badge>
+                  {current.reason && <span className="block mt-1 text-muted-foreground">“{current.reason}”</span>}
+                  <span className="block mt-1 text-muted-foreground">Change it below, or withdraw it{current.position === 'object' ? ' to lift your objection' : ''}.</span>
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={handleWithdraw} disabled={withdrawPosition.isPending}>
+                  {withdrawPosition.isPending ? 'Withdrawing...' : current.position === 'object' ? 'Withdraw my objection' : 'Withdraw my position'}
+                </Button>
+              </div>
+            )}
+            {withdrawPosition.error && (
+              <p className="text-sm text-destructive" role="alert">{apiErrorMessage(withdrawPosition.error)}</p>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-3" noValidate>
               <div className="space-y-1">
-                <Label>Submitting as:</Label>
+                <Label>Recording as:</Label>
                 <p className="text-sm font-medium">{member?.display_name ?? 'Unknown'}</p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="consent-position">Position</Label>
                 <Select value={position} onValueChange={setPosition}>
-                  <SelectTrigger id="consent-position">
+                  <SelectTrigger id="consent-position" aria-describedby="consent-position-hint">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="consent">Consent</SelectItem>
                     <SelectItem value="object">Object</SelectItem>
-                    <SelectItem value="stand_aside">Stand Aside</SelectItem>
+                    {!consensus && <SelectItem value="stand_aside">Stand aside</SelectItem>}
                   </SelectContent>
                 </Select>
+                <p id="consent-position-hint" className="text-xs text-muted-foreground">
+                  {consensus
+                    ? 'This proposal decides by consensus: consent or object.'
+                    : 'Stand aside: no objection, but you will not take part. Object: a reasoned concern the proposer must work with.'}
+                </p>
               </div>
               {position === 'object' && (
                 <div className="space-y-1">
-                  <Label htmlFor="objection">Objection</Label>
-                  <AITextarea id="objection" value={objection} onChange={(e) => setObjection(e.target.value)} placeholder="Explain your objection..." rows={3} fieldLabel="Objection" fieldContext="An objection to a governance proposal explaining why it should not be adopted" />
+                  <Label htmlFor="objection">Objection *</Label>
+                  <AITextarea
+                    id="objection"
+                    {...fields.field('objection')}
+                    value={objection}
+                    onChange={(e) => { setObjection(e.target.value); fields.settle('objection', e.target.value); }}
+                    placeholder="What harm do you see, and what would resolve it?"
+                    rows={3}
+                    fieldLabel="Objection"
+                    fieldContext="An objection to a governance proposal explaining why it should not be adopted"
+                  />
+                  <FieldError {...fields.error('objection')} />
                 </div>
               )}
               <Button type="submit" disabled={submitConsent.isPending}>
-                {submitConsent.isPending ? 'Submitting...' : 'Submit'}
+                {submitConsent.isPending ? 'Saving...' : current ? 'Change my position' : 'Record my position'}
               </Button>
               {submitConsent.error && (
                 <p className="text-sm text-destructive" role="alert">{apiErrorMessage(submitConsent.error)}</p>
@@ -367,68 +445,56 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, onAutoAdvance 
         <Card className="border-muted">
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground text-center">
-              Consent can only be submitted during the consent phase. Current status: <Badge variant="secondary">{proposalStatus}</Badge>
+              Positions can only be recorded during the consent phase. Current status: <Badge variant="secondary">{proposalPhaseLabel(proposalStatus)}</Badge>
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Consent records */}
-      {consentRecords.map((record) => (
-        <Card key={record.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Consent Round</CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant={record.quorum_met ? 'default' : 'destructive'}>
-                  {record.quorum_met ? 'Quorum Met' : 'No Quorum'}
-                </Badge>
-                {record.outcome && <Badge variant="secondary">{record.outcome}</Badge>}
+      {/* Consent rounds, newest first; only the newest counts, earlier ones are kept as history. */}
+      {[...consentRecords].reverse().map((record) => {
+        const isCurrent = record === latest;
+        return (
+          <Card key={record.id} className={isCurrent ? undefined : 'border-muted'}>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-lg">{isCurrent ? 'Current consent round' : 'Earlier round (before a revision)'}</CardTitle>
+                {!isCurrent && <Badge variant="outline">History</Badge>}
               </div>
-            </div>
-            <div className="text-xs text-muted-foreground space-x-3">
-              {record.consent_mode && <span>Mode: {record.consent_mode}</span>}
-              {record.facilitator && <span>Facilitator: {record.facilitator}</span>}
-              {record.date && <span>{formatDate(record.date)}</span>}
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Objection</TableHead>
-                  <TableHead>Integration</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {record.participants.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.member_name}</TableCell>
-                    <TableCell>
-                      <Badge variant={p.position === 'consent' ? 'default' : p.position === 'object' ? 'destructive' : 'secondary'}>
-                        {p.position || '-'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{p.objection_text || '-'}</TableCell>
-                    <TableCell>
-                      {p.integration_attempted != null && (
-                        <div className="text-sm">
-                          {p.integration_attempted ? 'Attempted' : 'Not attempted'}
-                          {p.integration_outcome && <span className="block text-muted-foreground">{p.integration_outcome}</span>}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{formatDate(p.date)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ))}
+              {isCurrent && consentGate && (
+                <p className="text-xs text-muted-foreground">{quorumExplanation(consentGate, governingTitle)}</p>
+              )}
+              {record.date && <p className="text-xs text-muted-foreground">Opened {formatDate(record.date)}</p>}
+            </CardHeader>
+            <CardContent className="p-0">
+              {record.participants.length === 0 ? (
+                <p className="px-6 pb-6 text-sm text-muted-foreground">No positions yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Position</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {record.participants.map((p) => (
+                      <TableRow key={p.id} className={p.position === 'withdrawn' ? 'text-muted-foreground' : undefined}>
+                        <TableCell className="font-medium">{p.member_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={positionVariant(p.position)}>{positionLabel(p.position)}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{p.objection_text || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {consentRecords.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-4">No consent records yet</p>
@@ -437,42 +503,110 @@ function ConsentTab({ consentRecords, proposalId, proposalStatus, onAutoAdvance 
   );
 }
 
-function TestTab({ testReports, proposalId, proposalStatus, onAutoAdvance }: {
+type CriterionDraft = { criterion: string; metric: string; target: string; actual: string; met: boolean; evidence: string };
+
+const emptyCriterion = (criterion = ''): CriterionDraft => ({ criterion, metric: '', target: '', actual: '', met: false, evidence: '' });
+
+function TestReportCard({ report }: { report: TestReport }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Test Report</CardTitle>
+          {report.outcome && <Badge variant={reportVariant(report.outcome)}>{report.outcome}</Badge>}
+        </div>
+        <div className="text-xs text-muted-foreground space-x-3">
+          {report.reporter_name && <span>Reported by {report.reporter_name}</span>}
+          {report.test_start_date && <span>Start: {formatDate(report.test_start_date)}</span>}
+          {report.test_end_date && <span>End: {formatDate(report.test_end_date)}</span>}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {report.observations && (
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Observations</p>
+            <p className="text-sm whitespace-pre-wrap">{report.observations}</p>
+          </div>
+        )}
+
+        {report.success_criteria.length > 0 && (
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-2">Success Criteria</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Criterion</TableHead>
+                  <TableHead>Metric</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Actual</TableHead>
+                  <TableHead className="w-[60px]">Met</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.success_criteria.map((sc) => (
+                  <TableRow key={sc.id}>
+                    <TableCell className="text-sm">{sc.criterion || '-'}</TableCell>
+                    <TableCell className="text-sm">{sc.metric || '-'}</TableCell>
+                    <TableCell className="text-sm">{sc.target || '-'}</TableCell>
+                    <TableCell className="text-sm">{sc.actual || '-'}</TableCell>
+                    <TableCell>
+                      {sc.met != null ? (
+                        sc.met ? (
+                          <Check className="h-4 w-4 text-success" aria-label="Met" />
+                        ) : (
+                          <X className="h-4 w-4 text-destructive" aria-label="Not met" />
+                        )
+                      ) : '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TestTab({ testReports, proposalId, proposalStatus, declaredCases, canParticipate, onAutoAdvance }: {
   testReports: TestReport[];
   proposalId: string;
   proposalStatus: string;
+  /** The declared test cases; criteria must use these names to evidence them. */
+  declaredCases: string[];
+  canParticipate: boolean;
   /** Called after a report auto-advanced the proposal (this form unmounts). */
   onAutoAdvance: () => void;
 }) {
   const submitTest = useSubmitTestReport(proposalId);
   const [observations, setObservations] = useState('');
   const [outcome, setOutcome] = useState('');
-  const [criteria, setCriteria] = useState<{ criterion: string; metric: string; target: string; actual: string; met: boolean; evidence: string }[]>([]);
+  // Start from the declared cases, so a report evidences them by the names the gate checks.
+  const [criteria, setCriteria] = useState<CriterionDraft[]>(() => declaredCases.map((c) => emptyCriterion(c)));
+  const fields = useRequiredFields({
+    observations: 'Describe what you observed.',
+    outcome: 'Choose an outcome.',
+  });
 
-  const addCriterion = () => {
-    setCriteria([...criteria, { criterion: '', metric: '', target: '', actual: '', met: false, evidence: '' }]);
-  };
-
-  const removeCriterion = (index: number) => {
-    setCriteria(criteria.filter((_, i) => i !== index));
-  };
-
-  const updateCriterion = (index: number, field: string, value: any) => {
+  const addCriterion = () => setCriteria([...criteria, emptyCriterion()]);
+  const removeCriterion = (index: number) => setCriteria(criteria.filter((_, i) => i !== index));
+  const updateCriterion = (index: number, field: keyof CriterionDraft, value: string | boolean) => {
     setCriteria(criteria.map((c, i) => i === index ? { ...c, [field]: value } : c));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!observations.trim() || !outcome) return;
+    if (!fields.validate({ observations, outcome })) return;
     try {
       const result = await submitTest.mutateAsync({
         observations: observations.trim(),
         outcome,
-        success_criteria: criteria,
+        success_criteria: criteria.filter((c) => c.criterion.trim()),
       });
       setObservations('');
       setOutcome('');
-      setCriteria([]);
+      setCriteria(declaredCases.map((c) => emptyCriterion(c)));
       if (result.auto_transitions?.length) onAutoAdvance();
     } catch {
       // Rendered below from submitTest.error
@@ -482,19 +616,34 @@ function TestTab({ testReports, proposalId, proposalStatus, onAutoAdvance }: {
   return (
     <div className="space-y-6">
       {/* Submit test report form — only during test phase */}
-      {proposalStatus === 'test' && (
+      {proposalStatus === 'test' && canParticipate && (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Submit Test Report</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg">Submit Test Report</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Reports are evidence for a steward, who confirms the outcome. Your name is recorded with the report.
+            </p>
+          </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-3" noValidate>
               <div className="space-y-1">
                 <Label htmlFor="test-observations">Observations *</Label>
-                <AITextarea id="test-observations" value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Describe what was observed during testing..." rows={4} fieldLabel="Observations" fieldContext="Observations from testing a governance proposal in practice" />
+                <AITextarea
+                  id="test-observations"
+                  {...fields.field('observations')}
+                  value={observations}
+                  onChange={(e) => { setObservations(e.target.value); fields.settle('observations', e.target.value); }}
+                  placeholder="Describe what was observed during testing..."
+                  rows={4}
+                  fieldLabel="Observations"
+                  fieldContext="Observations from testing a governance proposal in practice"
+                />
+                <FieldError {...fields.error('observations')} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="test-outcome">Outcome *</Label>
-                <Select value={outcome} onValueChange={setOutcome}>
-                  <SelectTrigger id="test-outcome">
+                <Select value={outcome} onValueChange={(value) => { setOutcome(value); fields.settle('outcome', value); }}>
+                  <SelectTrigger id="test-outcome" {...fields.field('outcome')}>
                     <SelectValue placeholder="Select outcome" />
                   </SelectTrigger>
                   <SelectContent>
@@ -503,10 +652,14 @@ function TestTab({ testReports, proposalId, proposalStatus, onAutoAdvance }: {
                     <SelectItem value="modified">Modified</SelectItem>
                   </SelectContent>
                 </Select>
+                <FieldError {...fields.error('outcome')} />
               </div>
               {criteria.length > 0 && (
                 <div className="space-y-2">
                   <Label>Success Criteria</Label>
+                  {declaredCases.length > 0 && (
+                    <p className="text-xs text-muted-foreground">The declared test cases are listed; tick the ones this report shows were met.</p>
+                  )}
                   {criteria.map((c, idx) => (
                     <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto_1fr_auto] gap-2 items-center">
                       <Input aria-label={`Criterion ${idx + 1}`} placeholder="Criterion" value={c.criterion} onChange={(e) => updateCriterion(idx, 'criterion', e.target.value)} />
@@ -541,76 +694,71 @@ function TestTab({ testReports, proposalId, proposalStatus, onAutoAdvance }: {
         <Card className="border-muted">
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground text-center">
-              Test reports can only be submitted during the test phase. Current status: <Badge variant="secondary">{proposalStatus}</Badge>
+              Test reports can only be submitted during the test phase. Current status: <Badge variant="secondary">{proposalPhaseLabel(proposalStatus)}</Badge>
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Existing test reports */}
-      {testReports.map((report) => (
-        <Card key={report.id}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Test Report</CardTitle>
-              {report.outcome && <Badge variant={report.outcome === 'pass' ? 'default' : 'destructive'}>{report.outcome}</Badge>}
-            </div>
-            <div className="text-xs text-muted-foreground space-x-3">
-              {report.test_start_date && <span>Start: {formatDate(report.test_start_date)}</span>}
-              {report.test_end_date && <span>End: {formatDate(report.test_end_date)}</span>}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {report.observations && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Observations</p>
-                <p className="text-sm whitespace-pre-wrap">{report.observations}</p>
-              </div>
-            )}
-
-            {report.success_criteria.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Success Criteria</p>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Criterion</TableHead>
-                      <TableHead>Metric</TableHead>
-                      <TableHead>Target</TableHead>
-                      <TableHead>Actual</TableHead>
-                      <TableHead className="w-[60px]">Met</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {report.success_criteria.map((sc) => (
-                      <TableRow key={sc.id}>
-                        <TableCell className="text-sm">{sc.criterion || '-'}</TableCell>
-                        <TableCell className="text-sm">{sc.metric || '-'}</TableCell>
-                        <TableCell className="text-sm">{sc.target || '-'}</TableCell>
-                        <TableCell className="text-sm">{sc.actual || '-'}</TableCell>
-                        <TableCell>
-                          {sc.met != null ? (
-                            sc.met ? (
-                              <Check className="h-4 w-4 text-success" />
-                            ) : (
-                              <X className="h-4 w-4 text-destructive" />
-                            )
-                          ) : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+      {testReports.map((report) => <TestReportCard key={report.id} report={report} />)}
 
       {testReports.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-4">No test reports yet</p>
       )}
     </div>
+  );
+}
+
+const NOTE_REQUIRED_MESSAGE = 'Say what will change, so advisors and objectors know what to look at.';
+
+/** Send back for revision: a required note, then a new version opens for advice. */
+function SendBackDialog({ open, onOpenChange, from, onConfirm, pending }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  from: string;
+  onConfirm: (note: string) => Promise<void>;
+  pending: boolean;
+}) {
+  const [note, setNote] = useState('');
+  const fields = useRequiredFields({ note: NOTE_REQUIRED_MESSAGE });
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fields.validate({ note })) return;
+    await onConfirm(note.trim());
+    setNote('');
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Send back for revision?</DialogTitle>
+            <DialogDescription>
+              The proposal leaves {proposalPhaseLabel(from)} and opens a new version for advice. Every position and
+              report so far stays in the record as history; members record new positions on the revised version.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label htmlFor="revision-note">What will change *</Label>
+            <AITextarea
+              id="revision-note"
+              {...fields.field('note')}
+              value={note}
+              onChange={(e) => { setNote(e.target.value); fields.settle('note', e.target.value); }}
+              rows={3}
+              placeholder="e.g. Closing at eight instead of nine, as Ben's objection asked."
+              fieldLabel="Revision note"
+              fieldContext="Why a governance proposal is being sent back for revision and what will change"
+            />
+            <FieldError {...fields.error('note')} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={pending}>{pending ? 'Sending back...' : 'Send back for revision'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -621,8 +769,9 @@ export default function ProposalDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error } = useProposal(id);
   const statusMutation = useUpdateProposalStatus(id);
+  const registerMutation = useRegisterProposalAgreement(id);
   const [statusChanging, setStatusChanging] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<'withdraw' | 'revise' | 'ratify' | 'register' | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   // Focus target after a lifecycle change unmounts the control that was used.
   const statusRegionRef = useRef<HTMLDivElement>(null);
@@ -657,36 +806,48 @@ export default function ProposalDetail() {
 
   const canConduct = data.caller_can_conduct ?? false;
   const canManage = data.caller_can_manage ?? false;
-  const transitions = canManage ? availableTransitions(data) : [];
-  const forwardTransitions = transitions.filter((s) => s !== 'withdrawn');
-  const canWithdraw = transitions.includes('withdrawn');
+  // The server's lifecycle table decides which moves this caller has (allowed_next); the page only draws them.
+  const moves = groupProposalMoves(data.allowed_next);
+  const canCloseAdvice = moves.forward.some((move) => move.to === 'consent');
+  const adviceGate: (ActGates['advice'] & ActAdviceGateDetail) | undefined = data.gates?.advice;
+  const advicePrompt = adviceClosePrompt({ status: data.status, adviceGate, canClose: canCloseAdvice });
   const proposerGathersAdvice = data.status === 'advice' && data.caller_is_proposer;
+  const governingTitle = data.governing_agreement?.title ?? null;
+  const banner = data.status === 'ratified' ? ratifiedBanner(data.registered_agreement, data.amends_agreement?.title) : null;
+  const decisionTypeLabel = DECISION_TYPE_OPTIONS.find((o) => o.value === data.decision_type)?.label ?? 'Consent';
+  const callerPosition = data.caller_position && data.caller_position.position !== 'withdrawn' ? data.caller_position : null;
 
   // The single participation action this phase asks of the caller, if any.
-  const phaseAction = ({
+  const phaseAction = !canConduct ? undefined : ({
     advice: { tab: 'advice', cta: 'Share Advice', text: 'This proposal is gathering advice. Your perspective shapes the final decision.' },
-    consent: { tab: 'consent', cta: 'Record Your Position', text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' },
-    test: { tab: 'test', cta: 'Submit a Test Report', text: 'The proposal is being tried in practice. Report observations against the success criteria.' },
+    consent: callerPosition
+      ? { tab: 'consent', cta: 'Change your position', text: `Your position: ${positionLabel(callerPosition.position)}. You can change it or withdraw it while consent is open.` }
+      : { tab: 'consent', cta: 'Record Your Position', text: 'Record whether you consent, stand aside, or object — every position is kept distinct in the record.' },
+    test: { tab: 'test', cta: 'Submit a Test Report', text: 'The proposal is being tried in practice. Report observations against the success criteria; a steward confirms the outcome.' },
   } as Record<string, { tab: string; cta: string; text: string }>)[data.status];
 
-  const runTransition = async (target: string) => {
+  const runTransition = async (target: string, note?: string) => {
     setStatusChanging(true);
     try {
       // The hook toasts the phase the proposal landed in (gates may auto-advance further), or the failure.
-      await statusMutation.mutateAsync(target);
+      await statusMutation.mutateAsync({ status: target, note, from: data.status });
+      setDialog(null);
       focusStatusRegion();
     } catch {
-      // Toasted by useUpdateProposalStatus
+      // Toasted by useUpdateProposalStatus; the dialog stays open to try again.
     } finally {
       setStatusChanging(false);
     }
   };
 
-  const confirmStatusChange = async () => {
-    if (!pendingStatus) return;
-    const target = pendingStatus;
-    setPendingStatus(null);
-    await runTransition(target);
+  const runRegister = async () => {
+    try {
+      await registerMutation.mutateAsync(undefined);
+      setDialog(null);
+      focusStatusRegion();
+    } catch {
+      // Rendered in the dialog from registerMutation.error
+    }
   };
 
   return (
@@ -699,14 +860,31 @@ export default function ProposalDetail() {
         </Link>
       </Button>
 
-      {/* Ratification banner */}
-      {data.status === 'ratified' && (
-        <div className="flex items-center gap-3 border border-success bg-success/10 p-5 text-success">
-          <Award className="h-5 w-5" />
-          <div>
-            <p className="font-bold">This proposal has been ratified</p>
-            <p className="text-sm">It passed through the full Advice-Consent-Test process and is now active.</p>
+      {/* Ratified banner: says registered only when it is (the registry is a separate step). */}
+      {banner && (
+        <div className="flex flex-col gap-3 border border-success bg-success/10 p-5 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3 flex-1 text-success">
+            <Award className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-bold">{banner.title}</p>
+              <p className="text-sm">
+                {banner.body}
+                {data.registered_agreement && (
+                  <>
+                    {' '}
+                    <Link href={`/agreements/${data.registered_agreement.id}`} className="underline underline-offset-2">
+                      Open the agreement
+                    </Link>
+                  </>
+                )}
+              </p>
+            </div>
           </div>
+          {data.caller_can_register && (
+            <Button size="sm" onClick={() => { registerMutation.reset(); setDialog('register'); }}>
+              Register as agreement…
+            </Button>
+          )}
         </div>
       )}
 
@@ -727,22 +905,34 @@ export default function ProposalDetail() {
           </div>
         </div>
 
-        {/* Edit and manual moves: the proposer or an ecosystem steward (caller_can_manage). */}
+        {/* Edit and manual moves: the proposer or an ecosystem steward; each move comes from allowed_next. */}
         {canManage && (
           <div className="flex flex-wrap gap-2" role="group" aria-label="Proposal lifecycle actions">
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/proposals/${id}/edit`}>
-                <Pencil className="h-4 w-4 mr-1" aria-hidden="true" />
-                Edit
-              </Link>
-            </Button>
-            {forwardTransitions.map((target) => (
-              <Button key={target} size="sm" disabled={statusChanging} onClick={() => runTransition(target)}>
-                {PROPOSAL_TRANSITION_LABELS[target] ?? proposalPhaseLabel(target)}
+            {proposalEditLock(data.status) === null && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/proposals/${id}/edit`}>
+                  <Pencil className="h-4 w-4 mr-1" aria-hidden="true" />
+                  Edit
+                </Link>
+              </Button>
+            )}
+            {moves.forward.map((move) => (
+              <Button key={move.to} size="sm" disabled={statusChanging} onClick={() => runTransition(move.to)}>
+                {PROPOSAL_TRANSITION_LABELS[move.to] ?? proposalPhaseLabel(move.to)}
               </Button>
             ))}
-            {canWithdraw && (
-              <Button variant="outline" size="sm" disabled={statusChanging} onClick={() => setPendingStatus('withdrawn')}>
+            {moves.ratify && (
+              <Button size="sm" disabled={statusChanging} onClick={() => setDialog('ratify')}>
+                {PROPOSAL_TRANSITION_LABELS.ratified}
+              </Button>
+            )}
+            {moves.revise && (
+              <Button variant="outline" size="sm" disabled={statusChanging} onClick={() => setDialog('revise')}>
+                {PROPOSAL_TRANSITION_LABELS.revise}
+              </Button>
+            )}
+            {moves.withdraw && (
+              <Button variant="outline" size="sm" disabled={statusChanging} onClick={() => setDialog('withdraw')}>
                 {PROPOSAL_TRANSITION_LABELS.withdrawn}
               </Button>
             )}
@@ -750,23 +940,82 @@ export default function ProposalDetail() {
         )}
       </div>
 
-      {/* Confirmation dialog for destructive status changes */}
-      <AlertDialog open={!!pendingStatus} onOpenChange={(open) => { if (!open) setPendingStatus(null); }}>
+      {/* Withdraw: irreversible, so it confirms. */}
+      <AlertDialog open={dialog === 'withdraw'} onOpenChange={(open) => { if (!open) setDialog(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Withdraw this proposal?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. All advice and consent collected will be preserved in the record, but the proposal will no longer be active.
+              This cannot be undone. All advice and consent collected stays in the record, but the proposal will no longer move.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmStatusChange} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={() => runTransition('withdrawn')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Yes, withdraw
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SendBackDialog
+        open={dialog === 'revise'}
+        onOpenChange={(open) => setDialog(open ? 'revise' : null)}
+        from={data.status}
+        pending={statusChanging}
+        onConfirm={(note) => runTransition('advice', note)}
+      />
+
+      {/* Steward confirmation: the reports are evidence, shown here before the decision. */}
+      <Dialog open={dialog === 'ratify'} onOpenChange={(open) => setDialog(open ? 'ratify' : null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Confirm ratification?</DialogTitle>
+            <DialogDescription>
+              You are confirming, as a steward, that the test shows this proposal works. Ratifying records the decision;
+              it is not in the agreement registry until it is registered.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {data.gates && data.gates.test.declared_cases.length > 0 && (
+              <p className="text-sm">
+                Declared test cases evidenced: {(data.gates.test.cases_met ?? []).length} of {data.gates.test.declared_cases.length}.
+              </p>
+            )}
+            {data.test_reports.length === 0 && <p className="text-sm text-muted-foreground">No test reports.</p>}
+            {data.test_reports.map((report) => <TestReportCard key={report.id} report={report} />)}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
+            <Button type="button" disabled={statusChanging} onClick={() => runTransition('ratified')}>
+              {statusChanging ? 'Confirming...' : 'Confirm ratification'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Register as agreement: writes the registry (a new agreement, or a new version of the amended one). */}
+      <Dialog open={dialog === 'register'} onOpenChange={(open) => setDialog(open ? 'register' : null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Register as an agreement?</DialogTitle>
+            <DialogDescription>
+              {data.amends_agreement
+                ? `This replaces the text of “${data.amends_agreement.title}” (v${data.amends_agreement.version ?? ''}) with the proposed change and starts its next version. Members will be asked to consent to the new version.`
+                : 'This adds a new agreement in force, with the proposed change as its text. It cannot be undone from here.'}
+            </DialogDescription>
+          </DialogHeader>
+          {registerMutation.error && (
+            <p className="text-sm text-destructive" role="alert">{apiErrorMessage(registerMutation.error)}</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
+            <Button type="button" disabled={registerMutation.isPending} onClick={runRegister}>
+              {registerMutation.isPending ? 'Registering...' : 'Register as agreement'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ACT Process Stepper */}
       <ACTStepper currentStatus={data.status} />
@@ -781,12 +1030,41 @@ export default function ProposalDetail() {
         </div>
       )}
 
+      {/* Ratification is never self-certified: the author learns who decides instead of seeing a button. */}
+      {moves.ratifyNeedsAnotherSteward && (
+        <div role="note" className="flex items-start gap-3 border-2 border-strong-border bg-muted p-4">
+          <Info className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">
+            <strong className="text-foreground">Another steward needs to confirm this.</strong> The test gate is met, and
+            ratification is confirmed by a steward who did not write the proposal.
+          </p>
+        </div>
+      )}
+
+      {/* The proposer closes advice: prompted once the gate is met, more firmly past the deadline. */}
+      {advicePrompt && (
+        <div className={`flex flex-col sm:flex-row sm:items-center gap-3 border-2 p-4 ${advicePrompt.tone === 'due' ? 'border-warning bg-warning/10' : 'border-strong-border bg-muted'}`}>
+          <div className="flex items-start gap-3 flex-1">
+            <Clock className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="font-bold text-sm">{advicePrompt.title}</p>
+              <p className="text-sm text-muted-foreground">{advicePrompt.body}</p>
+            </div>
+          </div>
+          <Button size="sm" disabled={statusChanging} onClick={() => runTransition('consent')}>
+            {PROPOSAL_TRANSITION_LABELS.consent}
+          </Button>
+        </div>
+      )}
+
       {/* The proposer gathers advice rather than giving it. */}
-      {proposerGathersAdvice && (
+      {proposerGathersAdvice && !advicePrompt && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-2 border-strong-border bg-muted p-4">
           <div className="flex items-start gap-3 flex-1">
             <Info className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden="true" />
-            <p className="text-sm text-muted-foreground">You are the proposer: advice from others appears here.</p>
+            <p className="text-sm text-muted-foreground">
+              You are the proposer: advice from others appears here. Once the advice gate is met, you decide when to move to consent.
+            </p>
           </div>
           <Button size="sm" variant="outline" onClick={() => setActiveTab('advice')}>
             View advice
@@ -798,9 +1076,11 @@ export default function ProposalDetail() {
       {phaseAction && !proposerGathersAdvice && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-2 border-warning bg-warning/10 p-4">
           <div className="flex items-start gap-3 flex-1">
-            <CircleAlert className="h-5 w-5 shrink-0 text-warning mt-0.5" />
+            <CircleAlert className="h-5 w-5 shrink-0 text-warning mt-0.5" aria-hidden="true" />
             <div>
-              <p className="font-bold text-sm">Your input is needed in the {proposalPhaseLabel(data.status)} phase</p>
+              <p className="font-bold text-sm">
+                {callerPosition && data.status === 'consent' ? 'Your position is recorded' : `Your input is needed in the ${proposalPhaseLabel(data.status)} phase`}
+              </p>
               <p className="text-sm text-muted-foreground">{phaseAction.text}</p>
             </div>
           </div>
@@ -812,7 +1092,7 @@ export default function ProposalDetail() {
 
       {!canConduct && (
         <div className="flex items-center gap-3 border-2 border-strong-border bg-muted p-4">
-          <CircleAlert className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <CircleAlert className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             You are not a member of this proposal's ecosystem, so you can read it but not take part.
           </p>
@@ -839,7 +1119,7 @@ export default function ProposalDetail() {
               </TabsTrigger>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="max-w-xs">Gather perspectives from people affected. All input shapes the final decision.</p>
+              <p className="max-w-xs">Gather perspectives from people affected. The proposer decides when advice closes.</p>
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -859,7 +1139,7 @@ export default function ProposalDetail() {
               </TabsTrigger>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="max-w-xs">The proposal is tried in practice with defined success criteria and a review date.</p>
+              <p className="max-w-xs">The proposal is tried in practice with defined success criteria; a steward confirms the outcome.</p>
             </TooltipContent>
           </Tooltip>
         </TabsList>
@@ -874,36 +1154,55 @@ export default function ProposalDetail() {
             proposalId={id}
             proposalStatus={data.status}
             isProposer={data.caller_is_proposer ?? false}
+            canParticipate={canConduct}
             onAutoAdvance={focusStatusRegion}
           />
         </TabsContent>
 
         <TabsContent value="consent">
-          <ConsentTab consentRecords={data.consent_records} proposalId={id} proposalStatus={data.status} onAutoAdvance={focusStatusRegion} />
+          <ConsentTab
+            key={`${data.version}-${data.caller_position?.position ?? 'none'}`}
+            consentRecords={data.consent_records}
+            proposalId={id}
+            proposalStatus={data.status}
+            callerPosition={data.caller_position ?? null}
+            canParticipate={canConduct}
+            consentGate={data.gates?.consent ?? null}
+            governingTitle={data.gates?.policy_source === 'agreement' ? governingTitle : null}
+            onAutoAdvance={focusStatusRegion}
+          />
         </TabsContent>
 
         <TabsContent value="test">
-          <TestTab testReports={data.test_reports} proposalId={id} proposalStatus={data.status} onAutoAdvance={focusStatusRegion} />
+          <TestTab
+            key={data.version}
+            testReports={data.test_reports}
+            proposalId={id}
+            proposalStatus={data.status}
+            declaredCases={data.gates?.test.declared_cases ?? []}
+            canParticipate={canConduct}
+            onAutoAdvance={focusStatusRegion}
+          />
         </TabsContent>
           </Tabs>
         </div>
 
         {/* Rail column */}
         <div className="space-y-6">
-          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} />}
+          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} kind="proposal" governingTitle={governingTitle} />}
           {data.status === 'ratified' && (
             <Card>
-              <CardHeader><CardTitle className="text-lg">Your Decision</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">Your own follow-up</CardTitle></CardHeader>
               <CardContent>
                 <p className="mb-3 text-sm text-muted-foreground">
-                  This proposal has been ratified. Record your personal decision about it — it stays
-                  yours and doubles as a follow-up task.
+                  A private note for you, separate from the ecosystem's decision record: what you will do about
+                  this decision. It doubles as a follow-up task.
                 </p>
                 <RecordDecisionAction
                   subjectType="proposal"
                   subjectId={id}
                   subjectTitle={data.title}
-                  actionLabel="Record your decision"
+                  actionLabel="Record your follow-up"
                 />
               </CardContent>
             </Card>
@@ -922,21 +1221,34 @@ export default function ProposalDetail() {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Decision Type</dt>
-                  <dd className="font-medium">{data.decision_type || '-'}</dd>
+                  <dd className="font-medium">{decisionTypeLabel}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Governing Agreement</dt>
+                  <dt className="text-muted-foreground">Gates follow</dt>
                   <dd className="font-medium">
                     {data.governing_agreement ? (
                       <Link href={`/agreements/${data.governing_agreement.id}`} className="underline underline-offset-2 hover:text-primary">
                         {data.governing_agreement.title}
                       </Link>
-                    ) : '-'}
+                    ) : 'Default gates'}
                   </dd>
                 </div>
+                {data.amends_agreement && (
+                  <div>
+                    <dt className="text-muted-foreground">Changes agreement</dt>
+                    <dd className="font-medium">
+                      <Link href={`/agreements/${data.amends_agreement.id}`} className="underline underline-offset-2 hover:text-primary">
+                        {data.amends_agreement.title}
+                      </Link>
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt className="text-muted-foreground">Advice Deadline</dt>
-                  <dd className="font-medium">{formatDate(data.advice_deadline)}</dd>
+                  <dd className="font-medium">
+                    {formatDate(data.advice_deadline)}
+                    {data.status === 'advice' && adviceGate?.deadline_passed ? ' (passed)' : ''}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Consent Deadline</dt>

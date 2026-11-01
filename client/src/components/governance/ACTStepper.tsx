@@ -17,13 +17,13 @@ const STEPS = [
     key: 'advice',
     label: 'Advice',
     icon: MessageSquare,
-    description: 'Gathering wisdom from people affected by this proposal. All perspectives welcome.',
+    description: 'Gathering wisdom from people affected by this proposal. The proposer decides when advice closes.',
   },
   {
     key: 'consent',
     label: 'Consent',
     icon: ShieldCheck,
-    description: 'Not "do you agree?" but "can you live with this?" Objections improve the proposal.',
+    description: 'Not "do you agree?" but "can you live with this?" An objection can send the proposal back for revision.',
   },
   {
     key: 'test',
@@ -35,7 +35,7 @@ const STEPS = [
     key: 'ratified',
     label: 'Ratified',
     icon: Award,
-    description: 'This proposal has passed through the full ACT process and is now active policy.',
+    description: 'A steward confirmed the test outcome. It is in force once a steward registers it as an agreement.',
   },
 ];
 

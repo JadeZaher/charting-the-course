@@ -1,4 +1,4 @@
-// Mutation options for ACT participation (advice, consent, test report); hooks/use-governance.ts wraps them.
+// Mutation options for ACT participation (advice, consent, withdrawing a position, test report); hooks/use-governance.ts wraps them.
 // See pages/governance/AGENTS.md "Data and feedback".
 import type { ApiMutationOptions } from './api-mutation-options';
 import { announceActOutcome, type ActOutcome } from './proposal-vocab';
@@ -9,6 +9,7 @@ const CONFIRMATIONS = {
   advice: { title: 'Advice submitted', description: 'Your advice has been recorded.' },
   consent: { title: 'Position recorded', description: 'Your response to the consent round has been recorded.' },
   test: { title: 'Test report submitted', description: 'Your test report has been recorded.' },
+  withdraw: { title: 'Position withdrawn', description: 'It stays in the record as withdrawn. You can record a new one.' },
 } as const;
 
 export type ActStep = keyof typeof CONFIRMATIONS;

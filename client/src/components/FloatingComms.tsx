@@ -16,6 +16,7 @@ import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
 import { useConversations, useConversation, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
+import { CONFIRM_REPLY, DECLINE_REPLY, TOOL_STATUS_TEXT, pendingConfirmation } from '@/lib/chat-tools';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { usePageContext } from '@/contexts/PageContext';
@@ -40,7 +41,6 @@ import {
   Building2,
   ArrowLeft,
   History,
-  Coins,
   Lock,
   Globe,
   Share2,
@@ -545,16 +545,24 @@ function ChatTab({ expanded }: { expanded: boolean }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim() || isStreaming) return;
-    sendMessage(input, {
+  const sendText = (text: string) => {
+    if (!text.trim() || isStreaming) return;
+    sendMessage(text, {
       selectedEcosystemIds: selectedIds,
       pageContextSummary: getAISummary(),
       member: member ? { id: member.id, display_name: member.display_name } : undefined,
       ecosystemName: ecosystem?.name,
     });
+  };
+
+  const handleSend = () => {
+    if (!input.trim() || isStreaming) return;
+    sendText(input);
     setInput('');
   };
+
+  // An irreversible act the assistant asked about in its latest reply; the member answers here or by typing.
+  const confirmation = pendingConfirmation(messages);
 
   const cyclePrivacy = async () => {
     if (!sessionId) return;
@@ -670,10 +678,10 @@ function ChatTab({ expanded }: { expanded: boolean }) {
               <Bot className="h-10 w-10 mx-auto mb-3 opacity-20" />
               <p className="text-sm font-medium">NEOS Governance Agent</p>
               <p className="text-xs mt-1 max-w-xs mx-auto">
-                Create proposals, draft agreements, navigate the ACT process, and more.
+                Ask what a page means or how a decision works. It acts only for you, and asks before anything that cannot be undone.
               </p>
               <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-                {['Create a proposal', 'Draft an agreement', 'Start a consent round', 'Report a conflict'].map(s => (
+                {['Explain this page', 'How does consent work?', 'Put forward a proposal', 'Report a conflict'].map(s => (
                   <Button
                     key={s}
                     variant="outline"
@@ -719,13 +727,18 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                           key={ti}
                           className="flex items-center gap-1.5 rounded-r-sm border-l-2 border-primary bg-muted/50 px-2 py-1 text-[10px]"
                         >
-                          <Wrench className="h-2.5 w-2.5 text-muted-foreground" />
-                          <code className="font-mono">{tool.name}</code>
+                          <Wrench className="h-2.5 w-2.5 text-muted-foreground" aria-hidden="true" />
+                          <span>{tool.label ?? tool.name.replace(/_/g, ' ')}</span>
                           <Badge
-                            variant={tool.status === 'success' ? 'default' : tool.status === 'error' ? 'destructive' : 'secondary'}
+                            variant={
+                              tool.status === 'success' ? 'default'
+                                : tool.status === 'error' ? 'destructive'
+                                : tool.status === 'needs_confirmation' ? 'outline'
+                                : 'secondary'
+                            }
                             className="text-[9px] px-1 py-0 h-3.5"
                           >
-                            {tool.status}
+                            {TOOL_STATUS_TEXT[tool.status]}
                           </Badge>
                         </div>
                       ))}
@@ -793,12 +806,6 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                     </div>
                   )}
 
-                  {msg.role === 'assistant' && msg.usage && msg.usage.total_tokens > 0 && !msg.isStreaming && (
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                      <Coins className="h-2.5 w-2.5" />
-                      {msg.usage.total_tokens} tokens
-                    </span>
-                  )}
                 </div>
 
                 {msg.role === 'user' && (
@@ -809,6 +816,20 @@ function ChatTab({ expanded }: { expanded: boolean }) {
               </div>
             </div>
           ))}
+          {confirmation && !isStreaming && (
+            <div role="group" aria-label="Confirm this action" className="ml-8 space-y-2 border-2 border-strong-border bg-background px-3 py-2">
+              <p className="text-xs font-semibold">This cannot be undone</p>
+              <p className="text-xs">{confirmation}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" className="h-9 px-3 text-xs" onClick={() => sendText(CONFIRM_REPLY)}>
+                  Yes, go ahead
+                </Button>
+                <Button size="sm" variant="outline" className="h-9 px-3 text-xs" onClick={() => sendText(DECLINE_REPLY)}>
+                  No, cancel
+                </Button>
+              </div>
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>

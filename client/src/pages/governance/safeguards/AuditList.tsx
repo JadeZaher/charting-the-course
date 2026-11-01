@@ -7,16 +7,15 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
-import { useAudits } from '@/hooks/use-governance';
+import { useAudits } from '@/hooks/use-care';
 import { ArrowLeft } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
 const FILTERS: FilterDef[] = [
   { key: 'status', label: 'Status', type: 'select', options: [
     { value: 'all', label: 'All Statuses' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'completed', label: 'Published' },
   ]},
   { key: 'overall_health', label: 'Health', type: 'select', options: [
     { value: 'all', label: 'All Health' },
@@ -81,7 +80,7 @@ export default function AuditList() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Audit History</h1>
         <Button asChild variant="outline" size="sm">
-          <Link href="/safeguards">Request New Audit</Link>
+          <Link href="/safeguards">Record an audit</Link>
         </Button>
       </div>
 

@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useSafeguards, useRequestAudit } from '@/hooks/use-governance';
-import { useEcosystem } from '@/contexts/EcosystemContext';
+import { useSafeguards } from '@/hooks/use-care';
+import { GovernanceHealthAuditForm } from '@/components/governance/safeguards/GovernanceHealthAuditForm';
 import { ShieldCheck, ClipboardList, TrendingUp, TrendingDown, ArrowRight, AlertTriangle } from 'lucide-react';
 import type { IndicatorScore } from '@/types/api';
 import { apiErrorMessage } from '@/lib/api-error-message';
@@ -106,20 +106,7 @@ function IndicatorCard({ indicator, score }: { indicator: typeof GHI_INDICATORS[
 // ---------------------------------------------------------------------------
 export default function SafeguardsDashboard() {
   const { data, isLoading, error } = useSafeguards();
-  const { selected: selectedEcosystem } = useEcosystem();
-  const requestMutation = useRequestAudit();
-
-  const handleRequestAudit = async () => {
-    const payload: Record<string, any> = {};
-    if (selectedEcosystem) {
-      payload.ecosystem_id = selectedEcosystem.id;
-    }
-    try {
-      await requestMutation.mutateAsync(payload);
-    } catch {
-      // Error handled by mutation state
-    }
-  };
+  const [recording, setRecording] = useState(false);
 
   if (isLoading) return <LoadingState message="Loading safeguards..." />;
 
@@ -159,17 +146,11 @@ export default function SafeguardsDashboard() {
               All Audits
             </Link>
           </Button>
-          <Button onClick={handleRequestAudit} disabled={requestMutation.isPending}>
-            {requestMutation.isPending ? 'Requesting...' : 'Request Audit'}
-          </Button>
+          <Button onClick={() => setRecording(true)}>Record an audit</Button>
         </div>
       </div>
 
-      {requestMutation.error && (
-        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {apiErrorMessage(requestMutation.error)}
-        </div>
-      )}
+      <GovernanceHealthAuditForm open={recording} onOpenChange={setRecording} />
 
       {/* Overall Health Card */}
       <Card>
@@ -182,7 +163,7 @@ export default function SafeguardsDashboard() {
         <CardContent>
           {healthScore === null ? (
             <p className="text-sm text-muted-foreground">
-              No governance audit data yet — request your first audit to compute a health score.
+              No published audit yet. Any member can record one: rate the indicators, write what you found and publish. The score is the average of the ratings.
             </p>
           ) : (
           <div className="flex items-center gap-4">
@@ -214,7 +195,7 @@ export default function SafeguardsDashboard() {
       <div>
         <h2 className="text-lg font-semibold">Governance Health Indicators</h2>
         <p className="text-sm text-muted-foreground mb-3">
-          Standard GHI thresholds; scores appear after the first completed audit.
+          Standard GHI thresholds; scores appear once an audit is published.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {GHI_INDICATORS.map((indicator) => (
@@ -332,7 +313,7 @@ export default function SafeguardsDashboard() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(audit.status)}>{audit.status}</Badge>
+                      <Badge variant={statusVariant(audit.status)}>{audit.status === 'draft' ? 'draft (not published)' : audit.status}</Badge>
                     </TableCell>
                     <TableCell>
                       {audit.overall_health ? (

@@ -92,7 +92,19 @@ URL handling is context-specific: use `lib/media.resolveMediaUrl` for raster ima
 
 ## OmniBot (lib/omnibot.ts)
 
-`sendOmniBotMessage` is an intentional stub, not a bug. The real chat backend (`POST /api/v1/chat/send`) is a 29-tool governance agent — it has no persona/system-prompt override, unconditionally attaches governance tools (create_proposal, check_authority, etc.), and every reply persists to `AgentSession` with no session-type field, so orientation Q&A would both risk invoking governance tools mid-onboarding and pollute the member's real governance chat history. Until the backend grows a tool-free, session-segregated mode, `omnibot.ts` stays a stub and callers (`OmniBotPanel`, `AIConversationStep`) must branch on the `is_stub` flag and degrade honestly rather than fake a working exchange.
+`sendOmniBotMessage` is an intentional stub, not a bug. The real chat backend (`POST /api/v1/chat/send`) is a tool-using governance agent — it has no persona/system-prompt override, unconditionally attaches governance tools (create_proposal, check_authority, etc.), and every reply persists to `AgentSession` with no session-type field, so orientation Q&A would both risk invoking governance tools mid-onboarding and pollute the member's real governance chat history. Until the backend grows a tool-free, session-segregated mode, `omnibot.ts` stays a stub and callers (`OmniBotPanel`, `AIConversationStep`) must branch on the `is_stub` flag and degrade honestly rather than fake a working exchange.
+
+## Assistant drawer
+
+`FloatingComms`' chat tab streams `POST /api/v1/chat/send` through `hooks/use-chat.ts`; the decisions live in
+`lib/chat-tools.ts` (node:test). Tool chips show the server's plain `label` (sent on `tool_start` and
+`tool_result`) and a plain status (`TOOL_STATUS_TEXT`), never the tool's code name or token counts. An
+irreversible act (withdraw or ratify a proposal, put an agreement in force or end it, declare an emergency,
+file an exit) comes back as `needs_confirmation` instead of success or failure; `pendingConfirmation` shows
+it under the latest finished reply, with "Yes, go ahead" / "No, cancel" sending an ordinary message
+(`CONFIRM_REPLY` / `DECLINE_REPLY`). The server accepts a yes only in a later turn of the same session, so
+the buttons are a shortcut for typing, not a bypass; see the API's `agent/AGENTS.md` "Confirmation of
+irreversible acts".
 
 ## Documentation and verification
 
@@ -220,7 +232,7 @@ if (!fields.validate({ observations, outcome })) return;
 
 ## Client tests
 
-`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `lib/act-participation.ts`, `lib/ecosystem-join.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
+`npm test` runs `node --import tsx --test "client/src/**/*.test.ts"` (Node's built-in runner; `tsx` is already a dev dependency, no browser or DOM). Test only pure modules that do not touch `import.meta.env` or React: keep logic worth testing in such a module (`lib/internal-path.ts`, `lib/post-login-redirect.ts`, `lib/domain-label.ts`, `lib/member-status.ts`, `lib/query-keys.ts`, `lib/api-error-message.ts`, `lib/api-mutation-options.ts`, `lib/query-state.ts`, `lib/required-fields.ts`, `lib/consent-gate.ts`, `lib/proposal-vocab.ts`, `lib/act-participation.ts`, `lib/ecosystem-join.ts`, `lib/chat-tools.ts`, `pages/discover/discover-tabs.ts`) and import it from the component. `lib/query-keys.test.ts` drives a real `QueryClient` so invalidation is checked with TanStack's own prefix matching; `lib/api-mutation-options.test.ts` runs mutations through a real `MutationObserver` with an injected toast. `tsconfig.json` excludes `*.test.ts`, so `npm run check` does not type-check tests.
 
 ## Pass 01 (first week) history note
 

@@ -7,7 +7,7 @@ import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
-import { useConflicts } from '@/hooks/use-governance';
+import { useConflicts } from '@/hooks/use-care';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { Plus } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
@@ -100,10 +100,11 @@ export default function ConflictList() {
       />
 
       <CollectionGrid aria-label="Conflicts">
-        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No conflicts found</div> : data?.items.map((c) => (
+        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No conflicts you can see. Cases are visible only to the people involved and the stewards who triage them.</div> : data?.items.map((c) => (
           <CollectionCard key={c.id} asChild>
             <Link href={`/conflicts/${c.id}`} aria-label={`View conflict: ${c.title}`}>
-              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.case_id}</p><h2 className="mt-1 text-lg font-semibold">{c.title}</h2></div><Badge variant={statusVariant(c.status)}>{c.status}</Badge></div>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.case_id}</p><h2 className="mt-1 text-lg font-semibold">{c.title}</h2></div><Badge variant={statusVariant(c.status)}>{c.stage || c.status}</Badge></div>
+              <p className="mt-3 text-sm text-muted-foreground">{c.next_step}</p>
               <div className="mt-4 flex flex-wrap gap-2">{c.severity && <Badge variant={severityVariant(c.severity)}>{c.severity}</Badge>}<Badge variant="outline">{c.urgency}</Badge></div>
               <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(c.ecosystem_id) || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(c.created_at).toLocaleDateString()}</dd></div></dl>
             </Link>

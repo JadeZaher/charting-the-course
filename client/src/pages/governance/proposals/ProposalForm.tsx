@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useRoute, useLocation } from 'wouter';
+import { Link, useRoute, useLocation, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,22 +8,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
-import { useProposal, useCreateProposal, useUpdateProposal, useAgreements } from '@/hooks/use-governance';
+import { useProposal, useCreateProposal, useUpdateProposal, useAgreements, useAgreement } from '@/hooks/use-governance';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { PROPOSAL_TYPE_OPTIONS } from '@/lib/proposal-vocab';
+import { DECISION_TYPE_OPTIONS, PROPOSAL_TYPE_OPTIONS, proposalEditLock } from '@/lib/proposal-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
 import { ArrowLeft } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
-const DECISION_TYPE_OPTIONS = [
-  { value: 'consent', label: 'Consent' },
-  { value: 'consensus', label: 'Consensus' },
-  { value: 'advice', label: 'Advice' },
-  { value: 'autocratic', label: 'Autocratic' },
-];
+// Agreements a proposal may follow or amend: those in force (api/proposals.py IN_FORCE_AGREEMENT_STATUSES).
+const IN_FORCE = ['active', 'under_review'];
 
 export default function ProposalForm() {
   const [, editParams] = useRoute('/proposals/:id/edit');
@@ -31,6 +27,9 @@ export default function ProposalForm() {
   const isEdit = !!editId;
 
   const [, navigate] = useLocation();
+  // "Propose a change" on an agreement opens /proposals/new?amends=<agreement id>.
+  const search = useSearch();
+  const amendsParam = isEdit ? '' : new URLSearchParams(search).get('amends') ?? '';
   const { toast } = useToast();
   const { selected: selectedEcosystem } = useEcosystem();
   const { data: existing, isLoading: loadingExisting } = useProposal(editId ?? '');
@@ -57,6 +56,19 @@ export default function ProposalForm() {
   const { data: agreementsData } = useAgreements({ per_page: '100' });
   const { member } = useAuth();
   const proposerPrefilled = useRef(false);
+  const amendsId = isEdit ? existing?.amends_agreement_id ?? '' : amendsParam;
+  const { data: amended } = useAgreement(amendsId);
+  const amendPrefilled = useRef(false);
+  const inForceAgreements = (agreementsData?.items ?? []).filter((a) => IN_FORCE.includes(a.status));
+  const selectedDecisionType = DECISION_TYPE_OPTIONS.find((o) => o.value === decisionType);
+
+  // A change proposal starts from the agreement's current text, ready to edit.
+  useEffect(() => {
+    if (isEdit || amendPrefilled.current || !amended) return;
+    amendPrefilled.current = true;
+    setTitle((current) => current || `Change “${amended.title}”`);
+    setProposedChange((current) => current || amended.text || '');
+  }, [isEdit, amended]);
 
   // New proposals default the proposer to the caller (still editable, e.g. proposing on someone's behalf).
   const callerDisplayName = member?.display_name ?? '';
@@ -70,7 +82,8 @@ export default function ProposalForm() {
     if (existing && isEdit) {
       setTitle(existing.title);
       setType(existing.type);
-      setDecisionType(existing.decision_type || '');
+      // Legacy 'advice'/'autocratic' decided nothing; they show as the consent default and are not resent.
+      setDecisionType(DECISION_TYPE_OPTIONS.some((o) => o.value === existing.decision_type) ? existing.decision_type ?? '' : '');
       setProposer(existing.proposer || '');
       setAffectedDomain(existing.affected_domain || '');
       setUrgency(existing.urgency || 'medium');
@@ -125,6 +138,7 @@ export default function ProposalForm() {
         : null,
       governing_agreement_id: governingAgreementId || null,
     };
+    if (amendsId) payload.amends_agreement_id = amendsId;
 
     if (!isEdit) {
       // Proposer is set once at creation; PUT does not accept it.
@@ -148,6 +162,8 @@ export default function ProposalForm() {
   const isPending = createMutation.isPending || updateMutation.isPending;
   const mutationError = createMutation.error || updateMutation.error;
   const editLocked = isEdit && existing != null && !existing.caller_can_manage;
+  // Members decide on the text from consent on; the server refuses edits there too (409).
+  const stageLock = isEdit && existing != null ? proposalEditLock(existing.status) : null;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -160,9 +176,33 @@ export default function ProposalForm() {
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Proposal' : 'New Proposal'}</h1>
 
+      {amendsId && (
+        <div role="note" className="rounded-none border-2 border-strong-border bg-muted p-3 text-sm">
+          {amended ? (
+            <>
+              This proposal changes the agreement{' '}
+              <Link href={`/agreements/${amended.id}`} className="font-medium underline underline-offset-2">
+                {amended.title}
+              </Link>{' '}
+              (v{amended.version}). Write the full new text under Proposed Change. Once ratified, a steward registers it
+              as the next version and members consent to it again.
+            </>
+          ) : (
+            'This proposal changes an existing agreement.'
+          )}
+        </div>
+      )}
+
       {editLocked && (
         <div role="status" className="rounded-none border-2 border-strong-border bg-muted p-3 text-sm text-muted-foreground">
           Only the proposer or an ecosystem steward can edit this proposal.
+        </div>
+      )}
+
+      {stageLock && (
+        <div role="status" className="rounded-none border-2 border-strong-border bg-muted p-3 text-sm text-muted-foreground">
+          {stageLock}{' '}
+          <Link href={`/proposals/${editId}`} className="font-medium underline underline-offset-2">Back to the proposal</Link>
         </div>
       )}
 
@@ -205,8 +245,8 @@ export default function ProposalForm() {
               <div className="space-y-2">
                 <Label htmlFor="decision_type">Decision Type</Label>
                 <Select value={decisionType} onValueChange={setDecisionType}>
-                  <SelectTrigger id="decision_type">
-                    <SelectValue placeholder="Select decision type" />
+                  <SelectTrigger id="decision_type" aria-describedby="decision_type-hint">
+                    <SelectValue placeholder="Consent (default)" />
                   </SelectTrigger>
                   <SelectContent>
                     {DECISION_TYPE_OPTIONS.map(o => (
@@ -214,6 +254,9 @@ export default function ProposalForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p id="decision_type-hint" className="text-xs text-muted-foreground">
+                  {selectedDecisionType?.hint ?? DECISION_TYPE_OPTIONS[0].hint}
+                </p>
               </div>
             </div>
 
@@ -265,7 +308,8 @@ export default function ProposalForm() {
                 <p className="text-sm font-medium">ACT Gates</p>
                 <p className="text-xs text-muted-foreground">
                   Gates are inherited from the governing agreement by default; declare them on this
-                  proposal only to override. The status moves automatically when the conditions are met.
+                  proposal only to override. You close advice when you are ready; consent moves to Test by
+                  itself once its gate is met; a steward confirms ratification.
                   {isEdit && existing && !['draft', 'advice'].includes(existing.status) && (
                     <span className="block mt-1 text-warning">Locked — gates can only be redeclared while the proposal is in draft or advice.</span>
                   )}
@@ -283,13 +327,14 @@ export default function ProposalForm() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">None — use default gates</SelectItem>
-                          {(agreementsData?.items ?? []).map((a) => (
+                          {inForceAgreements.map((a) => (
                             <SelectItem key={a.id} value={a.id}>{a.title} ({a.agreement_id})</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        The agreement (e.g. the decision-making protocol) whose declared gates this proposal follows.
+                        The agreement in force (e.g. the decision-making protocol) whose declared gates this
+                        proposal follows, quorum included. It is not the agreement this proposal changes.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -306,7 +351,8 @@ export default function ProposalForm() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="consent_quorum">Consent quorum (optional)</Label>
-                          <Input id="consent_quorum" type="number" min={1} value={consentQuorum} onChange={(e) => setConsentQuorum(e.target.value)} placeholder="All positions" />
+                          <Input id="consent_quorum" type="number" min={1} value={consentQuorum} onChange={(e) => setConsentQuorum(e.target.value)} placeholder="1 position" aria-describedby="consent_quorum-hint" />
+                          <p id="consent_quorum-hint" className="text-xs text-muted-foreground">Blank: the governing agreement's quorum, else 1 position.</p>
                         </div>
                         <div className="flex items-end gap-2 pb-2">
                           <Checkbox id="consent_required" checked={consentRequired} onCheckedChange={(v) => setConsentRequired(v === true)} />
@@ -367,7 +413,7 @@ export default function ProposalForm() {
             />
 
             <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={isPending || editLocked}>
+              <Button type="submit" disabled={isPending || editLocked || stageLock !== null}>
                 {isPending ? 'Saving...' : (isEdit ? 'Update Proposal' : 'Create Proposal')}
               </Button>
               <Button asChild variant="outline">

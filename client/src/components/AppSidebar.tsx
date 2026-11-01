@@ -94,7 +94,7 @@ const governanceGroups: { label: string; defaultOpen: boolean; items: Governance
     defaultOpen: false,
     items: [
       { title: "Conflicts", url: "/conflicts", icon: AlertTriangle, tier: "member" },
-      { title: "Emergency", url: "/emergency", icon: Siren, tier: "steward" },
+      { title: "Emergency", url: "/emergency", icon: Siren, tier: "member" }, // any member may declare (with a co-signer)
       { title: "Exit", url: "/exit", icon: DoorOpen, tier: "member" },
       { title: "Safeguards", url: "/safeguards", icon: ShieldCheck, tier: "steward" },
       { title: "Compliance", url: "/compliance", icon: ClipboardCheck, tier: "steward" },

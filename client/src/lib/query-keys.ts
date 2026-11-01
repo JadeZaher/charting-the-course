@@ -70,7 +70,10 @@ export const keys = {
     /** The caller's own ethos access for an ecosystem. */
     myAccess: (id: RecordId) => [...ecosystem.detail(id), 'access', 'me'] as const,
   })),
-  emergency: collection('emergency'),
+  emergency: collection('emergency', (emergency) => ({
+    /** G-Safety: live emergencies in every ecosystem the caller is active in (GET /emergency/active, the banner). */
+    active: () => [...emergency.all, 'active'] as const,
+  })),
   exits: collection('exits'),
   audits: collection('audits'),
   courses: collection('courses'),

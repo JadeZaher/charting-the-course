@@ -16,6 +16,21 @@ Proposals (`ProposalDetail`):
 - `caller_is_proposer`: during advice, the proposer sees "You are the proposer:
   advice from others appears here" instead of the advice form and the "Your
   input is needed" banner. The server refuses self-advice with 409.
+- `allowed_next`: the manual moves this caller may make now, from the server's
+  lifecycle table (`ready` = gate met). The page draws buttons from it through
+  `groupProposalMoves` and keeps no copy of the table.
+- `caller_position`: the caller's position in the current consent round. The
+  consent tab shows "You recorded Object" with "Change my position" and
+  "Withdraw my objection"; there is no member-name field (the server records the
+  caller, one position per member).
+- `caller_can_register`: a steward may register this ratified proposal.
+
+Members (`MemberDetail` -> `components/governance/MemberRoleCard`):
+`caller_assignable_roles` is the role picker (empty: no picker, and the card
+says why) and `role_history` the recorded grants. Onboarding
+(`OnboardingCeremony`): `caller_can_record` gates the section buttons.
+Agreements: `caller_can_propose_change` shows "Propose a change", which opens
+`/proposals/new?amends=<id>` pre-filled with the agreement's text.
 
 Domains (`DomainDetail`, `DomainList`):
 
@@ -30,9 +45,32 @@ Domains (`DomainDetail`, `DomainList`):
 ## Lifecycle actions, not raw status values
 
 Proposal status changes use labelled buttons from `lib/proposal-vocab.ts`
-(`PROPOSAL_TRANSITION_LABELS`). Forward moves appear only when their ACT gate is
-met, because the server would otherwise answer 409. Withdraw goes through the
-confirmation dialog. After a change, `useUpdateProposalStatus` toasts the phase
+(`PROPOSAL_TRANSITION_LABELS`), drawn from `allowed_next`. Forward moves appear
+only when their gate is met. Owner decisions (2026-10-31) shape the rest:
+
+- **The proposer closes advice.** "Close advice and move to consent" is a
+  forward move; `adviceClosePrompt` adds a banner once the gate is met, and
+  "Advice deadline passed: move to consent?" once `gates.advice.deadline_passed`.
+  Nothing moves by itself.
+- **A steward confirms ratification.** "Confirm ratification…" opens a dialog
+  that shows every test report (outcome, reporter, criteria) as the evidence.
+  A steward who wrote the proposal gets no button: `allowed_next` marks the move
+  `blocked: "needs_another_steward"` and the page says "Another steward needs to
+  confirm this" (`groupProposalMoves().ratifyNeedsAnotherSteward`).
+- **Send back for revision…** (consent or test -> advice) asks for a note in a
+  dialog; the server bumps the version and opens a fresh advice round and
+  consent record, so earlier rounds render as "Earlier round" history.
+- **Ratified is not registered.** The banner (`ratifiedBanner`) never says
+  "now active"; a steward's "Register as agreement…" confirms, then links the
+  agreement. "Your own follow-up" is the member's private note, not the
+  ecosystem decision.
+- Withdraw (non-terminal only) and role changes confirm in a dialog.
+
+The quorum is explained from `gates.consent.quorum_source`
+(`quorumExplanation`): "Needs 2 positions, set by the governing agreement
+“How we decide”" or "(the default: no quorum declared)". Decision types are
+`consent` and `consensus` only (`DECISION_TYPE_OPTIONS`); the governing
+agreement picker lists agreements in force. After a change, `useUpdateProposalStatus` toasts the phase
 the proposal actually landed in (`proposalPhaseAnnouncement(updated.status)`,
 since gates can auto-advance further) and the page moves focus to the status
 region, because the button that was used unmounts. The same applies to advice,
@@ -67,8 +105,9 @@ key factory and `useApiMutation` (`client/src/AGENTS.md` "Shared data and
 feedback contracts"). Which hook toasts what:
 
 - **Silent where the page renders the failure inline**: every create/edit form,
-  the advice, consent and test forms, agreement status, consent, withdrawal and
-  evidence, the conflict, repair and emergency dialogs, exit export, audit
+  the advice, consent and test forms, withdrawing a consent position,
+  registering a proposal as an agreement, role changes, agreement status,
+  consent, withdrawal and evidence, the conflict, repair and emergency dialogs, exit export, audit
   requests, recording a personal decision, notification preferences. The page
   renders `apiErrorMessage(mutation.error)`.
 - **Toasts its failure** where no page shows one: proposal status moves,
@@ -94,3 +133,33 @@ feedback contracts"). Which hook toasts what:
   `affects.sharesNeeds` reaches the domain key; status and delete failures toast
   from those hooks, create renders inline. Domain quizzes still load
   imperatively until `keys.quizzes.forDomain(id)` exists.
+
+## Emergency and exit (G-Safety)
+
+Reads and writes go through `hooks/use-emergency.ts` and `hooks/use-exit.ts`
+(not `use-governance.ts`): failures render inline (`silent`), successes toast
+from the hook. The server owns every rule and date (`api/AGENTS.md` "Emergency
+and exit"); pages render its flags and words.
+
+- Emergency payloads carry `phase` (pending, open, recovery, closed,
+  withdrawn), `next_step`, the dates that matter (`cosign_deadline`,
+  `authority_ends_at`, `review_schedule_by`, `review_due_at`) and caller flags
+  (`caller_can_cosign`, `_withdraw`, `_end`, `_review`, `_complete_recovery`,
+  `caller_is_steward`). A button renders only when its flag is true, and every
+  move confirms. `auto_revert_at` is never shown during Recovery.
+- The declare form reads its bounds from `GET /emergency` `limits` (the backend
+  constants), so the UI never restates the ceiling. It renders for the selected
+  ecosystem only when that id is in `caller_can_declare_in`.
+- `EmergencyBanner` (mounted once under the header in `App.tsx` AppLayout)
+  polls `GET /emergency/active`, which covers every ecosystem the member is
+  active in, not just the selection. `lib/emergency-phase.ts` turns each live
+  emergency into banner copy; pending is included so a co-signer can find it.
+  "Review overdue" is a steward's alarm; members keep seeing "review due".
+- Recovery: `RecordReviewDialog` (scheduled or complete, with a note) and
+  `CompleteRecoveryDialog` (steward, after a complete review) live in the
+  Recovery card of `EmergencyDetail`.
+- Exit: `ExitForm` files the caller's own exit (no member picker). `ExitDetail`
+  shows `next_step`, the handoff notice (`lib/exit-status.ts handoffNotice`)
+  and one button per `allowed_next` status with `EXIT_MOVE_COPY`.
+  `ExitDataExportCard` renders for the leaver only and downloads the portable
+  record as JSON; it never touches the exit status.

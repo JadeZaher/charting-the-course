@@ -21,6 +21,8 @@ const PROFILE_OPTIONS = [
   { value: 'collaborator', label: 'Collaborator' },
   { value: 'townhall', label: 'Townhall' },
 ];
+/** Profiles that carry administration rights: an owner grants them (server: policy.can_choose_own_profile). */
+const GRANTED_PROFILES = new Set(['co_creator', 'builder']);
 
 export default function MemberForm() {
   const [, editParams] = useRoute('/members/:id/edit');
@@ -101,6 +103,7 @@ export default function MemberForm() {
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const heldProfile = isEdit ? existing?.profile ?? '' : '';
   const mutationError = createMutation.error || updateMutation.error;
 
   return (
@@ -139,15 +142,20 @@ export default function MemberForm() {
             <div className="space-y-2">
               <Label htmlFor="profile">Profile *</Label>
               <Select value={profile} onValueChange={setProfile}>
-                <SelectTrigger>
+                <SelectTrigger id="profile" aria-describedby="profile-hint">
                   <SelectValue placeholder="Select profile" />
                 </SelectTrigger>
                 <SelectContent>
                   {PROFILE_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value} disabled={GRANTED_PROFILES.has(o.value) && o.value !== heldProfile}>
+                      {o.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p id="profile-hint" className="text-xs text-muted-foreground">
+                Co-Creator and Builder carry administration rights, so an owner of the ecosystem grants them from the member page.
+              </p>
               {errors.profile && <p className="text-sm text-destructive">{errors.profile}</p>}
             </div>
 

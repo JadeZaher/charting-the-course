@@ -1,11 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
+import { applyToolResult, type ToolChip } from '@/lib/chat-tools';
 
-export interface ToolExecution {
-  name: string;
-  status: 'running' | 'success' | 'error';
-  result?: string;
-  error?: string;
-}
+/** A tool call in an assistant message: plain label, status, and the confirmation it waits on. */
+export type ToolExecution = ToolChip;
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -186,12 +183,12 @@ export function useSSEChat() {
 
         case 'tool_start': {
           try {
-            const { name } = JSON.parse(data);
+            const { name, label } = JSON.parse(data);
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
-                const tools = [...(last.tools || []), { name, status: 'running' as const }];
+                const tools = [...(last.tools || []), { name, label, status: 'running' as const }];
                 updated[updated.length - 1] = { ...last, tools };
               }
               return updated;
@@ -202,16 +199,13 @@ export function useSSEChat() {
 
         case 'tool_result': {
           try {
-            const { name, success, error: toolError, artifact } = JSON.parse(data);
+            const event = JSON.parse(data);
+            const { artifact } = event;
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
               if (last?.role === 'assistant') {
-                const tools = (last.tools || []).map(t =>
-                  t.name === name && t.status === 'running'
-                    ? { ...t, status: (success ? 'success' : 'error') as 'success' | 'error', error: toolError }
-                    : t
-                );
+                const tools = applyToolResult(last.tools || [], event);
                 const artifacts = artifact
                   ? [...(last.artifacts || []), artifact as ArtifactLink]
                   : last.artifacts;

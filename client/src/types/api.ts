@@ -752,6 +752,11 @@ export interface ConflictListItem {
   domain: string | null;
   safety_flag: boolean;
   created_at: string;
+  /** Plain-language stage, what happens next and who decides (server-built). */
+  stage: string;
+  next_step: string;
+  decided_by: string;
+  caller_is_reporter: boolean;
 }
 
 export interface RepairAgreement {
@@ -768,6 +773,8 @@ export interface RepairAgreement {
   checkin_90_date: string | null;
   checkin_90_notes: string | null;
   created_at: string;
+  next_checkin_date: string | null;
+  next_checkin_overdue: boolean;
 }
 
 export interface ConflictDetail extends ConflictListItem {
@@ -776,9 +783,16 @@ export interface ConflictDetail extends ConflictListItem {
   scope: string | null;
   tier: number | null;
   root_cause_category: string | null;
-  parties: Record<string, unknown> | null;
+  /** Current names of the people involved (access is by member id on the server). */
+  party_names: string[];
   reporter_id: string | null;
+  reporter_name: string | null;
   facilitator_id: string | null;
+  facilitator_name: string | null;
+  /** The caller is a steward or the facilitator (and not a named party). */
+  caller_can_triage: boolean;
+  /** Statuses the caller may move this case to. */
+  allowed_next: string[];
   triage_notes: string | null;
   resolution_summary: string | null;
   resolved_date: string | null;
@@ -963,35 +977,7 @@ export interface ComplianceSummary {
   version_fingerprint: string | null;
 }
 
-// Emergency types
-export interface EmergencyStateItem {
-  id: string;
-  state: string;
-  declared_at: string | null;
-  declared_by: string | null;
-  auto_revert_at: string | null;
-  closed_at: string | null;
-  post_review_status: string | null;
-  created_at: string;
-}
-
-export interface EmergencyStateDetail extends EmergencyStateItem {
-  ecosystem_id: string;
-  criteria_met: any;
-  recovery_entered_at: string | null;
-  pre_authorized_roles: any;
-  actions_log: any;
-  notes: string | null;
-  updated_at: string;
-}
-
-export interface EmergencyListResponse {
-  current: EmergencyStateDetail | null;
-  items: EmergencyStateItem[];
-  total: number;
-  page: number;
-  per_page: number;
-}
+// Emergency types: the G-Safety section below (EmergencyRecord, EmergencyOverview).
 
 // Exit types
 export interface ExitListItem {
@@ -1008,19 +994,6 @@ export interface ExitListItem {
   completed_date: string | null;
 }
 
-export interface ExitDetail extends ExitListItem {
-  unwinding_tracker: Record<string, any> | null;
-  ecosystem_id: string;
-  updated_at: string;
-  coordinator_id: string | null;
-  commitment_inventory: any;
-  unwinding_status: Record<string, any> | null;
-  data_export_requested: boolean;
-  data_export_completed: string | null;
-  departure_notice: string | null;
-  re_entry_eligible: boolean;
-  notes: string | null;
-}
 
 // Notifications types
 export interface NotificationPreferences {
@@ -1081,12 +1054,15 @@ export interface GovernanceAudit {
   structured_recommendations?: string[] | null;
   next_audit_due?: string | null;
   trigger_type?: string | null;
+  /** The caller is the auditor recording this draft. */
+  caller_can_edit?: boolean;
+  overall_health_score?: number | null;
 }
 
 export interface SafeguardsOverview {
   latest_audit: GovernanceAudit | null;
   recent_audits: GovernanceAudit[];
-  health_score: number;
+  health_score: number | null;
   indicator_scores?: IndicatorScore[] | null;
   triggered_safeguards?: TriggeredSafeguard[] | null;
 }
@@ -1191,4 +1167,225 @@ export interface MemberDecision {
   subject_title: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// G-Care
+
+/** An indicator the auditor rated by hand. */
+export type RatedIndicator = Pick<IndicatorScore, 'indicator_id' | 'indicator_name' | 'status'> & { notes?: string | null };
+
+/** Fields of POST/PUT /safeguards/audits: the auditor is always the caller. */
+export interface AuditDraftFields {
+  audit_scope?: string;
+  audit_period_start?: string;
+  audit_period_end?: string;
+  indicator_scores?: RatedIndicator[];
+  findings?: string;
+  structured_recommendations?: string[];
+}
+
+// G-Safety: emergency co-sign and Recovery, self-filed exit and the portable record.
+// Shapes of neos_agent api/emergency.py and api/exit.py; see api/AGENTS.md "Emergency and exit".
+export type EmergencyPhase = 'pending' | 'open' | 'recovery' | 'closed' | 'withdrawn';
+
+export interface EmergencyTimeline {
+  phase: EmergencyPhase;
+  next_step: string;
+  cosign_deadline: string | null;
+  authority_ends_at: string | null;
+  recovery_started_at: string | null;
+  review_schedule_by: string | null;
+  review_due_at: string | null;
+  review_overdue: boolean;
+}
+
+export interface EmergencySummary extends EmergencyTimeline {
+  id: string;
+  ecosystem_id: string;
+  state: string;
+  declared_at: string | null;
+  declared_by: string | null;
+  co_signed_by: string | null;
+  auto_revert_at: string | null;
+  closed_at: string | null;
+  post_review_status: 'scheduled' | 'complete' | null;
+  created_at: string | null;
+}
+
+export interface EmergencyLogEntry {
+  action: string;
+  timestamp: string;
+  note?: string;
+  actor?: string;
+  trigger?: string;
+  outcome?: 'scheduled' | 'complete';
+  summary?: string;
+}
+
+export interface EmergencyRecord extends EmergencySummary {
+  ecosystem_name: string | null;
+  notes: string | null;
+  authority_days: number | null;
+  co_signed_at: string | null;
+  half_open_entered_at: string | null;
+  actions_log: EmergencyLogEntry[];
+  updated_at: string | null;
+  caller_is_steward: boolean;
+  caller_can_cosign: boolean;
+  caller_can_withdraw: boolean;
+  caller_can_end: boolean;
+  caller_can_review: boolean;
+  caller_can_complete_recovery: boolean;
+}
+
+export interface EmergencyLimits {
+  default_authority_days: number;
+  max_authority_days: number;
+  cosign_window_hours: number;
+  review_schedule_days: number;
+  recovery_window_days: number;
+}
+
+export interface EmergencyOverview {
+  current: EmergencyRecord | null;
+  active: EmergencyRecord[];
+  items: EmergencySummary[];
+  total: number;
+  page: number;
+  per_page: number;
+  limits: EmergencyLimits;
+  caller_can_declare_in: string[];
+}
+
+export interface EmergencyDeclaration {
+  ecosystem_id: string;
+  reason: string;
+  auto_revert_days: number;
+}
+
+export interface EmergencyReview {
+  outcome: 'scheduled' | 'complete';
+  summary: string;
+}
+
+export interface ExitView extends ExitListItem {
+  coordinator_id: string | null;
+  data_export_requested: boolean;
+  data_export_completed: string | null;
+  departure_notice: string | null;
+  re_entry_eligible: boolean;
+  updated_at: string | null;
+  handoff_max_days: number;
+  next_step: string;
+  caller_is_leaver: boolean;
+  allowed_next: string[];
+}
+
+export interface ExitFiling {
+  ecosystem_id: string;
+  exit_type: 'standard' | 'urgent';
+  reason: string | null;
+}
+
+export interface PortableRecord {
+  format: string;
+  generated_at: string;
+  memberships: Array<{ ecosystem_id: string; ecosystem: string; member_key: string; display_name: string; role: string; status: string; joined_at: string | null }>;
+  proposals_authored: Array<{ ecosystem: string; proposal_id: string; title: string; status: string }>;
+  advice_given: Array<{ ecosystem: string; proposal_id: string; proposal: string; date: string | null; advice: string | null }>;
+  consent_positions: Array<{ ecosystem: string; proposal_id: string; proposal: string; position: string | null; reason: string | null; round: number | null }>;
+  agreements_consented: Array<{ ecosystem: string; agreement_id: string; title: string; version: string; attested_at: string; withdrawn_at: string | null }>;
+  omitted: Array<{ ecosystem: string; reason: string }>;
+  exit: { id: string; ecosystem_id: string; status: string; exit_type: string; declared_date: string | null; handoff_ends: string | null };
+}
+
+// G-ACT: fields added to existing payloads by interface merging (api/AGENTS.md "ACT integrity (G-ACT)").
+/** A manual move the server offers the caller now (act_gates.proposal_next_moves). */
+export interface ProposalMoveOption {
+  to: string;
+  /** The move's gate is met (forward moves are offered only when ready). */
+  ready: boolean;
+  gate: 'advice' | 'consent' | 'test' | null;
+  /** Sending back for revision needs a written note. */
+  note_required: boolean;
+  /** Only an ecosystem steward may make it (confirming ratification). */
+  steward_only: boolean;
+  /** Shown, not offered: the caller wrote the proposal, so another steward must confirm it. */
+  blocked?: 'needs_another_steward' | null;
+}
+
+/** id, key, title, status and version of an agreement a proposal links to. */
+export interface AgreementBrief {
+  id: string;
+  agreement_id: string;
+  title: string;
+  status: string;
+  version?: string;
+}
+
+export interface ProposalDetail {
+  allowed_next?: ProposalMoveOption[];
+  /** The caller's position in the latest consent record. */
+  caller_position?: { position: string; reason: string | null } | null;
+  /** A steward may register this ratified, unregistered proposal as an agreement. */
+  caller_can_register?: boolean;
+  amends_agreement_id?: string | null;
+  amends_agreement?: AgreementBrief | null;
+  registered_agreement_id?: string | null;
+  registered_agreement?: AgreementBrief | null;
+}
+
+export interface ConsentParticipant {
+  member_id?: string | null;
+}
+
+export interface AdviceEntry {
+  member_id?: string | null;
+}
+
+export interface TestReport {
+  reporter_member_id?: string | null;
+  reporter_name?: string | null;
+}
+
+export interface AgreementDetail {
+  /** An in-force agreement changes through an amending proposal. */
+  caller_can_propose_change?: boolean;
+}
+
+/** Extra fields of gates.advice on a proposal (the deadline is a prompt, never a move). */
+export interface ActAdviceGateDetail {
+  deadline?: string | null;
+  deadline_passed?: boolean;
+}
+
+/** Extra fields of gates.consent: where the quorum came from and the decision mode. */
+export interface ActConsentGateDetail {
+  quorum_source?: 'proposal' | 'agreement' | 'default' | 'all_members' | null;
+  mode?: 'consent' | 'consensus' | null;
+}
+
+export interface RoleGrant {
+  /** A role tier change, or a profile change (co_creator/builder carry administration rights). */
+  kind?: 'role' | 'profile';
+  from_role: string;
+  to_role: string;
+  date: string;
+  /** The granter as they are named now (stored by member id). */
+  granted_by: string | null;
+}
+
+export interface MemberProfileResponse {
+  /** Tiers the caller may give this member now; empty means no picker. */
+  caller_assignable_roles?: Array<'user' | 'mod' | 'admin' | 'owner'>;
+  /** Profiles the caller may give this member now (whoever could make them an admin); empty means no picker. */
+  caller_grantable_profiles?: Array<'co_creator' | 'builder' | 'collaborator' | 'townhall'>;
+  /** The profile is the caller's own row in this ecosystem (the picker reads "Step down to"). */
+  caller_is_self?: boolean;
+  role_history?: RoleGrant[];
+}
+
+export interface OnboardingState {
+  /** The member themselves or a steward of their ecosystem. */
+  caller_can_record?: boolean;
 }

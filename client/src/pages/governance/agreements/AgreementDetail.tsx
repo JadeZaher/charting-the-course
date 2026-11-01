@@ -14,7 +14,7 @@ import { useAgreement, useAttestAgreementConsent, useUpdateAgreementStatus, useW
 import { formatDate } from '@/lib/utils';
 import { agreementStatusLabel, agreementStatusVariant } from '@/lib/agreement-status';
 import { agreementTypeLabel } from '@/lib/agreement-type';
-import { Pencil, History, ArrowLeft, CircleAlert, CheckCircle2, Gavel } from 'lucide-react';
+import { Pencil, History, ArrowLeft, CircleAlert, CheckCircle2, Gavel, FilePen } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
 const CONSENT_OPEN_STATUSES = ['consent', 'test', 'active', 'under_review'];
@@ -119,6 +119,15 @@ export default function AgreementDetail() {
               History
             </Link>
           </Button>
+          {/* An agreement in force changes through a ratified amending proposal, then a steward registers it. */}
+          {data.caller_can_propose_change && (
+            <Button asChild size="sm">
+              <Link href={`/proposals/new?amends=${id}`}>
+                <FilePen className="h-4 w-4 mr-1" aria-hidden="true" />
+                Propose a change
+              </Link>
+            </Button>
+          )}
           {canConduct && (
             <Select onValueChange={handleStatusChange} disabled={statusChanging}>
               <SelectTrigger className="w-[160px] h-9">
@@ -387,7 +396,7 @@ export default function AgreementDetail() {
 
         {/* Rail column */}
         <div className="space-y-6">
-          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} />}
+          {data.gates && <ActGatesPanel gates={data.gates} status={data.status} kind="agreement" />}
           {data.status === 'active' && (
             <Card>
               <CardHeader>

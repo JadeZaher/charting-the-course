@@ -4,8 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useConflict } from '@/hooks/use-governance';
-import { Pencil, ArrowLeft, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { useConflict } from '@/hooks/use-care';
+import { ConflictTriageModal } from '@/components/governance/conflicts/ConflictTriageModal';
+import { ConflictStatusActions } from '@/components/governance/conflicts/ConflictStatusActions';
+import { RepairCheckinModal } from '@/components/governance/conflicts/RepairCheckinModal';
+import type { RepairAgreement } from '@/types/api';
+import { ClipboardCheck, ArrowLeft, Plus } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
 const statusVariant = (status: string) => {
@@ -33,6 +38,8 @@ export default function ConflictDetail() {
   const [, params] = useRoute('/conflicts/:id');
   const id = params?.id ?? '';
   const { data, isLoading, error } = useConflict(id);
+  const [triaging, setTriaging] = useState(false);
+  const [checkingIn, setCheckingIn] = useState<RepairAgreement | null>(null);
 
   if (isLoading) return <LoadingState message="Loading conflict..." />;
 
@@ -61,27 +68,50 @@ export default function ConflictDetail() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(data.status)}>{data.status}</Badge>
+            <Badge variant={statusVariant(data.status)}>{data.stage}</Badge>
             {data.severity && <Badge variant={severityVariant(data.severity)}>{data.severity}</Badge>}
             {data.case_id && <span className="text-sm text-muted-foreground">{data.case_id}</span>}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/conflicts/${id}/edit`}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/conflicts/${id}/repair-agreements/new`}>
-              <Plus className="h-4 w-4 mr-1" />
-              Create Repair Agreement
-            </Link>
-          </Button>
+          {data.caller_can_triage && (
+            <Button size="sm" onClick={() => setTriaging(true)}>
+              <ClipboardCheck className="h-4 w-4 mr-1" />
+              {data.status === 'reported' ? 'Triage this case' : 'Update triage'}
+            </Button>
+          )}
+          <ConflictStatusActions conflict={data} />
+          {data.caller_can_triage && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/conflicts/${id}/repair-agreements/new`}>
+                <Plus className="h-4 w-4 mr-1" />
+                Create Repair Agreement
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
+
+      <Card className="border-strong-border">
+        <CardContent className="pt-4 space-y-1 text-sm">
+          <p><span className="font-semibold">What happens next:</span> {data.next_step}</p>
+          <p className="text-muted-foreground">Who decides: {data.decided_by}</p>
+        </CardContent>
+      </Card>
+
+      {data.caller_can_triage && (
+        <ConflictTriageModal conflict={data} open={triaging} onOpenChange={setTriaging} />
+      )}
+      {checkingIn && (
+        <RepairCheckinModal
+          key={checkingIn.id}
+          repairAgreement={checkingIn}
+          conflictId={data.id}
+          open
+          onOpenChange={(open) => { if (!open) setCheckingIn(null); }}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -117,8 +147,12 @@ export default function ConflictDetail() {
               <dd className="font-medium">{data.scope || '-'}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Facilitator ID</dt>
-              <dd className="font-medium font-mono text-xs">{data.facilitator_id || '-'}</dd>
+              <dt className="text-muted-foreground">Facilitator</dt>
+              <dd className="font-medium">{data.facilitator_name || 'Not assigned yet'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Reported by</dt>
+              <dd className="font-medium">{data.reporter_name || '-'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Safety Flag</dt>
@@ -136,17 +170,15 @@ export default function ConflictDetail() {
         </CardContent>
       </Card>
 
-      {data.parties && Object.keys(data.parties).length > 0 && (
+      {data.party_names.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Parties</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(data.parties).map(([key, value]) => (
-                <Badge key={key} variant="secondary">
-                  {key}: {typeof value === 'string' ? value : JSON.stringify(value)}
-                </Badge>
+              {data.party_names.map((name, index) => (
+                <Badge key={index} variant="secondary">{name}</Badge>
               ))}
             </div>
           </CardContent>
@@ -177,6 +209,7 @@ export default function ConflictDetail() {
                   <TableHead>Status</TableHead>
                   <TableHead>Next Check-in</TableHead>
                   <TableHead>Responsible Party</TableHead>
+                  {data.caller_can_triage && <TableHead><span className="sr-only">Actions</span></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -189,15 +222,23 @@ export default function ConflictDetail() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {ra.checkin_30_date
-                        ? new Date(ra.checkin_30_date).toLocaleDateString()
-                        : ra.checkin_60_date
-                          ? new Date(ra.checkin_60_date).toLocaleDateString()
-                          : ra.checkin_90_date
-                            ? new Date(ra.checkin_90_date).toLocaleDateString()
-                            : '-'}
+                      {ra.next_checkin_date ? (
+                        <span className={ra.next_checkin_overdue ? 'font-medium text-destructive' : undefined}>
+                          {new Date(ra.next_checkin_date).toLocaleDateString()}
+                          {ra.next_checkin_overdue ? ' (overdue)' : ''}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell>{ra.responsible_party || '-'}</TableCell>
+                    {data.caller_can_triage && (
+                      <TableCell>
+                        <Button variant="outline" size="sm" onClick={() => setCheckingIn(ra)}>
+                          {ra.status === 'fulfilled' ? 'View' : 'Check in'}
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

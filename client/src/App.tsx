@@ -55,6 +55,7 @@ import MessagingLayout from '@/pages/messaging/MessagingLayout';
 import { EcosystemPicker } from "@/components/EcosystemPicker";
 import { FloatingComms } from "@/components/FloatingComms";
 import { RouteGuidePanel } from "@/components/RouteGuidePanel";
+import { EmergencyBanner } from "@/components/governance/emergency/EmergencyBanner";
 import ComplianceDashboard from '@/pages/compliance/ComplianceDashboard';
 
 // Loading spinner component
@@ -491,6 +492,7 @@ function AppLayout() {
               <ThemeToggle />
             </div>
           </header>
+          <EmergencyBanner />
           {/* --route-guide-width is set by RouteGuidePanel while it is docked open at lg+ */}
           <main id="main-content" tabIndex={-1} className="route-shell min-w-0 flex-1 overflow-auto lg:pr-[calc(var(--page-gutter)_+_var(--route-guide-width,0px))]">
             <AuthenticatedRoutes />

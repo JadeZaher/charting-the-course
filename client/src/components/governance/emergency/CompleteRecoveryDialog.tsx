@@ -1,109 +1,55 @@
+// Closes Recovery (half_open -> closed) once the review is complete; only a steward is offered it.
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useCompleteRecovery } from '@/hooks/use-governance';
-import type { EmergencyStateDetail } from '@/types/api';
-import { ShieldCheck, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { useCloseRecovery } from '@/hooks/use-emergency';
+import type { EmergencyRecord } from '@/types/api';
+import { ShieldCheck } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
-interface CompleteRecoveryDialogProps {
-  emergency: EmergencyStateDetail;
-  onSuccess?: (data: EmergencyStateDetail) => void;
-}
-
-export function CompleteRecoveryDialog({ emergency, onSuccess }: CompleteRecoveryDialogProps) {
+export function CompleteRecoveryDialog({ emergency }: { emergency: EmergencyRecord }) {
   const [open, setOpen] = useState(false);
-  const recoveryMutation = useCompleteRecovery();
+  const closeRecovery = useCloseRecovery(emergency.id);
 
-  const canComplete = emergency.state === 'half_open' && emergency.post_review_status === 'complete';
+  if (emergency.phase !== 'recovery' || emergency.post_review_status !== 'complete') return null;
+  if (!emergency.caller_can_complete_recovery) {
+    return <p className="text-sm text-muted-foreground">The review is complete. A steward of this ecosystem closes Recovery.</p>;
+  }
 
-  const handleComplete = async () => {
+  const handleComplete = async (event: React.MouseEvent) => {
+    event.preventDefault(); // keep the dialog open until the server answers
     try {
-      const result = await recoveryMutation.mutateAsync(emergency.id);
+      await closeRecovery.mutateAsync();
       setOpen(false);
-      onSuccess?.(result);
     } catch {
-      // Error handled by mutation state
+      // rendered below via closeRecovery.error
     }
   };
 
-  // Only show when in half_open state
-  if (emergency.state !== 'half_open') return null;
-
-  if (!canComplete) {
-    return (
-      <div className="border border-warning bg-warning/10 px-4 py-3 text-sm text-warning">
-        <div className="flex items-center gap-2 font-semibold mb-1">
-          <AlertTriangle className="h-4 w-4" />
-          Recovery in Progress
-        </div>
-        <p>
-          Emergency authority has ceased. The post-emergency review must be completed
-          before recovery can be finalized. Current review status:{' '}
-          <span className="font-medium">{emergency.post_review_status ?? 'not started'}</span>.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      {/* Recovery ready banner */}
-      <div className="border border-success bg-success/10 px-4 py-3 text-sm text-success">
-        <div className="flex items-center gap-2 font-semibold mb-1">
-          <CheckCircle className="h-4 w-4" />
-          Recovery Review Complete
-        </div>
-        <p>
-          The post-emergency review is complete. You can now finalize the recovery
-          to return the circuit breaker to closed state and restore normal governance.
-        </p>
-      </div>
-
-      {/* Recovery summary card */}
-      <div className="text-sm space-y-2 text-muted-foreground">
-        <p>The following will happen upon finalization:</p>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>The circuit breaker returns to <strong>closed</strong> state</li>
-          <li>Normal governance processes resume fully</li>
-          <li>Emergency declarations are archived for audit</li>
-          <li>A closure audit note is recorded in the actions log</li>
-        </ul>
-      </div>
-
-      {recoveryMutation.error && (
-        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {apiErrorMessage(recoveryMutation.error)}
-        </div>
+    <div className="space-y-3">
+      {closeRecovery.error && (
+        <p role="alert" className="border-2 border-destructive p-3 text-sm text-destructive">{apiErrorMessage(closeRecovery.error)}</p>
       )}
-
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
-          <Button variant="default" className="w-full">
-            <ShieldCheck className="h-4 w-4 mr-2" />
-            Complete Recovery
+          <Button>
+            <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+            Close Recovery
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Complete Emergency Recovery?</AlertDialogTitle>
+            <AlertDialogTitle>Close Recovery?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will finalize the recovery process, closing the circuit breaker
-              and fully restoring normal governance. This action is permanent and
-              will be recorded in the emergency actions log.
+              The emergency ends for good and normal governance is fully restored. The declaration, the review and
+              this step stay in the activity log. This cannot be undone; a new emergency needs a new declaration.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleComplete} disabled={recoveryMutation.isPending}>
-              {recoveryMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Completing...
-                </>
-              ) : (
-                'Yes, complete recovery'
-              )}
+            <AlertDialogAction onClick={handleComplete} disabled={closeRecovery.isPending}>
+              {closeRecovery.isPending ? 'Closing…' : 'Yes, close Recovery'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

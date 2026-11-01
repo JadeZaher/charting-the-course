@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useUpdateRepairAgreement } from '@/hooks/use-governance';
+import { useRecordRepairCheckin } from '@/hooks/use-care';
 import type { RepairAgreement } from '@/types/api';
 import { CalendarCheck, CheckCircle2, Loader2, Clock } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
@@ -33,7 +33,7 @@ const MILESTONE_DATES: Record<CheckinMilestone, { key: keyof RepairAgreement; no
 };
 
 export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenChange, onSuccess }: RepairCheckinModalProps) {
-  const updateMutation = useUpdateRepairAgreement(conflictId);
+  const updateMutation = useRecordRepairCheckin(conflictId);
 
   const [notes30, setNotes30] = useState(repairAgreement.checkin_30_notes ?? '');
   const [notes60, setNotes60] = useState(repairAgreement.checkin_60_notes ?? '');
@@ -44,6 +44,14 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
     const val = repairAgreement[dateKey];
     if (!val) return 'Not scheduled';
     return new Date(String(val)).toLocaleDateString();
+  };
+
+  // A scheduled check-in with no notes whose date has passed.
+  const isOverdue = (dateKey: keyof RepairAgreement): boolean => {
+    const val = repairAgreement[dateKey];
+    if (!val || isComplete) return false;
+    const notesKey = dateKey.replace('_date', '_notes') as keyof RepairAgreement;
+    return !repairAgreement[notesKey] && new Date(String(val)) < new Date(new Date().toDateString());
   };
 
   const isComplete = repairAgreement.status === 'fulfilled' || repairAgreement.status === 'completed';
@@ -60,14 +68,14 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
       checkin_60_notes?: string;
       checkin_90_notes?: string;
       status?: string;
-      completed_date?: string;
+      confirmed_by_parties?: boolean;
     } = {};
     if (notes30 !== (repairAgreement.checkin_30_notes ?? '')) data.checkin_30_notes = notes30;
     if (notes60 !== (repairAgreement.checkin_60_notes ?? '')) data.checkin_60_notes = notes60;
     if (notes90 !== (repairAgreement.checkin_90_notes ?? '')) data.checkin_90_notes = notes90;
     if (markComplete) {
       data.status = 'fulfilled';
-      data.completed_date = new Date().toISOString().split('T')[0];
+      data.confirmed_by_parties = true;
     }
 
     try {
@@ -121,9 +129,9 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
               <div key={milestone} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">{info.label}</Label>
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span className={`text-xs flex items-center gap-1 ${isOverdue(info.key) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
                     <Clock className="h-3 w-3" />
-                    {dateDisplay}
+                    {dateDisplay}{isOverdue(info.key) ? ' (overdue)' : ''}
                   </span>
                 </div>
                 <Textarea
@@ -147,7 +155,7 @@ export function RepairCheckinModal({ repairAgreement, conflictId, open, onOpenCh
                 onCheckedChange={(c) => setMarkComplete(!!c)}
               />
               <Label htmlFor="mark-complete" className="text-sm">
-                Mark repair agreement as fulfilled
+                Both parties confirm this repair agreement is fulfilled
               </Label>
             </div>
           )}

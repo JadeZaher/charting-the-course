@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateRepairAgreement } from '@/hooks/use-governance';
+import { useCreateRepairAgreement } from '@/hooks/use-care';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 

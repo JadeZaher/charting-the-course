@@ -3,16 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
-import { LoadingState } from '@/components/governance/shared/LoadingState';
+import { QueryState } from '@/components/QueryState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
 import { useGovernanceList, type FilterDef } from '@/hooks/use-governance-list';
 import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
-import { useExits } from '@/hooks/use-governance';
-import { EXIT_STATUS_OPTIONS, exitStatusVariant } from '@/lib/exit-status';
+import { useExitList } from '@/hooks/use-exit';
+import { EXIT_STATUS_OPTIONS, exitStatusLabel, exitStatusVariant } from '@/lib/exit-status';
 import { Plus } from 'lucide-react';
-import { apiErrorMessage } from '@/lib/api-error-message';
 
-// Matches ExitRecord.exit_type: "standard" (30d cooling-off) or "urgent" (7d)
+// Matches HANDOFF_DAYS in neos_agent api/exit.py: "standard" (30-day handoff) or "urgent" (7-day)
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
   { value: 'standard', label: 'Standard' },
@@ -31,19 +30,8 @@ export default function ExitList() {
   const list = useGovernanceList({ entity: 'exits', filters: FILTERS });
   const getEcosystemName = useEcosystemName();
 
-  const { data, isLoading, error } = useExits(list.params);
-
-  if (isLoading) return <LoadingState message="Loading exits..." />;
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-destructive">Failed to load exits</p>
-        <p className="text-sm text-muted-foreground mt-1">{apiErrorMessage(error)}</p>
-      </div>
-    );
-  }
-
+  const exitsQuery = useExitList(list.params);
+  const { data } = exitsQuery;
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 1;
 
   return (
@@ -52,8 +40,8 @@ export default function ExitList() {
         <h1 className="text-3xl font-bold">Exits</h1>
         <Button asChild>
           <Link href="/exit/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Initiate Exit
+            <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+            Leave this ecosystem
           </Link>
         </Button>
       </div>
@@ -66,17 +54,23 @@ export default function ExitList() {
         onSearchChange={list.setSearch}
       />
 
-      <CollectionGrid aria-label="Exits">
-        {data?.items.length === 0 ? <div className="col-span-full border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No exits found</div> : data?.items.map((item) => (
-          <CollectionCard key={item.id} asChild>
-            <Link href={`/exit/${item.id}`} aria-label={`View exit for ${item.member_name}`}>
-              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.exit_type} exit</p><h2 className="mt-1 text-lg font-semibold">{item.member_name}</h2></div><Badge variant={exitStatusVariant(item.status)}>{item.status}</Badge></div>
-              <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">{item.reason || 'No reason recorded.'}</p>
-              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(item.ecosystem_id) || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Created</dt><dd className="mt-1 font-medium">{new Date(item.created_at).toLocaleDateString()}</dd></div></dl>
-            </Link>
-          </CollectionCard>
-        ))}
-      </CollectionGrid>
+      <QueryState query={exitsQuery} errorTitle="We couldn't load exits"
+        isEmpty={(page) => page.items.length === 0}
+        empty={<div className="border-2 border-dashed border-strong-border p-8 text-center text-muted-foreground">No exits found</div>}>
+        {(page) => (
+          <CollectionGrid aria-label="Exits">
+            {page.items.map((item) => (
+              <CollectionCard key={item.id} asChild>
+                <Link href={`/exit/${item.id}`} aria-label={`View exit for ${item.member_name}`}>
+                  <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.exit_type} exit</p><h2 className="mt-1 text-lg font-semibold">{item.member_name}</h2></div><Badge variant={exitStatusVariant(item.status)}>{exitStatusLabel(item.status)}</Badge></div>
+                  <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">{item.reason || 'No reason recorded.'}</p>
+                  <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm"><div><dt className="text-xs text-muted-foreground">Ecosystem</dt><dd className="mt-1 font-medium">{getEcosystemName(item.ecosystem_id) || '-'}</dd></div><div><dt className="text-xs text-muted-foreground">Handoff ends</dt><dd className="mt-1 font-medium">{item.target_completion_date ? new Date(`${item.target_completion_date}T00:00:00`).toLocaleDateString() : '-'}</dd></div></dl>
+                </Link>
+              </CollectionCard>
+            ))}
+          </CollectionGrid>
+        )}
+      </QueryState>
 
       {totalPages > 1 && (
         <Pagination>

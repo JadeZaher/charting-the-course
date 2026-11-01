@@ -2,153 +2,110 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { AITextarea } from '@/components/ui/ai-textarea';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EcosystemMultiSelect } from '@/components/EcosystemMultiSelect';
-import { useCreateExit, useMembers } from '@/hooks/use-governance';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useFileExit } from '@/hooks/use-exit';
 import { useToast } from '@/hooks/use-toast';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { ArrowLeft } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 
-// Matches ExitCreateRequest.exit_type in exit.py: "standard" (30d cooling-off) or "urgent" (7d)
+// Matches HANDOFF_DAYS in neos_agent api/exit.py; the skill caps the handoff at 30 days.
 const EXIT_TYPE_OPTIONS = [
-  { value: 'standard', label: 'Standard (30-day cooling-off)' },
-  { value: 'urgent', label: 'Urgent (7-day cooling-off)' },
-];
+  { value: 'standard', label: 'Standard: up to 30 days to hand over' },
+  { value: 'urgent', label: 'Urgent: up to 7 days to hand over' },
+] as const;
+
+type ExitType = (typeof EXIT_TYPE_OPTIONS)[number]['value'];
 
 export default function ExitForm() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { selected: selectedEcosystem } = useEcosystem();
-  const createMutation = useCreateExit();
-  const { data: membersData } = useMembers();
-
-  const [memberId, setMemberId] = useState('');
-  const [exitType, setExitType] = useState('');
+  const { selected } = useEcosystem();
+  const fileExit = useFileExit();
+  const [exitType, setExitType] = useState<ExitType>('standard');
   const [reason, setReason] = useState('');
-  const [sharedEcosystemIds, setSharedEcosystemIds] = useState<string[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirming, setConfirming] = useState(false);
 
-  const validate = () => {
-    const errs: Record<string, string> = {};
-    if (!memberId) errs.memberId = 'Member is required';
-    if (!exitType) errs.exitType = 'Exit type is required';
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    const payload: Record<string, any> = {
-      member_id: memberId,
-      exit_type: exitType,
-      reason: reason.trim() || null,
-    };
-
-    if (selectedEcosystem) {
-      payload.ecosystem_id = selectedEcosystem.id;
-    }
-
-    if (sharedEcosystemIds.length > 0) {
-      payload.shared_ecosystem_ids = sharedEcosystemIds;
-    }
-
+  const submit = async () => {
+    if (!selected) return;
     try {
-      const result = await createMutation.mutateAsync(payload);
-      toast({ title: 'Exit initiated', description: 'The exit process has been initiated successfully.' });
-      navigate(`/exit/${result.id}`);
+      const filed = await fileExit.mutateAsync({ ecosystem_id: selected.id, exit_type: exitType, reason: reason.trim() || null });
+      toast({ title: 'Exit filed', description: 'A steward will start the handoff. You can withdraw it until your departure is confirmed.' });
+      navigate(`/exit/${filed.id}`);
     } catch {
-      // Error handled by mutation state
+      setConfirming(false); // the error renders above the form
     }
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="max-w-2xl space-y-6">
       <Button asChild variant="ghost" size="sm">
-        <Link href="/exit">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Exits
-        </Link>
+        <Link href="/exit"><ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />Back to Exits</Link>
       </Button>
 
-      <h1 className="text-3xl font-bold">Initiate Exit</h1>
+      <h1 className="text-3xl font-bold">Leave {selected?.name ?? 'an ecosystem'}</h1>
+      <p className="text-sm text-muted-foreground">
+        Leaving is your choice: no approval and no waiting period. A steward helps hand over your roles and commitments
+        during the handoff, then confirms your departure. You can withdraw until then, and download your governance
+        record from the exit page.
+      </p>
 
-      {createMutation.error && (
-        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {apiErrorMessage(createMutation.error)}
-        </div>
+      {!selected && <p className="text-sm">Choose the ecosystem you are leaving in the picker at the top of the page.</p>}
+
+      {fileExit.error && (
+        <p role="alert" className="border-2 border-destructive p-3 text-sm text-destructive">{apiErrorMessage(fileExit.error)}</p>
       )}
 
-      <Card>
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="member">Member *</Label>
-              <Select value={memberId} onValueChange={setMemberId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {membersData?.items.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.display_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.memberId && <p className="text-sm text-destructive">{errors.memberId}</p>}
-            </div>
+      {selected && (
+        <Card>
+          <CardContent className="pt-6">
+            <form onSubmit={(event) => { event.preventDefault(); setConfirming(true); }} noValidate className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="exit_type">Handoff</Label>
+                <Select value={exitType} onValueChange={(value) => setExitType(value as ExitType)}>
+                  <SelectTrigger id="exit_type"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXIT_TYPE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exit-reason">Reason (optional)</Label>
+                <Textarea id="exit-reason" rows={4} value={reason} onChange={(event) => setReason(event.target.value)}
+                  aria-describedby="exit-reason-hint" />
+                <p id="exit-reason-hint" className="text-xs text-muted-foreground">
+                  Members of {selected.name} can read it. Leave it blank to keep your reasons to yourself.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="submit" disabled={fileExit.isPending}>{fileExit.isPending ? 'Filing…' : 'File my exit'}</Button>
+                <Button asChild variant="outline"><Link href="/exit">Cancel</Link></Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-            <div className="space-y-2">
-              <Label htmlFor="exit_type">Exit Type *</Label>
-              <Select value={exitType} onValueChange={setExitType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select exit type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {EXIT_TYPE_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.exitType && <p className="text-sm text-destructive">{errors.exitType}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason</Label>
-              <AITextarea
-                id="reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason for exit..."
-                rows={4}
-                fieldLabel="Reason"
-                fieldContext="The reason for a member's exit from the governance ecosystem"
-              />
-            </div>
-
-            <EcosystemMultiSelect
-              label="Cross-Ecosystem Sharing"
-              description="Select additional ecosystems this applies to."
-              primaryId={selectedEcosystem?.id ?? ''}
-              sharedIds={sharedEcosystemIds}
-              onPrimaryChange={() => {}}
-              onSharedChange={setSharedEcosystemIds}
-            />
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Submitting...' : 'Initiate Exit'}
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/exit">Cancel</Link>
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>File your exit from {selected?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Stewards see it and start the handoff, which ends within {exitType === 'urgent' ? '7' : '30'} days. Your
+              membership ends only when a steward confirms your departure, and you can withdraw until then.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void submit(); }} disabled={fileExit.isPending}>
+              {fileExit.isPending ? 'Filing…' : 'Yes, file my exit'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

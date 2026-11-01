@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useUpdateConflict } from '@/hooks/use-governance';
+import { useUpdateConflict } from '@/hooks/use-care';
+import { useMembers } from '@/hooks/use-governance';
 import type { ConflictDetail } from '@/types/api';
 import { URGENCY_LEVELS, type UrgencyLevel } from '@/lib/urgency';
 import { CONFLICT_SCOPE_OPTIONS } from '@/lib/conflict-vocab';
@@ -34,6 +34,8 @@ const URGENCY_DESCRIPTIONS: Record<UrgencyLevel, string> = {
   critical: 'Critical — Address now',
 };
 const URGENCY_OPTIONS = URGENCY_LEVELS.map((value) => ({ value, label: URGENCY_DESCRIPTIONS[value] }));
+
+const NO_FACILITATOR = 'none';
 
 const TIER_OPTIONS = [
   { value: '1', label: 'Tier 1 — Facilitated conversation' },
@@ -60,13 +62,15 @@ interface ConflictTriageModalProps {
 
 export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }: ConflictTriageModalProps) {
   const updateMutation = useUpdateConflict();
+  const { data: members } = useMembers({ ecosystem_ids: conflict.ecosystem_id, per_page: '100' });
+  const facilitatorOptions = (members?.items ?? []).filter((member) => member.current_status === 'active');
 
   const [severity, setSeverity] = useState(conflict.severity ?? '');
   const [urgency, setUrgency] = useState(conflict.urgency ?? '');
   const [scope, setScope] = useState(conflict.scope ?? '');
   const [tier, setTier] = useState(String(conflict.tier ?? ''));
   const [rootCauseCategory, setRootCauseCategory] = useState(conflict.root_cause_category ?? '');
-  const [facilitatorId, setFacilitatorId] = useState(conflict.facilitator_id ?? '');
+  const [facilitatorId, setFacilitatorId] = useState(conflict.facilitator_id ?? NO_FACILITATOR);
   const [triageNotes, setTriageNotes] = useState(conflict.triage_notes ?? '');
 
   // Sync with conflict data when modal opens
@@ -77,7 +81,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
       setScope(conflict.scope ?? '');
       setTier(String(conflict.tier ?? ''));
       setRootCauseCategory(conflict.root_cause_category ?? '');
-      setFacilitatorId(conflict.facilitator_id ?? '');
+      setFacilitatorId(conflict.facilitator_id ?? NO_FACILITATOR);
       setTriageNotes(conflict.triage_notes ?? '');
     }
   }, [open, conflict]);
@@ -88,7 +92,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
     scope !== (conflict.scope ?? '') ||
     tier !== String(conflict.tier ?? '') ||
     rootCauseCategory !== (conflict.root_cause_category ?? '') ||
-    facilitatorId !== (conflict.facilitator_id ?? '') ||
+    facilitatorId !== (conflict.facilitator_id ?? NO_FACILITATOR) ||
     triageNotes !== (conflict.triage_notes ?? '');
 
   const handleSubmit = async () => {
@@ -100,6 +104,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
       root_cause_category: string | null;
       triage_notes: string | null;
       facilitator_id?: string;
+      status?: string;
     } = {
       severity: severity || null,
       urgency: urgency || null,
@@ -108,9 +113,11 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
       root_cause_category: rootCauseCategory || null,
       triage_notes: triageNotes || null,
     };
-    if (facilitatorId.trim()) {
-      data.facilitator_id = facilitatorId.trim();
+    if (facilitatorId !== NO_FACILITATOR) {
+      data.facilitator_id = facilitatorId;
     }
+    // Saving triage on a newly reported case is what moves it to "triaged".
+    if (conflict.status === 'reported') data.status = 'triaged';
 
     try {
       const result = await updateMutation.mutateAsync({ id: conflict.id, data });
@@ -130,7 +137,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
             Triage Conflict
           </DialogTitle>
           <DialogDescription>
-            Classify and route this conflict case to the appropriate resolution track.
+            Choose how this case is handled and who facilitates it. Saving moves a reported case to triaged.
             {conflict.case_id && (
               <span className="block mt-1 text-xs font-mono">{conflict.case_id}</span>
             )}
@@ -215,13 +222,19 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
 
           {/* Facilitator */}
           <div className="space-y-2">
-            <Label htmlFor="triage-facilitator">Facilitator member ID (optional)</Label>
-            <Input
-              id="triage-facilitator"
-              value={facilitatorId}
-              onChange={(e) => setFacilitatorId(e.target.value)}
-              placeholder="Member UUID"
-            />
+            <Label htmlFor="triage-facilitator">Facilitator</Label>
+            <Select value={facilitatorId} onValueChange={setFacilitatorId}>
+              <SelectTrigger id="triage-facilitator">
+                <SelectValue placeholder="Choose a member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_FACILITATOR}>No facilitator yet</SelectItem>
+                {facilitatorOptions.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>{member.display_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">The facilitator can read the case and move it forward. Anyone named as a party cannot be the facilitator.</p>
           </div>
 
           {/* Triage Notes */}
@@ -254,7 +267,7 @@ export function ConflictTriageModal({ conflict, open, onOpenChange, onSuccess }:
                 Saving...
               </>
             ) : (
-              'Save Triage'
+              conflict.status === 'reported' ? 'Triage case' : 'Save triage'
             )}
           </Button>
         </DialogFooter>

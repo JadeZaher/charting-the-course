@@ -1,5 +1,6 @@
-import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, ConsentSubmitResult, TestReport, TestReportSubmitResult, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, EmergencyListResponse, EmergencyStateDetail, ExitListItem, ExitDetail, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState } from '@/types/api';
+import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyResponse, AuthMeResponse, OAuthProvider, EcosystemSummary, EcosystemDetail, DashboardSummary, AgreementListItem, AgreementDetail, AgreementHistory, ProposalListItem, ProposalDetail, AdviceLog, AdviceSubmitResult, ConsentRecord, ConsentSubmitResult, TestReport, TestReportSubmitResult, PaginatedResponse, MemberListItem, MemberDetail, OnboardingState, CeremonyConsentRequest, DomainListResponse, DomainDetail, DecisionListItem, DecisionDetail, ConflictListItem, ConflictDetail, RepairAgreement, ConversationSummary, ConversationDetail, MessageItem, CourseListItem, CourseDetail, QuizListItem, QuizDetail, QuizDomainAssignResult, QuizDomainUnassignResult, QuizEcosystemAssignResult, QuizEcosystemUnassignResult, QuizResultItem, UserBadgeItem, UserTagItem, JourneyMapSummary, SaveGenplanInputResult, ExitListItem, SafeguardsOverview, GovernanceAudit, DiscoverResponse, SharesNeeds, Collaboration, ComplianceSummary, AgentToken, MemberProfileResponse, PublicProfileResponse, EthosAccessStatus, EthosAccessGrant, BadgeDefinition, Team, TeamMember, QuizAssignment, AppSettingResponse, CtcHandoffItem, MemberDecision, MemberDecisionState, AuditDraftFields } from '@/types/api';
 import type { UserJourneyProgress } from '@/types/orientation';
+import type { EmergencyDeclaration, EmergencyOverview, EmergencyRecord, EmergencyReview, ExitFiling, ExitView, PortableRecord } from '@/types/api'; // G-Safety
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -466,38 +467,11 @@ export function fetchDiscover(params?: Record<string, string>): Promise<Discover
 }
 
 // Emergency API
-export function fetchEmergencyState(): Promise<EmergencyListResponse> {
-  return apiFetch<EmergencyListResponse>('/api/v1/emergency');
-}
-export function fetchEmergencyDetail(id: string): Promise<EmergencyStateDetail> {
-  return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}`);
-}
-export function declareEmergency(data: Record<string, any>): Promise<EmergencyStateDetail> {
-  return apiFetch<EmergencyStateDetail>('/api/v1/emergency/declare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function resolveEmergency(id: string): Promise<EmergencyStateDetail> {
-  return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
-}
-export function completeEmergencyRecovery(id: string): Promise<EmergencyStateDetail> {
-  return apiFetch<EmergencyStateDetail>(`/api/v1/emergency/${id}/complete-recovery`, { method: 'POST' });
-}
 
 // Exit API
 export function fetchExits(params?: Record<string, string>): Promise<PaginatedResponse<ExitListItem>> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch<PaginatedResponse<ExitListItem>>(`/api/v1/exit${qs}`);
-}
-export function fetchExit(id: string): Promise<ExitDetail> {
-  return apiFetch<ExitDetail>(`/api/v1/exit/${id}`);
-}
-export function createExit(data: Record<string, any>): Promise<ExitDetail> {
-  return apiFetch<ExitDetail>('/api/v1/exit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function updateExitStatus(id: string, data: Record<string, any>): Promise<ExitDetail> {
-  return apiFetch<ExitDetail>(`/api/v1/exit/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-}
-export function requestExitDataExport(id: string): Promise<ExitDetail> {
-  return apiFetch<ExitDetail>(`/api/v1/exit/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_status: 'export_requested' }) });
 }
 
 // Safeguards API
@@ -799,4 +773,71 @@ export function setNeosDenReady(memberId: string, ready: boolean): Promise<CtcHa
 
 export function resendMemberInvite(memberId: string): Promise<{ success: boolean; message?: string; resent_at?: string }> {
   return apiFetch<{ success: boolean; message?: string; resent_at?: string }>(`/api/v1/members/${memberId}/resend-invite`, { method: 'POST' });
+}
+
+// G-Care
+
+export function updateAudit(id: string, data: AuditDraftFields): Promise<GovernanceAudit> {
+  return apiFetch<GovernanceAudit>(`/api/v1/safeguards/audits/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export function publishAudit(id: string): Promise<GovernanceAudit> {
+  return apiFetch<GovernanceAudit>(`/api/v1/safeguards/audits/${id}/publish`, { method: 'POST' });
+}
+
+// G-Safety: emergency co-sign and Recovery, self-filed exit, portable record (api/AGENTS.md "Emergency and exit").
+export function fetchEmergencyOverview(): Promise<EmergencyOverview> {
+  return apiFetch<EmergencyOverview>('/api/v1/emergency');
+}
+export function fetchActiveEmergencies(): Promise<{ items: EmergencyRecord[] }> {
+  return apiFetch<{ items: EmergencyRecord[] }>('/api/v1/emergency/active');
+}
+export function fetchEmergencyRecord(id: string): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>(`/api/v1/emergency/${id}`);
+}
+export function declareEmergencyForCosign(data: EmergencyDeclaration): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>('/api/v1/emergency/declare', jsonBody(data));
+}
+export function cosignEmergency(id: string): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>(`/api/v1/emergency/${id}/cosign`, { method: 'POST' });
+}
+export function withdrawEmergency(id: string): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>(`/api/v1/emergency/${id}/withdraw`, { method: 'POST' });
+}
+export function endEmergencyAuthority(id: string): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>(`/api/v1/emergency/${id}/resolve`, { method: 'POST' });
+}
+export function recordEmergencyReview(id: string, data: EmergencyReview): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>(`/api/v1/emergency/${id}/review`, jsonBody(data));
+}
+export function closeEmergencyRecovery(id: string): Promise<EmergencyRecord> {
+  return apiFetch<EmergencyRecord>(`/api/v1/emergency/${id}/complete-recovery`, { method: 'POST' });
+}
+export function fetchExitView(id: string): Promise<ExitView> {
+  return apiFetch<ExitView>(`/api/v1/exit/${id}`);
+}
+export function fileExit(data: ExitFiling): Promise<ExitView> {
+  return apiFetch<ExitView>('/api/v1/exit', jsonBody(data));
+}
+export function moveExit(id: string, newStatus: string): Promise<ExitView> {
+  return apiFetch<ExitView>(`/api/v1/exit/${id}/status`, jsonBody({ new_status: newStatus }));
+}
+export function fetchPortableRecord(exitId: string): Promise<PortableRecord> {
+  return apiFetch<PortableRecord>(`/api/v1/exit/${exitId}/portable-record`);
+}
+
+// G-ACT: proposal moves with a note, own consent withdrawal, registering ratified proposals, role grants.
+export function moveProposal(id: string, data: { status: string; note?: string }): Promise<ProposalDetail> {
+  return apiFetch<ProposalDetail>(`/api/v1/proposals/${id}/status`, jsonBody(data));
+}
+export function withdrawConsentPosition(id: string): Promise<ConsentSubmitResult> {
+  return apiFetch<ConsentSubmitResult>(`/api/v1/proposals/${id}/consent`, { method: 'DELETE' });
+}
+export function registerProposalAgreement(id: string): Promise<ProposalDetail> {
+  return apiFetch<ProposalDetail>(`/api/v1/proposals/${id}/register-agreement`, { method: 'POST' });
+}
+export function assignMemberRole(memberId: string, role: string): Promise<MemberDetail> {
+  return apiFetch<MemberDetail>(`/api/v1/members/${memberId}/role`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
+}
+export function grantMemberProfile(memberId: string, profile: string): Promise<MemberDetail> {
+  return apiFetch<MemberDetail>(`/api/v1/members/${memberId}/profile-grant`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile }) });
 }

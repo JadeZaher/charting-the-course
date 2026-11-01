@@ -110,14 +110,18 @@ export function useCreateProposal() {
 export function useUpdateProposal(id: string) {
   return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateProposal(id, data), invalidates: affects.proposals, silent: true });
 }
-/** Toasts the phase the proposal landed in (gates can auto-advance past the target) and any failure. */
+/**
+ * Toasts the phase the proposal landed in (gates can auto-advance past the target) and any failure.
+ * `from` names the status it left, so a send-back reads as a revision; `note` is required for one.
+ */
 export function useUpdateProposalStatus(id: string) {
   const queryClient = useQueryClient();
   return useApiMutation({
-    mutationFn: (status: string) => api.updateProposalStatus(id, status),
+    mutationFn: (move: { status: string; note?: string; from?: string }) =>
+      api.moveProposal(id, { status: move.status, note: move.note }),
     onSuccess: (data) => { queryClient.setQueryData(keys.proposals.detail(id), data); },
     invalidates: affects.proposals,
-    success: (updated) => proposalPhaseAnnouncement(updated.status),
+    success: (updated, move) => proposalPhaseAnnouncement(updated.status, move.from),
     error: 'Status not changed',
   });
 }
@@ -128,6 +132,26 @@ export function useSubmitAdvice(proposalId: string) {
 }
 export function useSubmitConsent(proposalId: string) {
   return useApiMutation(actParticipationMutation((data) => api.submitConsent(proposalId, data), 'consent'));
+}
+/** Withdraws the caller's own position (how an objection's author lifts it); failures render inline. */
+export function useWithdrawConsentPosition(proposalId: string) {
+  return useApiMutation(actParticipationMutation(() => api.withdrawConsentPosition(proposalId), 'withdraw'));
+}
+/** A steward registers a ratified proposal; both the proposal and the agreement registry change. Failures render in the dialog. */
+export function useRegisterProposalAgreement(proposalId: string) {
+  const queryClient = useQueryClient();
+  return useApiMutation({
+    mutationFn: () => api.registerProposalAgreement(proposalId),
+    onSuccess: (data) => { queryClient.setQueryData(keys.proposals.detail(proposalId), data); },
+    invalidates: [...affects.proposals, ...affects.agreements],
+    success: (data) => ({
+      title: 'Registered as an agreement',
+      description: data.registered_agreement
+        ? `“${data.registered_agreement.title}” is now in the agreement registry (v${data.registered_agreement.version ?? '1.0'}).`
+        : 'It is now in the agreement registry.',
+    }),
+    silent: true,
+  });
 }
 export function useSubmitTestReport(proposalId: string) {
   return useApiMutation(actParticipationMutation((data) => api.submitTestReport(proposalId, data), 'test'));
@@ -150,6 +174,24 @@ export function useCreateMember() {
 }
 export function useUpdateMember(id: string) {
   return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateMember(id, data), invalidates: affects.members, silent: true });
+}
+/** Role grants follow the owner decision on the server; MemberDetail renders the refusal inline. */
+export function useAssignMemberRole(memberId: string) {
+  return useApiMutation({
+    mutationFn: (role: string) => api.assignMemberRole(memberId, role),
+    invalidates: affects.members,
+    success: { title: 'Role changed', description: 'The change is recorded in the role history.' },
+    silent: true,
+  });
+}
+/** Profile grants (co_creator/builder carry administration rights); MemberRoleCard renders the refusal inline. */
+export function useGrantMemberProfile(memberId: string) {
+  return useApiMutation({
+    mutationFn: (profile: string) => api.grantMemberProfile(memberId, profile),
+    invalidates: affects.members,
+    success: { title: 'Profile changed', description: 'The change is recorded in the role history.' },
+    silent: true,
+  });
 }
 export function useMemberOnboarding(memberId: string) {
   return useQuery({ queryKey: keys.members.onboarding(memberId), queryFn: () => api.fetchMemberOnboarding(memberId), enabled: !!memberId, staleTime: 30_000 });
@@ -285,39 +327,7 @@ export function useRequestJoinEcosystem(id: string) {
   return useApiMutation(joinEcosystemMutation(() => api.requestJoinEcosystem(id), refreshSession));
 }
 
-// Emergency hooks: the dashboard, detail and recovery dialog render failures inline.
-export function useEmergencyState() {
-  return useQuery({ queryKey: keys.emergency.list(), queryFn: () => api.fetchEmergencyState(), staleTime: 30_000 });
-}
-export function useEmergency(id: string) {
-  return useQuery({ queryKey: keys.emergency.detail(id), queryFn: () => api.fetchEmergencyDetail(id), enabled: !!id, staleTime: 30_000 });
-}
-export function useDeclareEmergency() {
-  return useApiMutation({ mutationFn: api.declareEmergency, invalidates: affects.emergency, silent: true });
-}
-export function useResolveEmergency() {
-  return useApiMutation({ mutationFn: (id: string) => api.resolveEmergency(id), invalidates: affects.emergency, silent: true });
-}
-export function useCompleteRecovery() {
-  return useApiMutation({ mutationFn: (id: string) => api.completeEmergencyRecovery(id), invalidates: affects.emergency, silent: true });
-}
-
-// Exit hooks: the form, detail and export card render failures inline.
-export function useExits(params?: Record<string, string>) {
-  return useQuery({ queryKey: keys.exits.list(params), queryFn: () => api.fetchExits(params), staleTime: 30_000 });
-}
-export function useExit(id: string) {
-  return useQuery({ queryKey: keys.exits.detail(id), queryFn: () => api.fetchExit(id), enabled: !!id, staleTime: 30_000 });
-}
-export function useCreateExit() {
-  return useApiMutation({ mutationFn: api.createExit, invalidates: affects.exits, silent: true });
-}
-export function useUpdateExitStatus(id: string) {
-  return useApiMutation({ mutationFn: (data: Record<string, any>) => api.updateExitStatus(id, data), invalidates: affects.exits, silent: true });
-}
-export function useRequestExitDataExport(id: string) {
-  return useApiMutation({ mutationFn: () => api.requestExitDataExport(id), invalidates: affects.exits, silent: true });
-}
+// Emergency and exit hooks live in hooks/use-emergency.ts and hooks/use-exit.ts (G-Safety).
 
 // Safeguards hooks
 export function useSafeguards() {

@@ -4,206 +4,112 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { LoadingState } from '@/components/governance/shared/LoadingState';
-import { useExit, useUpdateExitStatus } from '@/hooks/use-governance';
-import { exitStatusVariant } from '@/lib/exit-status';
-import { ArrowLeft } from 'lucide-react';
+import { QueryState } from '@/components/QueryState';
+import { ExitDataExportCard } from '@/components/governance/exit/ExitDataExportCard';
+import { useExitView, useMoveExit } from '@/hooks/use-exit';
+import { EXIT_MOVE_COPY, exitStatusLabel, exitStatusVariant, handoffNotice } from '@/lib/exit-status';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { ArrowLeft } from 'lucide-react';
 
-// Backend creates new exits at status='declared'; every non-terminal status must have an entry here
-// or newly-created records show zero action buttons. completed/cancelled are terminal (no further transitions).
-const TRANSITIONS: Record<string, { label: string; status: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }[]> = {
-  declared: [
-    { label: 'Begin Cooling-Off', status: 'cooling_off', variant: 'secondary' },
-    { label: 'Cancel', status: 'cancelled', variant: 'outline' },
-  ],
-  cooling_off: [
-    { label: 'Begin Unwinding', status: 'unwinding', variant: 'secondary' },
-    { label: 'Cancel', status: 'cancelled', variant: 'outline' },
-  ],
-  unwinding: [
-    { label: 'Mark Completed', status: 'completed', variant: 'default' },
-    { label: 'Cancel', status: 'cancelled', variant: 'outline' },
-  ],
-};
-
-const TRANSITION_MESSAGES: Record<string, { title: string; description: string }> = {
-  cooling_off: {
-    title: 'Begin the cooling-off period?',
-    description: 'This starts the mandatory cooling-off period before unwinding begins. The member will be notified.',
-  },
-  unwinding: {
-    title: 'Begin unwinding this exit?',
-    description: 'This will start commitment unwinding and role reassignment. The member will be notified.',
-  },
-  cancelled: {
-    title: 'Cancel this exit?',
-    description: 'The exit process will be stopped and the member will retain their current status. This can be re-initiated later if needed.',
-  },
-  completed: {
-    title: 'Complete this exit?',
-    description: 'This will finalize the member\'s departure from the ecosystem. All roles and commitments should have been transferred before completing. This action is difficult to reverse.',
-  },
-};
+const day = (iso: string | null) => (iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
 
 export default function ExitDetail() {
   const [, params] = useRoute('/exit/:id');
   const id = params?.id ?? '';
-  const { data, isLoading, error } = useExit(id);
-  const updateStatusMutation = useUpdateExitStatus(id);
-  const [pendingTransition, setPendingTransition] = useState<{ label: string; status: string } | null>(null);
+  const exitQuery = useExitView(id);
+  const move = useMoveExit(id);
+  const [pending, setPending] = useState<string | null>(null);
+  const copy = pending ? EXIT_MOVE_COPY[pending] : null;
 
-  if (isLoading) return <LoadingState message="Loading exit..." />;
-
-  if (error || !data) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-destructive">Failed to load exit</p>
-        <p className="text-sm text-muted-foreground mt-1">{error ? apiErrorMessage(error) : 'Not found'}</p>
-        <Button asChild variant="outline" className="mt-4">
-          <Link href="/exit">Back to Exits</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  const transitions = TRANSITIONS[data.status] || [];
-
-  const handleConfirmTransition = async () => {
-    if (!pendingTransition) return;
+  const confirm = async () => {
+    if (!pending) return;
     try {
-      await updateStatusMutation.mutateAsync({ new_status: pendingTransition.status });
+      await move.mutateAsync(pending);
     } catch {
-      // Error handled by mutation state
+      // rendered below
     } finally {
-      setPendingTransition(null);
+      setPending(null);
     }
   };
-
-  const transitionMsg = pendingTransition ? TRANSITION_MESSAGES[pendingTransition.status] : null;
 
   return (
     <div className="space-y-6">
       <Button asChild variant="ghost" size="sm">
-        <Link href="/exit">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Exits
-        </Link>
+        <Link href="/exit"><ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />Back to Exits</Link>
       </Button>
+      <QueryState query={exitQuery} errorTitle="We couldn't load this exit">
+        {(exit) => {
+          const moves = exit.allowed_next.filter((status) => EXIT_MOVE_COPY[status]);
+          const notice = handoffNotice(exit, new Date(), day);
+          return (
+            <>
+              <div className="space-y-2">
+                <h1 className="text-3xl font-bold">{exit.caller_is_leaver ? 'Your exit' : `Exit: ${exit.member_name ?? 'a member'}`}</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={exitStatusVariant(exit.status)}>{exitStatusLabel(exit.status)}</Badge>
+                  <span className="text-sm text-muted-foreground">{exit.exit_type === 'urgent' ? 'Urgent handoff' : 'Standard handoff'}</span>
+                </div>
+              </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Exit: {data.member_name}</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={exitStatusVariant(data.status)}>{data.status}</Badge>
-            <span className="text-sm text-muted-foreground">{data.exit_type}</span>
-          </div>
-        </div>
+              <Card>
+                <CardHeader><CardTitle className="text-lg">What happens next</CardTitle></CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <p>{exit.next_step}</p>
+                  {notice && <p className="font-medium">{notice}</p>}
+                  {moves.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {moves.map((status) => (
+                        <Button key={status} variant={EXIT_MOVE_COPY[status].destructive ? 'destructive' : status === 'cancelled' ? 'outline' : 'default'}
+                          onClick={() => setPending(status)} disabled={move.isPending}>
+                          {EXIT_MOVE_COPY[status].label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {move.error && <p role="alert" className="border-2 border-destructive p-3 text-sm text-destructive">{apiErrorMessage(move.error)}</p>}
+                </CardContent>
+              </Card>
 
-        {transitions.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {transitions.map((t) => (
-              <Button
-                key={t.status}
-                variant={t.variant}
-                size="sm"
-                onClick={() => setPendingTransition(t)}
-                disabled={updateStatusMutation.isPending}
-              >
-                {t.label}
-              </Button>
-            ))}
-          </div>
-        )}
-      </div>
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>
+                <CardContent>
+                  <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    <div><dt className="text-muted-foreground">Member</dt><dd className="font-medium">{exit.member_name ?? '—'}</dd></div>
+                    <div><dt className="text-muted-foreground">Filed</dt><dd className="font-medium">{day(exit.declared_date)}</dd></div>
+                    <div><dt className="text-muted-foreground">Handoff ends</dt><dd className="font-medium">{day(exit.target_completion_date)}</dd></div>
+                    {exit.completed_date && <div><dt className="text-muted-foreground">Departure confirmed</dt><dd className="font-medium">{day(exit.completed_date)}</dd></div>}
+                  </dl>
+                </CardContent>
+              </Card>
 
-      {/* Transition confirmation dialog */}
-      <AlertDialog open={!!pendingTransition} onOpenChange={(open) => { if (!open) setPendingTransition(null); }}>
+              {exit.reason && (
+                <Card>
+                  <CardHeader><CardTitle className="text-lg">Reason</CardTitle></CardHeader>
+                  <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed">{exit.reason}</p></CardContent>
+                </Card>
+              )}
+
+              <ExitDataExportCard exit={exit} />
+            </>
+          );
+        }}
+      </QueryState>
+
+      <AlertDialog open={!!pending} onOpenChange={(open) => { if (!open) setPending(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{transitionMsg?.title ?? 'Confirm action'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {transitionMsg?.description ?? 'Are you sure you want to proceed?'}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{copy?.title ?? 'Confirm'}</AlertDialogTitle>
+            <AlertDialogDescription>{copy?.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmTransition}
-              className={pendingTransition?.status === 'completed' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
-            >
-              {pendingTransition?.label ?? 'Confirm'}
+            <AlertDialogAction onClick={confirm}
+              className={copy?.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}>
+              {copy?.label ?? 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {updateStatusMutation.error && (
-        <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          {apiErrorMessage(updateStatusMutation.error)}
-        </div>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Member</dt>
-              <dd className="font-medium">{data.member_name}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Exit Type</dt>
-              <dd className="font-medium">{data.exit_type}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>
-                <Badge variant={exitStatusVariant(data.status)}>{data.status}</Badge>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Created</dt>
-              <dd className="font-medium">{new Date(data.created_at).toLocaleDateString()}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Last Updated</dt>
-              <dd className="font-medium">{new Date(data.updated_at).toLocaleDateString()}</dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
-
-      {data.reason && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Reason</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{data.reason}</div>
-          </CardContent>
-        </Card>
-      )}
-
-      {data.unwinding_tracker && Object.keys(data.unwinding_tracker).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Unwinding Tracker</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="space-y-3 text-sm">
-              {Object.entries(data.unwinding_tracker).map(([key, value]) => (
-                <div key={key}>
-                  <dt className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</dt>
-                  <dd className="font-medium">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
