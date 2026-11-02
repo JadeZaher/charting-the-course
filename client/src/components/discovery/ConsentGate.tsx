@@ -87,8 +87,8 @@ export function ConsentGate({ ethosId, children }: Props) {
       <ShieldCheck className="h-8 w-8" aria-hidden="true" />
       <h1 className="mt-5 text-3xl font-black tracking-[-0.035em]">Participation consent</h1>
       <p className="mt-3 text-sm leading-7 text-muted-foreground">
-        This Ethos community shares member profiles and contact points with its participants. This one
-        confirmation covers both your participation and your profile's visibility to other directory members.
+        This grants access to the community's participant area. It does not opt your profile into directory
+        visibility, contact discovery or private matching. Those are separate choices inside the area.
       </p>
       {!isMember && (
         <p className="mt-3 text-sm leading-7 text-muted-foreground">

@@ -43,6 +43,10 @@ function resource<Root extends string, Extra extends object>(
 }
 
 export const keys = {
+  joinGates: resource('join-gates', gate => ({target:(type:string,id:string)=>[...gate.all,type,id] as const})),
+  matching: resource('matching', matching => ({ecosystem:(owner:RecordId,id:RecordId)=>[...matching.all,owner,id] as const})),
+  orientationChat: resource('orientation-chat', chat => ({journey:(owner:RecordId,id:RecordId)=>[...chat.all,owner,id] as const})),
+  journeyAuthoring: resource('journey-authoring', authoring => ({quizzes:(id:RecordId)=>[...authoring.all,'quizzes',id] as const})),
   nodeAdmin: collection('node-admin'),
   nodeAudit: collection('node-audit'),
   agreements: collection('agreements', (agreement) => ({
@@ -101,6 +105,7 @@ export const keys = {
   })),
   chatSessions: collection('chat-sessions'),
   quizzes: collection('quizzes', (quiz) => ({
+    ownResult: (owner: RecordId, id: RecordId) => [...quiz.all, 'own-result', owner, id] as const,
     results: (quizId: RecordId) => [...quiz.detail(quizId), 'results'] as const,
     resultCounts: () => [...quiz.all, 'result-counts'] as const,
     forEcosystem: (ecosystemId: RecordId) => [...quiz.all, 'ecosystem', ecosystemId] as const,
@@ -159,17 +164,17 @@ export const keys = {
 // Dependency map: the key prefixes a successful mutation of each domain must invalidate.
 export const affects = {
   /** Activation mints a decision; consent activates a pending membership and leaves the caller's queue. */
-  agreements: [keys.agreements.all, keys.decisions.all, keys.members.all, keys.dashboard.all, keys.myDecisions.all, keys.nextSteps.all],
+  agreements: [keys.agreements.all, keys.decisions.all, keys.members.all, keys.dashboard.all, keys.myDecisions.all, keys.nextSteps.all,keys.matching.all,keys.joinGates.all],
   /** ACT moves change list badges and the dashboard queue; ratification mints a decision. */
   proposals: [keys.proposals.all, keys.decisions.all, keys.dashboard.all, keys.myDecisions.all, keys.nextSteps.all],
   /** Roles and status show on public profiles. */
   members: [keys.members.all, keys.dashboard.all, keys.profiles.all],
   /** Domain participation shows on public profiles. */
-  domains: [keys.domains.all, keys.dashboard.all, keys.profiles.all],
+  domains: [keys.domains.all, keys.dashboard.all, keys.profiles.all,keys.matching.all,keys.joinGates.all],
   myDecisions: [keys.myDecisions.all],
   onboarding: [keys.onboarding.all, keys.members.all],
   conflicts: [keys.conflicts.all, keys.nextSteps.all],
-  ecosystems: [keys.ecosystems.all, keys.discover.all],
+  ecosystems: [keys.ecosystems.all, keys.discover.all,keys.matching.all,keys.joinGates.all],
   emergency: [keys.emergency.all, keys.nextSteps.all],
   exits: [keys.exits.all, keys.members.all, keys.nextSteps.all],
   audits: [keys.audits.all, keys.safeguards.all, keys.nextSteps.all],
@@ -179,9 +184,9 @@ export const affects = {
   compliance: [keys.compliance.all],
   conversations: [keys.conversations.all],
   courses: [keys.courses.all],
-  quizzes: [keys.quizzes.all, keys.discover.all],
+  quizzes: [keys.quizzes.all, keys.discover.all,keys.joinGates.all,keys.journeyAuthoring.all],
   /** A member's quiz results and the badges and XP they earn. */
-  quizResults: [keys.quizzes.all, keys.members.all, keys.achievements.all, keys.profiles.all],
+  quizResults: [keys.quizzes.all, keys.members.all, keys.achievements.all, keys.profiles.all,keys.joinGates.all],
   quizAssignments: [keys.quizAssignments.all, keys.quizzes.all],
   badges: [keys.badges.all],
   teams: [keys.teams.all],
@@ -217,6 +222,7 @@ export const ecosystemScoped = [
   keys.domains.all,
   keys.emergency.all,
   keys.exits.all,
+  keys.matching.all,
   keys.members.all,
   keys.onboarding.all,
   keys.proposals.all,

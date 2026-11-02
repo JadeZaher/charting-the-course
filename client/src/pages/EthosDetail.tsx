@@ -4,13 +4,17 @@ import { keys } from '@/lib/query-keys';
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { useEthosDetail } from '@/hooks/useEthos';
 import { useAuth } from '@/contexts/AuthContext';
-import { holdsMembershipIn } from '@/lib/ecosystem-join';
+import { holdsMembershipIn, membershipStanding } from '@/lib/ecosystem-join';
+import { useJoinEcosystem } from '@/hooks/use-onboarding';
+import { JoinRequirements } from '@/components/JoinRequirements';
 import { fetchEthosJourneyMaps } from '@/lib/api-client';
 import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl, resolveMiroEmbedUrl } from '@/lib/media';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConsentGate } from '@/components/discovery/ConsentGate';
+import { FitCheck } from '@/components/discovery/FitCheck';
+import { AlignedParticipants } from '@/components/discovery/AlignedParticipants';
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: 'Discovery',
@@ -28,7 +32,8 @@ export default function EthosDetail() {
   const slug = (detailParams ?? baseParams)?.slug ?? '';
   const detailQuery = useEthosDetail(slug);
   const ethosId = detailQuery.data?.ethos.id;
-  const { ecosystems } = useAuth();
+  const { ecosystems, isAuthenticated } = useAuth();
+  const join = useJoinEcosystem(ethosId || '', { silent: true });
   const journeyQuery = useQuery({
     queryKey: keys.orientation.journeyMaps(ethosId),
     queryFn: () => fetchEthosJourneyMaps(ethosId!),
@@ -124,13 +129,15 @@ export default function EthosDetail() {
             </div>
             <div className="bg-card py-5 pl-4">
               <dt className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Alignment</dt>
-              {/* raw score suppressed until coverage/versioned matching ships — guide §8 foundation */}
-              <dd className="mt-1 text-xs text-muted-foreground">Not yet calculated</dd>
+              <dd className="mt-1 text-xs text-muted-foreground"><a className="underline" href="#ecosystem-fit">Optional private fit check below</a></dd>
             </div>
           </dl>
         </div>
       </header>
 
+      {isAuthenticated && membershipStanding(ethos.id, ecosystems) !== 'active' && <JoinRequirements type="ecosystem" id={ethos.id} returnTo={`/ethos/${ethos.id}`} prepare={() => join.mutateAsync()} />}
+      <div id="ecosystem-fit"><FitCheck ecosystemId={ethos.id}/></div>
+      <AlignedParticipants ethosId={ethos.id}/>
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8">
           {(showDescription || ethos.mission || ethos.governance_summary) && (
@@ -240,43 +247,6 @@ export default function EthosDetail() {
         </div>
 
         <aside className="space-y-6 lg:col-span-4">
-          {/* server must also withhold member data pre-consent — H4 */}
-          <ConsentGate ethosId={ethos.id}>
-            <section className="border-2 border-strong-border bg-card p-5 sm:p-6" aria-labelledby="members-title">
-              <div className="flex items-end justify-between gap-4 border-b-2 border-strong-border pb-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Network</p>
-                  <h2 id="members-title" className="mt-2 text-2xl font-black tracking-tight">Members.</h2>
-                </div>
-                <span className="text-3xl font-black tabular-nums">{members.length}</span>
-              </div>
-              {members.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {members.map((member) => {
-                    const profileUrl = resolveInternalPath(member.profile_url)
-                      ?? `/users/${encodeURIComponent(member.username || member.user_id)}`;
-                    return (
-                    <li key={member.user_id}>
-                      <Link href={profileUrl} className="flex min-h-16 items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        <Avatar className="h-10 w-10 shrink-0 border border-border">
-                          <AvatarImage src={resolveMediaUrl(member.avatar_url)} alt="" />
-                          <AvatarFallback className="text-xs font-black">{member.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-black hover:underline">{member.display_name}</span>
-                          {member.role_in_ethos && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{member.role_in_ethos}</span>}
-                        </span>
-                      </Link>
-                    </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="py-6 text-sm leading-6 text-muted-foreground">Member profiles are private or not yet connected to this dossier.</p>
-              )}
-            </section>
-          </ConsentGate>
-
           {ethos.tags && ethos.tags.length > 0 && (
             <section className="border-2 border-strong-border bg-card p-5 sm:p-6" aria-labelledby="topics-title">
               <h2 id="topics-title" className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Topics</h2>

@@ -12,27 +12,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuiz, useSubmitQuizResult } from "@/hooks/use-courses";
 import { cn } from "@/lib/utils";
 import { apiErrorMessage } from "@/lib/api-error-message";
-
-interface SurveyElement {
-  type: string;
-  name: string;
-  title: string;
-  choices?: string[];
-  correctAnswer?: string;
-  rateMin?: number;
-  rateMax?: number;
-  minRateDescription?: string;
-  maxRateDescription?: string;
-}
+import { quizElements,quizAnswerErrors } from '@/lib/quiz-answer';
+import { QuizAnswerField } from '@/components/QuizAnswerField';
+import { joinReturnPath } from '@/lib/join-gates';
 
 export default function TakeQuiz() {
   const [, params] = useRoute("/quiz/take/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { member } = useAuth();
+  const { member, refreshSession } = useAuth();
+  const returnTo = joinReturnPath(window.location.search);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [startTime] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
+  const [validation,setValidation]=useState('');
 
   const quizId = params?.id;
   const { data: quizData, isLoading, error } = useQuiz(quizId || "");
@@ -49,8 +42,7 @@ export default function TakeQuiz() {
       }
     : null;
 
-  const elements: SurveyElement[] =
-    quiz?.survey_json?.pages?.flatMap((p: any) => p.elements ?? []) ?? [];
+  const elements = quizData ? quizElements(quizData) : [];
 
   function setAnswer(name: string, value: any) {
     setAnswers((prev) => ({ ...prev, [name]: value }));
@@ -60,6 +52,9 @@ export default function TakeQuiz() {
     e.preventDefault();
     if (!member?.id || !quizId || !quiz) return;
 
+    const errors=quizAnswerErrors(elements,answers);
+    if(errors.length){setValidation(errors.join(' '));return;}
+    setValidation('');
     setSubmitting(true);
     try {
       const timeSpent = Math.floor((Date.now() - startTime) / 1000);
@@ -98,7 +93,8 @@ export default function TakeQuiz() {
       }
 
       toast({ title, description, variant });
-      setLocation(resultId ? `/quiz/results/${resultId}` : `/quiz/results/${quizId}`);
+      await refreshSession();
+      setLocation(`${resultId ? `/quiz/results/${resultId}` : `/quiz/results/${quizId}`}?returnTo=${encodeURIComponent(returnTo)}`);
     } catch {
       // useSubmitQuizResult already toasted the failure; stay on the quiz so answers are kept.
     } finally {
@@ -126,9 +122,9 @@ export default function TakeQuiz() {
             <p className="text-destructive">
               {error ? apiErrorMessage(error) : "Quiz not found"}
             </p>
-            <Button onClick={() => setLocation("/onboarding")} data-testid="button-back">
+            <Button onClick={() => setLocation(returnTo)} data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Onboarding
+              Return to where you started
             </Button>
           </CardContent>
         </Card>
@@ -142,7 +138,8 @@ export default function TakeQuiz() {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setLocation("/onboarding")}
+          onClick={() => setLocation(returnTo)}
+          aria-label="Return to where you started"
           data-testid="button-back-to-list"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -157,6 +154,7 @@ export default function TakeQuiz() {
         </div>
       </div>
 
+      {validation&&<p role="alert" className="text-destructive">{validation}</p>}
       <form onSubmit={handleSubmit}>
         <div className="space-y-4">
           {elements.map((el, idx) => (
@@ -165,111 +163,18 @@ export default function TakeQuiz() {
                 <p className="font-medium mb-4">
                   {idx + 1}. {el.title}
                 </p>
-                <QuestionField element={el} value={answers[el.name]} onChange={(v) => setAnswer(el.name, v)} />
+                <QuizAnswerField element={el} value={answers[el.name]} onChange={(v) => setAnswer(el.name, v)} />
               </CardContent>
             </Card>
           ))}
         </div>
 
         <div className="mt-6 flex justify-end">
-          <Button type="submit" size="lg" disabled={submitting}>
+          <Button type="submit" size="lg" disabled={submitting || elements.length===0}>
             {submitting ? "Submitting..." : "Submit Quiz"}
           </Button>
         </div>
       </form>
     </div>
   );
-}
-
-function QuestionField({
-  element,
-  value,
-  onChange,
-}: {
-  element: SurveyElement;
-  value: any;
-  onChange: (v: any) => void;
-}) {
-  switch (element.type) {
-    case "radiogroup":
-      return (
-        <RadioGroup value={value ?? ""} onValueChange={onChange}>
-          {element.choices?.map((choice) => (
-            <div key={choice} className="flex items-center space-x-3 py-1">
-              <RadioGroupItem value={choice} id={`${element.name}-${choice}`} />
-              <Label htmlFor={`${element.name}-${choice}`} className="cursor-pointer font-normal">
-                {choice}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      );
-
-    case "rating": {
-      const min = element.rateMin ?? 1;
-      const max = element.rateMax ?? 5;
-      const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-      return (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            {element.minRateDescription && (
-              <span className="text-xs text-muted-foreground shrink-0">
-                {element.minRateDescription}
-              </span>
-            )}
-            <div className="flex gap-1">
-              {steps.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => onChange(n)}
-                  className={cn(
-                    "h-10 w-10 rounded-[2px] border-2 border-control-border text-sm font-medium transition-colors",
-                    value === n
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted border-input"
-                  )}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            {element.maxRateDescription && (
-              <span className="text-xs text-muted-foreground shrink-0">
-                {element.maxRateDescription}
-              </span>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    case "boolean":
-      return (
-        <div className="flex items-center space-x-3">
-          <Switch
-            id={element.name}
-            checked={value ?? false}
-            onCheckedChange={onChange}
-          />
-          <Label htmlFor={element.name} className="cursor-pointer font-normal">
-            {value ? "Yes" : "No"}
-          </Label>
-        </div>
-      );
-
-    case "text":
-    case "comment":
-      return (
-        <Textarea
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Type your answer here..."
-          rows={element.type === "text" ? 2 : 4}
-        />
-      );
-
-    default:
-      return <p className="text-muted-foreground text-sm">Unsupported question type: {element.type}</p>;
-  }
 }

@@ -121,6 +121,8 @@ export interface OmniBotMessage {
 }
 
 export interface OmniBotContext {
+  journey_id?: string;
+  step_id?:string;
   ethos_name?: string;
   current_step?: string;
   session_type?: 'orientation' | 'intake' | 'ongoing' | 'team_building';

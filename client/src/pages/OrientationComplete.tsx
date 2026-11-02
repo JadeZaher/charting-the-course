@@ -251,6 +251,7 @@ export default function OrientationComplete() {
       {/* Floating OmniBot for post-orientation Q&A */}
       <OmniBotPanel
         context={{
+          journey_id: journeyMap?.id,
           ethos_name: ethos?.name,
           session_type: 'ongoing',
         }}

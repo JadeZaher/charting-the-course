@@ -92,6 +92,7 @@ const governanceGroups: { label: string; defaultOpen: boolean; items: Governance
     items: [
       { title: "Members", url: "/members", icon: Users },
       { title: "Domains", url: "/domains", icon: Globe2 },
+      { title: "Teams", url: "/teams", icon: Users },
       { title: "Ecosystems", url: "/ecosystems", icon: Building2 },
       { title: "Newcomers", url: "/onboarding", icon: UserPlus }, // FX-Onboard: stewards of a selected ecosystem only
     ],
@@ -291,7 +292,8 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent onClick={event => { if (isMobile && (event.target as Element).closest('a[href]')) setOpenMobile(false); }}>
+        {isNodeAdmin && <SidebarGroup><SidebarGroupLabel>Node support</SidebarGroupLabel><SidebarGroupContent><SidebarMenu><SidebarMenuItem><MenuItemWithTooltip item={{title:'Node Administration',url:'/admin',icon:Settings}} isActive={location.startsWith('/admin')} isCollapsed={isCollapsed} /></SidebarMenuItem></SidebarMenu></SidebarGroupContent></SidebarGroup>}
         {!isCollapsed && ecosystems.length > 1 && (
           <SidebarGroup>
             <SidebarGroupLabel>Current ecosystem</SidebarGroupLabel>

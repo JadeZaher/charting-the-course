@@ -88,6 +88,8 @@ const cookieScopedReads: Array<[endpoint: string, key: QueryKey]> = [
   ['/exit/', keys.exits.list()],
   ['/exit/:id', keys.exits.detail('x-1')],
   ['/members/', keys.members.list()],
+  ['/agreements?ecosystem_id=e-1 (matching policy selector)', [...keys.matching.ecosystem('owner-1','e-1'),'source-agreements']],
+  ['/agreements + /domains (governed matching source selectors)', [...keys.matching.ecosystem('owner-1','e-1'),'authoring',false]],
   ['/messaging/conversations', keys.conversations.list()],
   ['/messaging/conversations/:id', keys.conversations.detail('c-1')],
   ['/messaging/conversations/:id/messages', keys.conversations.messages('c-1', 1)],
@@ -106,6 +108,20 @@ test('switching ecosystems refetches every read the server scopes to the selecti
   for (const [endpoint, key] of cookieScopedReads) {
     assert.ok(reached.has(hashKey(key)), `GET /api/v1${endpoint} keeps the previous ecosystem's data`);
   }
+});
+
+test('matching selection refresh preserves separate owner-private cache entries', async () => {
+  const client=new QueryClient();
+  const alice=[...keys.matching.ecosystem('alice','e-1'),'profile'];
+  const bob=[...keys.matching.ecosystem('bob','e-1'),'profile'];
+  client.setQueryData(alice,{answers:{commitment:'supports'}});
+  client.setQueryData(bob,{answers:{commitment:'discuss'}});
+  for(const queryKey of ecosystemScoped)await client.invalidateQueries({queryKey});
+  assert.notEqual(hashKey(alice),hashKey(bob));
+  assert.deepEqual(client.getQueryData(alice),{answers:{commitment:'supports'}});
+  assert.deepEqual(client.getQueryData(bob),{answers:{commitment:'discuss'}});
+  assert.equal(client.getQueryState(alice)?.isInvalidated,true);
+  assert.equal(client.getQueryState(bob)?.isInvalidated,true);
 });
 
 // G-Next: the bell and the dashboard queue (keys.nextSteps) and each record's status banner (`explain`).
@@ -143,4 +159,11 @@ test('saving the profile name refreshes member pages and every governance record
   const reached = await invalidatedBy(affects.profileName, [...surfaces, untouched]);
   for (const surface of surfaces) assert.ok(reached.has(hashKey(surface)), `${hashKey(surface)} keeps the old name`);
   assert.ok(!reached.has(hashKey(untouched)), 'a name change should not refetch unrelated lists');
+});
+
+
+test('private quiz attempts are cached by exact result and actual User, separate from member history',()=>{
+ assert.notDeepEqual(keys.quizzes.ownResult('alice','attempt'),keys.quizzes.ownResult('bob','attempt'));
+ assert.notDeepEqual(keys.quizzes.ownResult('alice','attempt'),keys.quizzes.ownResult('alice','older-attempt'));
+ assert.notDeepEqual(keys.quizzes.ownResult('alice','attempt'),keys.members.quizHistory('member'));
 });

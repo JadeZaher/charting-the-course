@@ -52,30 +52,3 @@ export function useProfile(identifier?: string, enabled = true) {
     updateError: updateProfile.error,
   };
 }
-
-/**
- * Hook to manage profile share links.
- * TODO: Implement share link endpoints on the Sanic API when available.
- */
-export function useShareLinks() {
-  const createShareLink = useApiMutation({
-    error: 'Share link not created',
-    mutationFn: async (_options?: {
-      expires_at?: string;
-      show_badges?: boolean;
-      show_achievements?: boolean;
-      show_stats?: boolean;
-      show_quiz_history?: boolean;
-    }) => {
-      // TODO: Replace with Sanic API endpoint when share link feature is implemented
-      throw new Error('Share link creation not yet available on the Sanic API');
-    },
-  });
-
-  return {
-    createShareLink: createShareLink.mutate,
-    createShareLinkAsync: createShareLink.mutateAsync,
-    isCreating: createShareLink.isPending,
-    error: createShareLink.error,
-  };
-}

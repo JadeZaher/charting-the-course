@@ -59,6 +59,7 @@ export interface PendingConsentGate {
   ecosystem_id: string;
   ecosystem_name: string;
   required_agreements: RequiredAgreement[];
+  join_gates?: import('../lib/join-gates').JoinGates;
 }
 
 export interface AuthVerifyResponse {
@@ -89,6 +90,7 @@ export interface EcosystemSummary {
 }
 
 export interface EcosystemDetail extends EcosystemSummary {
+  uaf_agreement_id?:string|null;
   website: string | null;
   founded_date: string | null;
   tags: string[] | null;
@@ -860,6 +862,8 @@ export interface QuizDomainUnassignResult { success: boolean; quiz_id: string; }
 export interface QuizEcosystemAssignResult { status: string; quiz_id: string; is_entry_quiz: boolean; }
 export interface QuizEcosystemUnassignResult { status: string; quiz_id: string; }
 export interface QuizResultItem {
+  attempt_policy?: { can_submit: boolean; result_is_current: boolean; scope: 'current_verified_version' };
+  completion_verified: boolean; survey_results: Record<string, unknown>; result_metadata?: Record<string, any>;
   id: string; quiz_id: string; member_id: string; score: number | null;
   is_passed: boolean | null; time_spent: number | null; completed_at: string | null; created_at: string;
 }

@@ -90,6 +90,7 @@ export default function MyQuizHistory() {
           size="icon" 
           onClick={() => setLocation("/profile")}
           data-testid="button-back"
+          aria-label="Back to profile"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>

@@ -10,6 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { keys } from '@/lib/query-keys';
 import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@/lib/api-client';
 import Markdown from 'react-markdown';
+import { PortableRecordDownload } from '@/components/PortableRecordDownload';
+import { portableRecordPath } from '@/lib/chat-links';
 import remarkGfm from 'remark-gfm';
 import { Link, useLocation } from 'wouter';
 import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/media';
@@ -888,6 +890,7 @@ function ChatTab({ expanded, chat, input, setInput, privacy, setPrivacy, shareTo
                           components={{
                             a: ({ href, children }) => {
                               const internalHref = resolveInternalPath(href);
+                              if(internalHref&&portableRecordPath(internalHref))return <PortableRecordDownload href={internalHref}>{children}</PortableRecordDownload>;
                               if (internalHref) {
                                 return <Link href={internalHref} className="text-primary underline hover:text-primary/80">{children}</Link>;
                               }

@@ -1,0 +1,30 @@
+import { useState } from 'react';
+import { quizChoices, quizChoiceKey, quizChoiceValue } from '@/lib/quiz-answer';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { quizQuestions, serializeQuiz, quizQuestionErrors, questionChoiceText, quizCompletionMode, type QuizQuestion } from '@/lib/quiz-authoring';
+
+export function QuizQuestionEditor({ value, onChange, id = 'quiz-questions' }: { value: string; onChange: (value: string) => void; id?: string }) {
+  const [advanced, setAdvanced] = useState(false);
+  let questions: QuizQuestion[] = [], parseError = '';
+  try { questions = quizQuestions(value); } catch (error) { parseError = (error as Error).message; }
+  const errors = quizQuestionErrors(questions);
+  function update(index: number, change: Partial<QuizQuestion>) { onChange(serializeQuiz(questions.map((question, i) => i === index ? { ...question, ...change } : question))); }
+  const graded = quizCompletionMode(questions) === 'graded';
+  return <div className="space-y-4"><p className="font-bold" aria-live="polite">Completion mode: {graded ? 'Graded knowledge quiz' : 'Questionnaire completion'}</p><p className="text-sm text-muted-foreground">Without a correct-answer key, the server verifies valid answers to the required questions without grading personal preferences. Add correct answers for a knowledge quiz that requires a passing score. Candidates never receive its answer key.</p>
+    {parseError && <p role="alert" className="text-destructive">{parseError} Open advanced content to repair it, or start a new question list.</p>}
+    {!parseError && questions.map((question, index) => <fieldset key={index} className="space-y-3 border border-border p-4"><legend className="px-2 font-bold">Question {index + 1}</legend>
+      <Label htmlFor={`${id}-${index}-title`}>Question</Label><Input id={`${id}-${index}-title`} value={question.title} onChange={event => update(index, { title: event.target.value })} />
+      <Label htmlFor={`${id}-${index}-type`}>Answer format</Label><select id={`${id}-${index}-type`} className="min-h-11 w-full border bg-background p-2" value={question.type} onChange={event => update(index, { type: event.target.value, correctAnswer: undefined })}>{[['radiogroup','Choose one'],['dropdown','Choose one from a menu'],['checkbox','Choose several'],['text','Short answer'],['comment','Long answer'],['boolean','Yes or no'],['rating','Rating']].map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select>
+      {['radiogroup','checkbox','dropdown'].includes(question.type) && <><Label htmlFor={`${id}-${index}-choices`}>Answer choices, one per line</Label><Textarea id={`${id}-${index}-choices`} value={(question.choices || []).map(questionChoiceText).join('\n')} onChange={event => update(index, { choices: event.target.value.split('\n').filter(choice => choice.trim()) })} /><Label htmlFor={`${id}-${index}-correct`}>Correct answer{question.type === 'checkbox' ? 's' : ''} (leave empty for an ungraded question)</Label>{question.type === 'checkbox' ? <div id={`${id}-${index}-correct`}>{quizChoices(question.choices).map(choice => <label key={choice.key} className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={Array.isArray(question.correctAnswer) && question.correctAnswer.includes(choice.value)} onChange={event => { const previous = Array.isArray(question.correctAnswer) ? question.correctAnswer : []; const selected = event.target.checked ? [...previous, choice.value] : previous.filter(value => value !== choice.value); update(index, { correctAnswer: selected.length ? selected : undefined }); }} />{choice.text}</label>)}</div> : <select id={`${id}-${index}-correct`} className="min-h-11 w-full border bg-background p-2" value={quizChoiceKey(question.choices, question.correctAnswer)} onChange={event => update(index, { correctAnswer: quizChoiceValue(question.choices, event.target.value) })}><option value="">Ungraded</option>{quizChoices(question.choices).map(choice => <option key={choice.key} value={choice.key}>{choice.text}</option>)}</select>}</>}
+      {question.type === 'boolean' && <><Label htmlFor={`${id}-${index}-correct`}>Correct answer</Label><select id={`${id}-${index}-correct`} className="min-h-11 w-full border bg-background p-2" value={question.correctAnswer === undefined ? '' : String(question.correctAnswer)} onChange={event => update(index, { correctAnswer: event.target.value === '' ? undefined : event.target.value === 'true' })}><option value="">Ungraded</option><option value="true">Yes</option><option value="false">No</option></select></>}
+      <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={question.isRequired !== false} onChange={event => update(index, { isRequired: event.target.checked })} />Answer required</label>
+      <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={index === 0} onClick={() => { const next = [...questions]; [next[index - 1],next[index]] = [next[index],next[index - 1]]; onChange(serializeQuiz(next)); }}>Move up</Button><Button type="button" variant="outline" onClick={() => onChange(serializeQuiz(questions.filter((_,i) => i !== index)))}>Remove question</Button></div>
+    </fieldset>)}
+    <Button type="button" variant="outline" onClick={() => onChange(serializeQuiz([...questions, { name: `question_${Date.now()}`, type: 'radiogroup', title: '', choices: [], isRequired: true }]))}>Add question</Button>
+    {errors.length > 0 && <ul className="list-disc pl-5 text-sm text-destructive" role="alert">{errors.map(error => <li key={error}>{error}</li>)}</ul>}
+    <details open={advanced} onToggle={event => setAdvanced(event.currentTarget.open)}><summary className="min-h-11 cursor-pointer py-3 font-bold">Advanced quiz JSON</summary><Textarea aria-label="Advanced quiz JSON" rows={8} value={value} onChange={event => onChange(event.target.value)} /></details>
+  </div>;
+}

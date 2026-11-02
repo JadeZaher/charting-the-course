@@ -30,9 +30,8 @@ import MePage from "@/pages/me/MePage";
 import ConsentGatePage from "@/pages/ConsentGatePage";
 import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
+import Teams from '@/pages/Teams';
 import NodeAudit from "@/pages/NodeAudit";
-import UserManagement from "@/pages/UserManagement";
-import UserQuizHistory from "@/pages/UserQuizHistory";
 const DiscoverHub = lazy(() => import("@/pages/discover/DiscoverHub"));
 const SharesNeedsForm = lazy(() => import("@/pages/discover/SharesNeedsForm"));
 const CollaborationForm = lazy(() => import("@/pages/discover/CollaborationForm"));
@@ -113,11 +112,11 @@ function PublicPageFrame({ children }: { children: React.ReactNode }) {
 }
 
 // Protected Route wrapper. `access` gates a page by the same rule as its links (lib/nav-access.ts), never the profile.
-function ProtectedRoute({ 
+function ProtectedRoute({
   component: Component,
   requiredPermission,
   access,
-}: { 
+}: {
   component: React.ComponentType;
   requiredPermission?: 'canManageUsers' | 'canManageContent' | 'canProxyQuiz' | 'canViewAnalytics' | 'isAdmin';
   access?: NavAccess;
@@ -167,7 +166,7 @@ function ProtectedRoute({
       canViewAnalytics,
       isAdmin,
     };
-    
+
     if (!permissionMap[requiredPermission]) return <AccessDenied />;
   }
 
@@ -284,12 +283,12 @@ function AuthenticatedRoutes() {
       <Route path="/quiz/results/:id">
         <ProtectedRoute component={QuizResults} />
       </Route>
-      
+
       {/* Quiz management: the same rule as its links, a steward of the selected ecosystem or a platform admin (pass 03) */}
       <Route path="/quiz/manage">
         <ProtectedRoute component={QuizManagement} access="quiz-steward" />
       </Route>
-      
+
       {/* Me — member-owned surface: profile, notifications, quiz history */}
       <Route path="/me">
         <ProtectedRoute component={MePage} />
@@ -372,16 +371,19 @@ function AuthenticatedRoutes() {
       <Route path="/admin">
         <ProtectedRoute component={AdminPanel} access="admin-panel" />
       </Route>
-      
+
       {/* User Management - requires isAdmin permission */}
       <Route path="/admin/users">
-        <Redirect to="/admin" replace />
+        <ProtectedRoute component={AdminPanel} access="admin-panel" />
       </Route>
       <Route path="/admin/users/:userId/history">
         <Redirect to="/admin" replace />
       </Route>
-      
+      <Route path="/admin/:task"><ProtectedRoute component={AdminPanel} access="admin-panel" /></Route>
+
       {/* Members */}
+      <Route path="/teams/:id"><ProtectedRoute component={Teams} /></Route>
+      <Route path="/teams"><ProtectedRoute component={Teams} /></Route>
       <Route path="/members/new"><ProtectedRoute component={MemberForm} /></Route>
       <Route path="/members/:id/edit"><ProtectedRoute component={MemberForm} /></Route>
       <Route path="/members/:id"><ProtectedRoute component={MemberDetail} /></Route>

@@ -13,9 +13,9 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return res.json();
 }
+import { journeyDestination, previousJourneyStep } from '@/lib/journey-routing';
 import { keys } from '@/lib/query-keys';
 import { useUserProgress, useSaveProgress } from '@/hooks/useOrientation';
-import { saveGenplanInput } from '@/lib/api-client';
 import type { JourneyMap } from '@/types/orientation';
 import { VideoStep } from '@/components/orientation/VideoStep';
 import { ChoiceStep } from '@/components/orientation/ChoiceStep';
@@ -58,6 +58,7 @@ export default function OrientationJourney() {
   const saveProgress = useSaveProgress();
 
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const [routeError, setRouteError] = useState('');
 
   // Sync step index from saved progress on load
   useEffect(() => {
@@ -83,13 +84,14 @@ export default function OrientationJourney() {
 
   function handleBack() {
     if (stepIndex > 0) {
-      setCurrentStepIdx(stepIndex - 1);
+      try { setCurrentStepIdx(previousJourneyStep(steps, stepIndex, progress?.step_responses || {})); setRouteError(''); } catch (error) { setRouteError((error as Error).message); }
     }
   }
 
   async function handleStepComplete(response?: unknown) {
     if (!progress || !journeyMap || !currentStep) return;
-    const nextIdx = stepIndex + 1;
+    let nextIdx: number;
+    try { nextIdx = journeyDestination(steps, stepIndex, response); setRouteError(''); } catch (error) { setRouteError((error as Error).message); return; }
     const isLast = nextIdx >= totalSteps;
 
     try {
@@ -106,22 +108,6 @@ export default function OrientationJourney() {
       return;
     }
 
-    if (currentStep.type === 'choice' && currentStep.section_key && response) {
-      const choiceResponse = response as { choice: string };
-      const selectedChoice = currentStep.choices?.find(c => c.value === choiceResponse.choice);
-      if (selectedChoice && ethosId) {
-        await saveGenplanInput({
-          ethos_id: ethosId,
-          section_key: currentStep.section_key,
-          choice_key: choiceResponse.choice,
-          choice_label: selectedChoice.label,
-          choice_index: selectedChoice.choice_index ?? null,
-          output_text: selectedChoice.description ?? selectedChoice.label,
-          journey_step_id: String(stepIndex),
-        });
-      }
-    }
-
     if (isLast) {
       navigate(`/orientation/${ethosSlug}/complete`);
     } else {
@@ -130,6 +116,8 @@ export default function OrientationJourney() {
   }
 
   const omnibotCtx = {
+    journey_id: journeyMap?.id,
+    step_id:currentStep?.type==='ai_conversation'?`step_${stepIndex}`:undefined,
     ethos_name: ethos?.name,
     current_step: currentStep?.title,
     session_type: 'orientation' as const,
@@ -217,9 +205,10 @@ export default function OrientationJourney() {
             Step {stepIndex + 1} of {totalSteps}
           </span>
         </div>
-        <Progress value={progressPct} className="h-1.5" />
+        <Progress value={progressPct} aria-label="Journey completion" className="h-1.5" />
       </div>
 
+      {routeError && <p role="alert" className="text-destructive">{routeError}</p>}
       {/* Step card */}
       <div className="border border-strong-border bg-card p-6 sm:p-8">
         {currentStep.type === 'video' && (
@@ -243,7 +232,7 @@ export default function OrientationJourney() {
           />
         )}
         {currentStep.type === 'survey' && (
-          <SurveyStep key={stepIndex} step={currentStep} onComplete={handleStepComplete} />
+          <SurveyStep key={stepIndex} step={currentStep} ecosystemId={ethosId} onComplete={handleStepComplete} />
         )}
       </div>
 

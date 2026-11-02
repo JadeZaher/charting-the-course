@@ -7,6 +7,7 @@ import { useJoinEcosystem } from '@/hooks/use-onboarding';
 import { apiErrorMessage } from '@/lib/api-error-message';
 import { activeEcosystemIds } from '@/lib/consent-gate';
 import type { PendingConsentGate } from '@/types/api';
+import { JoinRequirements } from '@/components/JoinRequirements';
 
 /** The agreement-consent gate: what a pending member must consent to before taking part (see client/src/AGENTS.md). */
 export default function ConsentGatePage() {
@@ -64,12 +65,13 @@ export default function ConsentGatePage() {
         <section key={gate.ecosystem_id} className="border-2 border-strong-border bg-card p-8 sm:p-10" aria-labelledby={`gate-${gate.ecosystem_id}`}>
           <FileCheck2 className="h-8 w-8" aria-hidden="true" />
           <h1 id={`gate-${gate.ecosystem_id}`} className="mt-5 text-3xl font-black tracking-[-0.035em]">
-            One step before you take part in {gate.ecosystem_name}
+            Before you take part in {gate.ecosystem_name}
           </h1>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Your account is set up. {gate.ecosystem_name} asks every member to read and consent to its membership
-            agreements. Your membership stays pending until you have consented to each one below.
+            Your account is set up. Complete this ecosystem's configured entry quizzes and personally consent
+            to its membership agreements. The server activates your membership only when all requirements are met.
           </p>
+          {gate.join_gates && <JoinRequirements type="ecosystem" id={gate.ecosystem_id} gates={gate.join_gates} returnTo="/welcome/consent" />}
           {gate.required_agreements.length ? (
             <ol className="mt-6 space-y-3">
               {gate.required_agreements.map((agreement) => (
@@ -84,7 +86,7 @@ export default function ConsentGatePage() {
                 </li>
               ))}
             </ol>
-          ) : (
+          ) : gate.join_gates && !gate.join_gates.eligible ? null : (
             <CheckMembership gate={gate} />
           )}
           <p className="mt-6 text-sm">
@@ -96,7 +98,7 @@ export default function ConsentGatePage() {
       ))}
       <Button variant="outline" onClick={checkAgain} disabled={isChecking}>
         <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-        {isChecking ? 'Checking…' : "I've consented, check again"}
+        {isChecking ? 'Checking…' : "I've completed the requirements, check again"}
       </Button>
     </div>
   );

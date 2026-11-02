@@ -2,7 +2,7 @@ import { SupportAttribution } from '@/components/NodeAdminBadge';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
 import { CollectionCard, CollectionGrid } from '@/components/governance/shared/CollectionGrid';
 import { QueryState } from '@/components/QueryState';
 import { FilterBar } from '@/components/governance/shared/FilterBar';
@@ -11,7 +11,7 @@ import { useEcosystemName } from '@/hooks/use-ecosystem-filter';
 import { useProposals } from '@/hooks/use-governance';
 import { PROPOSAL_TYPE_OPTIONS, proposalPhaseLabel } from '@/lib/proposal-vocab';
 import { URGENCY_OPTIONS } from '@/lib/urgency';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const FILTERS: FilterDef[] = [
   {
@@ -125,29 +125,29 @@ export default function ProposalList() {
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious
+                  <Button variant="ghost" aria-label="Go to previous page" disabled={list.page <= 1}
                     onClick={() => list.setPage(p => Math.max(1, p - 1))}
-                    className={list.page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
+                    className="disabled:opacity-100 disabled:text-muted-foreground"
+                  ><ChevronLeft className="h-4 w-4" aria-hidden="true" />Previous</Button>
                 </PaginationItem>
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - list.page) <= 2)
                   .map((p) => (
                     <PaginationItem key={p}>
-                      <PaginationLink
-                        isActive={p === list.page}
+                      <Button size="icon" variant={p === list.page ? 'outline' : 'ghost'}
+                        aria-current={p === list.page ? 'page' : undefined} aria-label={`Page ${p}`}
                         onClick={() => list.setPage(p)}
                         className="cursor-pointer"
                       >
                         {p}
-                      </PaginationLink>
+                      </Button>
                     </PaginationItem>
                   ))}
                 <PaginationItem>
-                  <PaginationNext
+                  <Button variant="ghost" aria-label="Go to next page" disabled={list.page >= totalPages}
                     onClick={() => list.setPage(p => Math.min(totalPages, p + 1))}
-                    className={list.page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
+                    className="disabled:opacity-100 disabled:text-muted-foreground"
+                  >Next<ChevronRight className="h-4 w-4" aria-hidden="true" /></Button>
                 </PaginationItem>
               </PaginationContent>
             </Pagination>

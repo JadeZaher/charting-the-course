@@ -87,7 +87,7 @@ export function pendingConfirmation(
 
 /** Tools that only read: they cannot change what is waiting or a record's status. Unknown tools count as writes. */
 const READ_ONLY_TOOL = /^(get|list|search|check)_/;
-const READ_ONLY_TOOLS = new Set(['explain_status', 'what_needs_me', 'find_shares_needs']);
+const READ_ONLY_TOOLS = new Set(['explain_status', 'what_needs_me', 'find_shares_needs','find_collaborations','find_collaboration_domains','find_message_members','export_portable_record']);
 
 export function isReadOnlyTool(name: string): boolean {
   return READ_ONLY_TOOL.test(name) || READ_ONLY_TOOLS.has(name);
@@ -144,6 +144,9 @@ const TOOL_AFFECTS: Readonly<Record<string, readonly QueryKey[]>> = {
   publish_share_need: affects.exchangePosts, respond_to_share_need: affects.exchangePosts, update_share_need_status: affects.exchangePosts,
   approve_collaboration: affects.exchangeCollaborations, end_collaboration: affects.exchangeCollaborations,
   review_collaboration: affects.exchangeCollaborations,
+  create_conversation:affects.conversations,send_message:affects.conversations,propose_collaboration:affects.exchangeCollaborations,
+  update_health_audit:affects.audits,publish_health_audit:affects.audits,abandon_health_audit:affects.audits,
+  update_exit_status:affects.exits,update_conflict_case:affects.conflicts,update_repair_agreement:affects.conflicts,
 };
 
 /** Data and membership refreshed after a completed assistant write; see the directory's "Assistant drawer" contract. */

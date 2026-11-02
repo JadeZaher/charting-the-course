@@ -7,45 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import { keys } from '@/lib/query-keys';
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchQuiz, fetchMemberQuizHistory } from "@/lib/api-client";
-
-interface ResultMetadata {
-  totalQuestions?: number;
-  answeredQuestions?: number;
-  skippedQuestions?: number;
-  correctCount?: number;
-  incorrectCount?: number;
-  gradableQuestions?: number;
-  completionPercentage?: number;
-  correctnessPercentage?: number;
-  isAssessment?: boolean;
-}
-
-interface QuizResult {
-  id: string;
-  quiz_id: string;
-  user_id: string;
-  score: number | null;
-  is_passed: boolean | null;
-  time_spent: number | null;
-  survey_results: any;
-  result_metadata?: ResultMetadata;
-  completed_at: string;
-}
-
-interface Quiz {
-  id: string;
-  title: string;
-  description: string | null;
-  survey_json: any;
-}
+import { fetchOwnQuizResult } from "@/lib/api-client";
+import { quizAnswerText, type QuizChoice } from '@/lib/quiz-answer';
+import { joinReturnPath } from '@/lib/join-gates';
 
 interface ExtractedQuestion {
   name: string;
   title: string;
   type: string;
-  correctAnswer?: any;
-  choices?: Array<{ value: string; text: string }>;
+  choices?: QuizChoice[];
   profileDimension?: string;
   tagKey?: string;
 }
@@ -53,54 +23,17 @@ interface ExtractedQuestion {
 export default function QuizResults() {
   const [, params] = useRoute("/quiz/results/:id");
   const [, setLocation] = useLocation();
-  const { member } = useAuth();
+  const { user } = useAuth();
   const resultId = params?.id;
+  const returnTo = joinReturnPath(window.location.search);
 
-  // Fetch quiz history to find the specific result by ID or quiz ID
-  const { data: historyData, isLoading: resultLoading } = useQuery({
-    queryKey: keys.members.quizHistory(member?.id),
-    queryFn: () => fetchMemberQuizHistory(member!.id),
-    select: (historyResult): QuizResult | null => {
-      // Find the matching result in the member's quiz history
-      const results: QuizResult[] = ((historyResult as any).results || []).map((r: any) => ({
-        id: r.id,
-        quiz_id: r.quiz_id,
-        user_id: r.member_id || member?.id,
-        score: r.score ?? null,
-        is_passed: r.is_passed ?? null,
-        time_spent: r.time_spent ?? null,
-        survey_results: r.survey_results ?? r.answers ?? {},
-        result_metadata: r.result_metadata ?? null,
-        completed_at: r.completed_at,
-      }));
-
-      // Try to find by result ID first, then by quiz ID (backwards compat)
-      return results.find(r => r.id === resultId)
-        ?? results.filter(r => r.quiz_id === resultId).sort(
-          (a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
-        )[0]
-        ?? null;
-    },
-    enabled: !!resultId && !!member?.id,
+  const { data: result, isLoading, error } = useQuery({
+    queryKey: keys.quizzes.ownResult(user?.id, resultId),
+    queryFn: () => fetchOwnQuizResult(resultId!),
+    enabled: !!resultId && !!user?.id,
+    retry: false,
   });
-
-  const result = historyData;
-
-  const { data: quiz, isLoading: quizLoading } = useQuery({
-    queryKey: keys.quizzes.detail(result?.quiz_id),
-    queryFn: () => fetchQuiz(result!.quiz_id),
-    select: (data): Quiz => {
-      return {
-        id: (data as any).id,
-        title: (data as any).title,
-        description: (data as any).description ?? null,
-        survey_json: (data as any).survey_json ?? (data as any).config ?? null,
-      };
-    },
-    enabled: !!result?.quiz_id,
-  });
-
-  const isLoading = resultLoading || quizLoading;
+  const quiz = result?.quiz;
 
   if (isLoading) {
     return (
@@ -114,18 +47,18 @@ export default function QuizResults() {
     );
   }
 
-  if (!result || !quiz) {
+  if (error || !result || !quiz) {
     return (
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardContent className="p-12 text-center">
             <p className="text-muted-foreground">Quiz result not found</p>
-            <Button 
-              className="mt-4" 
-              onClick={() => setLocation("/profile")}
+            <Button
+              className="mt-4"
+              onClick={() => setLocation(returnTo || '/me')}
               data-testid="button-back-to-profile"
             >
-              Back to Profile
+              Back to where I started
             </Button>
           </CardContent>
         </Card>
@@ -154,22 +87,25 @@ export default function QuizResults() {
   const surveyDef = quiz.survey_json as any;
   const allQuestions: ExtractedQuestion[] = [];
   const gradableQuestions: ExtractedQuestion[] = [];
-  
-  if (surveyDef?.pages && Array.isArray(surveyDef.pages)) {
-    for (const page of surveyDef.pages) {
+  const judgments = new Map<string, boolean>((Array.isArray(result.result_metadata?.perQuestion) ? result.result_metadata.perQuestion : [])
+    .filter((entry: any) => typeof entry.name === 'string' && typeof entry.isCorrect === 'boolean')
+    .map((entry: any): [string, boolean] => [entry.name, entry.isCorrect]));
+
+  const pages = [{ elements: surveyDef?.elements }, ...(Array.isArray(surveyDef?.pages) ? surveyDef.pages : [])];
+  {
+    for (const page of pages) {
       if (page.elements && Array.isArray(page.elements)) {
         for (const element of page.elements) {
           const question: ExtractedQuestion = {
             name: element.name,
             title: element.title || element.name,
             type: element.type,
-            correctAnswer: element.correctAnswer,
             choices: element.choices,
             profileDimension: element.profileDimension,
             tagKey: element.tagKey,
           };
           allQuestions.push(question);
-          if (element.correctAnswer !== undefined) {
+          if (judgments.has(element.name)) {
             gradableQuestions.push(question);
           }
         }
@@ -177,44 +113,27 @@ export default function QuizResults() {
     }
   }
 
-  const isGradedQuiz = gradableQuestions.length > 0;
+  const isGradedQuiz = result.is_passed !== null || gradableQuestions.length > 0;
   const scorePercentage = result.score || 0;
   const isPassing = result.is_passed;
-  const timeSpentMinutes = result.time_spent 
+  const timeSpentMinutes = result.time_spent
     ? Math.round(result.time_spent / 60)
     : 0;
 
   const surveyResults = result.survey_results as Record<string, any>;
 
-  const formatAnswer = (answer: any, question: ExtractedQuestion): string => {
-    if (answer === undefined || answer === null) return "Not answered";
-    
-    if (Array.isArray(answer)) {
-      return answer.map(a => {
-        if (question.choices) {
-          const choice = question.choices.find(c => c.value === a);
-          return choice?.text || a;
-        }
-        return String(a);
-      }).join(", ");
-    }
-    
-    if (question.choices) {
-      const choice = question.choices.find(c => c.value === answer);
-      return choice?.text || String(answer);
-    }
-    
-    return String(answer);
-  };
+  const formatAnswer = (answer: unknown, question: ExtractedQuestion): string => quizAnswerText(answer,question.choices);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <section className="space-y-3 border border-border p-4"><p>{isGradedQuiz ? 'Your result is graded and saved by the server.' : 'Your responses are saved by the server. This questionnaire records completion; your preferences are not marked right or wrong.'} Returning does not join a group automatically; its requirements are checked again.</p><Button onClick={() => setLocation(returnTo)}>{result.is_passed === false ? 'Return to requirements' : 'Continue where I started'}</Button>{result.is_passed === false && <Button variant="outline" onClick={() => setLocation(`/quiz/take/${result.quiz_id}?returnTo=${encodeURIComponent(returnTo)}`)}>Try this quiz again</Button>}</section>
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => window.history.length > 1 ? window.history.back() : setLocation("/profile")}
           data-testid="button-back"
+          aria-label="Back to previous page"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -266,8 +185,8 @@ export default function QuizResults() {
                     }
                   </span>
                 </div>
-                <Progress value={scorePercentage} />
-                
+                <Progress value={scorePercentage} aria-label="Quiz score" />
+
                 {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0 && (
                   <>
                     <div className="flex justify-between items-center pt-4 border-t">
@@ -281,10 +200,10 @@ export default function QuizResults() {
                         )}
                       </span>
                     </div>
-                    <Progress value={result.result_metadata.completionPercentage ?? 0} className="h-2" />
+                    <Progress value={result.result_metadata.completionPercentage ?? 0} aria-label="Questions answered" className="h-2" />
                   </>
                 )}
-                
+
                 <div className="flex justify-between items-center pt-4 border-t">
                   <span className="text-muted-foreground">Time Spent</span>
                   <span className="font-semibold">{timeSpentMinutes} minutes</span>
@@ -292,7 +211,7 @@ export default function QuizResults() {
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Completed</span>
                   <span className="font-semibold">
-                    {new Date(result.completed_at).toLocaleDateString()}
+                    {result.completed_at ? new Date(result.completed_at).toLocaleDateString() : 'Unknown date'}
                   </span>
                 </div>
               </div>
@@ -311,12 +230,12 @@ export default function QuizResults() {
                   <p className="text-2xl font-bold">
                     {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0
                       ? `${result.result_metadata.answeredQuestions ?? 0}/${result.result_metadata.totalQuestions}`
-                      : `${scorePercentage}%`
+                      : 'Responses saved'
                     }
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {result.result_metadata?.totalQuestions !== undefined && result.result_metadata.totalQuestions > 0
-                      ? `Questions (${scorePercentage}%)`
+                      ? 'Questions answered'
                       : "Completed"
                     }
                   </p>
@@ -347,7 +266,7 @@ export default function QuizResults() {
                   <Calendar className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{new Date(result.completed_at).toLocaleDateString()}</p>
+                  <p className="text-2xl font-bold">{result.completed_at ? new Date(result.completed_at).toLocaleDateString() : 'Unknown date'}</p>
                   <p className="text-sm text-muted-foreground">Date</p>
                 </div>
               </div>
@@ -360,19 +279,17 @@ export default function QuizResults() {
         <CardHeader>
           <CardTitle>Your Responses</CardTitle>
           <CardDescription>
-            {isGradedQuiz 
-              ? "Review your answers and see which ones were correct"
+            {isGradedQuiz
+              ? "Your recorded answers. Passing and scores above come from server grading; the answer key stays private."
               : "A summary of your responses to this assessment"
             }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isGradedQuiz ? (
+          {isGradedQuiz && gradableQuestions.length > 0 ? (
             gradableQuestions.map((q, index) => {
               const userAnswer = surveyResults?.[q.name];
-              const correctAnswer = q.correctAnswer;
-              const isCorrect = String(userAnswer).trim().toLowerCase() === 
-                              String(correctAnswer).trim().toLowerCase();
+              const isCorrect = judgments.get(q.name) === true;
 
               return (
                 <div
@@ -399,12 +316,6 @@ export default function QuizResults() {
                             {formatAnswer(userAnswer, q)}
                           </span>
                         </div>
-                        {!isCorrect && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Correct answer:</span>
-                            <span className="text-chart-3 font-medium">{formatAnswer(correctAnswer, q)}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -415,7 +326,7 @@ export default function QuizResults() {
             allQuestions.length > 0 ? (
               allQuestions.map((q, index) => {
                 const userAnswer = surveyResults?.[q.name];
-                
+
                 return (
                   <div
                     key={q.name}
@@ -454,20 +365,22 @@ export default function QuizResults() {
       </Card>
 
       <div className="flex gap-4 justify-center">
-        <Button 
-          variant="outline" 
-          onClick={() => setLocation(`/quiz/take/${quiz.id}`)}
+        <Button
+          variant="outline"
+          disabled={result.attempt_policy?.can_submit === false}
+          onClick={() => setLocation(`/quiz/take/${quiz.id}?returnTo=${encodeURIComponent(returnTo)}`)}
           data-testid="button-retake"
         >
-          {isGradedQuiz ? "Retake Quiz" : "Take Again"}
+          {result.attempt_policy?.result_is_current === false ? 'Take current version' : isGradedQuiz ? "Retake Quiz" : "Take Again"}
         </Button>
-        <Button 
+        <Button
           onClick={() => setLocation("/onboarding")}
           data-testid="button-browse-quizzes"
         >
           Start Onboarding
         </Button>
       </div>
+      {result.attempt_policy?.can_submit === false && <p className="text-center text-sm text-muted-foreground">This version allows one verified attempt. Ask a steward for help; a changed version permits a new attempt.</p>}
     </div>
   );
 }

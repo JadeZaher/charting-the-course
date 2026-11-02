@@ -16,7 +16,7 @@ export function useQuizzes(params?: Record<string, string>) {
   return useQuery({ queryKey: keys.quizzes.list(params), queryFn: () => api.fetchQuizzes(params) });
 }
 export function useQuiz(id: string) {
-  return useQuery({ queryKey: keys.quizzes.detail(id), queryFn: () => api.fetchQuiz(id), enabled: !!id });
+  return useQuery({ queryKey: [...keys.quizzes.detail(id), 'candidate'], queryFn: () => api.fetchQuiz(id, true), enabled: !!id });
 }
 export function useCreateQuiz() {
   return useApiMutation({ mutationFn: api.createQuiz, invalidates: affects.quizzes, error: 'Quiz not created' });

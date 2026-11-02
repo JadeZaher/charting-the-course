@@ -56,8 +56,7 @@ export function EthosCard({ ethos, featured = false }: Props) {
               </Link>
             </h3>
           </div>
-          {/* raw score suppressed until coverage/versioned matching ships — guide §8 foundation */}
-          <p className="shrink-0 text-xs text-muted-foreground">Fit estimate — not yet calculated</p>
+          <Link href={`/ethos/${ethos.slug}#ecosystem-fit`} className="shrink-0 min-h-11 inline-flex items-center text-xs font-bold underline">Explore your private fit</Link>
         </div>
 
         {description && (

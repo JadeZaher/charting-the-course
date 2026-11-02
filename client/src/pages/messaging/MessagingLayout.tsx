@@ -11,13 +11,14 @@ import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 import { LinkifiedText } from '@/components/messaging/LinkifiedText';
-import { conversationIdFromQuery } from '@/lib/exchange';
+import { conversationIdFromQuery,contactMemberFromQuery } from '@/lib/exchange';
 
 export default function MessagingLayout() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [contactMember,setContactMember]=useState<string|null>(null);
   const threadHeadingRef = useRef<HTMLHeadingElement>(null);
   // Set when the member opens a conversation; the thread heading takes focus once it renders.
   const focusThreadRef = useRef(false);
@@ -38,7 +39,10 @@ export default function MessagingLayout() {
 
   // `/messaging?conversation=<id>` (the bell, "Open the conversation") opens that thread, then the link is dropped.
   const [location, navigate] = useLocation();
-  const linkedId = conversationIdFromQuery(useSearch());
+  const queryString=useSearch();
+  const linkedId = conversationIdFromQuery(queryString);
+  const linkedMember=contactMemberFromQuery(queryString);
+  useEffect(()=>{if(linkedMember){setContactMember(linkedMember);setShowNewDialog(true);navigate(location,{replace:true});}},[linkedMember,location,navigate]);
   useEffect(() => {
     if (!linkedId) return;
     focusThreadRef.current = true;
@@ -210,7 +214,8 @@ export default function MessagingLayout() {
 
       <NewConversationDialog
         open={showNewDialog}
-        onOpenChange={setShowNewDialog}
+        initialMemberId={contactMember}
+        onOpenChange={open=>{setShowNewDialog(open);if(!open)setContactMember(null);}}
         onCreated={(conversation) => openConversation(conversation.id)}
       />
     </div>

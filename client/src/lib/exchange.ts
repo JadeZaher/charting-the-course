@@ -357,6 +357,7 @@ export function ownPublicationsOf(profile: {
 export function conversationIdFromQuery(queryString: string): string | null {
   return idFromQuery(queryString, 'conversation');
 }
+export function contactMemberFromQuery(queryString:string):string|null{return idFromQuery(queryString,'member');}
 
 /** The ecosystems the caller moderates that are in the header selection, in the server's order. */
 export function moderatedInSelection<Ecosystem extends { id: string }>(

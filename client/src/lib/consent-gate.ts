@@ -25,6 +25,7 @@ const READABLE_WHILE_GATED: readonly RegExp[] = [
   /^\/ethos(?:\/.*)?$/,
   // G-Onboard: the framework's order is walkthrough first, then consent.
   /^\/orientation\/[^/]+(?:\/journey|\/complete)?$/,
+  /^\/quiz\/(?:take|results)\/[^/]+$/,
   /^\/(?:about|governance-model)$/,
   /^\/users\/[^/]+$/,
   /^\/node\/audit(?:\/[^/]+)?$/,
@@ -53,7 +54,7 @@ export function isHeldAtConsentGate({ isAuthenticated, ...memberships }: Omit<Co
 
 /** Where to send the member instead of `path`, or null to render it. */
 export function consentGateRedirect({ path, isNodeAdmin, ...input }: ConsentGateInput): string | null {
-  if (isNodeAdmin === true && /^\/admin(?:\/node-admins)?$/.test(path)) return null;
+  if (isNodeAdmin === true && /^\/admin(?:\/.*)?$/.test(path)) return null;
   // An active membership elsewhere keeps the app usable; the sidebar links to the pending gate.
   if (!isHeldAtConsentGate(input)) return null;
   const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;

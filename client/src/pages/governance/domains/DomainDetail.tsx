@@ -1,4 +1,5 @@
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
+import { JoinRequirements } from '@/components/JoinRequirements';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -218,6 +219,7 @@ export default function DomainDetail() {
           </div>
         </div>
       </div>
+      {!data.caller_is_participant && <JoinRequirements type="domain" id={id} returnTo={`/domains/${id}`} />}
       {joinMutation.error && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">
           {apiErrorMessage(joinMutation.error)}
@@ -321,7 +323,7 @@ export default function DomainDetail() {
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button asChild variant="ghost" size="sm"><Link href={`/quiz/take/${q.id}`}>Take</Link></Button>
-                        <Button asChild variant="ghost" size="sm"><Link href={`/quiz/results/${q.id}`}><Eye className="h-4 w-4" /></Link></Button>
+                        <Button asChild variant="ghost" size="sm"><Link href={`/quiz/results/${q.id}`} aria-label={`View results for ${q.title}`}><Eye className="h-4 w-4" aria-hidden="true" /></Link></Button>
                         {permissions.canAssignQuizzes && (
                           <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
                         )}
@@ -338,9 +340,9 @@ export default function DomainDetail() {
           {permissions.canAssignQuizzes && (
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-2 pt-2 border-t">
               <div className="flex-1 w-full sm:max-w-[320px]">
-                <label className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
+                <label htmlFor="domain-assign-quiz" className="text-xs text-muted-foreground mb-1 block">Select Quiz</label>
                 <Select value={assignQuizId} onValueChange={setAssignQuizId}>
-                  <SelectTrigger><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
+                  <SelectTrigger id="domain-assign-quiz"><SelectValue placeholder="Choose a quiz..." /></SelectTrigger>
                   <SelectContent>
                     {unassignedQuizzes.length === 0 ? <SelectItem value="_none" disabled>No available quizzes</SelectItem> : unassignedQuizzes.map(q => <SelectItem key={q.id} value={q.id}>{q.title}{!q.is_published ? ' (Draft)' : ''}</SelectItem>)}
                   </SelectContent>

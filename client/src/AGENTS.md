@@ -104,9 +104,23 @@ Dashboard and discovery media must be content-driven. Persist the image URL plus
 
 URL handling is context-specific: use `lib/media.resolveMediaUrl` for raster images, `resolveExternalUrl` for outbound links, and the host-allowlisted `resolveMiroEmbedUrl` for Miro iframes. Never pass a generic stored URL directly between image, link, and embed contexts.
 
-## OmniBot (lib/omnibot.ts)
+## Private orientation guide
 
-`sendOmniBotMessage` is an intentional stub, not a bug. The real chat backend (`POST /api/v1/chat/send`) is a tool-using governance agent — it has no persona/system-prompt override, unconditionally attaches governance tools (create_proposal, check_authority, etc.), and every reply persists to `AgentSession` with no session-type field, so orientation Q&A would both risk invoking governance tools mid-onboarding and pollute the member's real governance chat history. Until the backend grows a tool-free, session-segregated mode, `omnibot.ts` stays a stub and callers (`OmniBotPanel`, `AIConversationStep`) must branch on the `is_stub` flag and degrade honestly rather than fake a working exchange.
+`useOrientationChat` uses the real `/api/v1/orientation/chat` API. Availability is checked before typing; histories are owner-private and separate from governance chats. The orientation guide has no tools. Required AI steps submit a server-bound session and step proof; canned replies, errors, old journey versions and generic panel conversations do not complete them.
+
+The guide resumes only the API's latest current session for the signed-in owner, journey and exact AI step. History restores genuine assistant-reply counts alongside the transcript; local counts are capped by the actual saved replies and the server still validates the proof on Continue. Explicitly choosing New suppresses automatic resumption until the user chooses saved history or the component remounts. Stale history is readable but never satisfies completion. General-panel conversations and step conversations have separate selectors and clear scope labels; only AI steps expose the bound-step panel option. Saved history remains readable when sending is unavailable.
+
+Both bounded guide transcripts are named focusable logs, so keyboard users can enter the scroll area and use native scrolling keys to read saved replies. The explicit tab stop does not depend on a browser automatically focusing overflow containers. New replies retain polite live announcements without moving focus or scrolling the reader away from older content.
+
+Prejoin agreement reading uses an explicit pending-enrollment action. A nonmember first chooses Start joining to read agreements; only the successful join request enables private agreement links. This preserves the API's membership boundary while allowing agreement-first completion. It never activates participation or records consent by itself.
+
+## Runtime accessibility triage
+
+`Progress` forwards its value to the Radix root as well as the visual indicator. Results and journey progress name the measured quantity. Result/history icon buttons and domain-result links carry meaningful names. Questionnaire summaries distinguish completion from grading and format boolean responses as Yes/No without changing their stored JSON types.
+
+The 195 CSS-pixel emulation exposed the global 20rem HTML minimum and fixed 18rem mobile sidebar. The root now permits reflow and mobile sheets/dialogs clamp to their viewport; desktop widths retain their existing maxima. Sidebar link activation closes the mobile sheet even when the selected pathname is already current. Proposal pagination uses native disabled buttons with opaque muted text instead of opacity-only anchors, preserving keyboard and disabled semantics with readable text.
+
+Pass-06 `aria-hidden-focus` nodes match Radix ToastFocusProxy, not the dialog's data-radix-focus-guard nodes: `@radix-ui/react-toast` creates two visually hidden tabindex=0 spans while notifications exist, and their onFocus handlers move into actual toast candidates. Keep those upstream focus-routing sentinels intact. This source finding explains the node shape, but does not establish keyboard usability or justify suppressing axe; the coordinator's targeted Tab/Shift+Tab and F8 check must retain the original violation evidence and verify focus does not remain on a hidden proxy.
 
 ## Assistant drawer
 
@@ -425,3 +439,35 @@ ownership before sending another message. Each support request includes the boun
 organization and public reason; the backend rechecks the assignment. Loading an
 owner history restores its validated context only for a current node admin.
 Support conversations do not offer public/ecosystem sharing controls.
+
+
+## Platform completion: entry, matching, authoring and node support
+
+Node Administration is an explicit global assignment from `/auth/me`, with a persistent sidebar entry and task routes under `/admin/`: Users, Ecosystems, Domains, Circles, Teams, and Onboarding & quizzes. These routes use the same audited support catalog, inspection, review and receipt services. They remain available without an ecosystem Member row and while personal entry requirements are pending. The full resource catalog is an advanced browser. Related records are searched by names and selected explicitly; exact IDs remain an advanced escape hatch. Configured membership role options are server-supplied and use human labels.
+
+`JoinRequirements` displays the server's `join_gates` for ecosystems, domain ancestry and teams. No configured quiz means no quiz prerequisite; configured but unpublished requirements cannot be skipped. The server records actual graded attempts and activation. NodeAdmin entry exemptions are displayed explicitly and do not manufacture a pass. Agreement consent remains separate. Quiz return links are safe internal targets; results return to the original requirements, and subgroup membership requires an explicit Join after its requirements clear. Candidate question adapters never copy answer keys. Orientation surveys use this same candidate renderer and server grading.
+
+Matching uses separate directory, contact-discovery and private-answer permissions. Public dossiers do not require private answers. The participant directory is an opt-in same-ecosystem directory, ordered alphabetically with declared-overlap context, never a reputation score. Private fit checks display governed source versions, coverage, reasons, tensions and unknowns; unavailable, low-coverage or stale results do not show numerical estimates. Owners can pause, resume, export, delete and privately annotate immutable assessment snapshots. A structured agreement editor proposes all four dimension weights and versioned source questions; ACT approval comes before publication. Ecosystem editing selects the active UAF. Node support can publish an already ratified policy for its selected ecosystem only through a reasoned reviewed action.
+
+Journey authoring uses a step editor, ordered preview and a structured take-away resource editor, with inline validation. Advanced JSON remains available for existing complex content. The audited support form reuses these editors and the friendly quiz question editor. No editor performs model calls or quiz submissions during preview.
+
+Unused canned OmniBot, achievement/XP no-ops, throwing share-link and badge-management mutations, and unreachable legacy UserManagement/UserQuizHistory pages were removed after confirming no active callers. Working badge/profile query hooks and actual API features remain.
+
+Pure contracts are in `lib/frontend-hardening.test.ts`; browser completion checks are authored under `uxqa/regression/p6-admin-authoring-and-entry-quiz.mjs`. The coordinator runs the integrated checks only after the full batch and independent review are complete.
+
+
+## Dev-drive cycle 1: exact attempts and authored paths
+
+Quiz controls use stable option indices as HTML values and map them back to the original JSON choice values before submission. Numeric/string and case-distinct choices remain separate; checkbox grading is unordered. Colliding visible labels show their value kind. The correct-answer editor uses the same adapter.
+
+QuizResults fetches the exact owner-authorized server result ID, with the actual User in its cache key. It does not search the default membership history or substitute a newer attempt. Candidate-safe quiz content travels with that result, and the validated return path remains available after an error or reload.
+
+`journey-routing` resolves the selected destination for saved progress, completion status and local navigation, including terminal choices. Previous walks the saved selected path. Reordering retains target identities; deleting a target leaves an invalid destination that authoring validation requires the steward to repair. Server validation independently enforces the same forward-path rules and required evidence.
+
+JourneyStepsEditor uses ordinary member quiz lookup by default. Only its explicit `supportOwner` mode calls the audited support catalog, with owner/organization/search cache isolation. SupportFieldEditor supplies that mode for NodeAdmin authoring; an ordinary steward receives no support authority from the reusable editor.
+
+## Dev-drive cycle 2: atomic choices and current attempts
+
+Matching belongs in `ecosystemScoped`: its steward policy and governed-source selectors call ordinary agreements/domains lists, whose server authorization also uses the current ecosystem-selection cookie. Changing selection invalidates that root so an earlier empty scoped result cannot remain cached until reload. Matching cache keys retain the actual owner and target ecosystem, and refetches retain existing REST authorization; invalidation neither combines private answers nor grants access to another selection or owner.
+
+OrientationJourney sends one progress mutation per completed step. The server derives canonical genplan output in that transaction; the UI must not rely on a second acknowledgement request before navigation. QuizResults uses the exact owner response's current-version attempt policy: older versions can offer a first current attempt, while a consumed no-retakes version explains the steward-help path.

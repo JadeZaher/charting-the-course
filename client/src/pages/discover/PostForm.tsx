@@ -143,7 +143,7 @@ export function PostForm({
       </fieldset>
 
       <div className="space-y-2">
-        <Label htmlFor={id('title')}>Title</Label>
+        <Label htmlFor={id('title')}>Title (required)</Label>
         <Input
           id={id('title')}
           {...required.field('title')}
@@ -207,7 +207,7 @@ export function PostForm({
 
       {domainChoices && (
         <div className="space-y-2">
-          <Label htmlFor={id('domain')}>Domain</Label>
+          <Label htmlFor={id('domain')}>Domain (required)</Label>
           <Select
             value={values.domainId}
             disabled={disabled}
@@ -216,7 +216,7 @@ export function PostForm({
               required.settle('domain', value);
             }}
           >
-            <SelectTrigger id={id('domain')} {...required.field('domain')} {...ariaFor('domain')}>
+            <SelectTrigger id={id('domain')} {...required.field('domain')} {...ariaFor('domain')} aria-required="true">
               <SelectValue placeholder="Choose a domain" />
             </SelectTrigger>
             <SelectContent>

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { apiErrorMessage } from '@/lib/api-error-message';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,10 +22,11 @@ interface NewConversationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (conversation: ConversationDetail) => void;
+  initialMemberId?:string|null;
 }
 
 /** Start a direct message or group chat; shared by /messaging and the floating comms drawer. */
-export function NewConversationDialog({ open, onOpenChange, onCreated }: NewConversationDialogProps) {
+export function NewConversationDialog({ open, onOpenChange, onCreated,initialMemberId }: NewConversationDialogProps) {
   const [conversationType, setConversationType] = useState<'direct' | 'group'>('direct');
   const [groupTitle, setGroupTitle] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -35,10 +36,12 @@ export function NewConversationDialog({ open, onOpenChange, onCreated }: NewConv
   const { member } = useAuth();
   const { data: membersData, error: membersError } = useMemberPicker();
   const createConversation = useCreateConversation({ silent: true });
+  useEffect(()=>{if(open&&initialMemberId&&membersData?.members.some(candidate=>candidate.id===initialMemberId&&candidate.id!==member?.id)){setSelectedMembers([initialMemberId]);setConversationType('direct');}},[open,initialMemberId,membersData,member?.id]);
 
   const availableMembers = (membersData?.members || []).filter(
     (candidate) => candidate.id !== member?.id && !selectedMembers.includes(candidate.id),
   );
+  const linkedUnavailable=!!initialMemberId&&!!membersData&&!membersData.members.some(candidate=>candidate.id===initialMemberId&&candidate.id!==member?.id);
   const filteredMembers = memberSearch
     ? availableMembers.filter((candidate) =>
         candidate.display_name.toLowerCase().includes(memberSearch.toLowerCase()),
@@ -69,7 +72,7 @@ export function NewConversationDialog({ open, onOpenChange, onCreated }: NewConv
   };
 
   const handleCreate = () => {
-    if (selectedMembers.length === 0) return;
+    if (selectedMembers.length === 0 || selectedMembers.some(id=>!membersData?.members.some(candidate=>candidate.id===id))) return;
     createConversation.mutate(
       {
         type: conversationType === 'direct' ? 'dm' : 'group',
@@ -91,6 +94,7 @@ export function NewConversationDialog({ open, onOpenChange, onCreated }: NewConv
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
+        {linkedUnavailable&&<p role="alert" className="text-destructive">This participant is not currently available to message in your authorized scope. No conversation has been created.</p>}
         <DialogHeader>
           <DialogTitle>New Conversation</DialogTitle>
           <DialogDescription>Start a direct message or create a group chat.</DialogDescription>

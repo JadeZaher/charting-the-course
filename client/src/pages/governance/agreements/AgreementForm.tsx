@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { GovernedMatchingEditor } from '@/components/discovery/GovernedMatchingEditor';
+import { matchingConfigurationErrors,type MatchingConfiguration } from '@/lib/matching-authoring';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +63,7 @@ export default function AgreementForm() {
   const [minAdviceRounds, setMinAdviceRounds] = useState('1');
   const [actTestCases, setActTestCases] = useState('');
   const [consentQuorum, setConsentQuorum] = useState('');
+  const [matchingPolicy,setMatchingPolicy]=useState<MatchingConfiguration|null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function AgreementForm() {
       setPrerequisiteDomainIds(existing.prerequisite_domain_ids ?? []);
       setAlignmentPoints(String(existing.alignment_points ?? 5));
       const policy = existing.act_policy;
+      setMatchingPolicy((policy as unknown as {matching_profile?:MatchingConfiguration})?.matching_profile||null);
       if (policy) {
         setMinAdviceRounds(String(policy.min_advice_rounds ?? 1));
         setActTestCases((policy.test_cases ?? []).join('\n'));
@@ -103,6 +107,7 @@ export default function AgreementForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    if(matchingPolicy){const matchingErrors=matchingConfigurationErrors(matchingPolicy);if(matchingErrors.length){setErrors(current=>({...current,matching:matchingErrors.join(' ')}));return;}}
 
     const payload: Record<string, any> = {
       title: title.trim(),
@@ -119,6 +124,8 @@ export default function AgreementForm() {
       prerequisite_domain_ids: prerequisiteDomainIds,
       alignment_points: Number(alignmentPoints) || 0,
       act_policy: {
+        ...existing?.act_policy,
+        matching_profile:matchingPolicy||undefined,
         min_advice_rounds: Math.max(0, parseInt(minAdviceRounds, 10) || 0),
         consent_required: true,
         consent_quorum: consentQuorum.trim() ? Math.max(1, parseInt(consentQuorum, 10) || 1) : null,
@@ -159,6 +166,8 @@ export default function AgreementForm() {
       </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Agreement' : 'New Agreement'}</h1>
+      <GovernedMatchingEditor ecosystemId={agreementEcosystemId} value={matchingPolicy} onChange={setMatchingPolicy}/>
+      {errors.matching&&<p role="alert" className="text-destructive">{errors.matching}</p>}
 
       {mutationError && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">

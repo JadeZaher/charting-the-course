@@ -18,6 +18,9 @@ import { useEcosystemDetail, useAgreements, useProposals } from '@/hooks/use-gov
 import { useJoinEcosystem } from '@/hooks/use-onboarding';
 import { useAuth } from '@/contexts/AuthContext';
 import { isStewardIn, membershipStanding } from '@/lib/ecosystem-join';
+import { JoinRequirements } from '@/components/JoinRequirements';
+import { JourneyStepsEditor,JourneyExitEditor,JourneyValidation } from '@/components/orientation/JourneyAuthoring';
+import { journeyErrors } from '@/lib/journey-authoring';
 import { CONSENT_GATE_PATH, memberStatusLabel } from '@/lib/member-status';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -178,6 +181,8 @@ export default function EcosystemDetail() {
       let exitPackage: Record<string, any> = {};
       if (jmForm.contentJson.trim()) contentSequence = JSON.parse(jmForm.contentJson);
       if (jmForm.exitJson.trim()) exitPackage = JSON.parse(jmForm.exitJson);
+      const errors = journeyErrors(contentSequence, exitPackage);
+      if (errors.length) throw new Error(errors.join(' '));
       await createJourneyMap(id, {
         title: jmForm.title,
         description: jmForm.description || null,
@@ -279,6 +284,7 @@ export default function EcosystemDetail() {
         </div>
       </div>
 
+      {!isMember && <JoinRequirements type="ecosystem" id={id} returnTo={`/ethos/${id}`} prepare={() => joinMutation.mutateAsync()} />}
       {/* Governance stamp strip */}
       <div className="rounded-none border-2 border-strong-border p-3 text-sm">
         {governanceStamp ? (
@@ -445,12 +451,9 @@ export default function EcosystemDetail() {
                   <Textarea id="journey-map-description" value={jmForm.description} onChange={e => setJmForm({ ...jmForm, description: e.target.value })} placeholder="Brief description of this journey" rows={2} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="journey-map-content">Content Sequence (JSON array of steps)</Label>
-                  <Textarea id="journey-map-content" value={jmForm.contentJson} onChange={e => setJmForm({ ...jmForm, contentJson: e.target.value })} placeholder='[{"step":1,"type":"video","title":"Welcome","required":true}]' rows={4} className="font-mono text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="journey-map-exit">Exit Package (JSON)</Label>
-                  <Textarea id="journey-map-exit" value={jmForm.exitJson} onChange={e => setJmForm({ ...jmForm, exitJson: e.target.value })} placeholder='{"docs":[],"tools":[],"next_steps":[]}' rows={3} className="font-mono text-sm" />
+                  <JourneyStepsEditor ecosystemId={id} value={jmForm.contentJson} onChange={contentJson => setJmForm({...jmForm,contentJson})} />
+                  <JourneyExitEditor value={jmForm.exitJson} onChange={exitJson => setJmForm({...jmForm,exitJson})} />
+                  <JourneyValidation steps={jmForm.contentJson} exit={jmForm.exitJson} />
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={jmForm.is_default} onChange={e => setJmForm({ ...jmForm, is_default: e.target.checked })} className="rounded-[2px] border-2 border-control-border" />

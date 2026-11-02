@@ -1,4 +1,7 @@
+import { keys } from '@/lib/query-keys';
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api-client';
 import { Link, useRoute, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +37,8 @@ export default function EcosystemForm() {
   const [tags, setTags] = useState('');
   const [governanceSummary, setGovernanceSummary] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [uafAgreement,setUafAgreement]=useState('');
+  const agreements=useQuery({queryKey:[...keys.ecosystems.detail(editId),'uaf-options'],queryFn:()=>apiFetch<{items:Array<{id:string;title:string;type:string;version?:string}>}>(`/api/v1/agreements?ecosystem_id=${editId}&status=active&per_page=100`),enabled:!!editId});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -48,6 +53,7 @@ export default function EcosystemForm() {
       setTags(existing.tags?.join(', ') || '');
       setGovernanceSummary(existing.governance_summary || '');
       setContactEmail(existing.contact_email || '');
+      setUafAgreement((existing as unknown as {uaf_agreement_id?:string}).uaf_agreement_id||'');
     }
   }, [existing, isEdit]);
 
@@ -78,6 +84,7 @@ export default function EcosystemForm() {
       tags: parseCommaSeparated(tags),
       governance_summary: governanceSummary || null,
       contact_email: contactEmail || null,
+      ...(isEdit?{uaf_agreement_id:uafAgreement||null}:{}),
     };
 
     try {
@@ -107,6 +114,7 @@ export default function EcosystemForm() {
       </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Ecosystem' : 'New Ecosystem'}</h1>
+      {isEdit&&<section className="space-y-3 border border-border p-4"><label htmlFor="ecosystem-uaf" className="font-bold">Current ratified UAF</label><p className="text-sm text-muted-foreground">Choose the active UAF agreement governing this ecosystem. Matching profiles must cite this exact source and its version; selecting it does not consent on anyone's behalf.</p><select id="ecosystem-uaf" className="min-h-11 w-full border bg-background p-2" value={uafAgreement} onChange={event=>setUafAgreement(event.target.value)}><option value="">No UAF selected</option>{agreements.data?.items.filter(agreement=>agreement.type==='uaf').map(agreement=><option key={agreement.id} value={agreement.id}>{agreement.title} · v{agreement.version||'current'}</option>)}</select>{agreements.error&&<p role="alert" className="text-destructive">{apiErrorMessage(agreements.error)}</p>}<p className="text-sm">If none is listed, create and ratify this ecosystem's UAF first, then return here.</p></section>}
 
       {mutationError && (
         <div className="rounded-none border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">

@@ -364,7 +364,7 @@ export function fetchQuizzes(params?: Record<string, string>): Promise<Paginated
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch(`/api/v1/quizzes${qs}`);
 }
-export function fetchQuiz(id: string): Promise<QuizDetail> { return apiFetch(`/api/v1/quizzes/${id}`); }
+export function fetchQuiz(id: string, candidate = false): Promise<QuizDetail> { return apiFetch(`/api/v1/quizzes/${id}${candidate ? '?candidate=1' : ''}`); }
 export function createQuiz(data: Record<string, any>): Promise<QuizDetail> {
   return apiFetch('/api/v1/quizzes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
@@ -384,6 +384,9 @@ export function fetchQuizResults(quizId: string, params?: Record<string, string>
 export function fetchQuizResultsAdmin(quizId: string, params?: Record<string, string>): Promise<{ items: (QuizResultItem & { member_name: string })[]; quiz_title: string; total: number; page: number; per_page: number }> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return apiFetch(`/api/v1/quizzes/${quizId}/results/all${qs}`);
+}
+export function fetchOwnQuizResult(resultId: string): Promise<QuizResultItem & { quiz: QuizDetail | null }> {
+  return apiFetch(`/api/v1/quiz-results/${encodeURIComponent(resultId)}`);
 }
 export function fetchMemberQuizHistory(memberId: string): Promise<{ results: QuizResultItem[] }> {
   return apiFetch(`/api/v1/members/${memberId}/quiz-history`);

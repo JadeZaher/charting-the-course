@@ -2,6 +2,7 @@
 // sequence for orientation and ethos consent, and what a membership row lets the caller do. See client/src/AGENTS.md "Onboarding (G-Onboard)".
 import type { ApiMutationOptions, ToastCopy } from './api-mutation-options';
 import { onboardingAffects } from './query-keys';
+import type { JoinGates } from './join-gates';
 
 /** An agreement the caller must still consent to. */
 export interface JoinAgreement {
@@ -19,6 +20,7 @@ export interface JoinResult {
   message: string;
   ecosystem_name?: string;
   required_agreements?: readonly JoinAgreement[];
+  join_gates?: JoinGates;
 }
 
 export interface JoinOptions {
@@ -51,12 +53,13 @@ export function joinEcosystemMutation(
 
 /** A 409 that means the caller already holds the membership (the follow-up write may proceed), else null. Matched by shape: importing ApiCodedError would pull import.meta.env into node tests. */
 function alreadyInResult(error: unknown): JoinResult | null {
-  const refusal = error as { status?: unknown; code?: unknown; message?: unknown; body?: { required_agreements?: JoinAgreement[] } } | null;
+  const refusal = error as { status?: unknown; code?: unknown; message?: unknown; body?: { required_agreements?: JoinAgreement[]; join_gates?: JoinGates } } | null;
   if (refusal?.status !== 409) return null;
   const message = typeof refusal.message === 'string' ? refusal.message : '';
   if (refusal.code === 'ALREADY_MEMBER') return { status: 'already_member', membership_status: 'active', message };
+  if (refusal.code === 'JOIN_QUIZ_REQUIRED' || refusal.code === 'JOIN_QUIZ_UNAVAILABLE') return { status: refusal.code === 'JOIN_QUIZ_REQUIRED' ? 'quiz_required' : 'quiz_unavailable', membership_status: 'pending_consent', message, join_gates: refusal.body?.join_gates };
   if (refusal.code === 'CONSENT_REQUIRED') {
-    return { status: 'consent_required', membership_status: 'pending_consent', message, required_agreements: refusal.body?.required_agreements ?? [] };
+    return { status: 'consent_required', membership_status: 'pending_consent', message, required_agreements: refusal.body?.required_agreements ?? [], join_gates: refusal.body?.join_gates };
   }
   return null; // MEMBERSHIP_PAUSED, or a 409 the client cannot read: a failure.
 }
@@ -64,6 +67,8 @@ function alreadyInResult(error: unknown): JoinResult | null {
 /** Only an active membership is called a join; a consent-gated one names the step left. */
 export function joinToast(result: JoinResult, fallbackName?: string): ToastCopy {
   const name = result.ecosystem_name || fallbackName || 'this ecosystem';
+  if (result.status === 'quiz_required') return { title: `Entry quiz required for ${name}`, description: 'Your membership is pending. Pass the configured quiz, then complete any agreement consent.' };
+  if (result.status === 'quiz_unavailable') return { title: `Entry quiz needs steward attention`, description: `A required quiz for ${name} is not available. Your membership has not been activated.` };
   if (result.status === 'consent_required') {
     const titles = (result.required_agreements ?? []).map((agreement) => agreement.title);
     return {
