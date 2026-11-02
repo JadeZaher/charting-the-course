@@ -1,3 +1,4 @@
+import { SupportAttribution } from '@/components/NodeAdminBadge';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -114,6 +115,7 @@ export default function ProposalList() {
                   <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
                     {p.proposer || 'Proposer not recorded'} · {getEcosystemName(p.ecosystem_id) || 'Unknown ecosystem'} · {new Date(p.created_at).toLocaleDateString()}
                   </p>
+                  <SupportAttribution provenance={p.support_provenance} showReceipt={false} />
                 </Link>
               </CollectionCard>
             ))}

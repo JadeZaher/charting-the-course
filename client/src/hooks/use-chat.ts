@@ -1,7 +1,10 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { applyToolResult, refreshAfterTool, type ToolChip } from '@/lib/chat-tools';
+import { applyToolResult, refreshAfterTool, settleChatResponse, type ToolChip } from '@/lib/chat-tools';
 import { useAuth } from '@/contexts/AuthContext';
+import { createChatStreamParser } from '@/lib/chat-stream';
+import type { SupportChatScope } from '@/lib/support-chat';
+import { applyChatRoute, conversationLimit, readChatRoute, type ChatRoute } from '@/lib/chat-routing';
 
 /** A tool call in an assistant message: plain label, status, and the confirmation it waits on. */
 export type ToolExecution = ToolChip;
@@ -32,6 +35,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   tools?: ToolExecution[];
   skill?: string;
+  routing?: ChatRoute;
   usage?: TokenUsage;
   thinkingSteps?: ThinkingStep[];
   artifacts?: ArtifactLink[];
@@ -43,6 +47,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || '';
 const MAX_CONVERSATION_MESSAGES = 20;
 
 export interface ChatContext {
+  supportContext?: SupportChatScope | null;
   /** Selected ecosystem IDs from context */
   selectedEcosystemIds?: string[];
   /** Summary of active page context (entity, filters, etc.) */
@@ -51,6 +56,7 @@ export interface ChatContext {
   member?: { id: string; display_name: string };
   /** Current ecosystem name */
   ecosystemName?: string;
+  requestedSkill?: string | null;
 }
 
 function buildHistory(messages: ChatMessage[]): { role: string; content: string }[] {
@@ -66,23 +72,21 @@ export function useSSEChat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
+  const [activeRoute, setActiveRoute] = useState<ChatRoute | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [limitReached, setLimitReached] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const userMessageCount = messages.filter(m => m.role === 'user').length;
+  const { userCount: userMessageCount, reached: limitReached } = conversationLimit(messages, MAX_CONVERSATION_MESSAGES);
+  useEffect(() => () => { abortRef.current?.abort(); abortRef.current = null; }, []);
 
   const sendMessage = useCallback(async (content: string, ctx?: ChatContext) => {
+    if (abortRef.current || !content.trim()) return;
     setError(null);
 
-    const currentUserCount = messages.filter(m => m.role === 'user').length + 1;
+    const currentUserCount = conversationLimit(messages, MAX_CONVERSATION_MESSAGES).userCount + 1;
     if (currentUserCount > MAX_CONVERSATION_MESSAGES) {
-      setLimitReached(true);
       setError(`Conversation limit reached (${MAX_CONVERSATION_MESSAGES} messages). Please start a new conversation.`);
       return;
-    }
-    if (currentUserCount === MAX_CONVERSATION_MESSAGES) {
-      setLimitReached(true);
     }
 
     const history = buildHistory(messages);
@@ -90,6 +94,7 @@ export function useSSEChat() {
     setMessages(prev => [...prev, { role: 'user', content }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', isStreaming: true, tools: [] }]);
     setIsStreaming(true);
+    setActiveRoute(null);
 
     const abort = new AbortController();
     abortRef.current = abort;
@@ -103,7 +108,9 @@ export function useSSEChat() {
           message: content,
           history,
           active_skill: activeSkill,
+          requested_skill: ctx?.requestedSkill ?? null,
           session_id: sessionId,
+          ...(ctx?.supportContext ? { support_context: ctx.supportContext } : {}),
           page_context: {
             path: window.location.pathname,
             hash: window.location.hash,
@@ -125,51 +132,29 @@ export function useSSEChat() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
-      let currentEventType = 'message';
-      let dataBuffer = '';
+      const parser = createChatStreamParser();
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEventType = line.slice(7).trim();
-          } else if (line.startsWith('data: ')) {
-            dataBuffer += (dataBuffer ? '\n' : '') + line.slice(6);
-          } else if (line === '') {
-            if (dataBuffer !== '') {
-              handleEvent(currentEventType, dataBuffer);
-              dataBuffer = '';
-            }
-            currentEventType = 'message';
-          }
-        }
+        for (const event of parser.feed(decoder.decode(value, { stream: true }))) handleEvent(event.type, event.data);
       }
+      for (const event of parser.finish(decoder.decode())) handleEvent(event.type, event.data);
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
+      if (abortRef.current === abort && (err as Error).name !== 'AbortError') {
         setError((err as Error).message);
-        setMessages(prev => prev.filter(m => !(m.role === 'assistant' && m.isStreaming && !m.content)));
+        setMessages(prev => prev.filter(m => !(m.role === 'assistant' && m.isStreaming && !m.content && !m.tools?.length)));
       }
     } finally {
+      if (abortRef.current !== abort) return;
       setIsStreaming(false);
       abortRef.current = null;
-      setMessages(prev => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last?.role === 'assistant' && last.isStreaming) {
-          updated[updated.length - 1] = { ...last, isStreaming: false };
-        }
-        return updated;
-      });
+      setMessages(prev => settleChatResponse(prev));
     }
 
     function handleEvent(eventType: string, data: string) {
+      if (abortRef.current !== abort || abort.signal.aborted) return;
       switch (eventType) {
         case 'append': {
           if (data.trim()) {
@@ -205,6 +190,10 @@ export function useSSEChat() {
           try {
             const event = JSON.parse(data);
             const { artifact } = event;
+            if (ctx?.supportContext && ['node_support_command', 'node_support_prepare_proposal'].includes(event.name) && event.success === true && !event.needs_confirmation) {
+              void queryClient.invalidateQueries();
+              void refreshSession();
+            }
             const refresh = refreshAfterTool(event);
             for (const queryKey of refresh.queryKeys) void queryClient.invalidateQueries({ queryKey });
             if (refresh.refreshSession) void refreshSession();
@@ -224,32 +213,40 @@ export function useSSEChat() {
           break;
         }
 
+        case 'skill_route': {
+          try {
+            const route = readChatRoute(JSON.parse(data));
+            if (route) {
+              setActiveSkill(route.skill);
+              setActiveRoute(route);
+              setMessages(prev => applyChatRoute(prev, route));
+            }
+          } catch { /* ignore malformed routing data */ }
+          break;
+        }
+
         case 'skill': {
           const skill = data.trim();
-          if (skill) {
-            setActiveSkill(skill);
-            setMessages(prev => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last?.role === 'assistant') {
-                updated[updated.length - 1] = { ...last, skill };
-              }
-              return updated;
-            });
-          }
+          setActiveSkill(skill || null);
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, skill: skill || undefined };
+            return updated;
+          });
           break;
         }
 
         case 'skill_transition': {
           try {
             const { to } = JSON.parse(data);
-            if (to) {
-              setActiveSkill(to);
+            if (to === null || typeof to === 'string') {
+              setActiveSkill(to || null);
               setMessages(prev => {
                 const updated = [...prev];
                 const last = updated[updated.length - 1];
                 if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, skill: to };
+                  updated[updated.length - 1] = { ...last, skill: to || undefined };
                 }
                 return updated;
               });
@@ -304,21 +301,10 @@ export function useSSEChat() {
             if (last) updated[updated.length - 1] = { ...last, isStreaming: false };
             return updated;
           });
-          setIsStreaming(false);
           break;
         }
 
         default: {
-          if (data.trim()) {
-            setMessages(prev => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last?.role === 'assistant') {
-                updated[updated.length - 1] = { ...last, content: last.content + data };
-              }
-              return updated;
-            });
-          }
           break;
         }
       }
@@ -327,32 +313,32 @@ export function useSSEChat() {
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
+    abortRef.current = null;
     setIsStreaming(false);
-    setMessages(prev => {
-      const updated = [...prev];
-      const last = updated[updated.length - 1];
-      if (last?.role === 'assistant' && last.isStreaming) {
-        updated[updated.length - 1] = { ...last, isStreaming: false };
-      }
-      return updated;
-    });
+    setMessages(prev => settleChatResponse(prev));
   }, []);
 
   const clearMessages = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     setMessages([]);
+    setIsStreaming(false);
     setError(null);
     setActiveSkill(null);
+    setActiveRoute(null);
     setSessionId(null);
-    setLimitReached(false);
   }, []);
 
   /** Load a previously saved session by restoring its messages. */
   const loadSession = useCallback((id: string, savedMessages: ChatMessage[], skill?: string | null) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
     setSessionId(id);
     setMessages(savedMessages);
     setActiveSkill(skill ?? null);
+    setActiveRoute(null);
     setError(null);
-    setLimitReached(savedMessages.filter(m => m.role === 'user').length >= MAX_CONVERSATION_MESSAGES);
   }, []);
 
   return {
@@ -364,6 +350,7 @@ export function useSSEChat() {
     clearMessages,
     loadSession,
     activeSkill,
+    activeRoute,
     sessionId,
     limitReached,
     userMessageCount,

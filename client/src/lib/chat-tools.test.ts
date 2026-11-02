@@ -1,10 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { QueryClient, hashKey, type QueryKey } from '@tanstack/react-query';
-import { applyToolResult, pendingConfirmation, refreshAfterTool, touchedRecord, type ToolChip, type ToolResultEvent } from './chat-tools';
+import { applyToolResult, pendingConfirmation, refreshAfterTool, settleChatResponse, touchedRecord, type ToolChip, type ToolResultEvent } from './chat-tools';
 import { healthKeys, keys, onboardingKeys } from './query-keys';
 
 const WITHDRAW = "Withdrawing 'Bike shed' ends it for good.";
+
+test('an empty completed or stopped response gives a readable recovery action', () => {
+  for (const isStreaming of [true, false]) {
+    const messages = [{ role: 'assistant' as const, content: '', isStreaming }];
+    assert.equal(settleChatResponse(messages)[0].content, 'No reply arrived. Try again.');
+    assert.equal(messages[0].content, '');
+  }
+});
+
+test('a stopped response preserves known writes and marks unfinished action outcomes as unknown', () => {
+  const tools: ToolChip[] = [{ name: 'record_advice', status: 'success' }, { name: 'join_domain', status: 'running' }];
+  const messages = [{ role: 'assistant' as const, content: '', isStreaming: true, tools }];
+  const [finished] = settleChatResponse(messages);
+  assert.equal(finished.tools?.[0].status, 'success');
+  assert.equal(finished.tools?.[1].status, 'unknown');
+  assert.match(finished.tools?.[1].error ?? '', /Check the record before trying again/);
+  assert.equal(finished.isStreaming, false);
+  assert.equal(messages[0].tools[1].status, 'running');
+  assert.equal(finished.content, 'Check the action results above.');
+});
 
 test('a tool result settles the oldest running call of that tool, with its outcome', () => {
   const chips: ToolChip[] = [
@@ -121,4 +141,13 @@ test('only safe internal record and query routes identify the touched data', () 
     '/\\evil.example/proposals/p1', '/discover?tab=shares-needs&post=https://evil.example', '/messaging?conversation=../c1']) {
     assert.equal(touchedRecord({ name: 'act', data: { link } }), null, link);
   }
+});
+
+test('typed support proposal refreshes proposals only after the frozen change completes', async () => {
+  const affected = [keys.proposals.all, keys.nextSteps.all, keys.dashboard.all];
+  const prepared = { name: 'node_support_prepare_proposal', success: false, needs_confirmation: 'Review this draft' };
+  assert.deepEqual(refreshAfterTool(prepared).queryKeys, []);
+  const completed = { name: 'node_support_prepare_proposal', success: true, data: { link: '/proposals/typed-p1' } };
+  const stale = await staleAfter(completed, affected);
+  for (const key of affected) assert.ok(stale.has(hashKey(key)));
 });

@@ -1,3 +1,5 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { memberQueriesEnabled } from '@/lib/member-queries';
 // Emergency reads and writes on the shared key factory and feedback contract.
 // See pages/governance/AGENTS.md "Emergency and exit": failures render inline (silent), successes toast here.
 import { useQuery } from '@tanstack/react-query';
@@ -17,10 +19,11 @@ export function useEmergencyRecord(id: string) {
 
 /** Live emergencies across every ecosystem the member is active in; polled so the banner appears without a reload. */
 export function useActiveEmergencies(enabled: boolean) {
+  const { member } = useAuth();
   return useQuery({
     queryKey: keys.emergency.active(),
     queryFn: () => api.fetchActiveEmergencies(),
-    enabled,
+    enabled: enabled && memberQueriesEnabled(member),
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });

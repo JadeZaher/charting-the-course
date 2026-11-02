@@ -1,3 +1,4 @@
+import { SupportAttribution } from '@/components/NodeAdminBadge';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -1064,6 +1065,7 @@ export default function ProposalDetail() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">{data.title}</h1>
+          <SupportAttribution provenance={data.support_provenance} />
           <div
             ref={statusRegionRef}
             tabIndex={-1}

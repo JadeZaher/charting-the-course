@@ -1,3 +1,5 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { memberQueriesEnabled } from '@/lib/member-queries';
 // The caller's queue (the bell, the dashboard) and a record's status banner, on the shared key factory.
 // See pages/governance/AGENTS.md "Next steps and the status banner"; every mutation's `affects` entry refreshes them.
 import { useQuery, type QueryKey } from '@tanstack/react-query';
@@ -19,7 +21,9 @@ export const NEXT_STEPS_POLL_MS = 5 * 60_000;
 
 /** Everything waiting for the signed-in member. Only the header bell passes `poll` (one poller; the key is shared). */
 export function useMyNextSteps(options: { poll?: boolean } = {}) {
+  const { member } = useAuth();
   return useQuery({
+    enabled: memberQueriesEnabled(member),
     queryKey: keys.nextSteps.mine(),
     queryFn: () => api.fetchMyNextSteps(),
     staleTime: 30_000,

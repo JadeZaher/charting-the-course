@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SupportChatProvider } from "@/contexts/SupportChatContext";
 import { EcosystemProvider, useEcosystem } from "@/contexts/EcosystemContext";
 import { PageContextProvider } from "@/contexts/PageContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -29,6 +30,7 @@ import MePage from "@/pages/me/MePage";
 import ConsentGatePage from "@/pages/ConsentGatePage";
 import PublicProfile from "@/pages/PublicProfile";
 import AdminPanel from "@/pages/AdminPanel";
+import NodeAudit from "@/pages/NodeAudit";
 import UserManagement from "@/pages/UserManagement";
 import UserQuizHistory from "@/pages/UserQuizHistory";
 const DiscoverHub = lazy(() => import("@/pages/discover/DiscoverHub"));
@@ -104,6 +106,7 @@ function PublicPageFrame({ children }: { children: React.ReactNode }) {
       <SkipLink />
       <div id="main-content" tabIndex={-1} className="min-h-screen">
         {children}
+        <footer className="border-t border-border p-5"><a className="underline" href="/node/audit">Public node support history</a></footer>
       </div>
     </div>
   );
@@ -174,7 +177,7 @@ function ProtectedRoute({
 /** Why a page gated by `access` refused, in the words of its rule. */
 const ACCESS_DENIED_REASONS: Record<NavAccess, string> = {
   'quiz-steward': 'Managing quizzes is for a steward of the selected ecosystem or a platform admin.',
-  'admin-panel': 'This page is for platform admins.',
+  'admin-panel': 'This page is for assigned node admins.',
 };
 
 function AccessDenied({ reason }: { reason?: string }) {
@@ -208,6 +211,8 @@ function PublicRoutes() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/users/:username" component={PublicProfile} />
+          <Route path="/node/audit/:id" component={NodeAudit} />
+          <Route path="/node/audit" component={NodeAudit} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -363,16 +368,17 @@ function AuthenticatedRoutes() {
       </Route>
 
       {/* Admin panel - requires canManageUsers permission */}
+      <Route path="/admin/node-admins"><ProtectedRoute component={AdminPanel} access="admin-panel" /></Route>
       <Route path="/admin">
-        <ProtectedRoute component={AdminPanel} requiredPermission="canManageUsers" />
+        <ProtectedRoute component={AdminPanel} access="admin-panel" />
       </Route>
       
       {/* User Management - requires isAdmin permission */}
       <Route path="/admin/users">
-        <ProtectedRoute component={UserManagement} requiredPermission="isAdmin" />
+        <Redirect to="/admin" replace />
       </Route>
       <Route path="/admin/users/:userId/history">
-        <ProtectedRoute component={UserQuizHistory} requiredPermission="isAdmin" />
+        <Redirect to="/admin" replace />
       </Route>
       
       {/* Members */}
@@ -447,7 +453,7 @@ function AuthenticatedRoutes() {
 
 // Main app layout with authentication
 function AppLayout() {
-  const { isAuthenticated, isLoading, pendingConsents, ecosystems, member } = useAuth();
+  const { isAuthenticated, isLoading, pendingConsents, ecosystems, member, isNodeAdmin } = useAuth();
   const [location, navigate] = useLocation();
   useFocusMainOnNavigate(location);
   const gateInput = { isAuthenticated, pendingConsents, memberships: ecosystems, member };
@@ -463,7 +469,7 @@ function AppLayout() {
   }, [isAuthenticated, isLoading, heldAtGate]);
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/about', '/governance-model', '/users/'];
+  const publicPaths = ['/login', '/about', '/governance-model', '/users/', '/node/audit'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
   const isLandingPage = location === '/';
 
@@ -472,7 +478,7 @@ function AppLayout() {
   }
 
   // Pending members stay on the consent gate wherever a link lands them (lib/consent-gate.ts).
-  const consentRedirect = consentGateRedirect({ ...gateInput, path: location });
+  const consentRedirect = consentGateRedirect({ ...gateInput, isNodeAdmin, path: location });
   if (consentRedirect) {
     return <Redirect to={consentRedirect} replace />;
   }
@@ -491,12 +497,16 @@ function AppLayout() {
           <Route path="/about" component={About} />
           <Route path="/governance-model" component={GovernanceModel} />
           <Route path="/users/:username" component={PublicProfile} />
+          <Route path="/node/audit/:id" component={NodeAudit} />
+          <Route path="/node/audit" component={NodeAudit} />
           {!isAuthenticated && <Route><Redirect to={loginRedirectHref(location)} /></Route>}
           {isAuthenticated && <Route><Redirect to="/dashboard" /></Route>}
         </Switch>
       </PublicPageFrame>
     );
   }
+
+  if (isNodeAdmin && !member?.id && ['/', '/dashboard', '/messaging'].includes(location)) return <Redirect to="/admin" replace />;
 
   // Show authenticated layout with sidebar
   const sidebarStyle = {
@@ -512,13 +522,13 @@ function AppLayout() {
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b-2 border-strong-border bg-background px-[var(--page-gutter)]">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <EcosystemPicker />
+            {member?.id && <EcosystemPicker />}
             <div className="flex items-center gap-2">
-              <NotificationCenter />
+              {member?.id && <NotificationCenter />}
               <ThemeToggle />
             </div>
           </header>
-          <EmergencyBanner />
+          {member?.id && <EmergencyBanner />}
           {/* --route-guide-width is set by RouteGuidePanel while it is docked open at lg+ */}
           <main id="main-content" tabIndex={-1} className="route-shell min-w-0 flex-1 overflow-auto lg:pr-[calc(var(--page-gutter)_+_var(--route-guide-width,0px))]">
             <AuthenticatedRoutes />
@@ -535,6 +545,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SupportChatProvider>
         <EcosystemProvider>
           <PageContextProvider>
             <ThemeProvider>
@@ -545,6 +556,7 @@ export default function App() {
             </ThemeProvider>
           </PageContextProvider>
         </EcosystemProvider>
+        </SupportChatProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -27,6 +27,7 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { fetchPublicProfile } from "@/lib/api-client";
@@ -344,6 +345,7 @@ export default function PublicProfile() {
                 <h1 className="break-words text-4xl font-black uppercase leading-[0.9] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
                   {profile.display_name}
                 </h1>
+                {data.node_admin_badge?.key === "node_admin" && <div className="mt-3"><NodeAdminBadge /></div>}
                 {profile.headline && (
                   <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
                     {profile.headline}

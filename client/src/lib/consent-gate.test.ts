@@ -101,3 +101,20 @@ test('with a per-ecosystem status, only an active row counts: a leaver or a paus
     commons.id,
   );
 });
+
+
+test('public node support history remains readable while held at membership consent', () => {
+  const input = { isAuthenticated: true, pendingConsents: [{ ecosystem_id: 'org' }], memberships: [{ id: 'org', membership_status: 'pending_consent' }] };
+  assert.equal(consentGateRedirect({ ...input, path: '/node/audit' }), null);
+  assert.equal(consentGateRedirect({ ...input, path: '/node/audit/entry-1' }), null);
+  assert.notEqual(consentGateRedirect({ ...input, path: '/admin' }), null);
+});
+
+
+test('an assigned node admin can reach support while their own membership awaits consent', () => {
+  const input = { isAuthenticated: true, isNodeAdmin: true, pendingConsents: [{ ecosystem_id: 'org' }], memberships: [{ id: 'org', membership_status: 'pending_consent' }] };
+  assert.equal(consentGateRedirect({ ...input, path: '/admin' }), null);
+  assert.equal(consentGateRedirect({ ...input, path: '/admin/node-admins' }), null);
+  assert.notEqual(consentGateRedirect({ ...input, isNodeAdmin: false, path: '/admin' }), null);
+  assert.notEqual(consentGateRedirect({ ...input, path: '/proposals/new' }), null);
+});

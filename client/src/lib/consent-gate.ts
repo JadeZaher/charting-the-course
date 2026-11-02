@@ -13,6 +13,7 @@ export interface MembershipsInput {
 
 export interface ConsentGateInput extends MembershipsInput {
   isAuthenticated: boolean;
+  isNodeAdmin?: boolean;
   /** Current pathname, without the query string. */
   path: string;
 }
@@ -26,6 +27,7 @@ const READABLE_WHILE_GATED: readonly RegExp[] = [
   /^\/orientation\/[^/]+(?:\/journey|\/complete)?$/,
   /^\/(?:about|governance-model)$/,
   /^\/users\/[^/]+$/,
+  /^\/node\/audit(?:\/[^/]+)?$/,
 ];
 
 /** Ecosystems the user takes part in: the server's per-ecosystem status when sent, else not gated and not a non-active default row. */
@@ -50,7 +52,8 @@ export function isHeldAtConsentGate({ isAuthenticated, ...memberships }: Omit<Co
 }
 
 /** Where to send the member instead of `path`, or null to render it. */
-export function consentGateRedirect({ path, ...input }: ConsentGateInput): string | null {
+export function consentGateRedirect({ path, isNodeAdmin, ...input }: ConsentGateInput): string | null {
+  if (isNodeAdmin === true && /^\/admin(?:\/node-admins)?$/.test(path)) return null;
   // An active membership elsewhere keeps the app usable; the sidebar links to the pending gate.
   if (!isHeldAtConsentGate(input)) return null;
   const normalized = path.length > 1 ? path.replace(/\/+$/, '') : path;

@@ -1,3 +1,5 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { memberQueriesEnabled } from '@/lib/member-queries';
 import { keepPreviousData, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import * as api from '@/lib/api-client';
@@ -170,10 +172,12 @@ export function useEcosystemPosts(ecosystemId: string, enabled = true) {
 }
 /** The ecosystems where the caller is an exchange steward (the server's own list from the moderation route). */
 export function useModeratedEcosystems() {
+  const { member } = useAuth();
   const params = { per_page: '1' };
   return useQuery({
     queryKey: keys.sharesNeeds.moderation(params),
     queryFn: () => api.fetchSharesNeedsModeration(params),
+    enabled: memberQueriesEnabled(member),
     select: (page) => page.moderated_ecosystems,
     staleTime: 60_000,
   });

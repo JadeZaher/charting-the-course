@@ -3,7 +3,7 @@ import type { QueryKey } from '@tanstack/react-query';
 import { resolveInternalPath } from './internal-path';
 import { affects, keys, onboardingAffects } from './query-keys';
 
-export type ToolStatus = 'running' | 'success' | 'error' | 'needs_confirmation';
+export type ToolStatus = 'running' | 'success' | 'error' | 'needs_confirmation' | 'unknown';
 
 /** The fields of a `tool_result` SSE event the drawer reads. */
 export interface ToolResultEvent {
@@ -31,7 +31,20 @@ export const TOOL_STATUS_TEXT: Record<ToolStatus, string> = {
   success: 'done',
   error: "didn't go through",
   needs_confirmation: 'waiting for your OK',
+  unknown: 'check the record',
 };
+
+/** A stopped response cannot prove whether an unfinished action wrote anything. */
+export function settleChatResponse<T extends { role: 'user' | 'assistant'; content: string; isStreaming?: boolean; tools?: readonly ToolChip[] }>(messages: readonly T[]): T[] {
+  const updated = [...messages];
+  const last = updated[updated.length - 1];
+  if (last?.role !== 'assistant') return updated;
+  const tools = last.tools?.map((tool): ToolChip => tool.status === 'running'
+    ? { ...tool, status: 'unknown', error: 'The reply stopped before this result arrived. Check the record before trying again.' } : tool);
+  updated[updated.length - 1] = { ...last, isStreaming: false, tools,
+    content: last.content || (tools?.length ? 'Check the action results above.' : 'No reply arrived. Try again.') };
+  return updated;
+}
 
 /** What the member sends from the confirmation card. */
 export const CONFIRM_REPLY = 'Yes, go ahead.';
@@ -116,6 +129,7 @@ const RECORD_AFFECTS: Record<RecordCollection, readonly QueryKey[]> = {
 };
 
 const TOOL_AFFECTS: Readonly<Record<string, readonly QueryKey[]>> = {
+  node_support_prepare_proposal: affects.proposals,
   create_proposal: affects.proposals, record_advice: affects.proposals, record_consent_position: affects.proposals,
   withdraw_consent_position: affects.proposals, update_proposal_status: affects.proposals, submit_test_report: affects.proposals,
   create_agreement_draft: affects.agreements, update_agreement_status: affects.agreements,

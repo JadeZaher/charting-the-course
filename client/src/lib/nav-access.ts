@@ -1,10 +1,13 @@
 // Link and route gating: a destination's links and its route ask one rule; see client/src/AGENTS.md §App shell.
 import { isStewardIn, type MembershipRow } from './ecosystem-join';
+import { readNodeAdmin } from './node-admin';
+export { readNodeAdmin };
 
 /** The gate of the page a link opens: `quiz-steward` = who the server lets write quizzes; `admin-panel` = AdminPanel's own check. */
 export type NavAccess = 'quiz-steward' | 'admin-panel';
 
 export interface NavPermissions {
+  isNodeAdmin: boolean;
   /** The server's platform-admin flag (G-Authority); never derived from a member profile. */
   isPlatformAdmin: boolean;
   /** A steward (the server's rule, `isStewardIn`) of an ecosystem in the header selection. */
@@ -14,10 +17,11 @@ export interface NavPermissions {
 /** The sidebar's permissions from /auth/me: the platform-admin flag and the per-ecosystem steward rule over the selection. */
 export function navPermissionsFor(input: {
   isPlatformAdmin: boolean;
+  isNodeAdmin?: boolean;
   selectedIds: readonly string[];
   memberships: readonly MembershipRow[];
 }): NavPermissions {
-  return { isPlatformAdmin: input.isPlatformAdmin, stewardsSelection: showsNewcomers(input.selectedIds, input.memberships) };
+  return { isPlatformAdmin: input.isPlatformAdmin, isNodeAdmin: input.isNodeAdmin === true, stewardsSelection: showsNewcomers(input.selectedIds, input.memberships) };
 }
 
 /** Quiz authoring as the server allows it (api/quizzes.py `quiz_steward_or_error`): a steward of the quiz's ecosystem, or a
@@ -26,9 +30,9 @@ export function canManageQuizzes(permissions: NavPermissions): boolean {
   return permissions.isPlatformAdmin || permissions.stewardsSelection;
 }
 
-/** AdminPanel's gate, which also decides the Administration group: platform admins only. */
-export function canOpenAdminPanel(permissions: Pick<NavPermissions, 'isPlatformAdmin'>): boolean {
-  return permissions.isPlatformAdmin;
+/** Node support gate; organization profiles and compatibility flags confer no access. */
+export function canOpenAdminPanel(permissions: Pick<NavPermissions, 'isNodeAdmin'>): boolean {
+  return permissions.isNodeAdmin;
 }
 
 /** Whether a page gated by `access` admits this member; its links and its route both ask this, so they never disagree. */
@@ -45,6 +49,7 @@ export function visibleNavItems<T extends { access: NavAccess }>(items: readonly
  * restored (it starts empty), so a steward's hard load never flashes Access Denied; see client/src/AGENTS.md "Pass 03 fixes". */
 export function routeAccess(access: NavAccess, permissions: NavPermissions, selectionRestored: boolean): 'allow' | 'wait' | 'deny' {
   if (admits(access, permissions)) return 'allow';
+  if (access === 'admin-panel') return 'deny';
   return selectionRestored ? 'deny' : 'wait';
 }
 

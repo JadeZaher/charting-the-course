@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type MutableRefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,8 +16,11 @@ import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
 import { useConversations, useConversation, useConversationTitle, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
+import { chatRouteLabel } from '@/lib/chat-routing';
 import { CONFIRM_REPLY, DECLINE_REPLY, TOOL_STATUS_TEXT, pendingConfirmation } from '@/lib/chat-tools';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSupportChat } from '@/contexts/SupportChatContext';
+import { mayRestoreSupportScope } from '@/lib/support-chat';
 import { useEcosystem } from '@/contexts/EcosystemContext';
 import { usePageContext } from '@/contexts/PageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -49,11 +52,40 @@ import {
 } from 'lucide-react';
 
 type Tab = 'messaging' | 'chat';
+type ChatPrivacy = 'private' | 'ecosystem' | 'public';
+type ChatOperationOwner = { generation: number; privacyRequest: number; historyRequest: number; sessionId: string | null; historyPending: boolean };
 
 export function FloatingComms() {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('messaging');
+  const chat = useSSEChat();
+  const support = useSupportChat();
+  const { isNodeAdmin, user, member } = useAuth();
+  const priorChatOwner = useRef(user?.id);
+  const supportLaunch = useRef(support.launchVersion);
+  const priorNodeAdmin = useRef(isNodeAdmin);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatPrivacy, setChatPrivacy] = useState<ChatPrivacy>('private');
+  const [chatShareToken, setChatShareToken] = useState<string | null>(null);
+  const chatOperationOwner = useRef<ChatOperationOwner>({ generation: 0, privacyRequest: 0, historyRequest: 0, sessionId: null, historyPending: false });
+  chatOperationOwner.current.sessionId = chat.sessionId;
+  useEffect(() => () => { chatOperationOwner.current.generation++; }, []);
+  useEffect(() => {
+    const requested = supportLaunch.current !== support.launchVersion;
+    const revoked = priorNodeAdmin.current && !isNodeAdmin;
+    const ownerChanged = priorChatOwner.current !== user?.id;
+    priorChatOwner.current = user?.id;
+    supportLaunch.current = support.launchVersion;
+    priorNodeAdmin.current = isNodeAdmin;
+    if (!requested && !revoked && !ownerChanged) return;
+    chatOperationOwner.current.generation++;
+    chatOperationOwner.current.historyPending = false;
+    chatOperationOwner.current.sessionId = null;
+    chat.clearMessages();
+    setChatDraft(''); setChatPrivacy('private'); setChatShareToken(null);
+    if (requested) { setActiveTab('chat'); setOpen(true); }
+  }, [support.launchVersion, isNodeAdmin, user?.id, chat.clearMessages]);
   const isMobile = useIsMobile();
 
   const { data: convData } = useConversations();
@@ -79,6 +111,7 @@ export function FloatingComms() {
   const [location] = useLocation();
   const previousLocationRef = useRef(location);
   useEffect(() => {
+    if (location.startsWith('/messaging')) setActiveTab('chat');
     if (previousLocationRef.current === location) return;
     previousLocationRef.current = location;
     wasOpenRef.current = false;
@@ -86,8 +119,8 @@ export function FloatingComms() {
     setExpanded(false);
   }, [location]);
 
-  // Hide on the messaging page where full messaging + agent are available
-  if (location.startsWith('/messaging')) return null;
+  const messagingPage = location.startsWith('/messaging');
+  const visibleTab = messagingPage || !member?.id ? 'chat' : activeTab;
 
   return (
     <div className={cn('fixed z-50 flex flex-col items-end gap-3', isMobile ? 'bottom-4 right-4' : 'bottom-6 right-6')}>
@@ -103,22 +136,22 @@ export function FloatingComms() {
             if (event.key === 'Escape' && panelRef.current?.contains(event.target as Node)) closePanel();
           }}
           className={cn(
-            'border-2 border-strong-border bg-background flex flex-col overflow-hidden transition-[width,height] duration-200 motion-reduce:transition-none',
+            'max-h-[calc(100dvh-6rem)] border-2 border-strong-border bg-background flex flex-col overflow-hidden transition-[width,height] duration-200 motion-reduce:transition-none',
             expanded
-              ? isMobile ? 'w-screen h-[85vh]' : 'w-[85vw] h-[85vh] max-w-[1200px]'
-              : isMobile ? 'w-[calc(100vw-1.5rem)] h-[70vh]' : 'w-[420px] h-[560px]'
+              ? isMobile ? 'w-[calc(100vw-2rem)] h-[85vh]' : 'w-[85vw] h-[85vh] max-w-[1200px]'
+              : isMobile ? 'w-[calc(100vw-2rem)] h-[70vh]' : 'w-[420px] h-[560px]'
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-primary text-primary-foreground flex-shrink-0">
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between gap-1 px-2 py-2.5 bg-primary text-primary-foreground flex-shrink-0">
+            <div className="flex min-w-0 items-center gap-1">
               {/* Tabs */}
-              <button
+              {!messagingPage && !!member?.id && <button
                 onClick={() => setActiveTab('messaging')}
-                aria-pressed={activeTab === 'messaging'}
+                aria-pressed={visibleTab === 'messaging'}
                 className={cn(
                   'flex min-h-11 items-center gap-1.5 border border-primary-foreground/40 px-3 py-1.5 text-sm font-bold transition-colors motion-reduce:transition-none',
-                  activeTab === 'messaging'
+                  visibleTab === 'messaging'
                     ? 'bg-primary-foreground/20'
                     : 'hover:bg-primary-foreground/10'
                 )}
@@ -130,13 +163,13 @@ export function FloatingComms() {
                     {totalUnread}
                   </Badge>
                 )}
-              </button>
+              </button>}
               <button
                 onClick={() => setActiveTab('chat')}
-                aria-pressed={activeTab === 'chat'}
+                aria-pressed={visibleTab === 'chat'}
                 className={cn(
                   'flex min-h-11 items-center gap-1.5 border border-primary-foreground/40 px-3 py-1.5 text-sm font-bold transition-colors motion-reduce:transition-none',
-                  activeTab === 'chat'
+                  visibleTab === 'chat'
                     ? 'bg-primary-foreground/20'
                     : 'hover:bg-primary-foreground/10'
                 )}
@@ -145,7 +178,7 @@ export function FloatingComms() {
                 AI Chat
               </button>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-shrink-0 items-center gap-1">
               <button
                 onClick={() => setExpanded(e => !e)}
                 className="min-h-11 min-w-11 p-1.5 hover:bg-primary-foreground/10 transition-colors"
@@ -165,7 +198,11 @@ export function FloatingComms() {
 
           {/* Content */}
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'messaging' ? <MessagingTab expanded={expanded} /> : <ChatTab expanded={expanded} />}
+            {visibleTab === 'messaging' ? <MessagingTab expanded={expanded} /> : (
+              <ChatTab expanded={expanded} chat={chat} input={chatDraft} setInput={setChatDraft}
+                privacy={chatPrivacy} setPrivacy={setChatPrivacy} shareToken={chatShareToken} setShareToken={setChatShareToken}
+                operationOwner={chatOperationOwner} />
+            )}
           </div>
         </div>
       )}
@@ -183,8 +220,8 @@ export function FloatingComms() {
           <X className="h-5 w-5" />
         ) : (
           <div className="relative">
-            <MessageSquare className="h-5 w-5" />
-            {totalUnread > 0 && (
+            {messagingPage ? <Bot className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
+            {!messagingPage && totalUnread > 0 && (
               <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center border border-background bg-destructive px-0.5 text-[10px] font-bold text-destructive-foreground">
                 {totalUnread > 9 ? '9+' : totalUnread}
               </span>
@@ -540,19 +577,29 @@ function ConversationLoadError() {
 
 /* ─── Chat Tab (AI Governance Agent) ─────────────────────────────────── */
 
-type ChatPrivacy = 'private' | 'ecosystem' | 'public';
+interface ChatTabProps {
+  expanded: boolean;
+  chat: ReturnType<typeof useSSEChat>;
+  input: string;
+  setInput: (value: string) => void;
+  privacy: ChatPrivacy;
+  setPrivacy: (value: ChatPrivacy) => void;
+  shareToken: string | null;
+  setShareToken: (value: string | null) => void;
+  operationOwner: MutableRefObject<ChatOperationOwner>;
+}
 
-function ChatTab({ expanded }: { expanded: boolean }) {
-  const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages, loadSession, sessionId } = useSSEChat();
+function ChatTab({ expanded, chat, input, setInput, privacy, setPrivacy, shareToken, setShareToken, operationOwner }: ChatTabProps) {
+  const { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages: clearChat, loadSession, sessionId, activeRoute, limitReached, maxMessages } = chat;
   const { selected: ecosystem, isAll, isMulti, selectedIds, ecosystems } = useEcosystem();
   const { getAISummary } = usePageContext();
-  const { member } = useAuth();
-  const [input, setInput] = useState('');
+  const { member, isNodeAdmin } = useAuth();
+  const support = useSupportChat();
   const [showSessions, setShowSessions] = useState(false);
-  const [privacy, setPrivacy] = useState<ChatPrivacy>('private');
-  const [shareToken, setShareToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const sessionsParams = { limit: 20 };
   const { data: sessionsData } = useQuery({
@@ -566,10 +613,27 @@ function ChatTab({ expanded }: { expanded: boolean }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const clearMessages = () => {
+    operationOwner.current.generation++;
+    operationOwner.current.sessionId = null;
+    operationOwner.current.historyPending = false;
+    clearChat();
+    setPrivacy('private');
+    setShareToken(null);
+    setActionError(null);
+    setCopied(false);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const sendText = (text: string) => {
-    if (!text.trim() || isStreaming) return;
+    if (!text.trim() || isStreaming || limitReached) return;
+    if (operationOwner.current.historyPending) {
+      operationOwner.current.historyRequest++;
+      operationOwner.current.historyPending = false;
+    }
     sendMessage(text, {
-      selectedEcosystemIds: selectedIds,
+      selectedEcosystemIds: support.context ? [support.context.organization_id] : selectedIds,
+      supportContext: support.context,
       pageContextSummary: getAISummary(),
       member: member ? { id: member.id, display_name: member.display_name } : undefined,
       ecosystemName: ecosystem?.name,
@@ -577,7 +641,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
   };
 
   const handleSend = () => {
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim() || isStreaming || limitReached) return;
     sendText(input);
     setInput('');
   };
@@ -587,21 +651,32 @@ function ChatTab({ expanded }: { expanded: boolean }) {
 
   const cyclePrivacy = async () => {
     if (!sessionId) return;
+    const generation = operationOwner.current.generation;
+    const request = ++operationOwner.current.privacyRequest;
+    const ownsRequest = () => operationOwner.current.generation === generation
+      && operationOwner.current.sessionId === sessionId && operationOwner.current.privacyRequest === request;
+    setActionError(null);
     const cycle: ChatPrivacy[] = ['private', 'ecosystem', 'public'];
     const next = cycle[(cycle.indexOf(privacy) + 1) % cycle.length];
     try {
       const res = await updateChatSessionPrivacy(sessionId, next);
+      if (!ownsRequest()) return;
       setPrivacy(res.privacy as ChatPrivacy);
       setShareToken(res.share_token);
-    } catch { /* ignore */ }
+    } catch { if (ownsRequest()) setActionError('Could not change who can see this conversation. Try again.'); }
   };
 
   const handleShare = async () => {
     if (!shareToken) return;
-    const url = `${window.location.origin}/chat/shared/${shareToken}`;
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const generation = operationOwner.current.generation;
+    const ownsRequest = () => operationOwner.current.generation === generation && operationOwner.current.sessionId === sessionId;
+    try {
+      const url = `${window.location.origin}/chat/shared/${shareToken}`;
+      await navigator.clipboard.writeText(url);
+      if (!ownsRequest()) return;
+      setCopied(true);
+      setTimeout(() => { if (ownsRequest()) setCopied(false); }, 2000);
+    } catch { if (ownsRequest()) setActionError('Could not copy the conversation link. Try again.'); }
   };
 
   if (showSessions) {
@@ -610,12 +685,12 @@ function ChatTab({ expanded }: { expanded: boolean }) {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowSessions(false)} className="rounded-[2px] border-2 border-strong-border p-1 transition-colors hover:bg-muted" aria-label="Back to chat">
+            <button onClick={() => { operationOwner.current.historyRequest++; operationOwner.current.historyPending = false; setShowSessions(false); }} className="rounded-[2px] border-2 border-strong-border p-1 transition-colors hover:bg-muted" aria-label="Back to chat">
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
             <span className="text-sm font-semibold">Chat History</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => { clearMessages(); setShowSessions(false); }} className="h-7 px-2 text-xs">
+          <Button variant="ghost" size="sm" onClick={() => { clearMessages(); setShowSessions(false); }} disabled={isStreaming} className="h-7 px-2 text-xs">
             <Plus className="h-3 w-3 mr-1" /> New
           </Button>
         </div>
@@ -630,20 +705,41 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                   sessionId === s.id ? 'bg-primary/10' : ''
                 }`}
                 onClick={async () => {
+                  const generation = operationOwner.current.generation;
+                  const request = ++operationOwner.current.historyRequest;
+                  const ownsRequest = () => operationOwner.current.generation === generation && operationOwner.current.historyRequest === request;
+                  operationOwner.current.historyPending = true;
+                  setActionError(null);
                   try {
                     const detail = await fetchChatSession(s.id);
+                    if (!ownsRequest()) return;
+                    if (!mayRestoreSupportScope(detail.support_context, isNodeAdmin)) throw new Error('Node support authority is required for this session.');
+                    support.restore(detail.support_context);
                     const msgs = detail.messages.map((m: any) => ({
                       role: m.role as 'user' | 'assistant',
                       content: m.content,
                     }));
+                    operationOwner.current.historyPending = false;
+                    operationOwner.current.generation++;
                     loadSession(s.id, msgs, detail.skill);
+                    operationOwner.current.sessionId = s.id;
+                    setPrivacy(detail.privacy === 'public' || detail.privacy === 'ecosystem' ? detail.privacy : 'private');
+                    setShareToken(detail.share_token);
+                    setCopied(false);
+                    setActionError(null);
                     setShowSessions(false);
-                  } catch { /* ignore */ }
+                  } catch {
+                    if (ownsRequest()) {
+                      operationOwner.current.historyPending = false;
+                      setActionError('Could not load this conversation. Try again.');
+                    }
+                  }
                 }}
               >
                 <p className="text-xs font-medium truncate">{s.title || 'Untitled session'}</p>
                 <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
                   <span>{s.message_count} messages</span>
+                  {s.support_context && <span>Node support</span>}
                   {s.created_at && (
                     <span>{new Date(s.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                   )}
@@ -652,6 +748,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
             ))
           )}
         </ScrollArea>
+        {actionError && <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">{actionError}</p>}
       </div>
     );
   }
@@ -659,37 +756,43 @@ function ChatTab({ expanded }: { expanded: boolean }) {
   return (
     <div className="flex flex-col h-full">
       {/* Sub-header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Bot className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Governance Agent</span>
           <Badge variant="outline" className="text-[10px] h-5">
             <Building2 className="h-2.5 w-2.5 mr-0.5" />
-            {isAll ? 'All' : isMulti ? `${selectedIds.length} ecosystems` : ecosystem?.name ?? 'Ecosystem'}
+            {support.context ? 'Node support' : isAll ? 'All' : isMulti ? `${selectedIds.length} ecosystems` : ecosystem?.name ?? 'Ecosystem'}
           </Badge>
         </div>
         <div className="flex items-center gap-0.5">
-          {sessionId && (
+          {sessionId && !support.context && (
             <>
-              <Button variant="ghost" size="sm" onClick={cyclePrivacy} className="h-7 px-1.5 text-xs" title={`Privacy: ${privacy}`}>
+              <Button variant="ghost" size="sm" onClick={cyclePrivacy} className="h-7 px-1.5 text-xs" title={`Privacy: ${privacy}`} aria-label={`Conversation visibility: ${privacy}`}>
                 {privacy === 'private' ? <Lock className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
               </Button>
               {privacy !== 'private' && shareToken && (
-                <Button variant="ghost" size="sm" onClick={handleShare} className="h-7 px-1.5 text-xs" title="Copy share link">
+                <Button variant="ghost" size="sm" onClick={handleShare} className="h-7 px-1.5 text-xs" title="Copy share link" aria-label="Copy share link">
                   {copied ? <Check className="h-3 w-3 text-success" /> : <Share2 className="h-3 w-3" />}
                 </Button>
               )}
             </>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setShowSessions(true)} className="h-7 px-2 text-xs" title="Chat history">
+          <Button variant="ghost" size="sm" onClick={() => setShowSessions(true)} className="h-7 px-2 text-xs" title="Chat history" aria-label="Chat history" disabled={isStreaming}>
             <History className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={clearMessages} disabled={messages.length === 0} className="h-7 px-2 text-xs">
+          <Button variant="ghost" size="sm" onClick={clearMessages} disabled={messages.length === 0 || isStreaming} className="h-7 px-2 text-xs">
             <Trash2 className="h-3 w-3 mr-1" /> Clear
           </Button>
         </div>
       </div>
 
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {isStreaming ? activeRoute ? chatRouteLabel(activeRoute) : 'Choosing how to help.'
+          : [...messages].reverse().find(message => message.role === 'assistant' && message.content)?.content.slice(0, 800) ?? ''}
+      </div>
+
+      {support.context && <div className="border-b p-3 space-y-2 text-xs" role="status"><p className="font-bold break-all">Node admin support for organization {support.context.organization_id}</p><p className="whitespace-pre-wrap break-words">Public reason category: {support.context.reason}</p><p>Support actions are public. Member consent is never impersonated.</p><Button variant="outline" size="sm" disabled={isStreaming} onClick={() => support.leave()}>Leave support mode and start member chat</Button></div>}
       {/* Messages */}
       <ScrollArea className="flex-1 px-3 py-2">
         <div className="space-y-3">
@@ -699,7 +802,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
               <Bot className="h-10 w-10 mx-auto mb-3 opacity-20" />
               <p className="text-sm font-medium">NEOS Governance Agent</p>
               <p className="text-xs mt-1 max-w-xs mx-auto">
-                Ask what a page means or how a decision works. It acts only for you, and asks before anything that cannot be undone.
+                Ask about the platform or how a decision works. Ask it to act for you. It will ask for your OK when needed.
               </p>
               <div className="flex flex-wrap justify-center gap-1.5 mt-4">
                 {['Explain this page', 'How does consent work?', 'Put forward a proposal', 'Report a conflict'].map(s => (
@@ -720,11 +823,10 @@ function ChatTab({ expanded }: { expanded: boolean }) {
           {/* Messages */}
           {messages.map((msg, i) => (
             <div key={i}>
-              {msg.skill && (
-                <div className="my-2 flex items-center justify-center gap-1.5 border-y border-border bg-primary/5 py-1.5 text-xs">
+              {(msg.routing || msg.skill) && (
+                <div className="my-2 flex items-center justify-center gap-1.5 border-y border-border bg-primary/5 px-2 py-1.5 text-xs" data-testid="agent-reply-mode">
                   <ArrowRight className="h-3 w-3 text-primary" />
-                  <span className="text-muted-foreground">Skill:</span>
-                  <span className="font-semibold text-primary">{msg.skill}</span>
+                  <span className="font-semibold text-primary">{chatRouteLabel(msg.routing ?? { mode: 'skill', skill: msg.skill!, source: 'manual' })}</span>
                 </div>
               )}
 
@@ -746,8 +848,9 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                       {msg.tools.map((tool, ti) => (
                         <div
                           key={ti}
-                          className="flex items-center gap-1.5 rounded-r-sm border-l-2 border-primary bg-muted/50 px-2 py-1 text-[10px]"
+                          className="rounded-r-sm border-l-2 border-primary bg-muted/50 px-2 py-1 text-[10px]"
                         >
+                          <div className="flex flex-wrap items-center gap-1.5">
                           <Wrench className="h-2.5 w-2.5 text-muted-foreground" aria-hidden="true" />
                           <span>{tool.label ?? tool.name.replace(/_/g, ' ')}</span>
                           <Badge
@@ -761,6 +864,10 @@ function ChatTab({ expanded }: { expanded: boolean }) {
                           >
                             {TOOL_STATUS_TEXT[tool.status]}
                           </Badge>
+                          </div>
+                          {(tool.status === 'error' || tool.status === 'unknown') && tool.error && (
+                            <p role="status" className={cn('mt-1 text-xs', tool.status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>{tool.error}</p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -839,13 +946,13 @@ function ChatTab({ expanded }: { expanded: boolean }) {
           ))}
           {confirmation && !isStreaming && (
             <div role="group" aria-label="Confirm this action" className="ml-8 space-y-2 border-2 border-strong-border bg-background px-3 py-2">
-              <p className="text-xs font-semibold">This cannot be undone</p>
-              <p className="text-xs">{confirmation}</p>
+              <p className="text-xs font-semibold">Confirm this action</p>
+              <p id="agent-confirmation-description" className="text-xs">{confirmation}</p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" className="h-9 px-3 text-xs" onClick={() => sendText(CONFIRM_REPLY)}>
+                <Button size="sm" className="h-9 px-3 text-xs" disabled={limitReached} aria-describedby="agent-confirmation-description" onClick={() => sendText(CONFIRM_REPLY)}>
                   Yes, go ahead
                 </Button>
-                <Button size="sm" variant="outline" className="h-9 px-3 text-xs" onClick={() => sendText(DECLINE_REPLY)}>
+                <Button size="sm" variant="outline" className="h-9 px-3 text-xs" disabled={limitReached} aria-describedby="agent-confirmation-description" onClick={() => sendText(DECLINE_REPLY)}>
                   No, cancel
                 </Button>
               </div>
@@ -856,16 +963,23 @@ function ChatTab({ expanded }: { expanded: boolean }) {
       </ScrollArea>
 
       {/* Error */}
-      {error && (
-        <div className="px-3 py-1.5 bg-destructive/10 text-destructive text-xs border-t">
-          {error}
+      {(error || actionError) && (
+        <div role="alert" className="px-3 py-1.5 bg-destructive/10 text-destructive text-xs border-t">
+          {error || actionError}
         </div>
       )}
 
       {/* Input */}
       <div className="p-2.5 border-t">
+        {limitReached && (
+          <div className="mb-2 space-y-2 text-xs" role="status">
+            <p>This conversation has reached {maxMessages} messages. Start a new conversation to continue.</p>
+            <Button variant="outline" size="sm" onClick={clearMessages} disabled={isStreaming}>Start a new conversation</Button>
+          </div>
+        )}
         <div className="flex gap-2">
           <Textarea
+            ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
@@ -884,7 +998,7 @@ function ChatTab({ expanded }: { expanded: boolean }) {
               <Square className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           ) : (
-            <Button size="sm" onClick={handleSend} disabled={!input.trim()} className="self-end h-8 px-2.5" aria-label="Send message">
+            <Button size="sm" onClick={handleSend} disabled={!input.trim() || limitReached} className="self-end h-8 px-2.5" aria-label="Send message">
               <Send className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           )}

@@ -28,7 +28,7 @@ test('each member sees only the links whose page admits them', () => {
     ['platform admin', true, ['omni'], [townhall], ['Manage Quizzes', 'Manage Shares & Needs'], true],
   ];
   for (const [who, isPlatformAdmin, selectedIds, memberships, titles, adminPanel] of cases) {
-    const permissions = navPermissionsFor({ isPlatformAdmin, selectedIds, memberships });
+    const permissions = navPermissionsFor({ isPlatformAdmin, isNodeAdmin: isPlatformAdmin, selectedIds, memberships });
     assert.deepEqual(visibleNavItems(links, permissions).map((link) => link.title), titles, who);
     assert.equal(canOpenAdminPanel(permissions), adminPanel, who);
   }
@@ -49,7 +49,7 @@ test('Manage Quizzes and the /quiz/manage route admit the same members', () => {
     ['platform admin', true, ['omni'], [signUp], true],
   ];
   for (const [who, isPlatformAdmin, selectedIds, memberships, admitted] of cases) {
-    const permissions = navPermissionsFor({ isPlatformAdmin, selectedIds, memberships });
+    const permissions = navPermissionsFor({ isPlatformAdmin, isNodeAdmin: isPlatformAdmin, selectedIds, memberships });
     const linkShown = visibleNavItems(links, permissions).some((link) => link.title === 'Manage Quizzes');
     assert.equal(linkShown, admitted, `${who}: link`);
     assert.equal(routeAccess('quiz-steward', permissions, true), admitted ? 'allow' : 'deny', `${who}: route`);
@@ -108,4 +108,14 @@ test('Newcomers shows only to a steward of a selected ecosystem', () => {
   for (const [who, selected, rows, expected] of cases) {
     assert.equal(showsNewcomers(selected, rows), expected, who);
   }
+});
+
+
+test('node administration ignores legacy platform flags and organization selection', () => {
+  const legacy = navPermissionsFor({ isPlatformAdmin: true, selectedIds: [], memberships: [] });
+  assert.equal(routeAccess('admin-panel', legacy, true), 'deny');
+  assert.equal(routeAccess('admin-panel', legacy, false), 'deny');
+  const node = navPermissionsFor({ isPlatformAdmin: false, isNodeAdmin: true, selectedIds: [], memberships: [] });
+  assert.equal(routeAccess('admin-panel', node, false), 'allow');
+  assert.equal(canOpenAdminPanel(node), true);
 });

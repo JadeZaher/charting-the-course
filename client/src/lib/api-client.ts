@@ -399,6 +399,7 @@ export async function fetchMemberTags(memberId: string): Promise<{ tags: UserTag
 
 // Chat Sessions API
 export interface ChatSessionItem {
+  support_context?: import('./support-chat').SupportChatScope | null;
   id: string;
   title: string | null;
   skill: string | null;
@@ -408,6 +409,7 @@ export interface ChatSessionItem {
 }
 
 export interface ChatSessionDetail {
+  support_context?: import('./support-chat').SupportChatScope | null;
   id: string;
   title: string | null;
   skill: string | null;

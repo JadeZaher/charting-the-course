@@ -1,3 +1,5 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { memberQueriesEnabled } from '@/lib/member-queries';
 // Conflict, repair and audit queries and mutations; pages/governance/{conflicts,safeguards} read from here.
 // Forms and modals render their failures inline (silent), like the rest of the governance hooks.
 import { useQuery } from '@tanstack/react-query';
@@ -41,7 +43,8 @@ export function useRecordRepairCheckin(conflictId: string) {
 }
 
 export function useSafeguards() {
-  return useQuery({ queryKey: keys.safeguards.overview(), queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
+  const { member } = useAuth();
+  return useQuery({ enabled: memberQueriesEnabled(member), queryKey: keys.safeguards.overview(), queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
 }
 export function useAudits(params?: Record<string, string>) {
   return useQuery({ queryKey: keys.audits.list(params), queryFn: () => api.fetchAudits(params), staleTime: 30_000 });

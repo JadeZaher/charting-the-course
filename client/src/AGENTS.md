@@ -128,6 +128,40 @@ conversation query links count as record links. Failed, read-only (including
 agreement consent also refreshes `AuthContext`, so membership, navigation and the consent gate update
 without reloading. Tests exercise invalidation through a real `QueryClient` and reject external links.
 
+The stable `FloatingComms` owner holds the assistant transcript, session, routing state, draft and
+conversation visibility; closing the drawer, switching its tabs and following an internal link do not
+create a new conversation or discard an unsent draft. The Messaging page retains the agent launcher
+and shows only its agent tab, since the page already supplies human conversations. No transcript is
+copied into browser storage. Loading a saved session also restores its server-reported visibility.
+The stable owner tracks conversation generation, privacy requests and history selections separately.
+Clear/New or a committed history switch invalidates older session callbacks; a newer selection, Back,
+or continuing the current chat invalidates pending history only. Closing or switching tabs preserves
+legitimate requests. Privacy/share metadata commits with its session, and stale copy completion cannot
+announce success for a different conversation. The deterministic regression releases delayed privacy
+and history responses after each kind of switch, including close/reopen followed by continuing chat.
+
+`skill_route` is the canonical per-turn routing event: a guided skill, platform help, governance guide
+or general help. A null skill clears the old hint. The client sends `active_skill` only as prior context;
+`requested_skill` is reserved for an explicit manual choice and defaults to null. Friendly labels belong
+to the reply, and a terminal transition reads "Process complete." `lib/chat-routing.ts` validates this
+contract. Raw routing metadata and unknown event payloads never become assistant prose.
+
+`lib/chat-stream.ts` frames SSE across arbitrary chunks, CRLF/LF, empty data and the final unclosed
+frame; the decoder flush preserves split UTF-8 characters. Each request owns its stream, so an aborted
+or replaced response cannot append to the next conversation. A dropped result keeps known successes
+and marks unfinished tools "check the record" rather than claiming they failed or succeeded. An empty
+reply offers a readable retry action. Refusal
+details and the server's exact confirmation consequence stay visible. Confirmations use a neutral
+heading because some confirmed actions are reversible. Errors are announced; completed replies are
+announced politely without announcing every streamed token.
+
+At the 20-user-message cap, Send and confirmation shortcuts stop and "Start a new conversation"
+preserves the unsent next question. Expanded mobile width accounts for its viewport inset. Parser,
+routing and action-result helpers have pure tests; `uxqa/regression/p4-agent-routing-continuity.mjs`
+uses mocked SSE to check actual drawer state, navigation, routing labels, cap recovery and 390px
+geometry. That deterministic UI probe makes no model calls or governance writes and is separate from
+live persona journeys and the operator evaluation.
+
 ## Documentation and verification
 
 Keep source comments terse and local. Put design rationale and cross-component decisions in this file or `design_guidelines.md`.
@@ -372,3 +406,22 @@ Axe with node targets (1366 and 390 px; `/dashboard`, `/discover`, `/discover?ta
 - `list`: the viewport `<ol>` held Radix's `<li role="status">`, which is not a list item. `Toast` passes `role="listitem"`; the announcement comes from Radix's separate live region, so nothing is lost.
 - `aria-hidden-focus` (2 nodes): Radix Toast 1.2.7's `ToastFocusProxy` spans (`aria-hidden`, `tabindex="0"`) before and after the viewport, rendered only while a toast is up. A library limitation: the proxies hand focus into the viewport on arrival (`onFocusFromOutsideViewport`), so a keyboard user is not stranded, and the props cannot be overridden from outside. Recorded, not fixed.
 - The collaboration page's `definition-list` / `dlitem` (6 nodes) are fixed above. No other node was found on those pages.
+
+
+## Node administration and public support history
+
+`/admin` is the catalog-driven node support surface (`pages/node-admin/AGENTS.md`).
+`AuthContext.isNodeAdmin` reads only `/auth/me` `is_node_admin`; navigation and routes
+use that flag independently of ecosystem profiles and the legacy platform alias.
+Global user identity also authenticates a node admin with no memberships. Legacy
+`/admin/users` routes redirect to the audited surface. Public `/node/audit` and its
+receipt paths are available anonymously and while membership consent is pending.
+The public profile badge comes from the current server assignment, separate from
+achievement badges; proposal support provenance retains the real actor.
+
+`SupportChatContext` holds explicit, owner-scoped agent support mode. Starting,
+leaving or changing mode clears the transcript/session, draft and pending operation
+ownership before sending another message. Each support request includes the bound
+organization and public reason; the backend rechecks the assignment. Loading an
+owner history restores its validated context only for a current node admin.
+Support conversations do not offer public/ecosystem sharing controls.

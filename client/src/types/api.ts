@@ -71,7 +71,8 @@ export interface AuthVerifyResponse {
 }
 
 export interface AuthMeResponse {
-  member: MemberSummary;
+  user?: { id: string; display_name: string; username?: string | null };
+  member: MemberSummary | null;
   ecosystems: EcosystemSummary[];
   pending_consents?: PendingConsentGate[];
 }
@@ -293,6 +294,7 @@ export interface AgreementHistory {
 
 // Proposal types
 export interface ProposalListItem {
+  support_provenance?: import('./node-admin').SupportProvenance | null;
   id: string;
   proposal_id: string;
   ecosystem_id: string;
@@ -568,6 +570,7 @@ export interface PublicProfileQuizResult {
 }
 
 export interface PublicProfileResponse {
+  node_admin_badge?: import('./node-admin').NodeAdminBadgeValue | null;
   profile: {
     id: string;
     username: string | null;
@@ -1794,6 +1797,8 @@ export type MembershipRole = 'user' | 'mod' | 'admin' | 'owner';
 export interface AuthMeResponse {
   /** Co-creator/builder on the caller's home-ecosystem row (set server-side; never derived from a member profile). */
   is_platform_admin?: boolean;
+  is_node_admin?: boolean;
+  node_admin_badge?: import('./node-admin').NodeAdminBadgeValue | null;
 }
 
 export interface EcosystemSummary {

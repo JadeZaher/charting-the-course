@@ -1,3 +1,4 @@
+import { memberQueriesEnabled } from '@/lib/member-queries';
 // Governance queries and mutations on the shared key factory and feedback contract.
 // See client/src/AGENTS.md "Shared data and feedback contracts"; silent/toast choices: pages/governance/AGENTS.md "Data and feedback".
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -309,7 +310,8 @@ export function useUpdateEcosystem(id: string) {
 
 // Safeguards hooks
 export function useSafeguards() {
-  return useQuery({ queryKey: keys.safeguards.overview(), queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
+  const { member } = useAuth();
+  return useQuery({ enabled: memberQueriesEnabled(member), queryKey: keys.safeguards.overview(), queryFn: () => api.fetchSafeguards(), staleTime: 30_000 });
 }
 export function useAudits(params?: Record<string, string>) {
   return useQuery({ queryKey: keys.audits.list(params), queryFn: () => api.fetchAudits(params), staleTime: 30_000 });

@@ -14,6 +14,8 @@ export interface SignInOutcome {
 interface AuthContextType {
   /** The server's default row: the oldest active membership, else the oldest. */
   member: MemberSummary | null;
+  user: AuthMeResponse['user'] | null;
+  isNodeAdmin: boolean;
   /** Every membership, each with the caller's own `membership_status` and `role` there. */
   ecosystems: EcosystemSummary[];
   /** Memberships behind their ecosystem's agreement-consent gate (from /auth/me). */
@@ -38,6 +40,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const [user, setUser] = useState<AuthMeResponse['user'] | null>(null);
+  const [isNodeAdmin, setIsNodeAdmin] = useState(false);
   const [member, setMember] = useState<MemberSummary | null>(null);
   const [ecosystems, setEcosystems] = useState<EcosystemSummary[]>([]);
   const [pendingConsents, setPendingConsents] = useState<PendingConsentGate[]>([]);
@@ -60,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Store one /auth/me answer. */
   function applySession(data: AuthMeResponse) {
+    setUser(data.user ?? null);
+    setIsNodeAdmin(data.is_node_admin === true);
     setMember(data.member);
     setEcosystems(data.ecosystems);
     setPendingConsents(data.pending_consents ?? []);
@@ -67,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function clearSession() {
+    setUser(null);
+    setIsNodeAdmin(false);
     setMember(null);
     setEcosystems([]);
     setPendingConsents([]);
@@ -239,11 +247,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         member,
+        user,
+        isNodeAdmin,
         ecosystems,
         pendingConsents,
         isPlatformAdmin,
         oauthProviders,
-        isAuthenticated: !!member,
+        isAuthenticated: !!user?.id || !!member,
         isLoading,
         login,
         loginWithCredentials,

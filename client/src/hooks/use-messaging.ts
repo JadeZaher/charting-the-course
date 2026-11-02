@@ -3,18 +3,21 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api-client';
+import { memberQueriesEnabled } from '@/lib/member-queries';
 import { conversationTitle } from '@/lib/conversation-title';
 import { affects, keys } from '@/lib/query-keys';
 
 // REST hooks
 export function useConversations() {
-  return useQuery({ queryKey: keys.conversations.list(), queryFn: api.fetchConversations, refetchInterval: 30_000 });
+  const { member } = useAuth();
+  return useQuery({ enabled: memberQueriesEnabled(member), queryKey: keys.conversations.list(), queryFn: api.fetchConversations, refetchInterval: 30_000 });
 }
 
 /** Loading a conversation marks it read on the server, so each load refreshes the list's unread badges. */
 export function useConversation(id: string) {
+  const { member } = useAuth();
   const qc = useQueryClient();
-  const query = useQuery({ queryKey: keys.conversations.detail(id), queryFn: () => api.fetchConversation(id), enabled: !!id });
+  const query = useQuery({ queryKey: keys.conversations.detail(id), queryFn: () => api.fetchConversation(id), enabled: !!id && memberQueriesEnabled(member) });
   const { dataUpdatedAt } = query;
   useEffect(() => {
     if (!id || !dataUpdatedAt) return;
@@ -46,10 +49,11 @@ export function useCreateConversation({ silent = false }: { silent?: boolean } =
 }
 
 export function useConversationMessages(id: string, page = 1) {
+  const { member } = useAuth();
   return useQuery({
     queryKey: keys.conversations.messages(id, page),
     queryFn: () => api.fetchConversationMessages(id, page),
-    enabled: !!id,
+    enabled: !!id && memberQueriesEnabled(member),
   });
 }
 
@@ -62,15 +66,17 @@ export function useSendMessage(conversationId: string) {
 }
 
 export function useMessageSearch(q: string) {
+  const { member } = useAuth();
   return useQuery({
     queryKey: keys.conversations.search(q),
     queryFn: () => api.searchMessages(q),
-    enabled: q.length > 2,
+    enabled: q.length > 2 && memberQueriesEnabled(member),
   });
 }
 
 export function useMemberPicker() {
-  return useQuery({ queryKey: keys.members.picker(), queryFn: api.fetchMembersList });
+  const { member } = useAuth();
+  return useQuery({ enabled: memberQueriesEnabled(member), queryKey: keys.members.picker(), queryFn: api.fetchMembersList });
 }
 
 // WebSocket hook
@@ -82,6 +88,8 @@ interface WSMessage {
 }
 
 export function useWebSocket(path: string = '/messaging/ws') {
+  const { member } = useAuth();
+  const enabled = memberQueriesEnabled(member);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -90,6 +98,7 @@ export function useWebSocket(path: string = '/messaging/ws') {
   const qc = useQueryClient();
 
   const connect = useCallback(() => {
+    if (!enabled) return;
     // Close any existing connection before reconnecting
     if (wsRef.current) {
       wsRef.current.onclose = null;
@@ -132,7 +141,7 @@ export function useWebSocket(path: string = '/messaging/ws') {
     ws.onerror = () => ws.close();
 
     wsRef.current = ws;
-  }, [path, qc]);
+  }, [path, qc, enabled]);
 
   useEffect(() => {
     connect();

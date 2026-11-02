@@ -45,6 +45,7 @@ import {
   Flag, // FX-Exchange: Moderation
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
 import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -124,7 +125,7 @@ const facilitatorItems: { title: string; url: string; icon: any; access: NavAcce
   },
   {
     title: "Manage Shares & Needs",
-    url: "/admin#shares-needs",
+    url: "/admin",
     icon: Package,
     access: "admin-panel",
   },
@@ -132,12 +133,12 @@ const facilitatorItems: { title: string; url: string; icon: any; access: NavAcce
 
 const adminItems = [
   {
-    title: "Manage Users",
-    url: "/admin/users",
+    title: "Node admins",
+    url: "/admin/node-admins",
     icon: Users,
   },
   {
-    title: "Admin Panel",
+    title: "Node Administration",
     url: "/admin",
     icon: Settings,
   },
@@ -232,7 +233,7 @@ function CollapsibleGovernanceGroup({
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { member, logout } = useAuth();
+  const { member, user, isNodeAdmin, logout } = useAuth();
   const { canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
@@ -257,7 +258,7 @@ export function AppSidebar() {
   // The same list (and 30 s poll) as the drawer's launcher, so the link, the drawer and /messaging agree.
   const unreadMessages = (useConversations().data?.conversations ?? []).reduce((sum, conversation) => sum + conversation.unread_count, 0);
 
-  const displayName = member?.display_name || 'User';
+  const displayName = user?.display_name || member?.display_name || 'User';
 
   const handleLogout = async () => {
     try {
@@ -363,7 +364,7 @@ export function AppSidebar() {
           );
         })}
 
-        <SidebarGroup>
+        {member?.id && <SidebarGroup>
           <SidebarGroupLabel>Communication</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -385,7 +386,7 @@ export function AppSidebar() {
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup>}
 
         {/* FX-Exchange: shares-and-needs moderation for stewards of the selected ecosystem */}
         {showModeration && (
@@ -457,6 +458,7 @@ export function AppSidebar() {
 
       </SidebarContent>
 
+      <SidebarGroup><SidebarGroupContent><SidebarMenu><SidebarMenuItem><MenuItemWithTooltip item={{ title: "Public support history", url: "/node/audit", icon: ClipboardCheck }} isActive={location.startsWith("/node/audit")} isCollapsed={isCollapsed} /></SidebarMenuItem></SidebarMenu></SidebarGroupContent></SidebarGroup>
       <SidebarFooter className={`border-t-2 border-sidebar-border ${isCollapsed ? 'p-0.5' : 'p-4'}`}>
         {isCollapsed ? (
           <Tooltip>
@@ -485,6 +487,7 @@ export function AppSidebar() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
+              {isNodeAdmin && <NodeAdminBadge />}
               {member?.current_status === "pending_consent" ? (
                 <Link href={CONSENT_GATE_PATH} className="text-xs font-medium text-link underline underline-offset-2">
                   {memberStatusLabel(member.current_status)}

@@ -43,6 +43,8 @@ function resource<Root extends string, Extra extends object>(
 }
 
 export const keys = {
+  nodeAdmin: collection('node-admin'),
+  nodeAudit: collection('node-audit'),
   agreements: collection('agreements', (agreement) => ({
     history: (id: RecordId) => [...agreement.detail(id), 'history'] as const,
     /** G-Next: the status banner (GET /explain/agreement/:id), refreshed with its record. */
