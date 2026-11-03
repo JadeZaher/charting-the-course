@@ -1,7 +1,10 @@
 import { Link } from 'wouter';
+import { useState } from 'react';
+import { YourCommunities, RecentCommunityActivity } from '@/components/engagement/HomeConnections';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QueryState } from '@/components/QueryState';
 import { useAuth } from '@/contexts/AuthContext';
@@ -118,6 +121,7 @@ export default function Dashboard() {
   const summaryQuery = useDashboardSummary(ecosystemIds);
   // G-Next: the member's own queue in every ecosystem they are active in; the header bell reads the same list.
   const queueQuery = useMyNextSteps();
+  const [showAllNextSteps, setShowAllNextSteps] = useState(false);
   const healthEcosystems = useSafeguards().data?.ecosystems ?? [];
   const scopedEcosystem = selectedIds.length === 1 ? selected : null;
 
@@ -165,7 +169,7 @@ export default function Dashboard() {
     <div className="space-y-12">
       <header className="grid gap-8 border-b-2 border-strong-border pb-8 lg:grid-cols-12 lg:items-end">
         <div className="lg:col-span-8">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Control room / 01</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Your community home</p>
           <h1 className="mt-4 text-5xl font-black leading-[0.88] tracking-[-0.055em] sm:text-7xl">
             Good to see you, {displayName}.
           </h1>
@@ -173,7 +177,7 @@ export default function Dashboard() {
             <Badge variant="outline" className="rounded-none border-2 px-3 py-1 uppercase tracking-[0.12em]">
               {contextLabel}
             </Badge>
-            <p className="text-sm text-muted-foreground">Live governance, exchange, and orientation signals.</p>
+            <p className="text-sm text-muted-foreground">Stay connected, find your next contribution, and see what your communities are doing.</p>
           </div>
         </div>
 
@@ -203,6 +207,101 @@ export default function Dashboard() {
           </div>
         </aside>
       </header>
+
+      <YourCommunities />
+
+        <section aria-labelledby="attention-title" className="border-2 border-strong-border bg-card">
+          <div className="flex items-start justify-between gap-5 border-b-2 border-strong-border p-5 sm:p-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-warning">02 / Decision queue</p>
+              <h2 id="attention-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Needs your attention.</h2>
+            </div>
+            <span className="text-4xl font-black tabular-nums" aria-label={pendingActionCount === null ? 'Pending actions unavailable' : `${pendingActionCount} pending actions`}>
+              {pendingActionCount ?? '–'}
+            </span>
+          </div>
+
+          <QueryState
+            query={queueQuery}
+            loading={
+              <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
+                {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
+              </div>
+            }
+            errorTitle="The governance queue could not be loaded"
+            isEmpty={(queue) => queue.items.length === 0}
+            empty={
+              <div className="p-8 sm:p-10">
+                <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Nothing is waiting for you in any of your ecosystems.</p>
+              </div>
+            }
+          >
+            {(queue) => (
+              <>
+              {queue.items.length > 5 && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 sm:px-6">
+                <p className="text-sm text-muted-foreground" aria-live="polite">Showing {showAllNextSteps ? queue.items.length : 5} of {queue.items.length} next steps.</p>
+                <Button variant="outline" aria-expanded={showAllNextSteps} aria-controls="home-next-steps" onClick={() => setShowAllNextSteps(value => !value)}>
+                  {showAllNextSteps ? 'Show fewer' : `Show all ${queue.items.length} next steps`}
+                </Button>
+              </div>}
+              <ol id="home-next-steps" className="divide-y divide-border">
+                {/* G-Onboard: newcomer steps (consent to join, orientation, a stuck newcomer) first; sort is stable, so server order holds within each group. */}
+                {[...queue.items].sort((a, b) => Number(String(b.kind) === 'newcomer') - Number(String(a.kind) === 'newcomer')).slice(0, showAllNextSteps ? undefined : 5).map((item, index) => {
+                  const due = dueStatus(item.due, item.overdue, now, formatDue);
+                  return (
+                    <li key={item.uid}>
+                      <Link
+                        href={resolveInternalPath(item.link) ?? '/dashboard'}
+                        className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
+                      >
+                        <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <div>
+                          <p className="font-black leading-snug">{item.what}</p>
+                          <p className="mt-1 text-sm group-hover:text-background/90">{item.title}</p>
+                          <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">
+                            {item.why}
+                            {showEcosystem && item.ecosystem ? ` · ${item.ecosystem}` : ''}
+                          </p>
+                          {due && (
+                            <p className={`mt-1 text-xs ${due.overdue ? 'font-semibold text-destructive group-hover:text-background' : 'text-muted-foreground group-hover:text-background/75'}`}>
+                              {due.text}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={due?.overdue ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
+                          {nextStepKindLabel(item.kind)}
+                        </Badge>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
+              </>
+            )}
+          </QueryState>
+          {healthEcosystems.length > 0 && (
+            <ul aria-label="Governance health" className="divide-y divide-border border-t-2 border-strong-border">
+              {healthEcosystems.map((health) => (
+                <li key={health.ecosystem_id}>
+                  <Link
+                    href="/safeguards"
+                    className="flex min-h-11 flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-6"
+                  >
+                    <span className="font-semibold">Governance health{healthEcosystems.length > 1 ? ` · ${health.ecosystem}` : ''}</span>
+                    <span className={health.audit_overdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}>
+                      {auditDueText(health.audit_due, health.audit_overdue, formatDateOnly)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+      <RecentCommunityActivity />
 
       <section aria-labelledby="governance-pulse-title" className="space-y-5">
         <div className="flex items-end justify-between gap-5 border-b border-border pb-3">
@@ -236,90 +335,9 @@ export default function Dashboard() {
       </section>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <section aria-labelledby="attention-title" className="border-2 border-strong-border bg-card lg:col-span-7">
-          <div className="flex items-start justify-between gap-5 border-b-2 border-strong-border p-5 sm:p-6">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-warning">02 / Decision queue</p>
-              <h2 id="attention-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Needs your attention.</h2>
-            </div>
-            <span className="text-4xl font-black tabular-nums" aria-label={pendingActionCount === null ? 'Pending actions unavailable' : `${pendingActionCount} pending actions`}>
-              {pendingActionCount ?? '–'}
-            </span>
-          </div>
 
-          <QueryState
-            query={queueQuery}
-            loading={
-              <div className="space-y-1 p-5 sm:p-6" aria-label="Loading decision queue">
-                {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-20 rounded-none" />)}
-              </div>
-            }
-            errorTitle="The governance queue could not be loaded"
-            isEmpty={(queue) => queue.items.length === 0}
-            empty={
-              <div className="p-8 sm:p-10">
-                <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">Nothing is waiting for you in any of your ecosystems.</p>
-              </div>
-            }
-          >
-            {(queue) => (
-              <ol className="divide-y divide-border">
-                {/* G-Onboard: newcomer steps (consent to join, orientation, a stuck newcomer) first; sort is stable, so server order holds within each group. */}
-                {[...queue.items].sort((a, b) => Number(String(b.kind) === 'newcomer') - Number(String(a.kind) === 'newcomer')).map((item, index) => {
-                  const due = dueStatus(item.due, item.overdue, now, formatDue);
-                  return (
-                    <li key={item.uid}>
-                      <Link
-                        href={resolveInternalPath(item.link) ?? '/dashboard'}
-                        className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
-                      >
-                        <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                        <div>
-                          <p className="font-black leading-snug">{item.what}</p>
-                          <p className="mt-1 text-sm group-hover:text-background/90">{item.title}</p>
-                          <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">
-                            {item.why}
-                            {showEcosystem && item.ecosystem ? ` · ${item.ecosystem}` : ''}
-                          </p>
-                          {due && (
-                            <p className={`mt-1 text-xs ${due.overdue ? 'font-semibold text-destructive group-hover:text-background' : 'text-muted-foreground group-hover:text-background/75'}`}>
-                              {due.text}
-                            </p>
-                          )}
-                        </div>
-                        <Badge variant={due?.overdue ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
-                          {nextStepKindLabel(item.kind)}
-                        </Badge>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </QueryState>
-          {healthEcosystems.length > 0 && (
-            <ul aria-label="Governance health" className="divide-y divide-border border-t-2 border-strong-border">
-              {healthEcosystems.map((health) => (
-                <li key={health.ecosystem_id}>
-                  <Link
-                    href="/safeguards"
-                    className="flex min-h-11 flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-6"
-                  >
-                    <span className="font-semibold">Governance health{healthEcosystems.length > 1 ? ` · ${health.ecosystem}` : ''}</span>
-                    <span className={health.audit_overdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}>
-                      {auditDueText(health.audit_due, health.audit_overdue, formatDateOnly)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
 
-        <section aria-labelledby="activity-title" className="border-2 border-strong-border bg-card p-5 sm:p-6 lg:col-span-5">
+        <section aria-labelledby="activity-title" className="border-2 border-strong-border bg-card p-5 sm:p-6 lg:col-span-12">
           <div className="border-b-2 border-strong-border pb-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">03 / Recent record</p>
             <h2 id="activity-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Latest movement.</h2>

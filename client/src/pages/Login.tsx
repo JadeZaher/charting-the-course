@@ -129,7 +129,7 @@ export default function Login() {
     stashRedirect(null);
 
     try {
-      const outcome = await login(displayName || undefined);
+      const outcome = await login(displayName || undefined, signupEcosystem ?? undefined);
       toast({
         title: "Login Successful",
         description: "Welcome to NEOS!",
@@ -205,7 +205,7 @@ export default function Login() {
     setFormError(null);
     stashRedirect(redirectTarget);
     try {
-      await loginWithOAuth(provider);
+      await loginWithOAuth(provider, signupEcosystem ?? undefined);
     } catch {
       stashRedirect(null); // Shown inline as authError.
     }

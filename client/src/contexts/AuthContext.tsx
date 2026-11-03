@@ -25,11 +25,11 @@ interface AuthContextType {
   oauthProviders: OAuthProvider[];
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (displayName?: string) => Promise<SignInOutcome>;
+  login: (displayName?: string, ecosystemId?: string) => Promise<SignInOutcome>;
   loginWithCredentials: (username: string, password: string) => Promise<SignInOutcome>;
   /** `ecosystemId` places the newcomer in the ecosystem their sign-up link names (lib/signup-ecosystem.ts). */
   register: (username: string, password: string, displayName?: string, ecosystemId?: string) => Promise<SignInOutcome>;
-  loginWithOAuth: (provider: string) => Promise<void>;
+  loginWithOAuth: (provider: string, ecosystemId?: string) => Promise<void>;
   regenerateDid: () => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // Sign-in and sign-up leave the global isLoading alone, so Login stays mounted (client/src/AGENTS.md "Pass 03 fixes").
-  const login = useCallback(async (displayName?: string) => {
+  const login = useCallback(async (displayName?: string, ecosystemId?: string) => {
     setError(null);
 
     try {
@@ -131,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         challenge,
         signature,
         display_name: displayName,
+        ecosystem_id: ecosystemId,
       });
 
       // Non-fatal: write DID + public key to NEOS Den profiles table
@@ -182,10 +183,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const loginWithOAuth = useCallback(async (provider: string) => {
+  const loginWithOAuth = useCallback(async (provider: string, ecosystemId?: string) => {
     setError(null);
     try {
-      const { url } = await getOAuthUrl(provider, window.location.origin);
+      const { url } = await getOAuthUrl(provider, window.location.origin, ecosystemId);
       const safeUrl = resolveExternalUrl(url);
       if (!safeUrl) throw new Error('OAuth provider returned an invalid URL');
       // Redirect to OAuth provider — callback will set cookie and redirect back
@@ -233,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    try { const { clearBrowserPush } = await import('@/lib/web-push'); await clearBrowserPush(true); } catch { /* Server logout independently revokes this session's devices. */ }
     try {
       await fetchLogout();
     } catch {

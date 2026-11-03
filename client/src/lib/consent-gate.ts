@@ -29,6 +29,9 @@ const READABLE_WHILE_GATED: readonly RegExp[] = [
   /^\/(?:about|governance-model)$/,
   /^\/users\/[^/]+$/,
   /^\/node\/audit(?:\/[^/]+)?$/,
+  /^\/communities(?:\/[^/]+)?$/,
+  /^\/updates$/,
+  /^\/settings\/notifications$/,
 ];
 
 /** Ecosystems the user takes part in: the server's per-ecosystem status when sent, else not gated and not a non-active default row. */

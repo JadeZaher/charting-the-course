@@ -41,6 +41,7 @@ import {
   ClipboardCheck,
   ChevronDown,
   MessageSquare,
+  Bell,
   Package,
   Flag, // FX-Exchange: Moderation
 } from "lucide-react";
@@ -56,6 +57,8 @@ import { useConversations } from "@/hooks/use-messaging";
 import { moderatedInSelection } from "@/lib/exchange"; // FX-Exchange
 
 const menuItems = [
+  { title: 'Communities', url: '/communities', icon: Users },
+  { title: 'Updates', url: '/updates', icon: Bell },
   {
     title: "Dashboard",
     url: "/dashboard",

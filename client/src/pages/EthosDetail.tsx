@@ -82,6 +82,7 @@ export default function EthosDetail() {
 
   return (
     <div className="space-y-10">
+      {isMember && <Link className="inline-flex min-h-11 items-center text-link underline" href={`/settings/notifications?scope=ecosystem&id=${ethos.id}`}>Choose community updates</Link>}
       <Link href="/discover" className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Discover index
       </Link>

@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Profile from "@/pages/Profile";
 import MyQuizHistory from "@/pages/MyQuizHistory";
-import NotificationPreferences from "@/pages/settings/NotificationPreferences";
+import { Link } from 'wouter';
 import AgentAccess from "@/pages/settings/AgentAccess";
 import MyDecisions from "@/pages/settings/MyDecisions";
 
@@ -36,7 +36,7 @@ export default function MePage() {
           <MyDecisions />
         </TabsContent>
         <TabsContent value="notifications" forceMount>
-          <NotificationPreferences />
+          <section className="space-y-3 border border-border p-5"><h2 className="text-2xl font-bold">Your notification choices</h2><p>Manage community follows, delivery channels, quiet hours and contact verification.</p><Link className="inline-flex min-h-11 items-center text-link underline" href="/settings/notifications">Open notification settings</Link></section>
         </TabsContent>
         <TabsContent value="agent-access" forceMount>
           <AgentAccess />

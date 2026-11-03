@@ -471,3 +471,17 @@ JourneyStepsEditor uses ordinary member quiz lookup by default. Only its explici
 Matching belongs in `ecosystemScoped`: its steward policy and governed-source selectors call ordinary agreements/domains lists, whose server authorization also uses the current ecosystem-selection cookie. Changing selection invalidates that root so an earlier empty scoped result cannot remain cached until reload. Matching cache keys retain the actual owner and target ecosystem, and refetches retain existing REST authorization; invalidation neither combines private answers nor grants access to another selection or owner.
 
 OrientationJourney sends one progress mutation per completed step. The server derives canonical genplan output in that transaction; the UI must not rely on a second acknowledgement request before navigation. QuizResults uses the exact owner response's current-version attempt policy: older versions can offer a first current attempt, while a consumed no-retakes version explains the steward-help path.
+
+## Community engagement and return journeys
+
+Anonymous `/` and `/communities` use explicit public community DTOs. Detail previews preserve the exact ecosystem through login/signup into the existing ethos and configured joining flow. Authenticated opportunity previews retain their own authorization and owner-keyed cache; an anonymous preview explains when sign-in is required.
+
+Home retains the existing next-step queue and puts current communities and chronological activity ahead of operational metrics. `/updates` is a separate durable inbox: reading does not complete governance tasks. Source URLs pass the internal-path validator, and unread lower-bound counts display `+`. No content is invented for empty feeds.
+
+`/settings/notifications` owns channel capability, verified contacts, scope follows/mutes, cadence and pacing. `/me` links to that canonical page. Preferences persist without a push device. Missing providers stay visibly disabled; legacy push booleans never become email/SMS consent. Scope selection uses the server's authorized named options, including exact ID lookup for source links. Explicit mute and removing a follow have different copy and effects.
+
+All private engagement queries include actual User.id. Account transitions remove old query entries and invalidate stale browser push ownership. Push registers `/sw.js` only after an explicit enable action; registration activation has a bounded wait. Logout attempts server device removal before clearing auth and always unsubscribes the local browser; the backend independently revokes this auth session's devices. Service worker previews are generic, allow only same-origin click paths, and never cache app/API responses.
+
+Daily digests are scheduled for09:00 and weekly forMonday09:00 in the chosen IANA zone. Quiet hours use that zone; the pause date input explicitly uses the device's local time and submits UTC. Client validators reject malformed zones and incomplete/equal quiet boundaries; server validation remains authoritative.
+
+Pure contract and worker privacy tests: `lib/engagement.test.ts` and `lib/engagement-worker.test.ts`. Actual guarded browser regression: `uxqa/regression/p8-community-engagement.mjs`; execution is reserved for the coordinator's integrated sweep. Full design/contracts and provider gate are in `conductor/tracks/community_engagement_20261102/` at the workspace root.

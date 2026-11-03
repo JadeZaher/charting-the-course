@@ -53,6 +53,7 @@ export function fetchVerify(params: {
   challenge: string;
   signature: string;
   display_name?: string;
+  ecosystem_id?: string;
 }): Promise<AuthVerifyResponse> {
   return apiFetch<AuthVerifyResponse>('/api/v1/auth/verify', {
     method: 'POST',
@@ -101,8 +102,9 @@ export function fetchOAuthProviders(): Promise<{ providers: OAuthProvider[] }> {
   return apiFetch<{ providers: OAuthProvider[] }>('/api/v1/auth/oauth/providers');
 }
 
-export function getOAuthUrl(provider: string, frontendOrigin: string): Promise<{ url: string }> {
+export function getOAuthUrl(provider: string, frontendOrigin: string, ecosystemId?: string): Promise<{ url: string }> {
   const params = new URLSearchParams({ origin: frontendOrigin });
+  if (ecosystemId) params.set('ecosystem_id', ecosystemId);
   return apiFetch<{ url: string }>(`/api/v1/auth/oauth/${encodeURIComponent(provider)}?${params}`);
 }
 

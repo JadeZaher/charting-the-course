@@ -1,40 +1,35 @@
-// NEOS Governance - Service Worker
-// Handles push notifications
-
-self.addEventListener('push', function (event) {
-  let data = {};
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch {
-      data = { title: 'NEOS', body: event.data.text() };
-    }
-  }
-
-  const title = data.title || 'NEOS Governance';
+// Native Web Push only; no application response caching.
+function safeNotificationPath(value) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/updates';
+  try {
+    const url = new URL(value, self.location.origin);
+    if (url.origin !== self.location.origin || url.pathname.startsWith('//')) return '/updates';
+    return url.pathname + url.search + url.hash;
+  } catch { return '/updates'; }
+}
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+self.addEventListener('push', event => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; } catch { /* Generic preview below. */ }
   const options = {
-    body: data.body || 'You have a new notification.',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
-    data: { url: data.url || '/' },
+    body: 'There is a new update in your communities.',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
+    data: { url: safeNotificationPath(payload?.url) },
   };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification('NEOS update', options));
 });
-
-self.addEventListener('notificationclick', function (event) {
+self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-      for (const client of clientList) {
-        if (client.url === url && 'focus' in client) {
-          return client.focus();
-        }
+  const destination = new URL(safeNotificationPath(event.notification.data?.url), self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+    for (const client of clients) {
+      if (new URL(client.url).origin === self.location.origin && 'navigate' in client) {
+        const navigated = await client.navigate(destination);
+        if (navigated && 'focus' in navigated) return navigated.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
-    })
-  );
+    }
+    return self.clients.openWindow(destination);
+  }));
 });

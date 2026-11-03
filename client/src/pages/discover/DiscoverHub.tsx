@@ -203,6 +203,7 @@ export default function DiscoverHub() {
         <div className="lg:col-span-8">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Network index / 02</p>
           <h1 className="mt-4 text-5xl font-black leading-[0.86] tracking-[-0.055em] sm:text-7xl">Discover what connects.</h1>
+          <Link href="/communities" className="mt-4 inline-flex min-h-11 items-center text-link underline">Find a community and explore joining</Link>
         </div>
         <p className="text-base leading-7 text-muted-foreground lg:col-span-4">
           Explore living ecosystems, exchange capacity, and trace active collaborations across the NEOS network.

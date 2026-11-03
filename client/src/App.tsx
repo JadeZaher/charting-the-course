@@ -17,7 +17,11 @@ import { useNavPermissions } from "@/hooks/use-nav-permissions";
 import { routeAccess, type NavAccess } from "@/lib/nav-access";
 import { Loader2 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
-import LandingPage from "@/pages/LandingPage";
+import Communities, { CommunityPreviewPage } from '@/pages/communities/Communities';
+import Updates from '@/pages/updates/Updates';
+import NotificationPreferences from '@/pages/settings/NotificationPreferences';
+import { UpdatesLink } from '@/components/engagement/UpdatesLink';
+import { EngagementSessionBoundary } from '@/components/engagement/EngagementSessionBoundary';
 import About from "@/pages/About";
 import GovernanceModel from "@/pages/GovernanceModel";
 import Login, { takeStashedRedirect } from "@/pages/Login";
@@ -228,6 +232,7 @@ function AuthenticatedRoutes() {
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
       </Route>
+      <Route path="/updates" component={Updates} />
 
       {/* About page (also accessible when authenticated) */}
       <Route path="/about" component={About} />
@@ -442,7 +447,7 @@ function AuthenticatedRoutes() {
 
       {/* Notification settings — folded into /me */}
       <Route path="/settings/notifications">
-        <Redirect to="/me" />
+        <NotificationPreferences />
       </Route>
 
       {/* Fallback to public routes for unmatched paths */}
@@ -471,7 +476,7 @@ function AppLayout() {
   }, [isAuthenticated, isLoading, heldAtGate]);
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/about', '/governance-model', '/users/', '/node/audit'];
+  const publicPaths = ['/login', '/about', '/governance-model', '/users/', '/node/audit', '/communities'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
   const isLandingPage = location === '/';
 
@@ -487,7 +492,7 @@ function AppLayout() {
 
   // Show landing page for unauthenticated users at root
   if (!isAuthenticated && isLandingPage) {
-    return <PublicPageFrame><LandingPage /></PublicPageFrame>;
+    return <PublicPageFrame><Communities /></PublicPageFrame>;
   }
 
   // Show public routes without sidebar
@@ -498,6 +503,8 @@ function AppLayout() {
           <Route path="/login" component={Login} />
           <Route path="/about" component={About} />
           <Route path="/governance-model" component={GovernanceModel} />
+          <Route path="/communities/:id" component={CommunityPreviewPage} />
+          <Route path="/communities" component={Communities} />
           <Route path="/users/:username" component={PublicProfile} />
           <Route path="/node/audit/:id" component={NodeAudit} />
           <Route path="/node/audit" component={NodeAudit} />
@@ -526,6 +533,7 @@ function AppLayout() {
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             {member?.id && <EcosystemPicker />}
             <div className="flex items-center gap-2">
+              <UpdatesLink />
               {member?.id && <NotificationCenter />}
               <ThemeToggle />
             </div>
@@ -547,6 +555,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <EngagementSessionBoundary />
         <SupportChatProvider>
         <EcosystemProvider>
           <PageContextProvider>
