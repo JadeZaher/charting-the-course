@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Compass, ArrowRight } from 'lucide-react';
+import { CircleHelp, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -77,10 +77,9 @@ function MemberPlatformTour({ ownerId }: { ownerId: string }) {
 
   return (
     <>
-      <Button ref={triggerRef} variant="ghost" size="icon" className="w-auto shrink-0 px-3" onClick={launch}
-        aria-label="Platform tour" title="Platform tour" data-testid="button-platform-tour">
-        <Compass aria-hidden="true" />
-        <span>Platform tour</span>
+      <Button ref={triggerRef} variant="ghost" size="icon" className="shrink-0" onClick={launch}
+        aria-label="Platform tour" title="Help: Platform tour" data-testid="button-platform-tour">
+        <CircleHelp aria-hidden="true" />
       </Button>
       <Dialog open={open} onOpenChange={(next) => { if (!next) pause(); }}>
         <DialogContent
@@ -105,7 +104,7 @@ function MemberPlatformTour({ ownerId }: { ownerId: string }) {
                 </Button>
               ))}
             </div>
-            <p className="text-xs leading-5 text-muted-foreground">Opening a page pauses the tour. Use Platform tour in the top bar to resume.</p>
+            <p className="text-xs leading-5 text-muted-foreground">Opening a page pauses the tour. Use the question-mark help icon in the top bar to resume.</p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button variant="ghost" onClick={pause}>Skip for now</Button>

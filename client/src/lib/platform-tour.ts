@@ -53,7 +53,7 @@ export const PLATFORM_TOUR_STEPS = [
   {
     title: 'Make it your own',
     description: 'Keep your profile current, know where to raise concerns, and return to this tour whenever you need it.',
-    location: 'Navigation → Me or Safety & Integrity; top bar → Platform tour',
+    location: 'Navigation → Me or Safety & Integrity; top bar → question-mark help icon',
     detail: 'Me holds your profile and personal settings. Safety & Integrity includes conflict, emergency, safeguard, and exit processes. Finishing this tour does not submit anything or complete a community requirement.',
     links: [{ label: 'Open my profile', href: '/me' }, { label: 'View conflict support', href: '/conflicts' }],
   },
