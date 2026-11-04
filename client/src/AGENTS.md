@@ -474,6 +474,12 @@ OrientationJourney sends one progress mutation per completed step. The server de
 
 ## Community engagement and return journeys
 
+### Platform tour
+
+`components/PlatformTour.tsx` offers an eight-step modal introduction on `/` or `/dashboard` after the actual signed-in owner has an active ecosystem membership, using `activeEcosystemIds`. It does not change membership, quiz, consent, or task state. Existing active members also receive the introduction once in each browser. A deep link or form never triggers the automatic modal. The top-bar compass button, named "Platform tour", resumes a paused tour or replays a completed one; opening a destination deliberately pauses it.
+
+`lib/platform-tour.ts` stores versioned progress per actual User.id in browser local storage, with a session-memory fallback when storage is unavailable. Progress is not synchronized across devices. Starting, skipping, or completing prevents another automatic popup. Account-keyed mounting and eligibility unmounting prevent progress or modal state crossing owners or remaining open after membership access is lost. The modal traps focus, focuses each step heading, and returns focus to its launch control unless navigation owns the next focus. On small screens the header wraps into a community-selector row and an actions row. The current ecosystem name stays visible with truncation and a full accessible name, and Platform tour retains a visible label.
+
 Anonymous `/` and `/communities` use explicit public community DTOs. Detail previews preserve the exact ecosystem through login/signup into the existing ethos and configured joining flow. Authenticated opportunity previews retain their own authorization and owner-keyed cache; an anonymous preview explains when sign-in is required.
 
 Home retains the existing next-step queue and puts current communities and chronological activity ahead of operational metrics. `/updates` is a separate durable inbox: reading does not complete governance tasks. Source URLs pass the internal-path validator, and unread lower-bound counts display `+`. No content is invented for empty feeds.

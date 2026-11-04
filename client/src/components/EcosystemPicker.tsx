@@ -56,7 +56,7 @@ export function EcosystemPicker() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 max-w-[250px]">
+        <Button variant="outline" size="sm" aria-label={`Choose ecosystem: ${label}`} className="min-w-0 max-w-full gap-2 sm:max-w-[250px]">
           <Building2 className="h-4 w-4 shrink-0" />
           <span className="truncate">{label}</span>
           <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />

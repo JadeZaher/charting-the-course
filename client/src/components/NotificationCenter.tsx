@@ -20,7 +20,7 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={bellLabel(count)}>
+        <Button variant="ghost" size="icon" className="relative" aria-label={bellLabel(count)}>
           <Bell className="h-4 w-4" aria-hidden="true" />
           {badge && (
             <Badge

@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { PlatformTour } from "@/components/PlatformTour";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -529,10 +530,11 @@ function AppLayout() {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b-2 border-strong-border bg-background px-[var(--page-gutter)]">
+          <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b-2 border-strong-border bg-background px-[var(--page-gutter)] py-1 sm:h-14 sm:flex-nowrap sm:py-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            {member?.id && <EcosystemPicker />}
-            <div className="flex items-center gap-2">
+            {member?.id && <div className="min-w-0 flex-1 [&_button]:max-w-full"><EcosystemPicker /></div>}
+            <div className="flex w-full shrink-0 items-center justify-end gap-0 sm:w-auto sm:gap-2">
+              <PlatformTour />
               <UpdatesLink />
               {member?.id && <NotificationCenter />}
               <ThemeToggle />
