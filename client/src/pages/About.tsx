@@ -157,22 +157,25 @@ const IS_NOT_ITEMS = [
 export default function About() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <nav className="sticky top-0 z-50 border-b border-foreground bg-background">
-        <div className="flex min-h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <nav aria-label="About navigation" className="sticky top-0 z-50 border-b border-foreground bg-background">
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 sm:px-6 lg:px-8">
           <Button asChild variant="ghost" size="sm">
             <Link href="/">
               <ArrowLeft className="h-4 w-4" />
               Home
             </Link>
           </Button>
-          <p className="hidden text-xs font-black uppercase tracking-[0.18em] sm:block">NEOS / System brief</p>
-          <div className="flex items-center gap-2">
+          <p className="hidden text-xs font-black uppercase tracking-[0.18em] xl:block">NEOS / About</p>
+          <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost" size="sm">
               <Link href="/governance-model">Governance Model</Link>
             </Button>
             <ThemeToggle />
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/login">Sign in</Link>
+            </Button>
             <Button asChild size="sm">
-              <Link href="/login">Get started</Link>
+              <Link href="/communities">Find a community</Link>
             </Button>
           </div>
         </div>
@@ -181,14 +184,20 @@ export default function About() {
       <main>
         <header className="grid border-b border-foreground lg:grid-cols-12">
           <div className="px-4 py-16 sm:px-6 lg:col-span-8 lg:px-8 lg:py-24">
-            <p className="text-xs font-bold uppercase tracking-[0.18em]">About NEOS / 2026</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em]">About NEOS</p>
             <h1 className="mt-10 max-w-5xl text-[clamp(3.5rem,8vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.07em]">
               The New Earth Operating System.
             </h1>
+            <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+              NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources. On this site, you can explore communities, join one that fits your interests, and take part in its work.
+            </p>
+            <Button asChild size="lg" className="mt-8">
+              <Link href="/communities">Find a community<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+            </Button>
           </div>
           <div className="flex items-end border-t border-foreground bg-foreground p-6 text-background lg:col-span-4 lg:border-l lg:border-t-0 lg:p-8">
             <p className="max-w-md text-lg font-medium leading-relaxed">
-              Governance infrastructure for communities that make decisions together without concentrating power in the hands of a few.
+              Communities here are also called ecosystems. Explore their purpose before joining, then complete any agreements and onboarding quizzes they require. Each community sets its own participation paths.
             </p>
           </div>
         </header>
@@ -300,14 +309,14 @@ export default function About() {
             </div>
             <div className="flex flex-col gap-3 lg:col-span-4">
               <Button asChild size="lg" variant="secondary" className="w-full justify-between">
-                <Link href="/login">
-                  Get started
+                <Link href="/communities">
+                  Find a community
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="w-full border-background/60 text-background hover:bg-background hover:text-foreground">
-                <Link href="/">
-                  Back to home
+                <Link href="/login">
+                  Sign in
                 </Link>
               </Button>
             </div>

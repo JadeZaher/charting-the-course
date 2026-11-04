@@ -10,7 +10,13 @@ import { QueryFeedback } from '@/components/engagement/QueryFeedback';
 
 function CommunityHeader() {
   const { isAuthenticated } = useAuth();
-  return <nav aria-label="Community navigation" className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><Link href="/communities" className="inline-flex min-h-11 items-center font-black">NEOS / Communities</Link><Link href={isAuthenticated ? '/dashboard' : '/login'} className="inline-flex min-h-11 items-center underline">{isAuthenticated ? 'Your home' : 'Sign in'}</Link></nav>;
+  return <nav aria-label="Community navigation" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-border pb-4">
+    <Link href="/communities" className="inline-flex min-h-11 items-center font-black">NEOS / Communities</Link>
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+      <Link href="/about" className="inline-flex min-h-11 items-center underline">About NEOS</Link>
+      <Link href={isAuthenticated ? '/dashboard' : '/login'} className="inline-flex min-h-11 items-center underline">{isAuthenticated ? 'Your home' : 'Sign in'}</Link>
+    </div>
+  </nav>;
 }
 export default function Communities() {
   const [search, setSearch] = useState('');
@@ -19,7 +25,11 @@ export default function Communities() {
   const items = query.data?.pages.flatMap(page => page.items) ?? [];
   return <div className="mx-auto w-full max-w-6xl space-y-8 p-5 sm:p-8">
     <CommunityHeader />
-    <header><h1 className="text-4xl font-black tracking-tight sm:text-6xl">Find a community.</h1><p className="mt-4 max-w-2xl text-lg text-muted-foreground">Discover people and projects you can contribute to. Explore a community before deciding to join.</p></header>
+    <header>
+      <p className="max-w-3xl text-lg leading-relaxed">NEOS (New Earth Operating System) is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources.</p>
+      <h1 className="mt-8 text-4xl font-black tracking-tight sm:text-6xl">Find a community.</h1>
+      <p className="mt-4 max-w-2xl text-lg text-muted-foreground">Discover people and projects you can contribute to. Explore a community before deciding to join.</p>
+    </header>
     <form onSubmit={event => { event.preventDefault(); setAppliedSearch(search.trim()); }} className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1"><label htmlFor="community-search" className="mb-2 block font-semibold">Search communities</label><Input id="community-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="A name, interest or purpose" maxLength={160} className="min-h-11" /></div>
       <Button type="submit">Search</Button>{appliedSearch && <Button variant="outline" type="button" onClick={() => { setSearch(''); setAppliedSearch(''); }}>Clear search</Button>}
