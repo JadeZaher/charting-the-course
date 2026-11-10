@@ -411,7 +411,7 @@ export const PRACTICES: readonly Practice[] = [
       },
       {
         kind: "p",
-        body: "the Companies Act's rule on directors' minutes–the Companies Act rule on what counts as minutes and the Companies Act rule on records of resolutions and meetings, as a public minute-keeping contrast: directors’ minutes of all proceedings must be recorded and kept for at least ten years; authenticated minutes “are evidence… of the proceedings at the meeting,” and until the contrary is proved the meeting and its proceedings are deemed duly held; companies must also keep members’ resolutions and general-meeting minutes for at least ten years. The transferable point is that an official minute is a record of proceedings with evidential effect, not a share certificate. The ten-year figure is the UK companies figure, not a house retention policy.",
+        body: "The Companies Act rules on directors' minutes, on minutes as evidence, and on records of resolutions and meetings are used here as a public minute-keeping contrast: directors’ minutes of all proceedings must be recorded and kept for at least ten years; authenticated minutes “are evidence… of the proceedings at the meeting,” and until the contrary is proved the meeting and its proceedings are deemed duly held; companies must also keep members’ resolutions and general-meeting minutes for at least ten years. The transferable point is that an official minute is a record of proceedings with evidential effect, not a share certificate. The ten-year figure is the UK companies figure, not a house retention policy.",
       },
       {
         kind: "p",
