@@ -232,8 +232,10 @@ test("the three practices children are in the first HTML", () => {
     const html = renderShell(shell, byPath.get(path)!);
     assert.match(html, /<h1>[^<]+<\/h1>/);
     assert.match(html, /<h2>Sources<\/h2>/);
-    assert.match(html, /<h2>An illustrative scenario<\/h2>/);
-    assert.match(html, /Every stat on this page is cited\./);
+    assert.match(html, /<h2>A situation like this<\/h2>/);
+    assert.equal(html.includes("Hero points"), false, path);
+    assert.equal(html.includes("Every stat on this page is cited"), false, path);
+    assert.equal(html.includes("An illustrative scenario"), false, path);
     assert.match(html, /"@type":"Article"/);
     assert.match(html, /"@type":"BreadcrumbList"/);
     assert.match(html, /"citation"/);
@@ -371,9 +373,10 @@ test("the five field guides are in the first HTML", () => {
     assert.ok(html.includes(guide.official), guide.path);
     assert.match(html, /<h2>Sources<\/h2>/);
     assert.match(html, /<ol>/);
-    assert.match(html, /<h2>An illustrative scenario<\/h2>/);
-    assert.match(html, /This is a worked example/);
-    assert.match(html, /Every stat on this page is cited\./);
+    assert.match(html, /<h2>A situation like this<\/h2>/);
+    assert.equal(html.includes("Hero figures"), false, guide.path);
+    assert.equal(html.includes("Every stat on this page is cited"), false, guide.path);
+    assert.equal(html.includes("An illustrative scenario"), false, guide.path);
     assert.match(html, new RegExp(`rel="canonical" href="https://neos\\.primusneo\\.com${guide.path.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}"`));
     assert.match(html, /property="og:url"/);
     const embedded = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
@@ -397,7 +400,7 @@ test("the five field guides are in the first HTML", () => {
   assert.match(webauthn, /This page does not claim a NEOS certification, a particular authenticator, or a token\./);
   assert.match(webauthn, /only Level 2 was opened/);
   assert.match(synced, /not a claim that NEOS syncs keys/);
-  assert.match(synced, /not a NEOS feature/);
+  assert.match(synced, /does not quietly extend it into a sync product/);
   assert.equal(synced.includes("https://www.w3.org/TR/2021/REC-webauthn-2-20210408/"), false);
 });
 
@@ -481,9 +484,10 @@ test("the three batch-2 field guides are in the first HTML", () => {
     assert.ok(html.includes(guide.official), guide.path);
     assert.match(html, /<h2>Sources<\/h2>/);
     assert.match(html, /<ol>/);
-    assert.match(html, /<h2>An illustrative scenario<\/h2>/);
-    assert.match(html, /This is a worked example/);
-    assert.match(html, /Every stat on this page is cited\./);
+    assert.match(html, /<h2>A situation like this<\/h2>/);
+    assert.equal(html.includes("Hero figures"), false, guide.path);
+    assert.equal(html.includes("Every stat on this page is cited"), false, guide.path);
+    assert.equal(html.includes("An illustrative scenario"), false, guide.path);
     assert.match(html, new RegExp(`rel="canonical" href="https://neos\\.primusneo\\.com${guide.path}"`));
     assert.match(html, /property="og:url" content="https:\/\/neos\.primusneo\.com/);
     const embedded = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);

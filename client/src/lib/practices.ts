@@ -229,29 +229,17 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "The efficiency of a tally is the trap, and slowness is not a virtue for its own sake. The point is a decision that can be found, tested, and handed on. There is no blockchain and no token on this workspace.",
       },
-      { kind: "h2", text: "Hero points" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["The live NEOS site already defines ACT, and this page does not improve the sentence:"],
-            rest: [
-              ` “${LIVE_ACT_SENTENCE}” About already says NEOS is not “A voting platform — consent is not majority rule,” and “Assistants may guide; they do not decide.” Terms, updated 10 November 2026, repeat the ACT definition and add: this site “does not issue a token, take an investment, or sell a share.”`,
-            ],
-          },
-          {
-            strongLead: ["The Sociocracy Group’s public “4 principles” page"],
-            rest: [
-              " states the consent principle as “the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” It then says, in plain language: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.” The same page refers to “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.” NEOS is not TSG-certified, not SCM-certified, and not “a sociocracy product.” The page does not state a publication date; it was opened 2026-11-10.",
-            ],
-          },
-          {
-            strongLead: ["On the same TSG page,"],
-            rest: [
-              " a circle “decides about policy and delegates the execution to the members,” and “defines its policy and decides by consent to use other decision-making methods.” Election of important roles, “particularly the representative,” is described as a decision that cannot be delegated and must be made by consent of the circle represented. If mentioned at all, that remains sociocracy’s practice, not a live NEOS rule. About and the governance-model pages describe roles created by consent and explicit domains; they do not claim a TSG double-link or a TSG election. No double-link implementation is invented here.",
-            ],
-          },
-        ],
+        kind: "p",
+        body: `The live NEOS site already defines ACT, and this page does not improve the sentence: “${LIVE_ACT_SENTENCE}” About already says NEOS is not “A voting platform — consent is not majority rule,” and “Assistants may guide; they do not decide.” Terms, updated 10 November 2026, repeat the ACT definition and add: this site “does not issue a token, take an investment, or sell a share.”`,
+      },
+      {
+        kind: "p",
+        body: "The Sociocracy Group’s public “4 principles” page states the consent principle as “the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” It then says, in plain language: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.” The same page refers to “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.” NEOS is not TSG-certified, not SCM-certified, and not “a sociocracy product.” The page does not state a publication date; it was opened 2026-11-10.",
+      },
+      {
+        kind: "p",
+        body: "On the same TSG page, a circle “decides about policy and delegates the execution to the members,” and “defines its policy and decides by consent to use other decision-making methods.” Election of important roles, “particularly the representative,” is described as a decision that cannot be delegated and must be made by consent of the circle represented. If mentioned at all, that remains sociocracy’s practice, not a live NEOS rule. About and the governance-model pages describe roles created by consent and explicit domains; they do not claim a TSG double-link or a TSG election. No double-link implementation is invented here.",
       },
       {
         kind: "p",
@@ -301,9 +289,8 @@ export const PRACTICES: readonly Practice[] = [
         ],
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
         body: "This is a worked example, not a named community and not a customer. A circle hears a reasoned objection about harm to an existing agreement, amends the proposal, and records a small test — not a 60–40 win. The tally would have been faster. It would not have been the same decision.",
@@ -414,35 +401,21 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "This page is not a secretary’s manual from a regulator, and “living documents” is not marketing mist. NEOS is not a UK company, not a public authority, and not a cooperative.",
       },
-      { kind: "h2", text: "Hero points" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["ISO 15489-1:2016, as quoted by HMRC (policy published 19 May 2026):"],
-            rest: [
-              " records are “information created, received and maintained as evidence and information by an organisation or person, in pursuance of legal obligations or in the transaction of business.” HMRC creates records “to provide information about what happened, what was decided, and how to do things,” valuable when “accurate, up-to-date and accessible when it is needed.” That is the bar for an agreement record in a community workspace.",
-            ],
-          },
-          {
-            strongLead: ["UK private-office records guidance (published 29 December 2023):"],
-            rest: [
-              " for meetings on substantive issues, “Record the date, time, location or format…, who took part, and decisions or undertakings,” whatever the medium, and “Record decisions arising from telephone or online meetings or via non-corporate communication channels.” This is a public model of the fields, not a claim that NEOS communities are public authorities.",
-            ],
-          },
-          {
-            strongLead: ["Companies Act 2006, s.248–s.249 and s.355, as a public minute-keeping contrast:"],
-            rest: [
-              " directors’ minutes of all proceedings must be recorded and kept for at least ten years; authenticated minutes “are evidence… of the proceedings at the meeting,” and until the contrary is proved the meeting and its proceedings are deemed duly held; companies must also keep members’ resolutions and general-meeting minutes for at least ten years. The transferable point is that an official minute is a record of proceedings with evidential effect, not a share certificate. The ten-year figure is the UK companies figure, not a house retention policy.",
-            ],
-          },
-          {
-            strongLead: ["ICA Statement on the Cooperative Identity (adopted 1995), Principle 2:"],
-            rest: [
-              " cooperatives are “controlled by their members, who actively participate in setting their policies and making decisions,” and “Men and women serving as elected representatives are accountable to the membership.” Use as a public association-governance primer: decisions and accountability are supposed to be visible to the membership. NEOS is not a cooperative and is not ICA-registered.",
-            ],
-          },
-        ],
+        kind: "p",
+        body: "ISO 15489-1:2016, as quoted by HMRC (policy published 19 May 2026): records are “information created, received and maintained as evidence and information by an organisation or person, in pursuance of legal obligations or in the transaction of business.” HMRC creates records “to provide information about what happened, what was decided, and how to do things,” valuable when “accurate, up-to-date and accessible when it is needed.” That is the bar for an agreement record in a community workspace.",
+      },
+      {
+        kind: "p",
+        body: "UK private-office records guidance (published 29 December 2023): for meetings on substantive issues, “Record the date, time, location or format…, who took part, and decisions or undertakings,” whatever the medium, and “Record decisions arising from telephone or online meetings or via non-corporate communication channels.” This is a public model of the fields, not a claim that NEOS communities are public authorities.",
+      },
+      {
+        kind: "p",
+        body: "the Companies Act's rule on directors' minutes–the Companies Act rule on what counts as minutes and the Companies Act rule on records of resolutions and meetings, as a public minute-keeping contrast: directors’ minutes of all proceedings must be recorded and kept for at least ten years; authenticated minutes “are evidence… of the proceedings at the meeting,” and until the contrary is proved the meeting and its proceedings are deemed duly held; companies must also keep members’ resolutions and general-meeting minutes for at least ten years. The transferable point is that an official minute is a record of proceedings with evidential effect, not a share certificate. The ten-year figure is the UK companies figure, not a house retention policy.",
+      },
+      {
+        kind: "p",
+        body: "ICA Statement on the Cooperative Identity (adopted 1995), Principle 2: cooperatives are “controlled by their members, who actively participate in setting their policies and making decisions,” and “Men and women serving as elected representatives are accountable to the membership.” Use as a public association-governance primer: decisions and accountability are supposed to be visible to the membership. NEOS is not a cooperative and is not ICA-registered.",
       },
       {
         kind: "p",
@@ -484,9 +457,8 @@ export const PRACTICES: readonly Practice[] = [
         ],
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
         body: "This is a worked example, not a named community. A new member, six months later, can find the agreement that created a role, the objection that amended it, and the date it comes up for review. The record can be taught and checked. A rumour cannot.",
@@ -614,36 +586,24 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "There is no blockchain and no token. If you lose the browser key, this workspace does not have a copy to restore. Password sign-in is still offered in the Terms and has not been withdrawn.",
       },
-      { kind: "h2", text: "Hero points" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: [
-              "W3C Recommendation, ",
-              { em: "Web Authentication: An API for accessing Public Key Credentials — Level 2," },
-              " 8 April 2021:",
-            ],
-            rest: [
-              " “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent.” “Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party.” In the terminology, “The credential private key is bound to a particular authenticator — its managing authenticator — and is expected to never be exposed to any other party, not even to the owner of the authenticator.” The registration walk-through in the same specification has the server store “the credential public key.” This page does not claim that NEOS implements WebAuthn Level 2, FIDO2, or a particular authenticator. It uses the public model of a device-held private key and a server-held public key.",
-            ],
-          },
-          {
-            strongLead: ["The same specification:"],
-            rest: [
-              " “Authenticators are responsible for ensuring that no operation is performed without user consent.” Platform authenticators are implemented on the device; roaming authenticators are off-device (USB, BLE, or NFC). If the page mentions device-held keys, that distinction is kept. Which kind NEOS uses is not invented; Terms say “a key generated in your browser. The private key stays in that browser.”",
-            ],
-          },
-          {
-            strongLead: [
-              "CISA, ",
-              { em: "Implementing Phishing-Resistant MFA," },
-              " October 2022:",
-            ],
-            rest: [
-              " “The only widely available phishing-resistant authentication is FIDO/WebAuthn authentication.” “The FIDO Alliance originally developed the WebAuthn protocol as part of FIDO2 standards and is now published by the World Wide Web Consortium (W3C).” Authenticators “can either be: separate physical tokens (called ‘roaming’ authenticators)… or embedded into laptops or mobile devices as ‘platform’ authenticators.” CISA calls phishing-resistant MFA the gold standard and notes that not all MFA is equally secure (OTP and push are described as weaker / phishing-vulnerable). That explains why a device-held key is a different habit from a reused secret. It is not a claim that NEOS is CISA-assessed, or that W3C endorses the product.",
-            ],
-          },
+        kind: "p",
+        body: [
+          "W3C Recommendation, ",
+          { em: "Web Authentication: An API for accessing Public Key Credentials — Level 2," },
+          " 8 April 2021: “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent.” “Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party.” In the terminology, “The credential private key is bound to a particular authenticator — its managing authenticator — and is expected to never be exposed to any other party, not even to the owner of the authenticator.” The registration walk-through in the same specification has the server store “the credential public key.” This page does not claim that NEOS implements WebAuthn Level 2, FIDO2, or a particular authenticator. It uses the public model of a device-held private key and a server-held public key.",
+        ],
+      },
+      {
+        kind: "p",
+        body: "The same specification: “Authenticators are responsible for ensuring that no operation is performed without user consent.” Platform authenticators are implemented on the device; roaming authenticators are off-device (USB, BLE, or NFC). If the page mentions device-held keys, that distinction is kept. Which kind NEOS uses is not invented; Terms say “a key generated in your browser. The private key stays in that browser.”",
+      },
+      {
+        kind: "p",
+        body: [
+          "CISA, ",
+          { em: "Implementing Phishing-Resistant MFA," },
+          " October 2022: “The only widely available phishing-resistant authentication is FIDO/WebAuthn authentication.” “The FIDO Alliance originally developed the WebAuthn protocol as part of FIDO2 standards and is now published by the World Wide Web Consortium (W3C).” Authenticators “can either be: separate physical tokens (called ‘roaming’ authenticators)… or embedded into laptops or mobile devices as ‘platform’ authenticators.” CISA calls phishing-resistant MFA the gold standard and notes that not all MFA is equally secure (OTP and push are described as weaker / phishing-vulnerable). That explains why a device-held key is a different habit from a reused secret. It is not a claim that NEOS is CISA-assessed, or that W3C endorses the product.",
         ],
       },
       {
@@ -688,12 +648,11 @@ export const PRACTICES: readonly Practice[] = [
         ],
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a customer. A member signs a decision from a browser key and later loses the browser profile. The workspace cannot mint a replacement key. The person uses whatever other sign-in the Terms still offer, or starts again. The key was never a wallet, and there was never a spare copy.",
+        body: "A member signs a decision from a browser key and later loses the browser profile. The workspace cannot mint a replacement key. The person uses whatever other sign-in the Terms still offer, or starts again. The key was never a wallet, and there was never a spare copy.",
       },
       { kind: "h2", text: "Also in this section" },
       {
@@ -831,23 +790,9 @@ export const PRACTICES: readonly Practice[] = [
           ". NEOS is not a certified implementation of The Sociocracy Group's method. This page does not invent a double-link, a TSG election, a training badge, or an objection percentage. It does not say that TSG endorses NEOS. There is no blockchain and no token.",
         ],
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["The Sociocracy Group, “4 principles.”"],
-            rest: [
-              " “The consent principle is the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.”",
-            ],
-          },
-          {
-            strongLead: ["The same page, on consensus:"],
-            rest: [
-              " “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
-            ],
-          },
-        ],
+        kind: "p",
+        body: "The Sociocracy Group, “4 principles.” “The consent principle is the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” The same page, on consensus: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
       },
       { kind: "h2", text: "TSG's words" },
       {
@@ -870,13 +815,12 @@ export const PRACTICES: readonly Practice[] = [
           " is the product page for the house model.",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
         body: "This is a worked example, not a council and not a customer. A group is told it “decides by consent,” and the facilitator treats a round of nods as everyone agreeing. TSG's sentence is already the correction: consent is not consensus, and it does not mean that everyone agrees.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -962,33 +906,21 @@ export const PRACTICES: readonly Practice[] = [
           ", are the house siblings. This page does not claim a NEOS certification, a particular authenticator, or a token. “Passkey” is not a house product name. There is no blockchain and no token.",
         ],
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: [
-              "W3C, ",
-              { em: "Web Authentication: An API for accessing Public Key Credentials Level 2," },
-              " W3C Recommendation, 8 April 2021.",
-            ],
-            rest: [
-              " “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application.”",
-            ],
-          },
-          {
-            strongLead: ["FIDO Alliance, “Passkeys.”"],
-            rest: [
-              " “A passkey is an authentication credential based on FIDO standards, that can be stored on your phone or computer, or in a hardware security key allowing a user to sign in to apps and websites with the same process that they use to unlock their device (biometrics, PIN, or pattern).” “Passkeys are FIDO cryptographic credentials that are tied to a user's account on a website or application.”",
-            ],
-          },
-          {
-            strongLead: ["The same FIDO page, on passwords and on the word itself:"],
-            rest: [
-              " “A password is something that can be remembered and typed, and a passkey is a secret stored on one's devices, unlocked by the user the same way they unlock their device (biometrics, security key, PIN, pattern, etc.).” “Unlike passwords, passkeys are phishing-resistant, are always strong, and are designed so that there are no shared secrets.” “The word 'passkey' is a common noun; think of it the way you would refer to 'password'. It should be written in lowercase except when beginning a sentence.” “From a technical standpoint, passkeys are FIDO credentials for passwordless authentication.” “The same standards, commonly known as FIDO2 (WebAuthn and CTAP), are leveraged to deploy FIDO with passkeys for sign-in. The WebAuthn standard covers the browser API that manages passkeys.”",
-            ],
-          },
+        kind: "p",
+        body: [
+          "W3C, ",
+          { em: "Web Authentication: An API for accessing Public Key Credentials Level 2," },
+          " W3C Recommendation, 8 April 2021. “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application.”",
         ],
+      },
+      {
+        kind: "p",
+        body: "FIDO Alliance, “Passkeys.” “A passkey is an authentication credential based on FIDO standards, that can be stored on your phone or computer, or in a hardware security key allowing a user to sign in to apps and websites with the same process that they use to unlock their device (biometrics, PIN, or pattern).” “Passkeys are FIDO cryptographic credentials that are tied to a user's account on a website or application.”",
+      },
+      {
+        kind: "p",
+        body: "The same FIDO page, on passwords and on the word itself: “A password is something that can be remembered and typed, and a passkey is a secret stored on one's devices, unlocked by the user the same way they unlock their device (biometrics, security key, PIN, pattern, etc.).” “Unlike passwords, passkeys are phishing-resistant, are always strong, and are designed so that there are no shared secrets.” “The word 'passkey' is a common noun; think of it the way you would refer to 'password'. It should be written in lowercase except when beginning a sentence.” “From a technical standpoint, passkeys are FIDO credentials for passwordless authentication.” “The same standards, commonly known as FIDO2 (WebAuthn and CTAP), are leveraged to deploy FIDO with passkeys for sign-in. The WebAuthn standard covers the browser API that manages passkeys.”",
       },
       { kind: "h2", text: "W3C and FIDO, in their own words" },
       {
@@ -1003,13 +935,12 @@ export const PRACTICES: readonly Practice[] = [
           ". This page does not use third-party percentage claims that appear on the FIDO page (Yubico, Amazon, Google, SlashNext, IBM). Those primary sources were not opened, and the figures are not used here.",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a customer and not a certification. A site is described as “using passkeys,” and the only credential it stores is still a typed password, with a public-key option mentioned in a backlog. W3C's and FIDO's sentences are already the reason that description does not yet fit.",
+        body: "A site is described as “using passkeys,” and the only credential it stores is still a typed password, with a public-key option mentioned in a backlog. W3C's and FIDO's sentences are already the reason that description does not yet fit.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -1103,23 +1034,13 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "This is a field note about circles and domains, not a claim that NEOS has implemented TSG's full method, and not an invented org chart. NEOS is not a certified implementation of The Sociocracy Group's method. This page does not invent a double-link, a TSG election, or a training badge. The opened About and governance-model pages do not claim a TSG double-link or a TSG election, and none is invented here. There is no blockchain and no token.",
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["The Sociocracy Group, “4 principles.”"],
-            rest: [
-              " “The circle decides about policy and delegates the execution to the members. This means delegates clear domains with freedom to decide.”",
-            ],
-          },
-          {
-            strongLead: ["The same page, on what a circle is:"],
-            rest: [
-              " “A circle is a semi autonomous team of individuals who determine policy according to the Sociocratic method for the realization of a common aim.” “Each circle defines its policy and decides by consent to use other decision-making methods.”",
-            ],
-          },
-        ],
+        kind: "p",
+        body: "The Sociocracy Group, “4 principles.” “The circle decides about policy and delegates the execution to the members. This means delegates clear domains with freedom to decide.”",
+      },
+      {
+        kind: "p",
+        body: "The same page, on what a circle is: “A circle is a semi autonomous team of individuals who determine policy according to the Sociocratic method for the realization of a common aim.” “Each circle defines its policy and decides by consent to use other decision-making methods.”",
       },
       { kind: "h2", text: "TSG's words" },
       {
@@ -1142,13 +1063,12 @@ export const PRACTICES: readonly Practice[] = [
           " are those house pages.",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
         body: "This is a worked example, not a council and not a customer. A group is called a circle, policy and execution are discussed in the same undifferentiated pile, and no one can say which domain a person is free to decide in. TSG's “clear domains with freedom to decide” sentence is already the missing piece.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -1234,23 +1154,9 @@ export const PRACTICES: readonly Practice[] = [
           " lede. That page is the definition sibling; this one is the operational sibling. NEOS is not a certified implementation of The Sociocracy Group's method. This page does not invent a formal objection template, a time limit, or a “paramount means X.” It does not call an objection a veto, or consent a unanimous vote. There is no blockchain and no token.",
         ],
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["The Sociocracy Group, “4 principles.”"],
-            rest: [
-              " Consent is “expressed by the fact that none of the members has a paramount and well-founded objection against that decision.”",
-            ],
-          },
-          {
-            strongLead: ["The same page:"],
-            rest: [
-              " “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
-            ],
-          },
-        ],
+        kind: "p",
+        body: "The Sociocracy Group, “4 principles.” Consent is “expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” The same page: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
       },
       { kind: "h2", text: "TSG's words, again, because they are the test" },
       {
@@ -1269,13 +1175,12 @@ export const PRACTICES: readonly Practice[] = [
           " is the product page.",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
         body: "This is a worked example, not a council and not a customer. A member is asked to “object or let it through,” and objects because a different option would have been nicer, without naming a risk the group cannot afford. TSG's gloss is already the reason that is not yet a well-founded objection, in this method's public words.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -1358,30 +1263,20 @@ export const PRACTICES: readonly Practice[] = [
           "; this page does not quietly extend it into a sync product. There is no blockchain and no token. This page does not invent recovery or escrow procedures, and it does not use FIDO's third-party percentage claims.",
         ],
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["FIDO Alliance, “Passkeys.”"],
-            rest: [
-              " “Passkeys can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).” “The cryptographic keys are used from end-user devices (computers, phones, or security keys) for user authentication.”",
-            ],
-          },
-          {
-            strongLead: ["The same page, on a capability that should not flatten the distinction:"],
-            rest: [
-              " “Passkeys simplify account registration for apps and websites, are easy to use, work across all of a user's devices, and even other devices within physical proximity.” That line describes a capability FIDO states. It does not flatten into “every passkey always syncs,” because the same page also names device-bound passkeys. “Since all passkeys are FIDO credentials, a web service implementing support for FIDO will be able to support all passkey implementations.”",
-            ],
-          },
-          {
-            strongLead: ["W3C WebAuthn Level 2"],
-            rest: [
-              " (opened, 8 April 2021) remains the browser API for public-key credentials scoped to a relying party. This page points at the ",
-              link("WebAuthn guide", WEBAUTHN_PATH),
-              " for that API. It does not invent Level-2 language about sync that the opened abstract did not state.",
-            ],
-          },
+        kind: "p",
+        body: "FIDO Alliance, “Passkeys.” “Passkeys can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).” “The cryptographic keys are used from end-user devices (computers, phones, or security keys) for user authentication.”",
+      },
+      {
+        kind: "p",
+        body: "The same page, on a capability that should not flatten the distinction: “Passkeys simplify account registration for apps and websites, are easy to use, work across all of a user's devices, and even other devices within physical proximity.” That line describes a capability FIDO states. It does not flatten into “every passkey always syncs,” because the same page also names device-bound passkeys. “Since all passkeys are FIDO credentials, a web service implementing support for FIDO will be able to support all passkey implementations.”",
+      },
+      {
+        kind: "p",
+        body: [
+          "W3C WebAuthn Level 2 (opened, 8 April 2021) remains the browser API for public-key credentials scoped to a relying party. This page points at the ",
+          link("WebAuthn guide", WEBAUTHN_PATH),
+          " for that API. It does not invent Level-2 language about sync that the opened abstract did not state.",
         ],
       },
       { kind: "h2", text: "FIDO's two modes, in FIDO's words" },
@@ -1389,13 +1284,12 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "Synced across a user's devices, or bound to a particular device. Keys used from computers, phones, or security keys. Proximity is a capability FIDO names; it does not erase the device-bound case. A record that only says “passkey” has not yet said which arrangement it is.",
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a customer and not a NEOS feature. A practice note says “the key stays on the device,” and the actual credential is a synced passkey that also lives on a second phone. FIDO already names both arrangements. The useful record would have said which one it was.",
+        body: "A practice note says “the key stays on the device,” and the actual credential is a synced passkey that also lives on a second phone. FIDO already names both arrangements. The useful record would have said which one it was.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -1483,23 +1377,13 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "TSG's election principle is that almost any decision can be delegated to operational roles or processes by a policy decision made with consent, but “the one sort of decision we cannot delegate is the election of an important role — particularly the representative.” NEOS is not a certified implementation of The Sociocracy Group's method. This page says so when TSG is cited. It does not invent a double-link, or a TSG election, that live NEOS pages do not claim. This is a field note about a decision that, in this method, is not handed off, not a NEOS certification page.",
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["The Sociocracy Group, “4 principles,” under Election:"],
-            rest: [
-              " “The Principle of Election by consent provides an important counter-balance. While we can delegate almost any decision to operational roles or processes, using a policy decision made with consent, the one sort of decision we cannot delegate is the election of an important role — particularly the representative. Representatives must be chosen by consent of the circle which they represent. This ensures that the organization is woven together by a web of consent, and that power flows in circles through the entire organization.”",
-            ],
-          },
-          {
-            strongLead: ["The same page, under Double link,"],
-            rest: [
-              " also says a circle “has a link with the next higher circle in such a way that at least two persons, the functional leader and at least one elected representative from the circle, belong to the next higher circle and participate in the higher circle on an equivalent basis.” That paragraph is quoted only as TSG's description of its method. Live NEOS About and governance-model pages are not used here as evidence of a TSG double-link, and none is invented. A footnote on the page marks starred sentences as “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.”",
-            ],
-          },
-        ],
+        kind: "p",
+        body: "The Sociocracy Group, “4 principles,” under Election: “The Principle of Election by consent provides an important counter-balance. While we can delegate almost any decision to operational roles or processes, using a policy decision made with consent, the one sort of decision we cannot delegate is the election of an important role — particularly the representative. Representatives must be chosen by consent of the circle which they represent. This ensures that the organization is woven together by a web of consent, and that power flows in circles through the entire organization.”",
+      },
+      {
+        kind: "p",
+        body: "The same page, under Double link, also says a circle “has a link with the next higher circle in such a way that at least two persons, the functional leader and at least one elected representative from the circle, belong to the next higher circle and participate in the higher circle on an equivalent basis.” That paragraph is quoted only as TSG's description of its method. Live NEOS About and governance-model pages are not used here as evidence of a TSG double-link, and none is invented. A footnote on the page marks starred sentences as “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.”",
       },
       { kind: "h2", text: "What this page does not claim" },
       {
@@ -1520,13 +1404,12 @@ export const PRACTICES: readonly Practice[] = [
           ".",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a customer and not a certification. A representative is “just appointed” for a circle, without consent of the circle represented. TSG's election paragraph already says that particular decision cannot be delegated.",
+        body: "A representative is “just appointed” for a circle, without consent of the circle represented. TSG's election paragraph already says that particular decision cannot be delegated.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -1594,23 +1477,13 @@ export const PRACTICES: readonly Practice[] = [
         kind: "p",
         body: "WebAuthn is the web API for public-key credentials. CTAP, in the opened FIDO document, is the application-layer protocol between a client or platform and a roaming authenticator, and is part of the FIDO2 project alongside WebAuthn. This is a short map of two related specifications, not a hardware-product page, not a protocol-attack discussion, and not a claim that NEOS implements CTAP or holds a FIDO certification.",
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: ["Client to Authenticator Protocol (CTAP), FIDO Alliance Proposed Standard, 21 June 2022"],
-            rest: [
-              " (this version: fido-v2.1-ps-20210615, errata of 21 June 2022). Abstract: “This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform, as well as bindings of this application protocol to a variety of transport protocols using different physical media.” Status: “This document was published by the FIDO Alliance as a Proposed Standard Specification.” “Other documents may supersede this document.” The FIDO Alliance specifications index, also opened, still listed this same CTAP URL. This page does not claim that no later CTAP revision exists beyond what that index and this document showed, and it does not treat “Proposed Standard, 21 June 2022” as a later final edition.",
-            ],
-          },
-          {
-            strongLead: ["The same document, §1 Introduction (non-normative) and §1.1 Relationship to Other Specifications."],
-            rest: [
-              " “This protocol is intended to be used in scenarios where a user interacts with a Relying Party (a website or native app) on some platform (e.g., a PC) which prompts the user to interact with a roaming authenticator (e.g., a smartphone).” “This specification is part of the FIDO2 project, which includes this specification and is related to the W3C [WebAuthn] specification.” It refers to two CTAP protocol versions: CTAP1/U2F, “defined by the U2F Raw Messages specification,” and CTAP2, “whose messages are encoded in the CTAP2 canonical CBOR encoding form.” “Authenticators implementing CTAP2 are referred to as CTAP2 authenticators, FIDO2 authenticators, or WebAuthn authenticators.” “Both CTAP1 and CTAP2 share the same underlying transports: USB Human Interface Device (USB HID), Near Field Communication (NFC), and Bluetooth Smart / Bluetooth Low Energy Technology (BLE).” “Occasionally, the term ‘CTAP’ may be used without clarifying whether it is referring to CTAP1 or CTAP2. In such cases, it should be understood to be referring to the entirety of this specification or portions of this specification that are not specific to either CTAP1 or CTAP2.” The same section notes that “for certifications, other requirements than those specified in this specification may apply” and points readers toward the certifying organization. That is not a claim about NEOS.",
-            ],
-          },
-        ],
+        kind: "p",
+        body: "Client to Authenticator Protocol (CTAP), FIDO Alliance Proposed Standard, 21 June 2022 (this version: fido-v2.1-ps-20210615, errata of 21 June 2022). Abstract: “This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform, as well as bindings of this application protocol to a variety of transport protocols using different physical media.” Status: “This document was published by the FIDO Alliance as a Proposed Standard Specification.” “Other documents may supersede this document.” The FIDO Alliance specifications index, also opened, still listed this same CTAP URL. This page does not claim that no later CTAP revision exists beyond what that index and this document showed, and it does not treat “Proposed Standard, 21 June 2022” as a later final edition.",
+      },
+      {
+        kind: "p",
+        body: "The same document's introduction, which is not a formal requirement, and the section on how the protocol relates to other specifications. “This protocol is intended to be used in scenarios where a user interacts with a Relying Party (a website or native app) on some platform (e.g., a PC) which prompts the user to interact with a roaming authenticator (e.g., a smartphone).” “This specification is part of the FIDO2 project, which includes this specification and is related to the W3C [WebAuthn] specification.” It refers to two CTAP protocol versions: CTAP1/U2F, “defined by the U2F Raw Messages specification,” and CTAP2, “whose messages are encoded in the CTAP2 canonical CBOR encoding form.” “Authenticators implementing CTAP2 are referred to as CTAP2 authenticators, FIDO2 authenticators, or WebAuthn authenticators.” “Both CTAP1 and CTAP2 share the same underlying transports: USB Human Interface Device (USB HID), Near Field Communication (NFC), and Bluetooth Smart / Bluetooth Low Energy Technology (BLE).” “Occasionally, the term ‘CTAP’ may be used without clarifying whether it is referring to CTAP1 or CTAP2. In such cases, it should be understood to be referring to the entirety of this specification or portions of this specification that are not specific to either CTAP1 or CTAP2.” The same section notes that “for certifications, other requirements than those specified in this specification may apply” and points readers toward the certifying organization. That is not a claim about NEOS.",
       },
       {
         kind: "p",
@@ -1630,13 +1503,12 @@ export const PRACTICES: readonly Practice[] = [
           " is the house practice sibling.",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a customer and not a certification. A site is described as “FIDO2 certified” because it mentions WebAuthn, with no account of a client-to-authenticator protocol and no certification. The opened CTAP document already distinguishes the companion protocol, and already says that certifications may have other requirements.",
+        body: "A site is described as “FIDO2 certified” because it mentions WebAuthn, with no account of a client-to-authenticator protocol and no certification. The opened CTAP document already distinguishes the companion protocol, and already says that certifications may have other requirements.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
@@ -1716,42 +1588,28 @@ export const PRACTICES: readonly Practice[] = [
           " page cited Level 2; this child records the later level and does not replace that brief.",
         ],
       },
-      { kind: "h2", text: "Hero figures" },
       {
-        kind: "ul",
-        items: [
-          {
-            strongLead: [
-              { em: "Web Authentication: An API for accessing Public Key Credentials Level 3," },
-              " W3C Recommendation, 25 August 2026.",
-            ],
-            rest: [
-              " This version: ",
-              link("https://www.w3.org/TR/2026/REC-webauthn-3-20260825/", "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/"),
-              ". Latest published version: ",
-              link("https://www.w3.org/TR/webauthn-3/", "https://www.w3.org/TR/webauthn-3/"),
-              ". Previous versions listed in the document head include the Candidate Recommendation Snapshot of 26 May 2026, the Level 2 Recommendation of 8 April 2021, and the Level 1 Recommendation of 4 March 2019. Abstract: “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application. The user agent mediates access to authenticators and their public key credentials in order to preserve user privacy. Authenticators are responsible for ensuring that no operation is performed without user consent.”",
-            ],
-          },
-          {
-            strongLead: ["The same Recommendation, §1 Introduction (non-normative)."],
-            rest: [
-              " “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent. Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party. This scoping is enforced jointly by conforming User Agents and authenticators. Additionally, privacy across Relying Parties is maintained; Relying Parties are not able to detect any properties, or even the existence, of credentials scoped to other Relying Parties.” Registration and Authentication remain the two ceremonies. This page does not write an implementation walk-through of `create()` and `get()`.",
-            ],
-          },
-          {
-            strongLead: ["The same Recommendation, §18.1 Changes since Web Authentication Level 2 [webauthn-2-20210408]."],
-            rest: [
-              " This section is the official change list. Editorial changes include: “Introduced credential record concept to formalize what data Relying Parties need to store and how it relates between registration and authentication ceremonies.” Substantive “new features” named in the opened list include JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a new `hybrid` transport enumeration value, signal methods for credential changes, a `topOrigin` client-data attribute, user-agent hints, using Web Authentication across related origins, backup-state flags, a compound attestation statement format, a pseudo-random function extension, and a registration parameter `attestationFormats`. Those features are named as the specification names them. The list is not turned into a how-to, and no NEOS support matrix is invented. Other substantive headings in the same section cover updated timeout guidance and several deprecations and removals; they are not paraphrased from memory here.",
-            ],
-          },
-          {
-            strongLead: ["Level 2,"],
-            rest: [
-              " already opened for batch 1, remains a Recommendation dated 8 April 2021. A later-than-Level-3 Editor's Draft URL is listed in the document; it is not this Recommendation and is not described here.",
-            ],
-          },
+        kind: "p",
+        body: [
+          { em: "Web Authentication: An API for accessing Public Key Credentials Level 3," },
+          " W3C Recommendation, 25 August 2026. This version: ",
+          link("https://www.w3.org/TR/2026/REC-webauthn-3-20260825/", "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/"),
+          ". Latest published version: ",
+          link("https://www.w3.org/TR/webauthn-3/", "https://www.w3.org/TR/webauthn-3/"),
+          ". Previous versions listed in the document head include the Candidate Recommendation Snapshot of 26 May 2026, the Level 2 Recommendation of 8 April 2021, and the Level 1 Recommendation of 4 March 2019. Abstract: “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application. The user agent mediates access to authenticators and their public key credentials in order to preserve user privacy. Authenticators are responsible for ensuring that no operation is performed without user consent.”",
         ],
+      },
+      {
+        kind: "p",
+        body: "The same Recommendation's introduction, which is not a formal requirement, says “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent. Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party. This scoping is enforced jointly by conforming User Agents and authenticators. Additionally, privacy across Relying Parties is maintained; Relying Parties are not able to detect any properties, or even the existence, of credentials scoped to other Relying Parties.” Registration and Authentication remain the two ceremonies. This page does not write an implementation walk-through of `create()` and `get()`.",
+      },
+      {
+        kind: "p",
+        body: "The same Recommendation, the implementation appendix Changes since Web Authentication Level 2 [webauthn-2-20210408]. This section is the official change list. Editorial changes include: “Introduced credential record concept to formalize what data Relying Parties need to store and how it relates between registration and authentication ceremonies.” Substantive “new features” named in the opened list include JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a new `hybrid` transport enumeration value, signal methods for credential changes, a `topOrigin` client-data attribute, user-agent hints, using Web Authentication across related origins, backup-state flags, a compound attestation statement format, a pseudo-random function extension, and a registration parameter `attestationFormats`. Those features are named as the specification names them. The list is not turned into a how-to, and no NEOS support matrix is invented. Other substantive headings in the same section cover updated timeout guidance and several deprecations and removals; they are not paraphrased from memory here.",
+      },
+      {
+        kind: "p",
+        body: "Level 2, already opened for batch 1, remains a Recommendation dated 8 April 2021. A later-than-Level-3 Editor's Draft URL is listed in the document; it is not this Recommendation and is not described here.",
       },
       { kind: "h2", text: "What this page does not claim" },
       {
@@ -1766,13 +1624,12 @@ export const PRACTICES: readonly Practice[] = [
           " are the practice siblings. No tokens, no third-party percentages, and no exploit steps.",
         ],
       },
-      { kind: "h2", text: "An illustrative scenario" },
+      { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a customer and not a certification. A note says “we follow WebAuthn” without saying which Recommendation, and treats Level 2 as if Level 3 had not been published. Both dates are already official, and this page exists to keep them distinct.",
+        body: "A note says “we follow WebAuthn” without saying which Recommendation, and treats Level 2 as if Level 3 had not been published. Both dates are already official, and this page exists to keep them distinct.",
       },
       { kind: "h2", text: "Sources" },
-      { kind: "p", body: "Every stat on this page is cited." },
       { kind: "sources" },
       { kind: "h2", text: "Also in this section" },
       {
