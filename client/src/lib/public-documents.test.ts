@@ -10,6 +10,7 @@ import {
   PRIVACY_PAGE,
   PUBLIC_PAGES,
   TERMS_PAGE,
+  feedXml,
   organizationJsonLd,
   renderShell,
   sitemapXml,
@@ -33,6 +34,11 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.equal(home.includes("nofollow"), false);
   assert.match(home, /<title>NEOS — Governance in Practice<\/title>/);
   assert.match(home, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/"/);
+  assert.match(home, /property="og:url" content="https:\/\/neos\.primusneo\.com\/"/);
+  assert.match(home, /property="og:title" content="NEOS — Governance in Practice"/);
+  assert.match(home, /name="twitter:title" content="NEOS — Governance in Practice"/);
+  assert.match(home, /application\/ld\+json/);
+  assert.match(home, /"@type":"WebSite"/);
   assert.match(home, /property="og:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
   assert.match(home, /name="twitter:card" content="summary_large_image"/);
   assert.match(home, /name="twitter:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
@@ -40,6 +46,9 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(about, /The New Earth Operating System\./);
   assert.match(about, /It is part of the <a href="https:\/\/primusneo\.com">PrimusNeo<\/a> stack/);
   assert.match(about, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/about"/);
+  assert.match(about, /property="og:url" content="https:\/\/neos\.primusneo\.com\/about"/);
+  assert.match(about, /name="twitter:title" content="About NEOS — Governance in Practice"/);
+  assert.match(about, /"@type":"WebSite"/);
   assert.equal(about.includes("at any scale"), false);
   assert.equal(about.includes("dignity, sovereignty, and collective intelligence"), false);
   assert.equal(about.includes("A complete governance stack"), false);
@@ -69,8 +78,8 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(governance, /NEOS is part of <a href="https:\/\/primusneo\.com">PrimusNeo<\/a>/);
   assert.match(governance, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/governance-model"/);
 
-  const vote = renderShell(shell, byPath.get("/writing/act-is-not-a-vote")!);
-  const key = renderShell(shell, byPath.get("/writing/the-key-stays-in-the-browser")!);
+  const vote = renderShell(shell, byPath.get("/blog/act-is-not-a-vote")!);
+  const key = renderShell(shell, byPath.get("/blog/the-key-stays-in-the-browser")!);
   assert.match(vote, /<h1>ACT is not a vote<\/h1>/);
   assert.match(vote, /A vote is a very efficient machine for producing a number\./);
   assert.match(vote, /NEOS is part of <a href="https:\/\/primusneo\.com">PrimusNeo<\/a>/);
@@ -81,8 +90,22 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(key, /NEOS is part of <a href="https:\/\/primusneo\.com">PrimusNeo<\/a>/);
   assert.match(vote, /<a href="https:\/\/neos-operating-system-production\.up\.railway\.app\/api\/v1\/health">NEOS operator health \(version 0\.1\.0, 54 skills loaded\)<\/a>/);
   assert.match(key, /<a href="https:\/\/neos-operating-system-production\.up\.railway\.app\/auth\/login">NEOS operator login chrome \(NEOS v0\.1\.0\)<\/a>/);
-  assert.match(renderShell(shell, byPath.get("/writing")!), /<a href="\/writing\/act-is-not-a-vote">ACT is not a vote<\/a>/);
-  assert.match(renderShell(shell, byPath.get("/writing")!), /<a href="\/writing\/the-key-stays-in-the-browser">The key stays in the browser<\/a>/);
+  const blog = renderShell(shell, byPath.get("/blog")!);
+  assert.match(blog, /<h1>Blog<\/h1>/);
+  assert.match(blog, /<a href="\/blog\/act-is-not-a-vote">ACT is not a vote<\/a>/);
+  assert.match(blog, /<a href="\/blog\/the-key-stays-in-the-browser">The key stays in the browser<\/a>/);
+  const news = renderShell(shell, byPath.get("/news")!);
+  assert.match(news, /<h1>News<\/h1>/);
+  assert.match(news, /Nothing has been announced here yet/);
+  assert.match(news, /name="robots" content="noindex, follow"/);
+  const practices = renderShell(shell, byPath.get("/practices")!);
+  assert.match(practices, /<h1>What the workspace already names\.<\/h1>/);
+  assert.match(practices, /These pages do not add figures/);
+  const act = renderShell(shell, byPath.get("/practices/act")!);
+  assert.match(act, /<h1>ACT is not a vote\.<\/h1>/);
+  assert.match(act, /<a href="\/governance-model">How NEOS governs\.<\/a>/);
+  assert.equal(act.includes("railway.app"), false);
+  assert.match(act, /property="og:url" content="https:\/\/neos\.primusneo\.com\/practices\/act"/);
 });
 
 test("every public page carries the Escherbridge footer as follow links", () => {
@@ -94,22 +117,41 @@ test("every public page carries the Escherbridge footer as follow links", () => 
       assert.ok(html.includes(`<a href="${site.href}">${site.label}</a>`), `${publicPage.path} ${site.label}`);
     }
   }
-  const ld = JSON.parse(organizationJsonLd()) as { sameAs: string[]; url: string };
-  assert.deepEqual(ld.sameAs, ESCHERBRIDGE_SITES.map((site) => site.href));
-  assert.equal(ld.url, "https://neos.primusneo.com/");
+  const ld = JSON.parse(organizationJsonLd()) as { "@graph": { "@type": string; name?: string; sameAs?: string[]; url?: string }[] };
+  const org = ld["@graph"].find((node) => node["@type"] === "Organization" && node.name === "NEOS");
+  const site = ld["@graph"].find((node) => node["@type"] === "WebSite");
+  assert.ok(org);
+  assert.ok(site);
+  assert.deepEqual(org.sameAs, ESCHERBRIDGE_SITES.map((item) => item.href));
+  assert.equal(org.url, "https://neos.primusneo.com/");
   const indexHtml = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../index.html"), "utf8");
   assert.match(indexHtml, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/"/);
+  assert.match(indexHtml, /property="og:url" content="https:\/\/neos\.primusneo\.com\/"/);
+  assert.match(indexHtml, /name="twitter:title"/);
   assert.match(indexHtml, /id="crawlable"/);
   const embedded = indexHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   assert.ok(embedded);
-  const parsed = JSON.parse(embedded[1]) as { sameAs: string[] };
-  assert.deepEqual(parsed.sameAs, ESCHERBRIDGE_SITES.map((site) => site.href));
+  const parsed = JSON.parse(embedded[1]) as { "@graph": { "@type": string; name?: string; sameAs?: string[] }[] };
+  const embeddedOrg = parsed["@graph"].find((node) => node["@type"] === "Organization" && node.name === "NEOS");
+  assert.ok(embeddedOrg);
+  assert.deepEqual(embeddedOrg.sameAs, ESCHERBRIDGE_SITES.map((item) => item.href));
+  assert.ok(parsed["@graph"].some((node) => node["@type"] === "WebSite"));
 });
 
 test("sitemap and robots name the public URLs", () => {
   const xml = sitemapXml();
-  for (const page of PUBLIC_PAGES) {
+  for (const page of PUBLIC_PAGES.filter((item) => item.indexable)) {
     assert.match(xml, new RegExp(page.canonical.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.equal(xml.includes("https://neos.primusneo.com/news"), false);
   assert.match(xml, /sitemap\/0\.9/);
+  const feed = feedXml();
+  assert.match(feed, /<rss version="2.0">/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/blog\/act-is-not-a-vote/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/act/);
+  assert.equal(feed.includes("/news<"), false);
+  for (const page of PUBLIC_PAGES) {
+    assert.ok(page.title.length <= 70, page.title);
+    assert.equal(page.canonical.startsWith("https://neos.primusneo.com"), true, page.path);
+  }
 });
