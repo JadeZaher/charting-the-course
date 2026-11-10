@@ -19,6 +19,15 @@ test('an active member does not see a finished entry quiz, and orientation stays
   assert.deepEqual(dashboardQueue(items, NOW, false).current.map((item) => item.uid), ['quiz', 'orient', 'advice']);
 });
 
+test('take_entry_quiz is dropped even when it mentions orientation, and start_orientation stays', () => {
+  const view = dashboardQueue([
+    { uid: 'quiz', kind: 'newcomer', action: 'take_entry_quiz', what: 'Read the orientation, then take the entry quiz.', link: '/quiz/take/q1' },
+    { uid: 'orient', kind: 'newcomer', action: 'start_orientation', what: 'Start orientation.', link: '/orientation/eco-1' },
+  ], NOW, true);
+  assert.deepEqual(view.current.map((item) => item.uid), ['orient']);
+  assert.equal(JSON.stringify(view).includes('take_entry_quiz'), false);
+});
+
 test('months-overdue work is grouped and not deleted', () => {
   assert.equal(isOlderDashboardItem({ uid: 'a', kind: 'proposal', due: '2026-05-29', overdue: true }, NOW), true);
   assert.equal(isOlderDashboardItem({ uid: 'b', kind: 'proposal', due: '2026-11-01', overdue: true }, NOW), false);

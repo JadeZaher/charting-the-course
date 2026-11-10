@@ -27,10 +27,12 @@ const ORIENTATION = /orientation|journey/i;
 const ENTRY_QUIZ = /quiz|questionnaire/i;
 const CONSENT = /consent|agreement/i;
 
-/** An entry quiz or a joining consent that is still in the queue after the membership is active. */
+/** An entry quiz still in the queue after the membership is active. `take_entry_quiz` is completed even when the description mentions orientation. `start_orientation` stays. */
 export function isCompletedDashboardItem(item: DashboardQueueItem, activeMember: boolean): boolean {
   if (item.completed === true) return true;
   if (!activeMember || item.kind !== 'newcomer') return false;
+  if (item.action === 'start_orientation') return false;
+  if (item.action === 'take_entry_quiz') return true;
   const blob = `${item.key ?? ''} ${item.action ?? ''} ${item.what ?? ''} ${item.title ?? ''} ${item.link ?? ''}`;
   if (ORIENTATION.test(blob)) return false;
   return ENTRY_QUIZ.test(blob) || CONSENT.test(blob);

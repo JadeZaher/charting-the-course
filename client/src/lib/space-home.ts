@@ -65,10 +65,14 @@ const ENTRY_QUIZ = /quiz|questionnaire/i;
 const CONSENT = /consent|agreement/i;
 const ACT_ASK = /advice|consent|test/i;
 
-/** An entry quiz or a joining consent still sitting in the queue after the membership is active. */
+/** An entry quiz still sitting in the queue after the membership is active.
+ * `take_entry_quiz` is completed even when its description mentions orientation.
+ * `start_orientation` stays. */
 export function isCompletedNextStep(step: SpaceStep, activeMember: boolean): boolean {
   if (step.completed === true) return true;
   if (!activeMember || step.kind !== 'newcomer') return false;
+  if (step.action === 'start_orientation') return false;
+  if (step.action === 'take_entry_quiz') return true;
   const blob = `${step.key ?? ''} ${step.action ?? ''} ${step.what ?? ''} ${step.title ?? ''} ${step.link ?? ''}`;
   if (ORIENTATION.test(blob)) return false;
   return ENTRY_QUIZ.test(blob) || CONSENT.test(blob);
@@ -94,9 +98,17 @@ function stepBlob(step: SpaceStep): string {
   return `${step.key ?? ''} ${step.action ?? ''} ${step.what ?? ''} ${step.title ?? ''} ${step.link ?? ''}`;
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  attest_agreement: copy.next.attestAgreement,
+  start_orientation: copy.next.startOrientation,
+};
+
 function actionLabel(step: SpaceStep): string | null {
-  const action = step.action?.trim();
+  const action = step.action?.trim() ?? '';
+  if (ACTION_LABELS[action]) return ACTION_LABELS[action];
   const what = step.what?.trim();
+  // A machine code is not a button label.
+  if (/^[a-z0-9_]+$/.test(action)) return what && what.length <= 80 && !/^[a-z0-9_]+$/.test(what) ? what : null;
   if (action && action.length <= 80) return action;
   if (what && what.length <= 80) return what;
   return null;
@@ -215,12 +227,12 @@ export function nextCard(input: {
   }
   const [primary, ...rest] = shown;
   const lead = fresh[0];
-  const sentence = lead?.what?.trim() && lead.what.trim() !== primary.label ? lead.what.trim() : lead?.why?.trim() && lead.why.trim() !== primary.label ? lead.why.trim() : null;
+  const leadText = [lead?.what, lead?.why].map((value) => value?.trim()).find((value) => !!value && value !== primary.label && !/^[a-z0-9_]+$/.test(value)) ?? null;
   const overdueCount = open.length - fresh.length;
   const older = overdueCount > 0 ? [{ kind: 'link' as const, id: 'older', label: copy.next.olderItems, href: '/dashboard' }] : [];
   return {
     welcome,
-    sentence,
+    sentence: leadText,
     primary,
     secondary: [...rest.slice(0, older.length ? 1 : 2), ...older],
     overflow: fresh.length > shown.length ? { label: copy.next.overflow(open.length), href: '/dashboard' } : null,
@@ -259,6 +271,8 @@ export interface PersonRow {
 
 export interface WhosHereModel {
   mode: 'count' | 'directory';
+  /** False when a count-only viewer has no member_count: the panel would be a blank box. */
+  show: boolean;
   countText: string | null;
   stewards: PersonRow[];
   circles: PersonRow[];
@@ -341,9 +355,11 @@ export function whosHere(input: {
 }): WhosHereModel {
   if (input.viewer !== 'member') {
     const count = input.memberCount;
+    const countText = count === 0 ? copy.whosHere.none : count == null ? null : copy.whosHere.count(count);
     return {
       mode: 'count',
-      countText: count === 0 ? copy.whosHere.none : count == null ? null : copy.whosHere.count(count),
+      show: countText != null,
+      countText,
       stewards: [],
       circles: [],
       members: [],
@@ -387,7 +403,8 @@ export function whosHere(input: {
 
   return {
     mode: 'directory',
-    countText: null,
+    show: true,
+    countText: input.memberCount == null ? null : copy.whosHere.memberCount(input.memberCount),
     stewards,
     circles,
     members,

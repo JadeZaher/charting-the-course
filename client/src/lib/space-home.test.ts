@@ -81,6 +81,40 @@ test('an active member does not see a finished entry quiz or joining consent aga
   assert.equal(isCompletedNextStep(quiz, false), false);
 });
 
+test('take_entry_quiz is dropped even when its description mentions orientation, and start_orientation stays', () => {
+  const quiz = step({
+    uid: 'quiz',
+    kind: 'newcomer',
+    action: 'take_entry_quiz',
+    what: 'Finish orientation reading, then the entry quiz.',
+    title: 'Entry questionnaire',
+    link: '/quiz/take/q1',
+  });
+  const orientation = step({
+    uid: 'orient',
+    kind: 'newcomer',
+    action: 'start_orientation',
+    what: 'Start orientation before the quiz.',
+    link: '/orientation/eco-1',
+  });
+  assert.equal(isCompletedNextStep(quiz, true), true);
+  assert.equal(isCompletedNextStep(orientation, true), false);
+  const card = nextCard({ viewer: 'member', name: NAME, ecosystemId: ECO, items: [quiz, orientation], now: NOW, firstSession: false, signInHref: '/login' });
+  assert.equal(card.primary?.label, 'Start orientation');
+  assert.equal(modelContains(card, 'take_entry_quiz'), false);
+});
+
+test('attest_agreement and start_orientation are section 7 labels, not raw action codes', () => {
+  const consent = step({ uid: 'c', kind: 'agreement', action: 'attest_agreement', what: 'attest_agreement', link: '/agreements/a-1' });
+  const orientation = step({ uid: 'o', kind: 'newcomer', action: 'start_orientation', what: 'start_orientation', link: '/orientation/eco-1' });
+  const card = nextCard({ viewer: 'member', name: NAME, ecosystemId: ECO, items: [orientation, consent], now: NOW, firstSession: false, signInHref: '/login' });
+  const labels = [card.primary?.label, ...card.secondary.map((item) => item.label)];
+  assert.ok(labels.includes('Start orientation'));
+  assert.ok(labels.includes('I consent to the membership agreements'));
+  assert.equal(modelContains(card, 'attest_agreement'), false);
+  assert.equal(modelContains(card, 'start_orientation'), false);
+});
+
 test('the next card shows one primary, two secondary actions, and a view-all link', () => {
   const items = [1, 2, 3, 4, 5].map((n) => step({
     uid: `s-${n}`,
@@ -202,6 +236,14 @@ test('a pending member gets one join action, and an empty queue falls back to th
   assert.equal(pendingJoinAction(agreements, null)?.label, 'Read and consent to the agreements');
 });
 
+test('the directory choice in Who\'s here uses the section 7 sentences', () => {
+  assert.equal(copy.directory.heading, 'Appear in the participant directory');
+  assert.equal(copy.directory.lead, "This doesn't change your membership. It only decides whether other members can find you here.");
+  assert.equal(copy.directory.confirm, 'Save my directory choices');
+  assert.equal(copy.directory.dismiss, 'Not now');
+  assert.equal(copy.directory.saved, 'Your consent is saved.');
+});
+
 test("who's here is a count for pending, public and signed-out viewers, with no names", () => {
   const input = {
     ecosystemName: NAME,
@@ -222,7 +264,21 @@ test("who's here is a count for pending, public and signed-out viewers, with no 
     assert.equal(modelContains(panel, 'mem-1'), false);
   }
   assert.equal(whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: 0 }).countText, 'No members are listed yet.');
-  assert.equal(whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: null }).countText, null);
+  const unknown = whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: null });
+  assert.equal(unknown.countText, null);
+  assert.equal(unknown.show, false);
+  const counted = whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: 4 });
+  assert.equal(counted.show, true);
+  assert.equal(counted.countText, "4 members. You'll see names and roles once you join.");
+});
+
+test('members see the real member count, and a missing count is not invented', () => {
+  const known = whosHere({ viewer: 'member', ecosystemName: NAME, memberCount: 9, members: [] });
+  assert.equal(known.countText, '9 members.');
+  assert.equal(known.show, true);
+  const missing = whosHere({ viewer: 'member', ecosystemName: NAME, memberCount: null, members: [] });
+  assert.equal(missing.countText, null);
+  assert.equal(JSON.stringify(missing).includes('members.'), false);
 });
 
 test('members see opted-in people and circles, and nobody who opted out', () => {
