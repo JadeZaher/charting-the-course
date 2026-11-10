@@ -14,7 +14,7 @@ import { useDashboardSummary } from '@/hooks/use-api';
 import { useMyNextSteps } from '@/hooks/use-next-steps';
 import { useSafeguards } from '@/hooks/use-care';
 import { agreementStatusLabel } from '@/lib/agreement-status';
-import { auditDueText } from '@/lib/health';
+import { dashboardAuditLine, dashboardQueue, dashboardQueueCopy } from '@/lib/dashboard-queue';
 import { canManageQuizzes } from '@/lib/nav-access';
 import { formatDate as formatDateOnly } from '@/lib/utils';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
@@ -22,7 +22,7 @@ import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { dueStatus, formatDue, nextStepKindLabel } from '@/lib/next-steps';
 import { proposalPhaseLabel } from '@/lib/proposal-vocab';
 import { keys } from '@/lib/query-keys';
-import type { ActivityItem, SummaryCard } from '@/types/api';
+import type { ActivityItem, NextStepItem, SummaryCard } from '@/types/api';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -112,6 +112,38 @@ function ActivityRow({ activity }: { activity: ActivityItem }) {
   );
 }
 
+function QueueRow({ item, index, now, showEcosystem }: { item: NextStepItem; index: number; now: Date; showEcosystem: boolean }) {
+  const due = dueStatus(item.due, item.overdue, now, formatDue);
+  return (
+    <li>
+      <Link
+        href={resolveInternalPath(item.link) ?? '/dashboard'}
+        className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
+      >
+        <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <div>
+          <p className="font-black leading-snug">{item.what}</p>
+          <p className="mt-1 text-sm group-hover:text-background/90">{item.title}</p>
+          <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">
+            {item.why}
+            {showEcosystem && item.ecosystem ? ` · ${item.ecosystem}` : ''}
+          </p>
+          {due && (
+            <p className={`mt-1 text-xs ${due.overdue ? 'font-semibold text-destructive group-hover:text-background' : 'text-muted-foreground group-hover:text-background/75'}`}>
+              {due.text}
+            </p>
+          )}
+        </div>
+        <Badge variant={due?.overdue ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
+          {nextStepKindLabel(item.kind)}
+        </Badge>
+      </Link>
+    </li>
+  );
+}
+
 export default function Dashboard() {
   const { member } = useAuth();
   const { selected, selectedIds, ecosystems, isAll, isMulti } = useEcosystem();
@@ -122,6 +154,7 @@ export default function Dashboard() {
   // G-Next: the member's own queue in every ecosystem they are active in; the header bell reads the same list.
   const queueQuery = useMyNextSteps();
   const [showAllNextSteps, setShowAllNextSteps] = useState(false);
+  const [showOlderItems, setShowOlderItems] = useState(false);
   const healthEcosystems = useSafeguards().data?.ecosystems ?? [];
   const scopedEcosystem = selectedIds.length === 1 ? selected : null;
 
@@ -146,10 +179,12 @@ export default function Dashboard() {
         : 'No ecosystem selected';
   const ecosystemImage = resolveMediaUrl(scopedEcosystem?.logo_url);
 
-  // The count is only a number once the queue has loaded; a dash never claims zero.
-  const pendingActionCount = queueQuery.data?.count ?? null;
-  const showEcosystem = new Set((queueQuery.data?.items ?? []).map((item) => item.ecosystem_id)).size > 1;
+  // The headline counts current work. Months-overdue rows stay in Older items and are not deleted.
   const now = new Date();
+  const activeMember = member?.current_status === 'active';
+  const queued = dashboardQueue(queueQuery.data?.items ?? [], now, activeMember);
+  const pendingActionCount = queueQuery.data ? queued.current.length : null;
+  const showEcosystem = new Set(queued.current.concat(queued.older).map((item) => item.ecosystem_id)).size > 1;
 
   const quickActions = [
     { label: 'Draft proposal', detail: 'Open a governance change', href: '/proposals/new' },
@@ -229,7 +264,7 @@ export default function Dashboard() {
               </div>
             }
             errorTitle="The governance queue could not be loaded"
-            isEmpty={(queue) => queue.items.length === 0}
+            isEmpty={(queue) => dashboardQueue(queue.items, now, activeMember).current.length + dashboardQueue(queue.items, now, activeMember).older.length === 0}
             empty={
               <div className="p-8 sm:p-10">
                 <p className="text-2xl font-black tracking-tight text-success">Queue clear.</p>
@@ -237,50 +272,42 @@ export default function Dashboard() {
               </div>
             }
           >
-            {(queue) => (
+            {(queue) => {
+              const view = dashboardQueue(queue.items, now, activeMember);
+              const shown = view.current.slice(0, showAllNextSteps ? undefined : 5);
+              return (
               <>
-              {queue.items.length > 5 && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 sm:px-6">
-                <p className="text-sm text-muted-foreground" aria-live="polite">Showing {showAllNextSteps ? queue.items.length : 5} of {queue.items.length} next steps.</p>
+              {view.current.length > 5 && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 sm:px-6">
+                <p className="text-sm text-muted-foreground" aria-live="polite">Showing {shown.length} of {view.current.length} next steps.</p>
                 <Button variant="outline" aria-expanded={showAllNextSteps} aria-controls="home-next-steps" onClick={() => setShowAllNextSteps(value => !value)}>
-                  {showAllNextSteps ? 'Show fewer' : `Show all ${queue.items.length} next steps`}
+                  {showAllNextSteps ? 'Show fewer' : `Show all ${view.current.length} next steps`}
                 </Button>
               </div>}
               <ol id="home-next-steps" className="divide-y divide-border">
-                {/* G-Onboard: newcomer steps (consent to join, orientation, a stuck newcomer) first; sort is stable, so server order holds within each group. */}
-                {[...queue.items].sort((a, b) => Number(String(b.kind) === 'newcomer') - Number(String(a.kind) === 'newcomer')).slice(0, showAllNextSteps ? undefined : 5).map((item, index) => {
-                  const due = dueStatus(item.due, item.overdue, now, formatDue);
-                  return (
-                    <li key={item.uid}>
-                      <Link
-                        href={resolveInternalPath(item.link) ?? '/dashboard'}
-                        className="group grid gap-4 p-5 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
-                      >
-                        <span className="text-xs font-black tabular-nums text-muted-foreground group-hover:text-background/75">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                        <div>
-                          <p className="font-black leading-snug">{item.what}</p>
-                          <p className="mt-1 text-sm group-hover:text-background/90">{item.title}</p>
-                          <p className="mt-1 text-xs text-muted-foreground group-hover:text-background/75">
-                            {item.why}
-                            {showEcosystem && item.ecosystem ? ` · ${item.ecosystem}` : ''}
-                          </p>
-                          {due && (
-                            <p className={`mt-1 text-xs ${due.overdue ? 'font-semibold text-destructive group-hover:text-background' : 'text-muted-foreground group-hover:text-background/75'}`}>
-                              {due.text}
-                            </p>
-                          )}
-                        </div>
-                        <Badge variant={due?.overdue ? 'destructive' : 'secondary'} className="w-fit rounded-none uppercase tracking-wide">
-                          {nextStepKindLabel(item.kind)}
-                        </Badge>
-                      </Link>
-                    </li>
-                  );
-                })}
+                {shown.map((item, index) => <QueueRow key={item.uid} item={item} index={index} now={now} showEcosystem={showEcosystem} />)}
               </ol>
+              {view.older.length > 0 && (
+                <div className="border-t-2 border-strong-border">
+                  <button
+                    type="button"
+                    className="flex min-h-11 w-full items-center justify-between px-5 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-6"
+                    aria-expanded={showOlderItems}
+                    aria-controls="older-items"
+                    onClick={() => setShowOlderItems((value) => !value)}
+                  >
+                    <span>{dashboardQueueCopy.olderItems}</span>
+                    <span className="tabular-nums text-muted-foreground">{view.older.length}</span>
+                  </button>
+                  {showOlderItems && (
+                    <ol id="older-items" className="divide-y divide-border border-t border-border">
+                      {view.older.map((item, index) => <QueueRow key={item.uid} item={item} index={index} now={now} showEcosystem={showEcosystem} />)}
+                    </ol>
+                  )}
+                </div>
+              )}
               </>
-            )}
+              );
+            }}
           </QueryState>
           {healthEcosystems.length > 0 && (
             <ul aria-label="Governance health" className="divide-y divide-border border-t-2 border-strong-border">
@@ -292,7 +319,7 @@ export default function Dashboard() {
                   >
                     <span className="font-semibold">Governance health{healthEcosystems.length > 1 ? ` · ${health.ecosystem}` : ''}</span>
                     <span className={health.audit_overdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}>
-                      {auditDueText(health.audit_due, health.audit_overdue, formatDateOnly)}
+                      {dashboardAuditLine(health.audit_due, health.audit_overdue, formatDateOnly)}
                     </span>
                   </Link>
                 </li>
