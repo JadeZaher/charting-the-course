@@ -50,6 +50,10 @@ export const ESSAYS: readonly Essay[] = [
       { label: "About NEOS", href: "https://neos.primusneo.com/about" },
       { label: "How NEOS governs", href: "https://neos.primusneo.com/governance-model" },
       { label: "PrimusNeo", href: PRIMUS_NEO },
+      {
+        label: "NEOS operator health (version 0.1.0, 54 skills loaded)",
+        href: "https://neos-operating-system-production.up.railway.app/api/v1/health",
+      },
     ],
     paragraphs: [
       "A vote is a very efficient machine for producing a number. Hands go up, or a button is pressed, or a token is weighted, and at the end there is a tally, which can be written down and later pointed to as \"what we decided.\" The efficiency is the trap. A tally can be produced in a room that did not hear from the people who will have to live with the result, and it can be produced without anyone writing down the objection that should have stopped the work, and it can be produced without anyone checking, later, whether the thing that won still works. The number looks like a decision. Often it is only a mood that learned how to count.",
@@ -76,12 +80,20 @@ export const ESSAYS: readonly Essay[] = [
       { label: "NEOS — Governance in Practice", href: "https://neos.primusneo.com" },
       { label: "About NEOS", href: "https://neos.primusneo.com/about" },
       { label: "PrimusNeo", href: PRIMUS_NEO },
+      {
+        label: "NEOS operator health (version 0.1.0, 54 skills loaded)",
+        href: "https://neos-operating-system-production.up.railway.app/api/v1/health",
+      },
+      {
+        label: "NEOS operator login chrome (NEOS v0.1.0)",
+        href: "https://neos-operating-system-production.up.railway.app/auth/login",
+      },
     ],
     paragraphs: [
       "Most accounts are a loan. You are issued a row in someone else's table, you are asked to prove you still know a secret that the table also, in some hashed form, knows, and if the table is withdrawn, or sold, or simply having a day, the identity goes with it. This is so ordinary that it is described as \"your account,\" which is a generous pronoun. It is their account, with your name on it, for as long as they keep the lights on.",
       "NEOS offers a narrower arrangement, and the public homepage already states it without decoration: there is no blockchain and no token. A browser sign-in can use a key generated on the device; the private key stays in that browser. The point of that sentence is not fashion. It is a claim about where the thing that makes you you on this workspace actually lives. If it lives only in a vendor's building, then membership, a vote, a journal entry, and an exit are all, in the end, requests. If the key stays on the device, the workspace can still refuse a request — fail closed is sometimes the right answer — but it cannot quietly become the owner of the identity it is supposed to recognise.",
       "\"No blockchain and no token\" belongs in the same sentence, because the usual alternative to a rented account is a rented coin. A token is very good at looking like ownership. It can be counted, transferred, and mistaken for a vote, or for a share, or for a membership that will still be there when the platform is not. NEOS is explicit about the refusal: ACT is not a share of ownership, economic coordination is not a payment rail, and this workspace does not move money, issue a token, sell a share, or run a funding pool. The key is not a wallet. It is a way of signing a decision without first buying a representation of one.",
-      "This is early software. The operator health check and the login chrome describe version 0.1.0. Fifty-four skills across ten layers are listed on the public About page; that is a description of the stack, not a maturity badge, and not a claim that a particular council is already running on it. OmniOne is a name carried in the operating-system notes. This site does not state a location, a steward, or whether a deployment is live, and this essay will not invent those details to make the key sound more travelled than it is.",
+      "This is early software. The operator software's public health check reports version 0.1.0, and its login page shows the same version. Fifty-four skills across ten layers are listed on the public About page; that is a description of the stack, not a maturity badge, and not a claim that a particular council is already running on it. OmniOne is a name carried in the operating-system notes. This site does not state a location, a steward, or whether a deployment is live, and this essay will not invent those details to make the key sound more travelled than it is.",
       "Exit, in that light, is not a flourish. The About page says a person can leave a circle, an ecosystem, or the platform, and can download the portable governance record the workspace already offers. Exit is not a payment and not a transfer of ownership. A portable record is only portable if the identity it is attached to is not trapped in a password-reset queue. The key in the browser is what makes that sentence more than a policy.",
       [
         "NEOS is part of ",
