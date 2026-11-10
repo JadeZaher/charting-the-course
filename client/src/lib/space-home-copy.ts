@@ -54,6 +54,17 @@ export const spaceHomeCopy = {
     memberCount: (count: number) => `${count} members.`,
     none: 'No members are listed yet.',
     retry: 'Try again',
+    /** Public owner contact. The name comes from the payload; the role word does not. */
+    owner: (name: string) => `${name}, owner`,
+    messageOwner: 'Message the owner',
+    messageSignIn: 'Sign in to message the owner.',
+    messageRefused: "You can't message the owner right now.",
+    messageLimited: 'Too many messages. Wait a moment and try again.',
+    messageUnopened: "We couldn't open that conversation.",
+    compose: 'Write a message',
+    send: 'Send',
+    messageSent: 'Message sent.',
+    messageRequired: 'Write a message before sending.',
   },
   directory: {
     heading: 'Appear in the participant directory',

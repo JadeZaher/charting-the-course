@@ -2,7 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { JoinGates } from './join-gates';
 import { spaceHomeCopy as copy } from './space-home-copy';
+import { safeRedirect } from './post-login-redirect';
+import { signupEcosystemId } from './signup-ecosystem';
 import {
+  ethosSignInHref,
   happening,
   headerStatus,
   isCompletedNextStep,
@@ -10,9 +13,13 @@ import {
   loadsParticipantDirectory,
   modelContains,
   nextCard,
+  ownerDirectMessage,
+  ownerMessageError,
   pendingJoinAction,
   publicMemberCount,
+  publicOwner,
   spaceViewer,
+  startedConversationId,
   stepsForEcosystem,
   directoryCandidates,
   whosHere,
@@ -62,6 +69,42 @@ test('a missing public count is not invented', () => {
   assert.equal(publicMemberCount({ member_count: 0 }), 0);
   assert.equal(publicMemberCount({ member_count: '4' }), 4);
   assert.equal(publicMemberCount({ member_count: -1 }), null);
+});
+
+test('the owner sign-in link returns to this ecosystem and names it for registration', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const href = ethosSignInHref(id);
+  const query = href.slice(href.indexOf('?'));
+  assert.equal(safeRedirect(new URLSearchParams(query).get('redirect')), `/ethos/${id}`);
+  assert.equal(signupEcosystemId(query), id);
+});
+
+const OWNER_PAYLOAD = {
+  member_count: 4,
+  owner: {
+    id: 'mem-owner',
+    display_name: 'Ada',
+    role: 'owner',
+    email: 'ada@secret.test',
+    phone: '555-0101',
+    did: 'did:example:ada',
+    user_id: 'user-secret',
+  },
+};
+
+test('a public owner keeps the display name and member id, and nothing else', () => {
+  assert.deepEqual(publicOwner(OWNER_PAYLOAD), { id: 'mem-owner', display_name: 'Ada' });
+  assert.deepEqual(publicOwner(publicOwner(OWNER_PAYLOAD)), { id: 'mem-owner', display_name: 'Ada' });
+  assert.equal(publicOwner({ owner: null }), null);
+  assert.equal(publicOwner({}), null);
+  assert.equal(publicOwner(null), null);
+  assert.equal(publicOwner({ owner: { id: 'mem-owner' } }), null);
+  assert.equal(publicOwner({ owner: { id: 'mem-owner', display_name: '   ' } }), null);
+  assert.equal(publicOwner({ owner: { id: 'mem-owner', display_name: '11111111-2222-3333-4444-555555555555' } }), null);
+  assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'ada@secret.test'), false);
+  assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), '555-0101'), false);
+  assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'did:example'), false);
+  assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'user-secret'), false);
 });
 
 test('long overdue is the server flag plus the day cutoff, not a client guess', () => {
@@ -270,6 +313,113 @@ test("who's here is a count for pending, public and signed-out viewers, with no 
   const counted = whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: 4 });
   assert.equal(counted.show, true);
   assert.equal(counted.countText, "4 members. You'll see names and roles once you join.");
+});
+
+test("who's here names the owner for every viewer and hides every other person from signed-out and pending viewers", () => {
+  const href = ethosSignInHref(ECO);
+  const shared = {
+    ecosystemName: NAME,
+    memberCount: publicMemberCount(OWNER_PAYLOAD),
+    owner: OWNER_PAYLOAD,
+    signInHref: href,
+    stewards: [{ display_name: 'C. Steward', role: 'admin' }],
+    circles: [{ name: 'Core Operations', purpose: 'Runs the day', steward: 'C. Steward', code: 'DOM-SECRET' }],
+    members: [{ display_name: 'B. Member', role: 'user', directory_visible: true, id: 'mem-2', phone: '555-0199' } as DirectoryWithSecrets],
+  };
+  const signedOut = whosHere({ viewer: 'signed-out', ...shared });
+  assert.equal(signedOut.owner?.label, 'Ada, owner');
+  assert.equal(signedOut.owner?.destination, 'sign-in');
+  assert.equal(signedOut.owner?.signInHref, href);
+  assert.equal(signedOut.countText, "4 members. You'll see names and roles once you join.");
+  assert.equal(signedOut.show, true);
+
+  const pending = whosHere({ viewer: 'pending', ...shared, messagingLocked: true });
+  assert.equal(pending.owner?.label, 'Ada, owner');
+  assert.equal(pending.owner?.destination, 'compose');
+  assert.equal(pending.owner?.signInHref, null);
+  assert.equal(pending.countText, "4 members. You'll see names and roles once you join.");
+
+  const pendingElsewhere = whosHere({ viewer: 'pending', ...shared, messagingLocked: false });
+  assert.equal(pendingElsewhere.owner?.destination, 'messaging');
+
+  const guest = whosHere({ viewer: 'guest', ...shared });
+  assert.equal(guest.owner?.label, 'Ada, owner');
+  assert.equal(guest.owner?.destination, 'messaging');
+  assert.equal(guest.mode, 'count');
+
+  const member = whosHere({ viewer: 'member', ...shared });
+  assert.equal(member.owner?.label, 'Ada, owner');
+  assert.equal(member.owner?.destination, 'messaging');
+  assert.equal(member.mode, 'directory');
+  assert.equal(whosHere({ viewer: 'member', ...shared, messagingLocked: true }).owner?.destination, 'compose');
+
+  for (const panel of [signedOut, pending, guest]) {
+    assert.equal(modelContains(panel, 'B. Member'), false);
+    assert.equal(modelContains(panel, 'C. Steward'), false);
+    assert.equal(modelContains(panel, 'Core Operations'), false);
+    assert.equal(modelContains(panel, '555-0199'), false);
+    assert.equal(modelContains(panel, 'mem-2'), false);
+    assert.equal(modelContains(panel, 'ada@secret.test'), false);
+    assert.equal(modelContains(panel, 'user-secret'), false);
+    assert.equal(modelContains(panel, 'DOM-SECRET'), false);
+  }
+  assert.equal(modelContains(member, 'B. Member'), true);
+  assert.equal(modelContains(member, 'ada@secret.test'), false);
+  assert.equal(modelContains(member, 'user-secret'), false);
+});
+
+test('a null owner renders nothing, and a missing signed-out count is omitted', () => {
+  const href = ethosSignInHref(ECO);
+  for (const viewer of ['signed-out', 'pending', 'guest', 'member'] as const) {
+    const panel = whosHere({ viewer, ecosystemName: NAME, memberCount: 3, owner: { owner: null }, signInHref: href });
+    assert.equal(panel.owner, null);
+    assert.equal(modelContains(panel, 'Ada'), false);
+  }
+  const unnamed = whosHere({
+    viewer: 'signed-out',
+    ecosystemName: NAME,
+    memberCount: 2,
+    owner: { owner: { id: 'mem-owner', display_name: '' } },
+    signInHref: href,
+  });
+  assert.equal(unnamed.owner, null);
+  assert.equal(modelContains(unnamed, 'mem-owner'), false);
+
+  const zero = whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: 0, owner: OWNER_PAYLOAD, signInHref: href });
+  assert.equal(zero.countText, 'No members are listed yet.');
+  assert.equal(zero.owner?.label, 'Ada, owner');
+  assert.equal(zero.show, true);
+
+  const missing = whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: null, owner: OWNER_PAYLOAD, signInHref: href });
+  assert.equal(missing.countText, null);
+  assert.equal(missing.show, true);
+  assert.equal(JSON.stringify(missing).includes('members.'), false);
+  assert.equal(missing.owner?.label, 'Ada, owner');
+
+  const blank = whosHere({ viewer: 'signed-out', ecosystemName: NAME, memberCount: null, owner: null });
+  assert.equal(blank.show, false);
+  assert.equal(blank.owner, null);
+});
+
+function statusError(status: number, message: string): Error {
+  return Object.assign(new Error(message), { status });
+}
+
+test('owner messaging uses one direct-message body and short sentences for 401, 403 and 429', () => {
+  assert.deepEqual(ownerDirectMessage('mem-owner'), { type: 'dm', participant_ids: ['mem-owner'] });
+  const id = '11111111-1111-4111-8111-111111111111';
+  assert.equal(startedConversationId({ id }), id);
+  assert.equal(startedConversationId({ id: ` ${id} ` }), id);
+  assert.equal(startedConversationId({ id: '../admin' }), null);
+  assert.equal(startedConversationId({ conversation: { id: 'abc' } }), null);
+  assert.equal(startedConversationId(null), null);
+
+  assert.equal(ownerMessageError(statusError(401, 'Unauthorized')), copy.whosHere.messageSignIn);
+  const refused = ownerMessageError(statusError(403, 'You cannot message B. Member'));
+  assert.equal(refused, copy.whosHere.messageRefused);
+  assert.equal(modelContains(refused, 'B. Member'), false);
+  assert.equal(ownerMessageError(statusError(429, 'Rate limit exceeded')), copy.whosHere.messageLimited);
+  assert.equal(ownerMessageError(statusError(500, 'Internal Server Error')), 'Something went wrong on our side. Try again in a moment.');
 });
 
 test('members see the real member count, and a missing count is not invented', () => {

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { keys } from '@/lib/query-keys';
 import { fetchEcosystems, fetchEcosystem } from '@/lib/api-client';
+import { publicOwner, type PublicOwner } from '@/lib/space-home';
 import type { EthosSummary, EthosDetail, EthosMemberWithProfile } from '@/types/orientation';
 
 interface EthosListResponse {
@@ -14,6 +15,7 @@ interface EthosDetailResponse {
   viewer_alignment: number | null;
   stewards: { display_name: string; role: string }[];
   callerRole: string | null;
+  owner: PublicOwner | null;
 }
 
 function toOptionalString(value: unknown): string | undefined {
@@ -124,6 +126,7 @@ export function useEthosDetail(id: string) {
         viewer_alignment: toOptionalNumber(result.viewer_alignment) ?? null,
         stewards: mapStewards(result.stewards),
         callerRole: toOptionalString(result.caller_role) ?? null,
+        owner: publicOwner(result),
       };
     },
     enabled: !!id,

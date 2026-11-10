@@ -57,6 +57,7 @@ export default function EthosDetail() {
           name={community.name}
           memberCount={publicMemberCount(community)}
           viewer="signed-out"
+          owner={community}
           stewards={[]}
           orientationHref={null}
           opportunities={community.opportunities}
@@ -73,7 +74,7 @@ export default function EthosDetail() {
 
   if (detailQuery.isError || !detailQuery.data) return <MissingDossier />;
 
-  const { ethos, stewards } = detailQuery.data;
+  const { ethos, stewards, owner } = detailQuery.data;
   const viewer = spaceViewer(true, membershipStanding(ethos.id, ecosystems));
   const standing = headerStatus(viewer, ethos.name);
   const joined = viewer === 'member' || viewer === 'pending';
@@ -102,6 +103,7 @@ export default function EthosDetail() {
         name={ethos.name}
         memberCount={ethos.member_count}
         viewer={viewer}
+        owner={owner}
         stewards={isMember ? stewards : []}
         orientationHref={journeyMaps.length > 0 ? `/orientation/${slug}` : null}
         onJoin={() => join.mutate()}

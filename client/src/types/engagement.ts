@@ -3,6 +3,10 @@ import type { EngagementChannel, EngagementFamily, EngagementScope, Frequency } 
 export interface CommunityPreview {
   id: string; name: string; description: string | null; tags: string[] | null;
   location: string | null; logo_url: string | null; preview_url: string; join_url: string;
+  /** Active members. Absent on an older server; the home omits the count rather than showing zero. */
+  member_count?: number | null;
+  /** Oldest active owner, or null when the ecosystem has none. Display name and member id only. */
+  owner?: { id: string; display_name: string; role?: string | null } | null;
   opportunities?: { id: string; title: string; url: string }[];
   opportunities_require_sign_in?: boolean;
 }
