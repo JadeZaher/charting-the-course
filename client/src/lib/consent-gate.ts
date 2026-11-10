@@ -27,6 +27,7 @@ const READABLE_WHILE_GATED: readonly RegExp[] = [
   /^\/orientation\/[^/]+(?:\/journey|\/complete)?$/,
   /^\/quiz\/(?:take|results)\/[^/]+$/,
   /^\/(?:about|governance-model|terms|privacy)$/,
+  /^\/writing(?:\/[^/]+)?$/,
   /^\/users\/[^/]+$/,
   /^\/node\/audit(?:\/[^/]+)?$/,
   /^\/communities(?:\/[^/]+)?$/,

@@ -17,6 +17,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { InlineText } from "@/components/InlineText";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { ABOUT, ABOUT_IS, ABOUT_IS_NOT, ABOUT_LAYERS, ABOUT_OMNI, ABOUT_TERMS } from "@/lib/public-documents";
 
@@ -48,6 +49,9 @@ export default function About() {
           <p className="hidden text-xs font-black uppercase tracking-[0.18em] xl:block">NEOS / About</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost" size="sm">
+              <Link href="/writing">Writing</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
               <Link href="/governance-model">Governance Model</Link>
             </Button>
             <ThemeToggle />
@@ -69,7 +73,7 @@ export default function About() {
               {ABOUT.heading}
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-              {ABOUT.lead}
+              <InlineText value={ABOUT.lead} />
             </p>
             <Button asChild size="lg" className="mt-8">
               <Link href="/communities">Find a community<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>

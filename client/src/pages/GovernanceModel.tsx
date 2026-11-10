@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "wouter";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
-import { ECONOMIC_DETAIL, GOVERNANCE_LEAD } from "@/lib/public-documents";
+import { InlineText } from "@/components/InlineText";
+import { ECONOMIC_DETAIL, GOVERNANCE_LEAD, plainParagraph } from "@/lib/public-documents";
 import {
   ScrollText,
   Crown,
@@ -386,7 +387,7 @@ const GOVERNANCE_MODEL: Layer[] = [
     icon: ShieldAlert,
     short: "Detecting and preventing power capture",
     detail:
-      "Built-in safeguards detect when power concentrates inappropriately: term limits on roles, mandatory rotation, transparency requirements, and whistleblower protections are encoded into the governance stack.",
+      "The stack is designed to notice when power concentrates: term limits, rotation, transparency, and a way to raise an alarm. Treat those as part of the skill set, not as a claim that every community already runs them.",
     skills: [
       {
         name: "governance-health-audit",
@@ -495,7 +496,7 @@ const GOVERNANCE_MODEL: Layer[] = [
     icon: Brain,
     short: "Institutional learning that compounds",
     detail:
-      "Every decision, experiment, and conflict resolution becomes part of the community's institutional memory. Patterns are recognized, lessons are encoded, and governance wisdom compounds over time.",
+      "Decisions, experiments, and conflict records are supposed to remain findable, so a later member can see what was already decided.",
     skills: [
       {
         name: "decision-record",
@@ -655,8 +656,8 @@ export default function GovernanceModel() {
               {GOVERNANCE_LEAD.heading}
             </h1>
             {GOVERNANCE_LEAD.paragraphs.map((paragraph) => (
-              <p key={paragraph} className="mt-8 max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-                {paragraph}
+              <p key={plainParagraph(paragraph)} className="mt-8 max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+                <InlineText value={paragraph} />
               </p>
             ))}
           </div>

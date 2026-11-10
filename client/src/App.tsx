@@ -26,6 +26,7 @@ import { EngagementSessionBoundary } from '@/components/engagement/EngagementSes
 import About from "@/pages/About";
 import GovernanceModel from "@/pages/GovernanceModel";
 import { PrivacyPage, TermsPage } from "@/pages/LegalPage";
+import { WritingEssay, WritingIndex } from "@/pages/Writing";
 import { SiteFooter } from "@/components/SiteFooter";
 import Login, { takeStashedRedirect } from "@/pages/Login";
 import { consentGateRedirect, isHeldAtConsentGate } from "@/lib/consent-gate";
@@ -479,7 +480,7 @@ function AppLayout() {
   }, [isAuthenticated, isLoading, heldAtGate]);
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/about', '/governance-model', '/terms', '/privacy', '/users/', '/node/audit', '/communities'];
+  const publicPaths = ['/login', '/about', '/governance-model', '/terms', '/privacy', '/writing', '/users/', '/node/audit', '/communities'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
   const isLandingPage = location === '/';
 
@@ -508,6 +509,8 @@ function AppLayout() {
           <Route path="/governance-model" component={GovernanceModel} />
           <Route path="/terms" component={TermsPage} />
           <Route path="/privacy" component={PrivacyPage} />
+          <Route path="/writing/:slug" component={WritingEssay} />
+          <Route path="/writing" component={WritingIndex} />
           <Route path="/communities/:id" component={CommunityPreviewPage} />
           <Route path="/communities" component={Communities} />
           <Route path="/users/:username" component={PublicProfile} />
