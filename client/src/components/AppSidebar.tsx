@@ -44,10 +44,13 @@ import {
   Bell,
   Package,
   Flag, // FX-Exchange: Moderation
+  Lock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
+import { isHeldAtConsentGate } from "@/lib/consent-gate";
+import { isNavDestinationLocked, lockedNavLabel } from "@/lib/locked-nav";
 import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useNavPermissions } from "@/hooks/use-nav-permissions";
@@ -148,17 +151,36 @@ const adminItems = [
   },
 ];
 
-// Menu item with tooltip for collapsed state
+// Menu item with tooltip for collapsed state. A pending member sees a locked control, not a link the gate would bounce.
 function MenuItemWithTooltip({
   item,
   isActive,
-  isCollapsed
+  isCollapsed,
 }: {
   item: { title: string; url: string; icon: any };
   isActive: boolean;
   isCollapsed: boolean;
 }) {
-  const button = (
+  const { isAuthenticated, pendingConsents, ecosystems, member, isNodeAdmin } = useAuth();
+  const held = isHeldAtConsentGate({ isAuthenticated, pendingConsents, memberships: ecosystems, member });
+  const lockedLabel = isNavDestinationLocked(item.url, { held, isNodeAdmin }) ? lockedNavLabel(item.title) : null;
+  const button = lockedLabel ? (
+    <SidebarMenuButton asChild isActive={false}>
+      <button
+        type="button"
+        aria-disabled="true"
+        aria-label={lockedLabel}
+        title={lockedLabel}
+        data-testid={`link-${item.title.toLowerCase().replace(' ', '-')}`}
+        className="cursor-not-allowed"
+        onClick={(event) => event.preventDefault()}
+      >
+        <item.icon className="h-4 w-4" aria-hidden="true" />
+        <span>{item.title}</span>
+        {!isCollapsed && <Lock className="ml-auto h-3.5 w-3.5" aria-hidden="true" />}
+      </button>
+    </SidebarMenuButton>
+  ) : (
     <SidebarMenuButton asChild isActive={isActive}>
       <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(' ', '-')}`}>
         <item.icon className="h-4 w-4" />
@@ -167,20 +189,18 @@ function MenuItemWithTooltip({
     </SidebarMenuButton>
   );
 
-  if (isCollapsed) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {button}
-        </TooltipTrigger>
-        <TooltipContent side="right" className="flex items-center gap-2">
-          {item.title}
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
+  if (!lockedLabel && !isCollapsed) return button;
 
-  return button;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {button}
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-xs">
+        {lockedLabel ?? item.title}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function CollapsibleGovernanceGroup({
@@ -237,7 +257,7 @@ function CollapsibleGovernanceGroup({
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { member, user, isNodeAdmin, logout } = useAuth();
+  const { member, user, isNodeAdmin, logout, isAuthenticated, pendingConsents } = useAuth();
   const { canManageContent, canManageUsers, isAdmin } = usePermissions();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const { ecosystems, selectedIds, toggleEcosystem } = useEcosystem();
@@ -247,6 +267,8 @@ export function AppSidebar() {
     if (isMobile) setOpenMobile(false);
   }, [location, isMobile, setOpenMobile]);
 
+  const heldAtGate = isHeldAtConsentGate({ isAuthenticated, pendingConsents, memberships: ecosystems, member });
+  const logoLocked = isNavDestinationLocked('/dashboard', { held: heldAtGate, isNodeAdmin });
   const isCollapsed = state === "collapsed";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasStewardAccess = isAdmin || canManageUsers || canManageContent || ecosystems.length > 0;
@@ -279,6 +301,18 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className={`border-b-2 border-sidebar-border ${isCollapsed ? 'p-0.5' : 'p-4'}`}>
+        {logoLocked ? (
+          <div className={`flex min-h-14 items-center text-sidebar-foreground ${isCollapsed ? 'justify-center' : 'w-full'}`} aria-label="NEOS">
+            {isCollapsed ? (
+              <span className="text-xl font-black tracking-[-0.08em]">N.</span>
+            ) : (
+              <span className="grid gap-1">
+                <span className="text-[0.625rem] font-black uppercase tracking-[0.24em] text-sidebar-foreground/65">Governance / Index 01</span>
+                <span className="text-xl font-black uppercase leading-[0.92] tracking-[-0.045em]">NEOS</span>
+              </span>
+            )}
+          </div>
+        ) : (
         <Link
           href="/dashboard"
           aria-label="NEOS dashboard"
@@ -293,6 +327,7 @@ export function AppSidebar() {
             </span>
           )}
         </Link>
+        )}
       </SidebarHeader>
 
       <SidebarContent onClick={event => { if (isMobile && (event.target as Element).closest('a[href]')) setOpenMobile(false); }}>
@@ -373,8 +408,13 @@ export function AppSidebar() {
           <SidebarGroupLabel>Communication</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {commsItems.map((item) => (
+              {commsItems.map((item) => {
+                const messagingLocked = isNavDestinationLocked(item.url, { held: heldAtGate, isNodeAdmin });
+                return (
                 <SidebarMenuItem key={item.title}>
+                  {messagingLocked ? (
+                    <MenuItemWithTooltip item={item} isActive={false} isCollapsed={isCollapsed} />
+                  ) : (
                   <SidebarMenuButton asChild isActive={location === '/messaging' || location.startsWith('/comms') || location.startsWith('/chat')}>
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
@@ -387,8 +427,10 @@ export function AppSidebar() {
                       )}
                     </Link>
                   </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>}
