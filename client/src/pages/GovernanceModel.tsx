@@ -620,7 +620,7 @@ const ACT_STEPS = [
 ];
 
 export default function GovernanceModel() {
-  useDocumentMeta(GOVERNANCE_LEAD.title, GOVERNANCE_LEAD.description);
+  useDocumentMeta(GOVERNANCE_LEAD.title, GOVERNANCE_LEAD.description, "/governance-model");
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="sticky top-0 z-50 border-b border-foreground bg-background">

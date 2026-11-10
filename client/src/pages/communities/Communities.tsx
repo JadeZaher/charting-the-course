@@ -6,7 +6,7 @@ import { useDocumentMeta } from '@/hooks/use-document-meta';
 import { communityEntryPath, engagementPath } from '@/lib/engagement';
 import { resolveMediaUrl } from '@/lib/media';
 import { InlineText } from '@/components/InlineText';
-import { INTRO, plainParagraph } from '@/lib/public-documents';
+import { COMMUNITIES_PAGE, INTRO, plainParagraph } from '@/lib/public-documents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { QueryFeedback } from '@/components/engagement/QueryFeedback';
@@ -22,7 +22,7 @@ function CommunityHeader() {
   </nav>;
 }
 export default function Communities() {
-  useDocumentMeta(INTRO.title, INTRO.description);
+  useDocumentMeta(COMMUNITIES_PAGE.title, COMMUNITIES_PAGE.description, '/communities');
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const query = useCommunities(appliedSearch);

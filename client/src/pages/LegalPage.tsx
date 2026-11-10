@@ -11,6 +11,7 @@ function LegalDocument({
   updated,
   intro = [],
   sections,
+  path,
 }: {
   title: string;
   description: string;
@@ -18,8 +19,9 @@ function LegalDocument({
   updated: string;
   intro?: readonly string[];
   sections: readonly LegalSection[];
+  path: string;
 }) {
-  useDocumentMeta(title, description);
+  useDocumentMeta(title, description, path);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav aria-label="Legal navigation" className="border-b border-foreground">
@@ -58,9 +60,9 @@ function LegalDocument({
 }
 
 export function TermsPage() {
-  return <LegalDocument {...TERMS_PAGE} />;
+  return <LegalDocument {...TERMS_PAGE} path="/terms" />;
 }
 
 export function PrivacyPage() {
-  return <LegalDocument {...PRIVACY_PAGE} />;
+  return <LegalDocument {...PRIVACY_PAGE} path="/privacy" />;
 }

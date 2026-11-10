@@ -1,10 +1,12 @@
 // Public copy for the introduction, About, legal pages, and the two notes.
 // The prerender step writes the same strings into the first HTML response.
 
-import { ESSAYS, WRITING, type Essay, type Inline, type Paragraph } from "./writing";
+import { NEWS, PRACTICES, PRACTICES_INDEX, type Practice } from "./practices";
+import { BLOG, ESSAYS, type Essay, type Inline, type Paragraph } from "./writing";
 
 export type { Essay, FollowLink, Inline, Paragraph } from "./writing";
-export { ESSAYS, WRITING, plainParagraph } from "./writing";
+export { BLOG, ESSAYS, plainParagraph } from "./writing";
+export { NEWS, PRACTICES, PRACTICES_INDEX } from "./practices";
 
 export const SITE_ORIGIN = "https://neos.primusneo.com";
 export const PRIMUS_NEO_URL = "https://primusneo.com";
@@ -345,20 +347,47 @@ export const ESCHERBRIDGE_SITES = [
   { href: "https://glitxz.com", label: "Glitxz, an artist-led market for work in progress" },
 ] as const;
 
+export const OG_IMAGE = `${SITE_ORIGIN}/og/neos-og-1200x630.png`;
+export const LOGO = `${SITE_ORIGIN}/apple-touch-icon.png`;
+const ORG_ID = `${SITE_ORIGIN}/#organization`;
+const SITE_ID = `${SITE_ORIGIN}/#website`;
+
+export function organizationNode() {
+  return {
+    "@type": "Organization",
+    "@id": ORG_ID,
+    name: "NEOS",
+    url: `${SITE_ORIGIN}/`,
+    logo: LOGO,
+    email: OPERATOR.email,
+    parentOrganization: { "@type": "Organization", name: OPERATOR.name },
+    sameAs: ESCHERBRIDGE_SITES.map((site) => site.href),
+  };
+}
+
+export function websiteNode() {
+  return {
+    "@type": "WebSite",
+    "@id": SITE_ID,
+    url: `${SITE_ORIGIN}/`,
+    name: "NEOS",
+    inLanguage: "en-US",
+    publisher: { "@id": ORG_ID },
+  };
+}
+
 export function organizationJsonLd(): string {
   return JSON.stringify({
     "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "NEOS",
-    url: `${SITE_ORIGIN}/`,
-    parentOrganization: { "@type": "Organization", name: OPERATOR.name },
-    sameAs: ESCHERBRIDGE_SITES.map((site) => site.href),
+    "@graph": [organizationNode(), websiteNode()],
   });
 }
 
 const PUBLIC_NAV: readonly { href: string; label: string }[] = [
   { href: "/", label: "Home" },
   { href: "/communities", label: "Communities" },
+  { href: "/blog", label: "Blog" },
+  { href: "/practices", label: "Practices" },
   { href: "/about", label: "About" },
   { href: "/governance-model", label: "Governance model" },
   { href: "/terms", label: "Terms" },
@@ -446,59 +475,330 @@ function legalHtml(page: { heading: string; updated: string; intro?: readonly st
   ].join("");
 }
 
+export const COMMUNITIES_PAGE = {
+  title: "Communities — NEOS",
+  description: "Discover people and projects you can contribute to. Explore a community before deciding to join.",
+} as const;
+
 export interface PublicPage {
   path: string;
   title: string;
   description: string;
   canonical: string;
   html: string;
+  robots: "index, follow" | "noindex, follow";
+  ogType: "website" | "article";
+  published?: string;
+  modified?: string;
+  indexable: boolean;
+  jsonLd: string;
+}
+
+function listHtml(links: readonly { href: string; text: string }[]): string {
+  return `<ul>${links.map((link) => `<li><a href="${escapeHtml(link.href)}">${escapeHtml(link.text)}</a></li>`).join("")}</ul>`;
 }
 
 function essayHtml(essay: Essay): string {
   const sources = essay.sources
     .map((source) => `<li><a href="${escapeHtml(source.href)}">${escapeHtml(source.label)}</a></li>`)
     .join("");
+  const related = [
+    ...ESSAYS.filter((item) => item.slug !== essay.slug).map((item) => ({ href: item.path, text: item.title })),
+    { href: "/practices", text: PRACTICES_INDEX.heading },
+    { href: PRIMUS_NEO_URL, text: "PrimusNeo, the lab whose stack this product belongs to" },
+  ];
   return [
     `<h1>${escapeHtml(essay.title)}</h1>`,
+    `<p>Escherbridge</p>`,
     `<p>${escapeHtml(essay.date)}</p>`,
+    `<ul>${essay.topics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}</ul>`,
     paragraphsHtml(essay.paragraphs),
     `<h2>Sources</h2><ul>${sources}</ul>`,
+    `<h2>Related</h2>${listHtml(related)}`,
+    `<p><a href="/feed.xml">RSS</a></p>`,
     navHtml(),
   ].join("");
 }
 
-function writingIndexHtml(): string {
-  const items = ESSAYS.map(
-    (essay) =>
-      `<article><h2><a href="${escapeHtml(essay.path)}">${escapeHtml(essay.title)}</a></h2><p>${escapeHtml(essay.summary)}</p></article>`,
-  ).join("");
-  return [`<h1>${escapeHtml(WRITING.heading)}</h1>`, items, navHtml()].join("");
+function blogIndexHtml(): string {
+  const posts = [...ESSAYS].sort((a, b) => b.published.localeCompare(a.published) || a.title.localeCompare(b.title));
+  const items = posts
+    .map(
+      (essay) =>
+        `<article><p>${escapeHtml(essay.date)}</p><p>${escapeHtml(essay.topics.join(", "))}</p><h2><a href="${escapeHtml(essay.path)}">${escapeHtml(essay.title)}</a></h2><p>${escapeHtml(essay.summary)}</p></article>`,
+    )
+    .join("");
+  return [
+    `<h1>${escapeHtml(BLOG.heading)}</h1>`,
+    `<p>Escherbridge</p>`,
+    items,
+    `<p><a href="/feed.xml">RSS</a></p>`,
+    `<p><a href="/practices">${escapeHtml(PRACTICES_INDEX.heading)}</a></p>`,
+    `<p><a href="/news">News</a>. Nothing has been announced there yet.</p>`,
+    navHtml(),
+  ].join("");
 }
 
-function page(path: string, title: string, description: string, html: string): PublicPage {
-  const canonical = path === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${path}`;
-  return { path, title, description, canonical, html: `${html}${footerHtml()}` };
+function newsHtml(): string {
+  return [
+    `<h1>${escapeHtml(NEWS.heading)}</h1>`,
+    `<p>${escapeHtml(NEWS.body)}</p>`,
+    `<p><a href="/blog">Blog</a></p>`,
+    navHtml(),
+  ].join("");
 }
+
+function practicesIndexHtml(): string {
+  const cards = PRACTICES.map(
+    (practice) =>
+      `<article><h2>${escapeHtml(practice.title)}</h2><p>${escapeHtml(practice.description)}</p><p><a href="${escapeHtml(practice.path)}">View ${escapeHtml(practice.title)}</a></p></article>`,
+  ).join("");
+  return [
+    `<p>${escapeHtml(PRACTICES_INDEX.kicker)}</p>`,
+    `<h1>${escapeHtml(PRACTICES_INDEX.heading)}</h1>`,
+    `<p>${escapeHtml(PRACTICES_INDEX.standfirst)}</p>`,
+    `<p>${escapeHtml(PRACTICES_INDEX.emptyMetrics)}</p>`,
+    cards,
+    `<h2>On this site</h2>`,
+    `<p><a href="/governance-model">How NEOS governs.</a></p>`,
+    `<p><a href="/communities">Find a community.</a></p>`,
+    `<p><a href="/blog">Blog</a></p>`,
+    `<p>NEOS is part of <a href="${PRIMUS_NEO_URL}">PrimusNeo, the lab whose stack this product belongs to</a>. It is offered here as its own product.</p>`,
+    `<p><a href="/feed.xml">RSS</a></p>`,
+    navHtml(),
+  ].join("");
+}
+
+function practiceHtml(practice: Practice): string {
+  const siblings = practice.siblings.map((slug) => {
+    const sibling = PRACTICES.find((item) => item.slug === slug);
+    if (!sibling) throw new Error(`Missing practice sibling ${slug}`);
+    return { href: sibling.path, text: sibling.title };
+  });
+  return [
+    `<p>${escapeHtml(practice.eyebrow)}</p>`,
+    `<h1>${escapeHtml(practice.h1)}</h1>`,
+    `<p>Escherbridge</p>`,
+    `<p>${escapeHtml(practice.dateLabel)}</p>`,
+    practice.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join(""),
+    `<h2>Where this is already said</h2>${listHtml(practice.links)}`,
+    `<h2>Sources</h2>${listHtml(practice.sourceList.map((source) => ({ href: source.href, text: source.label })))}`,
+    `<h2>Also in this section</h2>${listHtml(siblings)}`,
+    `<p><a href="/practices">${escapeHtml(PRACTICES_INDEX.heading)}</a></p>`,
+    navHtml(),
+  ].join("");
+}
+
+function absolute(path: string): string {
+  return path === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${path}`;
+}
+
+function breadcrumb(items: readonly { name: string; path: string }[]) {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: absolute(item.path),
+    })),
+  };
+}
+
+function pageJsonLd(input: {
+  path: string;
+  title: string;
+  description: string;
+  canonical: string;
+  kind: "website" | "collection" | "article";
+  published?: string;
+  modified?: string;
+  headline?: string;
+  crumbs: readonly { name: string; path: string }[];
+  items?: readonly { name: string; path: string }[];
+}): string {
+  const trail = breadcrumb(input.crumbs);
+  if (input.kind === "article") {
+    return JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        organizationNode(),
+        websiteNode(),
+        trail,
+        {
+          "@type": "Article",
+          headline: input.headline ?? input.title,
+          description: input.description,
+          datePublished: input.published,
+          dateModified: input.modified ?? input.published,
+          author: { "@type": "Organization", name: "Escherbridge" },
+          publisher: { "@id": ORG_ID },
+          mainEntityOfPage: input.canonical,
+          image: OG_IMAGE,
+          url: input.canonical,
+        },
+      ],
+    });
+  }
+  if (input.kind === "collection") {
+    return JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        organizationNode(),
+        websiteNode(),
+        trail,
+        {
+          "@type": "CollectionPage",
+          name: input.title,
+          description: input.description,
+          url: input.canonical,
+          isPartOf: { "@id": SITE_ID },
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: (input.items ?? []).map((item, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              name: item.name,
+              url: absolute(item.path),
+            })),
+          },
+        },
+      ],
+    });
+  }
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      organizationNode(),
+      websiteNode(),
+      trail,
+      {
+        "@type": "WebPage",
+        name: input.title,
+        description: input.description,
+        url: input.canonical,
+        isPartOf: { "@id": SITE_ID },
+      },
+    ],
+  });
+}
+
+function page(
+  path: string,
+  title: string,
+  description: string,
+  html: string,
+  extra: {
+    kind?: "website" | "collection" | "article";
+    robots?: PublicPage["robots"];
+    published?: string;
+    modified?: string;
+    indexable?: boolean;
+    headline?: string;
+    crumbs?: readonly { name: string; path: string }[];
+    items?: readonly { name: string; path: string }[];
+  } = {},
+): PublicPage {
+  const canonical = absolute(path);
+  const kind = extra.kind ?? "website";
+  const crumbs = extra.crumbs ?? [{ name: "Home", path: "/" }, ...(path === "/" ? [] : [{ name: title, path }])];
+  return {
+    path,
+    title,
+    description,
+    canonical,
+    html: `${html}${footerHtml()}`,
+    robots: extra.robots ?? "index, follow",
+    ogType: kind === "article" ? "article" : "website",
+    published: extra.published,
+    modified: extra.modified,
+    indexable: extra.indexable ?? true,
+    jsonLd: pageJsonLd({
+      path,
+      title,
+      description,
+      canonical,
+      kind,
+      published: extra.published,
+      modified: extra.modified,
+      headline: extra.headline,
+      crumbs,
+      items: extra.items,
+    }),
+  };
+}
+
+const homeCrumbs = [{ name: "Home", path: "/" }] as const;
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  page("/", INTRO.title, INTRO.description, `<h1>${escapeHtml(INTRO.heading)}</h1>${paragraphsHtml(INTRO.paragraphs)}${navHtml()}`),
+  page("/", INTRO.title, INTRO.description, `<h1>${escapeHtml(INTRO.heading)}</h1>${paragraphsHtml(INTRO.paragraphs)}${navHtml()}`, {
+    crumbs: homeCrumbs,
+  }),
   page(
     "/communities",
-    INTRO.title,
-    INTRO.description,
+    COMMUNITIES_PAGE.title,
+    COMMUNITIES_PAGE.description,
     `<h1>${escapeHtml(INTRO.heading)}</h1>${paragraphsHtml(INTRO.paragraphs)}${navHtml()}`,
+    { crumbs: [{ name: "Home", path: "/" }, { name: "Communities", path: "/communities" }] },
   ),
-  page("/about", ABOUT.title, ABOUT.description, aboutHtml()),
+  page("/about", ABOUT.title, ABOUT.description, aboutHtml(), {
+    crumbs: [{ name: "Home", path: "/" }, { name: "About", path: "/about" }],
+  }),
   page(
     "/governance-model",
     GOVERNANCE_LEAD.title,
     GOVERNANCE_LEAD.description,
     `<h1>${escapeHtml(GOVERNANCE_LEAD.heading)}</h1>${paragraphsHtml(GOVERNANCE_LEAD.paragraphs)}${navHtml()}`,
+    { crumbs: [{ name: "Home", path: "/" }, { name: "Governance model", path: "/governance-model" }] },
   ),
-  page("/terms", TERMS_PAGE.title, TERMS_PAGE.description, legalHtml(TERMS_PAGE)),
-  page("/privacy", PRIVACY_PAGE.title, PRIVACY_PAGE.description, legalHtml(PRIVACY_PAGE)),
-  page(WRITING.path, WRITING.title, WRITING.description, writingIndexHtml()),
-  ...ESSAYS.map((essay) => page(essay.path, `${essay.title} — NEOS`, essay.summary, essayHtml(essay))),
+  page("/terms", TERMS_PAGE.title, TERMS_PAGE.description, legalHtml(TERMS_PAGE), {
+    crumbs: [{ name: "Home", path: "/" }, { name: "Terms", path: "/terms" }],
+  }),
+  page("/privacy", PRIVACY_PAGE.title, PRIVACY_PAGE.description, legalHtml(PRIVACY_PAGE), {
+    crumbs: [{ name: "Home", path: "/" }, { name: "Privacy", path: "/privacy" }],
+  }),
+  page(BLOG.path, BLOG.title, BLOG.description, blogIndexHtml(), {
+    kind: "collection",
+    crumbs: [{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }],
+    items: ESSAYS.map((essay) => ({ name: essay.title, path: essay.path })),
+  }),
+  ...[...ESSAYS]
+    .sort((a, b) => b.published.localeCompare(a.published) || a.title.localeCompare(b.title))
+    .map((essay) =>
+      page(essay.path, `${essay.title} — NEOS`, essay.summary, essayHtml(essay), {
+        kind: "article",
+        published: essay.published,
+        modified: essay.modified,
+        headline: essay.title,
+        crumbs: [
+          { name: "Home", path: "/" },
+          { name: "Blog", path: "/blog" },
+          { name: essay.title, path: essay.path },
+        ],
+      }),
+    ),
+  page(NEWS.path, NEWS.title, NEWS.description, newsHtml(), {
+    robots: "noindex, follow",
+    indexable: false,
+    crumbs: [{ name: "Home", path: "/" }, { name: "News", path: "/news" }],
+  }),
+  page(PRACTICES_INDEX.path, PRACTICES_INDEX.title, PRACTICES_INDEX.description, practicesIndexHtml(), {
+    kind: "collection",
+    crumbs: [{ name: "Home", path: "/" }, { name: "Practices", path: "/practices" }],
+    items: PRACTICES.map((practice) => ({ name: practice.title, path: practice.path })),
+  }),
+  ...PRACTICES.map((practice) =>
+    page(practice.path, practice.seoTitle, practice.description, practiceHtml(practice), {
+      kind: "article",
+      published: practice.published,
+      headline: practice.h1,
+      crumbs: [
+        { name: "Home", path: "/" },
+        { name: "Practices", path: "/practices" },
+        { name: practice.title, path: practice.path },
+      ],
+    }),
+  ),
 ];
 
 export function outputFile(path: string): string {
@@ -506,7 +806,38 @@ export function outputFile(path: string): string {
   return `${path.replace(/^\//, "")}/index.html`;
 }
 
-/** Swap title, description, canonical, and the crawlable block inside a built index.html shell. */
+function upsertMeta(html: string, attr: "name" | "property", key: string, content: string): string {
+  const tag = `<meta ${attr}="${key}" content="${content}" />`;
+  const pattern = new RegExp(`<meta\\s+${attr}="${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"\\s+content="[^"]*"\\s*/?>`);
+  if (pattern.test(html)) return html.replace(pattern, tag);
+  return html.replace("</title>", `</title>\n    ${tag}`);
+}
+
+function upsertCanonical(html: string, href: string): string {
+  const tag = `<link rel="canonical" href="${href}" />`;
+  if (/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/.test(html)) {
+    return html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, tag);
+  }
+  return html.replace("</title>", `</title>\n    ${tag}`);
+}
+
+function upsertRss(html: string): string {
+  const tag = `<link rel="alternate" type="application/rss+xml" title="NEOS" href="${SITE_ORIGIN}/feed.xml" />`;
+  if (/<link\s+rel="alternate"\s+type="application\/rss\+xml"[^>]*>/.test(html)) {
+    return html.replace(/<link\s+rel="alternate"\s+type="application\/rss\+xml"[^>]*>/, tag);
+  }
+  return html.replace("</head>", `    ${tag}\n  </head>`);
+}
+
+function upsertJsonLd(html: string, json: string): string {
+  const tag = `<script type="application/ld+json">${json}</script>`;
+  if (/<script type="application\/ld\+json">[\s\S]*?<\/script>/.test(html)) {
+    return html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, tag);
+  }
+  return html.replace("</head>", `    ${tag}\n  </head>`);
+}
+
+/** Swap title, description, canonical, social tags, JSON-LD, and the crawlable block. */
 export function renderShell(shell: string, publicPage: PublicPage): string {
   if (!shell.includes("<!--crawlable-->") || !shell.includes("<!--/crawlable-->")) {
     throw new Error("index.html is missing crawlable markers");
@@ -515,18 +846,28 @@ export function renderShell(shell: string, publicPage: PublicPage): string {
   const description = escapeHtml(publicPage.description);
   const canonical = escapeHtml(publicPage.canonical);
   let html = shell.replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`);
-  const descriptionTag = `<meta name="description" content="${description}" />`;
-  if (/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/.test(html)) {
-    html = html.replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/, descriptionTag);
-  } else {
-    html = html.replace("</title>", `</title>\n    ${descriptionTag}`);
+  html = upsertMeta(html, "name", "description", description);
+  html = upsertMeta(html, "name", "author", "Escherbridge");
+  html = upsertMeta(html, "name", "robots", publicPage.robots);
+  html = upsertCanonical(html, canonical);
+  html = upsertMeta(html, "property", "og:url", canonical);
+  html = upsertMeta(html, "property", "og:title", title);
+  html = upsertMeta(html, "property", "og:description", description);
+  html = upsertMeta(html, "property", "og:type", publicPage.ogType);
+  html = upsertMeta(html, "property", "og:image", OG_IMAGE);
+  html = upsertMeta(html, "property", "og:image:width", "1200");
+  html = upsertMeta(html, "property", "og:image:height", "630");
+  html = upsertMeta(html, "property", "og:image:alt", "NEOS — Governance in Practice");
+  html = upsertMeta(html, "name", "twitter:card", "summary_large_image");
+  html = upsertMeta(html, "name", "twitter:title", title);
+  html = upsertMeta(html, "name", "twitter:description", description);
+  html = upsertMeta(html, "name", "twitter:image", OG_IMAGE);
+  if (publicPage.ogType === "article" && publicPage.published) {
+    html = upsertMeta(html, "property", "article:published_time", publicPage.published);
+    html = upsertMeta(html, "property", "article:modified_time", publicPage.modified ?? publicPage.published);
   }
-  const canonicalTag = `<link rel="canonical" href="${canonical}" />`;
-  if (/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/.test(html)) {
-    html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, canonicalTag);
-  } else {
-    html = html.replace("</title>", `</title>\n    ${canonicalTag}`);
-  }
+  html = upsertRss(html);
+  html = upsertJsonLd(html, publicPage.jsonLd);
   html = html.replace(
     /<!--crawlable-->[\s\S]*?<!--\/crawlable-->/,
     `<!--crawlable-->${publicPage.html}<!--/crawlable-->`,
@@ -536,9 +877,75 @@ export function renderShell(shell: string, publicPage: PublicPage): string {
 
 export function sitemapXml(pages: readonly PublicPage[] = PUBLIC_PAGES): string {
   const urls = pages
-    .map((publicPage) => `  <url><loc>${escapeHtml(publicPage.canonical)}</loc></url>`)
+    .filter((publicPage) => publicPage.indexable)
+    .map((publicPage) => {
+      const lastmod = publicPage.modified ?? publicPage.published;
+      const mod = lastmod ? `<lastmod>${lastmod}</lastmod>` : "";
+      return `  <url><loc>${escapeHtml(publicPage.canonical)}</loc>${mod}</url>`;
+    })
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
-export const ROBOTS_TXT = `User-agent: *\nAllow: /\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
+function rfc822(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toUTCString();
+}
+
+export function feedXml(pages: readonly PublicPage[] = PUBLIC_PAGES): string {
+  const items = pages
+    .filter((publicPage) => publicPage.ogType === "article" && publicPage.published)
+    .sort((a, b) => (b.published ?? "").localeCompare(a.published ?? ""));
+  const body = items
+    .map(
+      (publicPage) => `    <item>
+      <title>${escapeHtml(publicPage.title)}</title>
+      <link>${escapeHtml(publicPage.canonical)}</link>
+      <guid>${escapeHtml(publicPage.canonical)}</guid>
+      <pubDate>${rfc822(publicPage.published ?? "")}</pubDate>
+      <description>${escapeHtml(publicPage.description)}</description>
+      <author>${OPERATOR.email} (Escherbridge)</author>
+    </item>`,
+    )
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>NEOS</title>
+    <link>${SITE_ORIGIN}/</link>
+    <description>${escapeHtml(INTRO.description)}</description>
+${body}
+  </channel>
+</rss>
+`;
+}
+
+const ROBOT_DISALLOW = [
+  "/dashboard",
+  "/admin",
+  "/agreements",
+  "/proposals",
+  "/discover",
+  "/messaging",
+  "/settings",
+  "/members",
+  "/ecosystems",
+  "/quiz",
+  "/quizzes",
+  "/onboarding",
+  "/safeguards",
+  "/conflicts",
+  "/emergency",
+  "/exit",
+  "/decisions",
+  "/domains",
+  "/teams",
+  "/compliance",
+  "/updates",
+  "/welcome",
+  "/orientation",
+  "/ethos",
+  "/profile",
+  "/me",
+] as const;
+
+export const ROBOTS_TXT = `User-agent: *\nAllow: /\n${ROBOT_DISALLOW.map((path) => `Disallow: ${path}\n`).join("")}\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;

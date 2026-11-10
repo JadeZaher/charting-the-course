@@ -8,7 +8,9 @@ export function SiteFooter({ auditLink = false }: { auditLink?: boolean }) {
         <p>NEOS — New Earth Operating System</p>
         <nav aria-label="Site" className="flex flex-wrap gap-x-4 gap-y-2">
           <Link href="/about" className="inline-flex min-h-11 items-center underline">About</Link>
-          <Link href="/writing" className="inline-flex min-h-11 items-center underline">Writing</Link>
+          <Link href="/blog" className="inline-flex min-h-11 items-center underline">Blog</Link>
+          <Link href="/news" className="inline-flex min-h-11 items-center underline">News</Link>
+          <Link href="/practices" className="inline-flex min-h-11 items-center underline">Practices</Link>
           <Link href="/terms" className="inline-flex min-h-11 items-center underline">Terms</Link>
           <Link href="/privacy" className="inline-flex min-h-11 items-center underline">Privacy</Link>
           {auditLink && <a className="inline-flex min-h-11 items-center underline" href="/node/audit">Public node support history</a>}

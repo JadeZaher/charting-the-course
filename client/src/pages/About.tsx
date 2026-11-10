@@ -35,7 +35,7 @@ const LAYER_ICONS = {
 } as const;
 
 export default function About() {
-  useDocumentMeta(ABOUT.title, ABOUT.description);
+  useDocumentMeta(ABOUT.title, ABOUT.description, "/about");
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav aria-label="About navigation" className="sticky top-0 z-50 border-b border-foreground bg-background">
@@ -49,7 +49,7 @@ export default function About() {
           <p className="hidden text-xs font-black uppercase tracking-[0.18em] xl:block">NEOS / About</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost" size="sm">
-              <Link href="/writing">Writing</Link>
+              <Link href="/blog">Blog</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/governance-model">Governance Model</Link>

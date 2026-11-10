@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PUBLIC_PAGES, ROBOTS_TXT, outputFile, renderShell, sitemapXml } from "../client/src/lib/public-documents.ts";
+import { PUBLIC_PAGES, ROBOTS_TXT, feedXml, outputFile, renderShell, sitemapXml } from "../client/src/lib/public-documents.ts";
 
 const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/public");
 const shell = readFileSync(path.join(dist, "index.html"), "utf8");
@@ -16,4 +16,5 @@ for (const page of PUBLIC_PAGES) {
 
 writeFileSync(path.join(dist, "sitemap.xml"), sitemapXml());
 writeFileSync(path.join(dist, "robots.txt"), ROBOTS_TXT);
+writeFileSync(path.join(dist, "feed.xml"), feedXml());
 console.log(`Prerendered ${PUBLIC_PAGES.length} public pages into ${dist}`);

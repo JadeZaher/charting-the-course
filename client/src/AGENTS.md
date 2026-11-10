@@ -32,7 +32,7 @@ The route contract is:
 - `/explore` and `/discover/hub` redirect to `/discover`.
 - Journey-map admin routes (`/admin/journey-maps*`) redirect to `/onboarding` — journey maps are being folded into onboarding flows.
 - Ethos and orientation routes belong to the Explore navigation state.
-- `/`, `/communities`, `/about`, `/governance-model`, `/terms`, `/privacy`, and `/writing` (plus the two notes under it) are public. The production build prerenders their text into the first HTML response (`scripts/prerender-public.ts`), with `sitemap.xml` and `robots.txt`. The footer on every page includes the "An Escherbridge project" sister-site list.
+- `/`, `/communities`, `/about`, `/governance-model`, `/terms`, `/privacy`, `/blog` (the two notes), `/practices` (four children), and `/news` (empty, `noindex`, not in the sitemap) are public. The production build prerenders their text into the first HTML response (`scripts/prerender-public.ts`), with `sitemap.xml`, `robots.txt`, and `feed.xml`. Unknown paths return 404. `/writing/...` redirects to `/blog/...`. The footer on every page includes the "An Escherbridge project" sister-site list.
 - Signed-out visits to any non-public path redirect to `/login?redirect=<path+query>` (see §Sign-in redirect contract), never to `/`.
 
 `App.tsx` moves focus to `#main-content` (`preventScroll`) after every client-side navigation except the first render, unless the new page already put focus inside `main` (an `autoFocus` field, a link that stayed mounted). Pages should not focus `main` themselves.

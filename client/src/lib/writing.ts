@@ -22,27 +22,37 @@ export interface Essay {
   slug: string;
   path: string;
   title: string;
+  /** Visible date, unchanged from the draft. */
   date: string;
+  /** ISO date for metadata and the feed. */
+  published: string;
+  /** ISO date of a real revision, when one exists. */
+  modified?: string;
   summary: string;
+  topics: readonly string[];
   sources: readonly EssaySource[];
   paragraphs: readonly Paragraph[];
 }
 
 const PRIMUS_NEO = "https://primusneo.com";
 
-export const WRITING = {
-  path: "/writing",
-  title: "Writing — NEOS",
-  description: "ACT is not a vote. The key stays in the browser.",
-  heading: "Writing",
+export const BLOG = {
+  path: "/blog",
+  title: "Blog — NEOS",
+  description:
+    "Two notes from Escherbridge: ACT is not a vote, and the key stays in the browser. There is no blockchain and no token.",
+  heading: "Blog",
 } as const;
 
 export const ESSAYS: readonly Essay[] = [
   {
     slug: "act-is-not-a-vote",
-    path: "/writing/act-is-not-a-vote",
+    path: "/blog/act-is-not-a-vote",
     title: "ACT is not a vote",
     date: "9 November 2026",
+    published: "2026-11-09",
+    modified: "2026-11-10",
+    topics: ["NEOS", "ACT", "governance"],
     summary:
       "A vote counts hands. ACT, as NEOS uses it, does something slower and more useful: it takes advice from the people affected, treats consent as a check for a reasoned objection, and then asks whether the proposal survives contact with practice. It is not a popularity contest, and it is not a share of ownership.",
     sources: [
@@ -71,9 +81,12 @@ export const ESSAYS: readonly Essay[] = [
   },
   {
     slug: "the-key-stays-in-the-browser",
-    path: "/writing/the-key-stays-in-the-browser",
+    path: "/blog/the-key-stays-in-the-browser",
     title: "The key stays in the browser",
     date: "9 November 2026",
+    published: "2026-11-09",
+    modified: "2026-11-10",
+    topics: ["NEOS", "keys", "identity"],
     summary:
       "An identity that lives in someone else's building can be revoked from someone else's building. NEOS can sign you in with a key generated on the device; the private key stays in that browser. There is no blockchain and no token, and that fact is the point, not a missing feature.",
     sources: [
