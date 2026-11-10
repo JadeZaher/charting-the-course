@@ -1,7 +1,9 @@
 // What the ecosystem home (/ethos/:id) may show, and to whom.
 // Private titles, directory names, ids and contact fields stay out of the view model
 // unless this caller is an active member and the person opted into the directory.
+// The ecosystem owner is the one public name: display name only, for every viewer.
 import type { JoinGates } from './join-gates';
+import { apiErrorMessage } from './api-error-message';
 import { proposalPhaseLabel } from './proposal-vocab';
 import { parseDue } from './next-steps';
 import { resolveInternalPath } from './internal-path';
@@ -29,6 +31,65 @@ export function publicMemberCount(record: object | null | undefined): number | n
   const value = (record as { member_count?: unknown } | null | undefined)?.member_count;
   const count = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
   return Number.isInteger(count) && count >= 0 ? count : null;
+}
+
+/** Sign-in for this ecosystem home. `?ecosystem=` opens registration; `?redirect=` returns here. */
+export function ethosSignInHref(ecosystemId: string): string {
+  return `/login?redirect=${encodeURIComponent(`/ethos/${ecosystemId}`)}&ecosystem=${encodeURIComponent(ecosystemId)}`;
+}
+
+/** Display name and member id only. Email, phone, DID and user id are not copied. */
+export interface PublicOwner {
+  id: string;
+  display_name: string;
+}
+
+/**
+ * Owner from a community, ethos or ecosystem payload, or from an owner object.
+ * Null when the payload has no owner, or the name is missing. Never invented.
+ */
+export function publicOwner(record: unknown): PublicOwner | null {
+  if (!record || typeof record !== 'object') return null;
+  const container = record as { owner?: unknown };
+  const source = 'owner' in container ? container.owner : record;
+  if (!source || typeof source !== 'object') return null;
+  const row = source as { id?: unknown; display_name?: unknown };
+  const id = typeof row.id === 'string' ? row.id.trim() : '';
+  const name = humanName(typeof row.display_name === 'string' ? row.display_name : undefined);
+  if (!id || !name || /[\u0000-\u001f\u007f]/.test(id)) return null;
+  return { id, display_name: name };
+}
+
+/** Body for POST /api/v1/messaging/conversations. The same body continues an existing direct message. */
+export function ownerDirectMessage(ownerId: string): { type: 'dm'; participant_ids: string[] } {
+  return { type: 'dm', participant_ids: [ownerId] };
+}
+
+/** Same plain-id rule as the messaging deep link, so a returned id can be opened there. */
+const PLAIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Conversation id from a 200 or 201 body, or null when it cannot be opened. */
+export function startedConversationId(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null;
+  const id = (body as { id?: unknown }).id;
+  if (typeof id !== 'string') return null;
+  const trimmed = id.trim();
+  return PLAIN_ID.test(trimmed) ? trimmed : null;
+}
+
+function httpStatus(error: unknown): number | null {
+  if (!(error instanceof Error)) return null;
+  const { status } = error as { status?: unknown };
+  return typeof status === 'number' ? status : null;
+}
+
+/** Short sentences for the three refusals. Anything else keeps the shared error wording. */
+export function ownerMessageError(error: unknown): string {
+  const status = httpStatus(error);
+  if (status === 401) return copy.whosHere.messageSignIn;
+  if (status === 403) return copy.whosHere.messageRefused;
+  if (status === 429) return copy.whosHere.messageLimited;
+  return apiErrorMessage(error);
 }
 
 /** Days past a server-overdue date before day-one treats the item as older work. "Months" is not a number in the spec; 60 days is the cutoff used here. */
@@ -269,11 +330,21 @@ export interface PersonRow {
   detail?: string;
 }
 
+export interface OwnerContactModel {
+  /** "{display_name}, owner". */
+  label: string;
+  ownerId: string;
+  /** Signed-out viewers follow the sign-in link. Everyone else starts a direct message. */
+  destination: 'sign-in' | 'messaging' | 'compose';
+  signInHref: string | null;
+}
+
 export interface WhosHereModel {
   mode: 'count' | 'directory';
-  /** False when a count-only viewer has no member_count: the panel would be a blank box. */
+  /** False when a count-only viewer has neither member_count nor an owner: the panel would be a blank box. */
   show: boolean;
   countText: string | null;
+  owner: OwnerContactModel | null;
   stewards: PersonRow[];
   circles: PersonRow[];
   members: PersonRow[];
@@ -343,6 +414,27 @@ export function directoryCandidates(
   return Array.from(rows.values());
 }
 
+function ownerContact(input: {
+  viewer: SpaceViewer;
+  owner: unknown;
+  signInHref: string;
+  /** True when Messaging would bounce this member back to the consent gate. */
+  messagingLocked: boolean;
+}): OwnerContactModel | null {
+  const owner = publicOwner(input.owner);
+  if (!owner) return null;
+  const label = copy.whosHere.owner(owner.display_name);
+  if (input.viewer === 'signed-out') {
+    return { label, ownerId: owner.id, destination: 'sign-in', signInHref: input.signInHref };
+  }
+  return {
+    label,
+    ownerId: owner.id,
+    destination: input.messagingLocked ? 'compose' : 'messaging',
+    signInHref: null,
+  };
+}
+
 export function whosHere(input: {
   viewer: SpaceViewer;
   ecosystemName: string;
@@ -352,14 +444,25 @@ export function whosHere(input: {
   members?: readonly DirectoryPerson[];
   /** Ids returned by the opted-in participant list. Null when that list was not loaded. */
   optedInIds?: ReadonlySet<string> | null;
+  /** A payload owner, or the whole community/ecosystem record. Null renders nothing. */
+  owner?: unknown;
+  signInHref?: string;
+  messagingLocked?: boolean;
 }): WhosHereModel {
+  const owner = ownerContact({
+    viewer: input.viewer,
+    owner: input.owner,
+    signInHref: input.signInHref ?? '/login',
+    messagingLocked: input.messagingLocked === true,
+  });
   if (input.viewer !== 'member') {
     const count = input.memberCount;
     const countText = count === 0 ? copy.whosHere.none : count == null ? null : copy.whosHere.count(count);
     return {
       mode: 'count',
-      show: countText != null,
+      show: countText != null || owner != null,
       countText,
+      owner,
       stewards: [],
       circles: [],
       members: [],
@@ -405,6 +508,7 @@ export function whosHere(input: {
     mode: 'directory',
     show: true,
     countText: input.memberCount == null ? null : copy.whosHere.memberCount(input.memberCount),
+    owner,
     stewards,
     circles,
     members,

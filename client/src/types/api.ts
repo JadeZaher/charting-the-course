@@ -107,6 +107,8 @@ export interface EcosystemDetail extends EcosystemSummary {
   stewards?: EcosystemSteward[];
   /** The caller's role in this ecosystem, or null when they have none. */
   caller_role?: string | null;
+  /** Oldest active owner. Null when there is none. Absent on an older server. */
+  owner?: { id: string; display_name: string; role?: string | null } | null;
 }
 
 // Dashboard types
