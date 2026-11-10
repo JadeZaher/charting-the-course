@@ -3,8 +3,10 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIVE_ACT_SENTENCE } from "./practices";
 import {
   ABOUT_OMNI,
+  ACT_SENTENCE,
   ESCHERBRIDGE_SITES,
   IDAHO_VENUE,
   PRIVACY_PAGE,
@@ -100,12 +102,21 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(news, /name="robots" content="noindex, follow"/);
   const practices = renderShell(shell, byPath.get("/practices")!);
   assert.match(practices, /<h1>What the workspace already names\.<\/h1>/);
-  assert.match(practices, /These pages do not add figures/);
-  const act = renderShell(shell, byPath.get("/practices/act")!);
-  assert.match(act, /<h1>ACT is not a vote\.<\/h1>/);
-  assert.match(act, /<a href="\/governance-model">How NEOS governs\.<\/a>/);
+  assert.match(practices, /The figures and standards are other people’s/);
+  assert.match(practices, /<a href="\/practices\/act-is-not-a-vote">/);
+  assert.match(practices, /<a href="\/practices\/agreements-decision-records">/);
+  assert.match(practices, /<a href="\/practices\/keys-in-the-browser">/);
+  assert.match(practices, /"@type":"CollectionPage"/);
+  assert.match(practices, /"@type":"ItemList"/);
+  assert.match(practices, /"@type":"BreadcrumbList"/);
+  const act = renderShell(shell, byPath.get("/practices/act-is-not-a-vote")!);
+  assert.match(act, /<h1>A tally can be a mood that learned how to count\. ACT is slower on purpose\.<\/h1>/);
+  assert.match(act, /<a href="\/governance-model">How NEOS governs<\/a>/);
+  assert.match(act, /ACT means Advice, Consent, and Test: advice from the people affected, consent as a check for a reasoned objection, and a test of the proposal in practice\. It is not a popularity vote and not a share of ownership\./);
   assert.equal(act.includes("railway.app"), false);
-  assert.match(act, /property="og:url" content="https:\/\/neos\.primusneo\.com\/practices\/act"/);
+  assert.match(act, /property="og:url" content="https:\/\/neos\.primusneo\.com\/practices\/act-is-not-a-vote"/);
+  assert.equal(byPath.get("/practices/act"), undefined);
+  assert.equal(byPath.get("/practices/learning-and-discovery"), undefined);
 });
 
 test("every public page carries the Escherbridge footer as follow links", () => {
@@ -144,14 +155,75 @@ test("sitemap and robots name the public URLs", () => {
     assert.match(xml, new RegExp(page.canonical.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.equal(xml.includes("https://neos.primusneo.com/news"), false);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/act-is-not-a-vote<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/agreements-decision-records<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/keys-in-the-browser<\/loc>/);
+  assert.equal(xml.includes("/practices/learning-and-discovery"), false);
+  assert.equal(xml.includes("/practices/agreements-and-decision-records"), false);
+  assert.equal(xml.includes("https://neos.primusneo.com/practices/act<"), false);
   assert.match(xml, /sitemap\/0\.9/);
   const feed = feedXml();
   assert.match(feed, /<rss version="2.0">/);
   assert.match(feed, /https:\/\/neos\.primusneo\.com\/blog\/act-is-not-a-vote/);
-  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/act/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/act-is-not-a-vote/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/agreements-decision-records/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/keys-in-the-browser/);
+  assert.equal(feed.includes("/practices/act<"), false);
+  assert.equal(feed.includes("/practices/learning-and-discovery"), false);
   assert.equal(feed.includes("/news<"), false);
   for (const page of PUBLIC_PAGES) {
     assert.ok(page.title.length <= 70, page.title);
     assert.equal(page.canonical.startsWith("https://neos.primusneo.com"), true, page.path);
   }
+});
+
+test("the three practices children are in the first HTML", () => {
+  assert.equal(LIVE_ACT_SENTENCE, ACT_SENTENCE);
+  const byPath = new Map(PUBLIC_PAGES.map((page) => [page.path, page]));
+  const children = [
+    "/practices/act-is-not-a-vote",
+    "/practices/agreements-decision-records",
+    "/practices/keys-in-the-browser",
+  ];
+  const urls = [
+    "https://thesociocracygroup.com/4-principles/",
+    "https://www.gov.uk/government/publications/records-and-information-created-by-hmrc/hmrc-records-and-information-collection-policy",
+    "https://www.gov.uk/government/publications/guidance-management-of-private-office-information-and-records/guidance-for-the-management-of-private-office-information-and-records-html",
+    "https://www.legislation.gov.uk/ukpga/2006/46/section/248",
+    "https://www.legislation.gov.uk/ukpga/2006/46/section/249",
+    "https://www.legislation.gov.uk/ukpga/2006/46/section/355",
+    "https://ica.coop/en/cooperatives/cooperative-identity",
+    "https://www.w3.org/TR/webauthn-2/",
+    "https://www.w3.org/TR/2021/REC-webauthn-2-20210408/",
+    "https://www.cisa.gov/sites/default/files/publications/fact-sheet-implementing-phishing-resistant-mfa-508c.pdf",
+    "https://ardanova.com/notes/a-record-is-not-a-right",
+    "https://primusneo.com/industries/governance",
+  ];
+  const combined = children.map((path) => renderShell(shell, byPath.get(path)!)).join("\n");
+  for (const url of urls) assert.ok(combined.includes(url), url);
+  assert.equal(combined.includes("Live in Bali"), false);
+  assert.equal(combined.includes("railway.app"), false);
+  for (const path of children) {
+    const html = renderShell(shell, byPath.get(path)!);
+    assert.match(html, /<h1>[^<]+<\/h1>/);
+    assert.match(html, /<h2>Sources<\/h2>/);
+    assert.match(html, /<h2>An illustrative scenario<\/h2>/);
+    assert.match(html, /Every stat on this page is cited\./);
+    assert.match(html, /"@type":"Article"/);
+    assert.match(html, /"@type":"BreadcrumbList"/);
+    assert.match(html, /"citation"/);
+    const embedded = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(embedded);
+    const parsed = JSON.parse(embedded[1]) as {
+      "@graph": { "@type": string; citation?: { url?: string | string[]; datePublished?: string }[] }[];
+    };
+    const article = parsed["@graph"].find((node) => node["@type"] === "Article");
+    assert.ok(article?.citation && article.citation.length >= 8, path);
+    assert.equal(article.citation.some((item) => item.datePublished === "2026-11-10"), false, path);
+  }
+  assert.match(combined, /NEOS is not TSG-certified/);
+  assert.match(combined, /Password sign-in is still offered/);
+  assert.match(combined, /does not claim that NEOS implements WebAuthn/);
+  assert.match(combined, /not a wallet/);
+  assert.match(combined, /at least ten years/);
 });
