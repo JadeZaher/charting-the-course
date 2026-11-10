@@ -40,6 +40,7 @@ test('a newcomer waiting on consent is kept on the gate but can read what they a
     ['/blog/act-is-not-a-vote', null],
     ['/news', null],
     ['/practices', null],
+    ['/practices/act-is-not-a-vote', null],
     ['/practices/act', null],
   ];
   for (const [path, expected] of cases) {

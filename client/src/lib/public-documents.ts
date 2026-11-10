@@ -1,7 +1,16 @@
 // Public copy for the introduction, About, legal pages, and the two notes.
 // The prerender step writes the same strings into the first HTML response.
 
-import { NEWS, PRACTICES, PRACTICES_INDEX, type Practice } from "./practices";
+import {
+  NEWS,
+  PRACTICES,
+  PRACTICES_INDEX,
+  type Practice,
+  type PracticeBlock,
+  type PracticeInline,
+  type PracticeRun,
+  type PracticeSource,
+} from "./practices";
 import { BLOG, ESSAYS, type Essay, type Inline, type Paragraph } from "./writing";
 
 export type { Essay, FollowLink, Inline, Paragraph } from "./writing";
@@ -548,43 +557,53 @@ function newsHtml(): string {
   ].join("");
 }
 
+function practiceInlineHtml(part: PracticeInline): string {
+  if (typeof part === "string") return escapeHtml(part);
+  if ("em" in part) return `<em>${escapeHtml(part.em)}</em>`;
+  const label = part.strong ? `<strong>${escapeHtml(part.text)}</strong>` : escapeHtml(part.text);
+  return `<a href="${escapeHtml(part.href)}">${label}</a>`;
+}
+
+function practiceRunHtml(run: PracticeRun): string {
+  if (typeof run === "string") return escapeHtml(run);
+  if ("strongLead" in run) {
+    const lead = `<strong>${run.strongLead.map((part) => practiceInlineHtml(part)).join("")}</strong>`;
+    const rest = run.rest ? run.rest.map((part) => practiceInlineHtml(part)).join("") : "";
+    return `${lead}${rest}`;
+  }
+  return run.map((part) => practiceInlineHtml(part)).join("");
+}
+
+function practiceBlocksHtml(blocks: readonly PracticeBlock[], sources: readonly PracticeSource[] = []): string {
+  return blocks
+    .map((block) => {
+      if (block.kind === "h2") return `<h2>${escapeHtml(block.text)}</h2>`;
+      if (block.kind === "p") return `<p>${practiceRunHtml(block.body)}</p>`;
+      if (block.kind === "ul") {
+        return `<ul>${block.items.map((item) => `<li>${practiceRunHtml(item)}</li>`).join("")}</ul>`;
+      }
+      return `<ol>${sources.map((source) => `<li>${practiceRunHtml(source.body)}</li>`).join("")}</ol>`;
+    })
+    .join("");
+}
+
 function practicesIndexHtml(): string {
-  const cards = PRACTICES.map(
-    (practice) =>
-      `<article><h2>${escapeHtml(practice.title)}</h2><p>${escapeHtml(practice.description)}</p><p><a href="${escapeHtml(practice.path)}">View ${escapeHtml(practice.title)}</a></p></article>`,
-  ).join("");
   return [
-    `<p>${escapeHtml(PRACTICES_INDEX.kicker)}</p>`,
+    `<p>${escapeHtml(PRACTICES_INDEX.eyebrow)}</p>`,
     `<h1>${escapeHtml(PRACTICES_INDEX.heading)}</h1>`,
-    `<p>${escapeHtml(PRACTICES_INDEX.standfirst)}</p>`,
-    `<p>${escapeHtml(PRACTICES_INDEX.emptyMetrics)}</p>`,
-    cards,
-    `<h2>On this site</h2>`,
-    `<p><a href="/governance-model">How NEOS governs.</a></p>`,
-    `<p><a href="/communities">Find a community.</a></p>`,
-    `<p><a href="/blog">Blog</a></p>`,
-    `<p>NEOS is part of <a href="${PRIMUS_NEO_URL}">PrimusNeo, the lab whose stack this product belongs to</a>. It is offered here as its own product.</p>`,
+    practiceBlocksHtml(PRACTICES_INDEX.blocks),
     `<p><a href="/feed.xml">RSS</a></p>`,
     navHtml(),
   ].join("");
 }
 
 function practiceHtml(practice: Practice): string {
-  const siblings = practice.siblings.map((slug) => {
-    const sibling = PRACTICES.find((item) => item.slug === slug);
-    if (!sibling) throw new Error(`Missing practice sibling ${slug}`);
-    return { href: sibling.path, text: sibling.title };
-  });
   return [
     `<p>${escapeHtml(practice.eyebrow)}</p>`,
     `<h1>${escapeHtml(practice.h1)}</h1>`,
     `<p>Escherbridge</p>`,
     `<p>${escapeHtml(practice.dateLabel)}</p>`,
-    practice.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join(""),
-    `<h2>Where this is already said</h2>${listHtml(practice.links)}`,
-    `<h2>Sources</h2>${listHtml(practice.sourceList.map((source) => ({ href: source.href, text: source.label })))}`,
-    `<h2>Also in this section</h2>${listHtml(siblings)}`,
-    `<p><a href="/practices">${escapeHtml(PRACTICES_INDEX.heading)}</a></p>`,
+    practiceBlocksHtml(practice.blocks, practice.sources),
     navHtml(),
   ].join("");
 }
@@ -616,6 +635,8 @@ function pageJsonLd(input: {
   headline?: string;
   crumbs: readonly { name: string; path: string }[];
   items?: readonly { name: string; path: string }[];
+  citations?: readonly { name: string; urls: readonly string[]; datePublished?: string }[];
+  publisherName?: string;
 }): string {
   const trail = breadcrumb(input.crumbs);
   if (input.kind === "article") {
@@ -632,10 +653,26 @@ function pageJsonLd(input: {
           datePublished: input.published,
           dateModified: input.modified ?? input.published,
           author: { "@type": "Organization", name: "Escherbridge" },
-          publisher: { "@id": ORG_ID },
+          publisher: input.publisherName
+            ? {
+                "@type": "Organization",
+                name: input.publisherName,
+                parentOrganization: { "@type": "Organization", name: OPERATOR.name },
+              }
+            : { "@id": ORG_ID },
           mainEntityOfPage: input.canonical,
           image: OG_IMAGE,
           url: input.canonical,
+          ...(input.citations && input.citations.length > 0
+            ? {
+                citation: input.citations.map((citation) => ({
+                  "@type": "CreativeWork",
+                  name: citation.name,
+                  url: citation.urls.length === 1 ? citation.urls[0] : [...citation.urls],
+                  ...(citation.datePublished ? { datePublished: citation.datePublished } : {}),
+                })),
+              }
+            : {}),
         },
       ],
     });
@@ -697,6 +734,8 @@ function page(
     headline?: string;
     crumbs?: readonly { name: string; path: string }[];
     items?: readonly { name: string; path: string }[];
+    citations?: readonly { name: string; urls: readonly string[]; datePublished?: string }[];
+    publisherName?: string;
   } = {},
 ): PublicPage {
   const canonical = absolute(path);
@@ -724,6 +763,8 @@ function page(
       headline: extra.headline,
       crumbs,
       items: extra.items,
+      citations: extra.citations,
+      publisherName: extra.publisherName,
     }),
   };
 }
@@ -784,6 +825,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   }),
   page(PRACTICES_INDEX.path, PRACTICES_INDEX.title, PRACTICES_INDEX.description, practicesIndexHtml(), {
     kind: "collection",
+    published: PRACTICES_INDEX.published,
     crumbs: [{ name: "Home", path: "/" }, { name: "Practices", path: "/practices" }],
     items: PRACTICES.map((practice) => ({ name: practice.title, path: practice.path })),
   }),
@@ -792,6 +834,12 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
       kind: "article",
       published: practice.published,
       headline: practice.h1,
+      publisherName: "Escherbridge",
+      citations: practice.sources.map((source) => ({
+        name: source.name,
+        urls: source.urls,
+        datePublished: source.datePublished,
+      })),
       crumbs: [
         { name: "Home", path: "/" },
         { name: "Practices", path: "/practices" },
