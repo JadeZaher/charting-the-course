@@ -5,7 +5,8 @@ import { useCommunities, useCommunity } from '@/hooks/use-engagement';
 import { useDocumentMeta } from '@/hooks/use-document-meta';
 import { communityEntryPath, engagementPath } from '@/lib/engagement';
 import { resolveMediaUrl } from '@/lib/media';
-import { INTRO } from '@/lib/public-documents';
+import { InlineText } from '@/components/InlineText';
+import { INTRO, plainParagraph } from '@/lib/public-documents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { QueryFeedback } from '@/components/engagement/QueryFeedback';
@@ -29,10 +30,10 @@ export default function Communities() {
   return <div className="mx-auto w-full max-w-6xl space-y-8 p-5 sm:p-8">
     <CommunityHeader />
     <header>
-      <p className="max-w-3xl text-lg leading-relaxed">{INTRO.paragraphs[0]}</p>
+      <p className="max-w-3xl text-lg leading-relaxed"><InlineText value={INTRO.paragraphs[0]} /></p>
       <h1 className="mt-8 text-4xl font-black tracking-tight sm:text-6xl">{INTRO.heading}</h1>
       {INTRO.paragraphs.slice(1).map((paragraph) => (
-        <p key={paragraph} className="mt-4 max-w-2xl text-lg text-muted-foreground">{paragraph}</p>
+        <p key={plainParagraph(paragraph)} className="mt-4 max-w-2xl text-lg text-muted-foreground"><InlineText value={paragraph} /></p>
       ))}
     </header>
     <form onSubmit={event => { event.preventDefault(); setAppliedSearch(search.trim()); }} className="flex flex-wrap items-end gap-3">

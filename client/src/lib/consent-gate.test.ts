@@ -34,6 +34,8 @@ test('a newcomer waiting on consent is kept on the gate but can read what they a
     ['/about', null],
     ['/terms', null],
     ['/privacy', null],
+    ['/writing', null],
+    ['/writing/act-is-not-a-vote', null],
   ];
   for (const [path, expected] of cases) {
     const redirect = consentGateRedirect({ isAuthenticated: true, pendingConsents: pendingInGarden, memberships: [garden], path });

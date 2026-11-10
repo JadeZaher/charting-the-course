@@ -1,7 +1,13 @@
-// Public copy for the introduction, About, and legal pages.
+// Public copy for the introduction, About, legal pages, and the two notes.
 // The prerender step writes the same strings into the first HTML response.
 
+import { ESSAYS, WRITING, type Essay, type Inline, type Paragraph } from "./writing";
+
+export type { Essay, FollowLink, Inline, Paragraph } from "./writing";
+export { ESSAYS, WRITING, plainParagraph } from "./writing";
+
 export const SITE_ORIGIN = "https://neos.primusneo.com";
+export const PRIMUS_NEO_URL = "https://primusneo.com";
 
 export const OPERATOR = {
   name: "Escherbridge, LLC",
@@ -26,13 +32,18 @@ export const INTRO = {
   description: "A visual workspace for learning, discovery, collaboration, and participatory governance.",
   heading: "Find a community.",
   paragraphs: [
-    "NEOS (New Earth Operating System) is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources.",
+    "NEOS is a workspace for communities to make shared decisions, manage agreements, and coordinate projects and resources.",
     "A visual workspace for learning, discovery, collaboration, and participatory governance.",
     "Discover people and projects you can contribute to. Explore a community before deciding to join.",
     ACT_SENTENCE,
     "There is no blockchain and no token. A browser sign-in can use a key generated on the device; the private key stays in that browser.",
-  ],
-} as const;
+    [
+      "NEOS is part of ",
+      { text: "PrimusNeo, the lab whose stack this product belongs to", href: PRIMUS_NEO_URL },
+      ". It is offered here as its own product.",
+    ],
+  ] as readonly Paragraph[],
+};
 
 export const ABOUT = {
   title: "About NEOS — Governance in Practice",
@@ -40,17 +51,20 @@ export const ABOUT = {
     "NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources.",
   kicker: "About NEOS",
   heading: "The New Earth Operating System.",
-  lead: "NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources. On this site, you can explore communities, join one that fits your interests, and take part in its work.",
+  lead: [
+    "NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources. On this site, you can explore communities, join one that fits your interests, and take part in its work. It is part of the ",
+    { text: "PrimusNeo", href: PRIMUS_NEO_URL },
+    " stack, and it is offered here as its own product.",
+  ] as Paragraph,
   aside:
     "Communities here are also called ecosystems. Explore their purpose before joining, then complete any agreements and onboarding quizzes they require. Each community sets its own participation paths.",
-} as const;
+};
 
 export const ABOUT_IS = [
-  "A complete governance stack with 54 skills across 10 layers",
-  "Open source software you can fork, adapt, and run yourself",
-  "A platform for consent-based decision-making at any scale",
-  "AI-augmented — assistants guide, but never decide",
-  "Designed around dignity, sovereignty, and collective intelligence",
+  "A skill stack with 54 skills across 10 layers, as the public About and the operator health check currently report",
+  "Open-source software you can fork, adapt, and run yourself",
+  "A workspace for consent-based decisions, using ACT",
+  "Assistants may guide; they do not decide",
 ] as const;
 
 export const ABOUT_IS_NOT = [
@@ -58,7 +72,7 @@ export const ABOUT_IS_NOT = [
   "A voting platform — consent is not majority rule",
   "A corporate hierarchy tool rebranded as flat",
   "A platform where AI makes decisions for humans",
-  "A utopian experiment — it is practical governance infrastructure",
+  "A finished government in a box.",
 ] as const;
 
 export interface AboutLayer {
@@ -114,7 +128,7 @@ export const ABOUT_LAYERS: readonly AboutLayer[] = [
     name: "Safeguard",
     short: "Detecting and preventing power capture",
     detail:
-      "Built-in safeguards detect when power concentrates inappropriately: term limits on roles, mandatory rotation, transparency requirements, and whistleblower protections are encoded into the governance stack.",
+      "The stack is designed to notice when power concentrates: term limits, rotation, transparency, and a way to raise an alarm. Treat those as part of the skill set, not as a claim that every community already runs them.",
   },
   {
     num: "VIII",
@@ -128,7 +142,7 @@ export const ABOUT_LAYERS: readonly AboutLayer[] = [
     name: "Memory",
     short: "Institutional learning that compounds",
     detail:
-      "Every decision, experiment, and conflict resolution becomes part of the community's institutional memory. Patterns are recognized, lessons are encoded, and governance wisdom compounds over time.",
+      "Decisions, experiments, and conflict records are supposed to remain findable, so a later member can see what was already decided.",
   },
   {
     num: "X",
@@ -158,11 +172,11 @@ export const ABOUT_TERMS: readonly { term: string; def: string }[] = [
   },
   {
     term: "Circle",
-    def: "A self-governing group with a clear domain, members, and its own set of agreements. The fundamental organizational unit.",
+    def: "A self-governing group with a clear domain, members, and its own set of agreements.",
   },
   {
     term: "Ecosystem",
-    def: "A network of circles operating under shared foundational agreements. An ecosystem is a sovereign governance community.",
+    def: "A network of circles operating under shared foundational agreements.",
   },
   {
     term: "Domain",
@@ -189,11 +203,16 @@ export const GOVERNANCE_LEAD = {
   kicker: "54 skills · 10 layers · ACT protocol",
   heading: "How NEOS governs.",
   paragraphs: [
-    "NEOS is not a voting app. It is a complete governance operating system. Every layer is a concrete governance need; each skill is a reusable process that satisfies that need. The features in the app are the manual surface of this protocol stack.",
+    "NEOS is not a voting app. It is a governance operating system: each layer is a concrete need, and each skill is a reusable process for that need. The features in the app are the manual surface of that stack.",
     ACT_SENTENCE,
     ECONOMIC_DETAIL,
-  ],
-} as const;
+    [
+      "NEOS is part of ",
+      { text: "PrimusNeo", href: PRIMUS_NEO_URL },
+      ", and it is offered here as its own product.",
+    ],
+  ] as readonly Paragraph[],
+};
 
 export interface LegalSection {
   heading: string;
@@ -315,6 +334,28 @@ export const PRIVACY_PAGE = {
   ] as const satisfies readonly LegalSection[],
 } as const;
 
+/** Sister sites, omitting NEOS. Descriptive anchors, follow links, each site's own domain. */
+export const ESCHERBRIDGE_SITES = [
+  { href: PRIMUS_NEO_URL, label: "PrimusNeo, the technology innovation lab" },
+  { href: "https://azoa.ardanova.com", label: "AZOA, an engine for structured workflows" },
+  { href: "https://ardanova.com", label: "ArdaNova, a workspace for shared work" },
+  { href: "https://aevani.com", label: "Aevani, a marketplace for growing tools" },
+  { href: "https://plantgeo.aevani.com", label: "PlantGeo, a 3D map for planning a site" },
+  { href: "https://overseasgenai.com", label: "OverseasGenAI, a venture shipyard" },
+  { href: "https://glitxz.com", label: "Glitxz, an artist-led market for work in progress" },
+] as const;
+
+export function organizationJsonLd(): string {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "NEOS",
+    url: `${SITE_ORIGIN}/`,
+    parentOrganization: { "@type": "Organization", name: OPERATOR.name },
+    sameAs: ESCHERBRIDGE_SITES.map((site) => site.href),
+  });
+}
+
 const PUBLIC_NAV: readonly { href: string; label: string }[] = [
   { href: "/", label: "Home" },
   { href: "/communities", label: "Communities" },
@@ -333,8 +374,18 @@ export function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function paragraphsHtml(paragraphs: readonly string[]): string {
-  return paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+function inlineHtml(part: Inline): string {
+  if (typeof part === "string") return escapeHtml(part);
+  return `<a href="${escapeHtml(part.href)}">${escapeHtml(part.text)}</a>`;
+}
+
+function paragraphHtml(paragraph: Paragraph): string {
+  if (typeof paragraph === "string") return `<p>${escapeHtml(paragraph)}</p>`;
+  return `<p>${paragraph.map((part) => inlineHtml(part)).join("")}</p>`;
+}
+
+function paragraphsHtml(paragraphs: readonly Paragraph[]): string {
+  return paragraphs.map((paragraph) => paragraphHtml(paragraph)).join("");
 }
 
 function sectionsHtml(sections: readonly LegalSection[]): string {
@@ -353,6 +404,13 @@ function navHtml(): string {
   return `<nav aria-label="Public pages">${links}</nav>`;
 }
 
+function footerHtml(): string {
+  const items = ESCHERBRIDGE_SITES.map(
+    (site) => `<li><a href="${escapeHtml(site.href)}">${escapeHtml(site.label)}</a></li>`,
+  ).join("");
+  return `<footer><p>An Escherbridge project</p><ul>${items}</ul></footer>`;
+}
+
 function aboutHtml(): string {
   const layers = ABOUT_LAYERS.map(
     (layer) =>
@@ -365,7 +423,7 @@ function aboutHtml(): string {
   ).join("");
   return [
     `<h1>${escapeHtml(ABOUT.heading)}</h1>`,
-    `<p>${escapeHtml(ABOUT.lead)}</p>`,
+    paragraphHtml(ABOUT.lead),
     `<p>${escapeHtml(ABOUT.aside)}</p>`,
     `<h2>It is</h2><ul>${isItems}</ul>`,
     `<h2>It is not</h2><ul>${isNot}</ul>`,
@@ -396,9 +454,30 @@ export interface PublicPage {
   html: string;
 }
 
+function essayHtml(essay: Essay): string {
+  const sources = essay.sources
+    .map((source) => `<li><a href="${escapeHtml(source.href)}">${escapeHtml(source.label)}</a></li>`)
+    .join("");
+  return [
+    `<h1>${escapeHtml(essay.title)}</h1>`,
+    `<p>${escapeHtml(essay.date)}</p>`,
+    paragraphsHtml(essay.paragraphs),
+    `<h2>Sources</h2><ul>${sources}</ul>`,
+    navHtml(),
+  ].join("");
+}
+
+function writingIndexHtml(): string {
+  const items = ESSAYS.map(
+    (essay) =>
+      `<article><h2><a href="${escapeHtml(essay.path)}">${escapeHtml(essay.title)}</a></h2><p>${escapeHtml(essay.summary)}</p></article>`,
+  ).join("");
+  return [`<h1>${escapeHtml(WRITING.heading)}</h1>`, items, navHtml()].join("");
+}
+
 function page(path: string, title: string, description: string, html: string): PublicPage {
   const canonical = path === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${path}`;
-  return { path, title, description, canonical, html };
+  return { path, title, description, canonical, html: `${html}${footerHtml()}` };
 }
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
@@ -418,6 +497,8 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   ),
   page("/terms", TERMS_PAGE.title, TERMS_PAGE.description, legalHtml(TERMS_PAGE)),
   page("/privacy", PRIVACY_PAGE.title, PRIVACY_PAGE.description, legalHtml(PRIVACY_PAGE)),
+  page(WRITING.path, WRITING.title, WRITING.description, writingIndexHtml()),
+  ...ESSAYS.map((essay) => page(essay.path, `${essay.title} — NEOS`, essay.summary, essayHtml(essay))),
 ];
 
 export function outputFile(path: string): string {
