@@ -2,8 +2,9 @@ import type { HealthResponse, SkillsResponse, AuthChallengeResponse, AuthVerifyR
 import type { UserJourneyProgress } from '@/types/orientation';
 import type { EmergencyDeclaration, EmergencyOverview, EmergencyRecord, EmergencyReview, ExitFiling, ExitView, PortableRecord } from '@/types/api'; // G-Safety
 import type { ExplainKind, NextStepsResponse, StatusExplanation } from '@/types/api'; // G-Next
+import { API_BASE_URL } from '@/lib/api-origin';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const BASE_URL = API_BASE_URL;
 
 /** Fetch error carrying the HTTP status so consumers can branch without string-matching .message. */
 export class ApiFetchError extends Error {

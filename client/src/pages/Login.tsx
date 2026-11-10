@@ -15,6 +15,7 @@ import { hasSavedIdentity, getSavedDid, clearKeyPair } from "@/lib/did-auth";
 import { DEFAULT_DESTINATION, safeRedirect } from "@/lib/post-login-redirect";
 import { CONSENT_GATE_PATH } from "@/lib/member-status";
 import { signupEcosystemId } from "@/lib/signup-ecosystem";
+import { signInSuccessNotice } from "@/lib/sign-in-session";
 
 type AuthMode = "did" | "password" | "register";
 
@@ -124,6 +125,14 @@ export default function Login() {
   }
 
   // Every failure below renders once, inline (AuthContext's authError, in apiErrorMessage words); no failure toasts.
+  // A failed /me rejects, so "Login Successful" runs only when a session was actually read.
+  function finishSignIn(outcome: { signedIn: boolean; consentRequired: boolean }) {
+    const notice = signInSuccessNotice(outcome);
+    if (!notice) return;
+    toast({ title: notice.title, description: notice.description });
+    setLocation(notice.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
+  }
+
   const handleDIDLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -131,12 +140,7 @@ export default function Login() {
     stashRedirect(null);
 
     try {
-      const outcome = await login(displayName || undefined, signupEcosystem ?? undefined);
-      toast({
-        title: "Login Successful",
-        description: "Welcome to NEOS!",
-      });
-      setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
+      finishSignIn(await login(displayName || undefined, signupEcosystem ?? undefined));
     } catch {
       // Shown inline as authError.
     } finally {
@@ -152,12 +156,7 @@ export default function Login() {
     stashRedirect(null);
 
     try {
-      const outcome = await loginWithCredentials(username, password);
-      toast({
-        title: "Login Successful",
-        description: "Welcome to NEOS!",
-      });
-      setLocation(outcome.consentRequired ? CONSENT_GATE_PATH : redirectTarget, { replace: true });
+      finishSignIn(await loginWithCredentials(username, password));
     } catch {
       // Shown inline as authError.
     } finally {

@@ -3,8 +3,9 @@ import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useEthosDetail } from '@/hooks/useEthos';
 import { resolveExternalUrl } from '@/lib/media';
+import { API_BASE_URL } from '@/lib/api-origin';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const BASE_URL = API_BASE_URL;
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...options });
   if (!res.ok) {

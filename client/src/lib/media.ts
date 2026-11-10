@@ -1,8 +1,8 @@
+import { API_BASE_URL } from './api-origin';
 import { resolveInternalPath } from './internal-path';
 
 export { resolveInternalPath };
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 const RASTER_DATA_URL = /^data:image\/(?:avif|gif|jpeg|png|webp);/i;
 
 export function resolveExternalUrl(value?: string | null): string | undefined {
