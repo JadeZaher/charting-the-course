@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -107,6 +108,7 @@ export default function EcosystemDetail() {
   const [showJmForm, setShowJmForm] = useState(false);
   const [jmForm, setJmForm] = useState({ title: '', description: '', contentJson: '', exitJson: '', is_default: false });
   const [jmSaving, setJmSaving] = useState(false);
+  const [journeyToDelete, setJourneyToDelete] = useState<JourneyMapItem | null>(null);
 
   // --- Domains (the Domains card); the shares card is EcosystemPostsSection (FX-Exchange) ---
   const [domainsLoading, setDomainsLoading] = useState(false);
@@ -208,8 +210,10 @@ export default function EcosystemDetail() {
       await loadJourneyMaps();
     } catch (err) { toast({ title: 'Failed', description: apiErrorMessage(err), variant: 'destructive' }); }
   };
-  const handleDeleteJourneyMap = async (jmId: string) => {
-    if (!confirm('Delete this journey map and all associated progress?')) return;
+  const handleDeleteJourneyMap = async () => {
+    if (!journeyToDelete) return;
+    const jmId = journeyToDelete.id;
+    setJourneyToDelete(null);
     try {
       await deleteJourneyMap(jmId);
       toast({ title: 'Journey map deleted' }); await loadJourneyMaps();
@@ -486,11 +490,11 @@ export default function EcosystemDetail() {
                     </div>
                     {isSteward && (
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleToggleJmActive(jm)} title={jm.is_active ? 'Deactivate' : 'Activate'}>
-                          <ArrowUpDown className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handleToggleJmActive(jm)} aria-label={jm.is_active ? `Deactivate ${jm.title}` : `Activate ${jm.title}`}>
+                          <ArrowUpDown className="h-4 w-4" aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteJourneyMap(jm.id)} title="Delete">
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => setJourneyToDelete(jm)} aria-label={`Delete ${jm.title}`}>
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     )}
@@ -498,6 +502,20 @@ export default function EcosystemDetail() {
                 ))}
               </div>
             )}
+            <AlertDialog open={journeyToDelete !== null} onOpenChange={(open) => { if (!open) setJourneyToDelete(null); }}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this journey map?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Delete {journeyToDelete?.title ?? 'this journey map'} and all associated progress?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void handleDeleteJourneyMap()}>Delete journey map</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       )}
@@ -532,7 +550,7 @@ export default function EcosystemDetail() {
                           <div className="flex gap-1 justify-end">
                             <Button asChild variant="ghost" size="sm"><Link href={`/quiz/results/${q.id}`}><Eye className="h-4 w-4 mr-1" />Results</Link></Button>
                             {isSteward && (
-                              <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} title="Unassign"><Link2Off className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleUnassignQuiz(q.id)} aria-label={`Unassign ${q.title}`}><Link2Off className="h-4 w-4" aria-hidden="true" /></Button>
                             )}
                           </div>
                         </td>

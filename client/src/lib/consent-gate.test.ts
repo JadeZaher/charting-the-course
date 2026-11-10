@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activeEcosystemIds, consentGateRedirect, defaultEcosystemId, isHeldAtConsentGate } from './consent-gate';
+import { activeEcosystemIds, consentGateHeading, consentGateRedirect, defaultEcosystemId, isHeldAtConsentGate } from './consent-gate';
 import { CONSENT_GATE_PATH } from './member-status';
 
 const garden = { id: 'eco-garden' };
@@ -127,4 +127,10 @@ test('an assigned node admin can reach support while their own membership awaits
   assert.equal(consentGateRedirect({ ...input, path: '/admin/node-admins' }), null);
   assert.notEqual(consentGateRedirect({ ...input, isNodeAdmin: false, path: '/admin' }), null);
   assert.notEqual(consentGateRedirect({ ...input, path: '/proposals/new' }), null);
+});
+
+test('the consent gate has one h1 even when more than one ecosystem is pending', () => {
+  assert.equal(consentGateHeading(0), 'h1');
+  assert.equal(consentGateHeading(1), 'h2');
+  assert.equal(consentGateHeading(2), 'h2');
 });

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJoinEcosystem } from '@/hooks/use-onboarding';
 import { apiErrorMessage } from '@/lib/api-error-message';
-import { activeEcosystemIds } from '@/lib/consent-gate';
+import { activeEcosystemIds, consentGateHeading } from '@/lib/consent-gate';
 import type { PendingConsentGate } from '@/types/api';
 import { JoinRequirements } from '@/components/JoinRequirements';
 
@@ -13,13 +13,16 @@ import { JoinRequirements } from '@/components/JoinRequirements';
 export default function ConsentGatePage() {
   const { pendingConsents, ecosystems, member, refreshSession } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
 
   const checkAgain = async () => {
     setIsChecking(true);
+    setStatusMessage('Checking status.');
     try {
       await refreshSession();
+      setStatusMessage('Status refreshed.');
     } catch {
-      // refreshSession keeps the last known gate when /auth/me cannot be read; the page stays usable.
+      setStatusMessage('Status could not be refreshed.');
     } finally {
       setIsChecking(false);
     }
@@ -35,6 +38,7 @@ export default function ConsentGatePage() {
     const isActiveSomewhere = activeEcosystemIds({ pendingConsents, memberships: ecosystems, member }).length > 0;
     return (
       <section className="mx-auto max-w-2xl border-2 border-strong-border bg-card p-8 sm:p-10" aria-live="polite">
+        <p className="sr-only" role={statusMessage === 'Status could not be refreshed.' ? 'alert' : 'status'}>{statusMessage}</p>
         <FileCheck2 className="h-8 w-8" aria-hidden="true" />
         {isActiveSomewhere ? (
           <>
@@ -61,12 +65,15 @@ export default function ConsentGatePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      {pendingConsents.map((gate) => (
+      <p className="sr-only" role={statusMessage === 'Status could not be refreshed.' ? 'alert' : 'status'}>{statusMessage}</p>
+      {pendingConsents.map((gate, index) => {
+        const Heading = consentGateHeading(index);
+        return (
         <section key={gate.ecosystem_id} className="border-2 border-strong-border bg-card p-8 sm:p-10" aria-labelledby={`gate-${gate.ecosystem_id}`}>
           <FileCheck2 className="h-8 w-8" aria-hidden="true" />
-          <h1 id={`gate-${gate.ecosystem_id}`} className="mt-5 text-3xl font-black tracking-[-0.035em]">
+          <Heading id={`gate-${gate.ecosystem_id}`} className="mt-5 text-3xl font-black tracking-[-0.035em]">
             Before you take part in {gate.ecosystem_name}
-          </h1>
+          </Heading>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
             Your account is set up. Complete this ecosystem's configured entry quizzes and personally consent
             to its membership agreements. The server activates your membership only when all requirements are met.
@@ -95,7 +102,8 @@ export default function ConsentGatePage() {
             </Link>
           </p>
         </section>
-      ))}
+        );
+      })}
       <Button variant="outline" onClick={checkAgain} disabled={isChecking}>
         <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
         {isChecking ? 'Checking…' : "I've completed the requirements, check again"}
