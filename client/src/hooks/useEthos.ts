@@ -12,10 +12,23 @@ interface EthosDetailResponse {
   ethos: EthosDetail;
   members: EthosMemberWithProfile[];
   viewer_alignment: number | null;
+  stewards: { display_name: string; role: string }[];
+  callerRole: string | null;
 }
 
 function toOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function mapStewards(value: unknown): { display_name: string; role: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((row) => {
+    if (!row || typeof row !== 'object') return [];
+    const record = row as { display_name?: unknown; name?: unknown; role?: unknown };
+    const displayName = toOptionalString(record.display_name) ?? toOptionalString(record.name);
+    if (!displayName) return [];
+    return [{ display_name: displayName, role: toOptionalString(record.role) ?? 'steward' }];
+  });
 }
 
 function toStringList(value: unknown): string[] {
@@ -109,6 +122,8 @@ export function useEthosDetail(id: string) {
         ethos,
         members,
         viewer_alignment: toOptionalNumber(result.viewer_alignment) ?? null,
+        stewards: mapStewards(result.stewards),
+        callerRole: toOptionalString(result.caller_role) ?? null,
       };
     },
     enabled: !!id,

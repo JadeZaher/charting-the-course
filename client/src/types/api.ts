@@ -89,6 +89,12 @@ export interface EcosystemSummary {
   member_count: number;
 }
 
+/** A steward named on GET /ecosystems/:id. Display name and role only; no member id. */
+export interface EcosystemSteward {
+  display_name: string;
+  role: string;
+}
+
 export interface EcosystemDetail extends EcosystemSummary {
   uaf_agreement_id?:string|null;
   website: string | null;
@@ -97,6 +103,10 @@ export interface EcosystemDetail extends EcosystemSummary {
   contact_email: string | null;
   governance_summary: string | null;
   visibility: string;
+  /** Active admin and owner rows. Absent on an older server. */
+  stewards?: EcosystemSteward[];
+  /** The caller's role in this ecosystem, or null when they have none. */
+  caller_role?: string | null;
 }
 
 // Dashboard types

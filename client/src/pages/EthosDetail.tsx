@@ -3,18 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { keys } from '@/lib/query-keys';
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { useEthosDetail } from '@/hooks/useEthos';
+import { useCommunity } from '@/hooks/use-engagement';
 import { useAuth } from '@/contexts/AuthContext';
-import { holdsMembershipIn, membershipStanding } from '@/lib/ecosystem-join';
+import { membershipStanding } from '@/lib/ecosystem-join';
 import { useJoinEcosystem } from '@/hooks/use-onboarding';
-import { JoinRequirements } from '@/components/JoinRequirements';
 import { fetchEthosJourneyMaps } from '@/lib/api-client';
-import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl, resolveMiroEmbedUrl } from '@/lib/media';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { resolveExternalUrl, resolveMediaUrl, resolveMiroEmbedUrl } from '@/lib/media';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConsentGate } from '@/components/discovery/ConsentGate';
 import { FitCheck } from '@/components/discovery/FitCheck';
 import { AlignedParticipants } from '@/components/discovery/AlignedParticipants';
+import { EcosystemHome } from '@/components/ethos/EcosystemHome';
+import { apiErrorMessage } from '@/lib/api-error-message';
+import { headerStatus, publicMemberCount, spaceViewer } from '@/lib/space-home';
+import { spaceHomeCopy } from '@/lib/space-home-copy';
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: 'Discovery',
@@ -30,41 +32,52 @@ export default function EthosDetail() {
   const [, detailParams] = useRoute('/ethos/:slug/detail');
   const [, navigate] = useLocation();
   const slug = (detailParams ?? baseParams)?.slug ?? '';
-  const detailQuery = useEthosDetail(slug);
-  const ethosId = detailQuery.data?.ethos.id;
   const { ecosystems, isAuthenticated } = useAuth();
-  const join = useJoinEcosystem(ethosId || '', { silent: true });
+  const detailQuery = useEthosDetail(isAuthenticated ? slug : '');
+  const communityQuery = useCommunity(isAuthenticated ? '' : slug);
+  const ethosId = detailQuery.data?.ethos.id;
+  const join = useJoinEcosystem(ethosId || slug, { silent: true });
   const journeyQuery = useQuery({
     queryKey: keys.orientation.journeyMaps(ethosId),
     queryFn: () => fetchEthosJourneyMaps(ethosId!),
     enabled: !!ethosId,
   });
 
-  if (detailQuery.isLoading) {
+  if (!isAuthenticated) {
+    if (communityQuery.isLoading) return <HomeSkeleton />;
+    if (communityQuery.isError || !communityQuery.data) return <MissingDossier />;
+    const community = communityQuery.data;
+    const imageUrl = resolveMediaUrl(community.logo_url);
+    const standing = headerStatus('signed-out', community.name);
     return (
-      <div className="space-y-6" aria-label="Loading ecosystem dossier">
-        <Skeleton className="h-12 w-44 rounded-none" />
-        <div className="grid gap-5 lg:grid-cols-12">
-          <Skeleton className="aspect-[3/2] rounded-none border-2 border-border lg:col-span-8" />
-          <Skeleton className="h-full min-h-80 rounded-none border-2 border-border lg:col-span-4" />
-        </div>
+      <div className="space-y-10">
+        <DiscoverLink href="/communities" />
+        <EcosystemHeading name={community.name} status={standing.text} finishJoining={false} purpose={community.description} />
+        <EcosystemHome
+          ecosystemId={community.id}
+          name={community.name}
+          memberCount={publicMemberCount(community)}
+          viewer="signed-out"
+          stewards={[]}
+          orientationHref={null}
+          opportunities={community.opportunities}
+          opportunitiesRequireSignIn={community.opportunities_require_sign_in}
+          onJoin={() => undefined}
+          joining={false}
+        />
+        {imageUrl && <img src={imageUrl} alt="" width={1600} height={1067} loading="lazy" decoding="async" className="aspect-[3/2] w-full border-2 border-strong-border object-cover" />}
       </div>
     );
   }
 
-  if (detailQuery.isError || !detailQuery.data) {
-    return (
-      <div className="border-2 border-destructive p-8" role="alert">
-        <p className="font-black uppercase tracking-wide text-destructive">Ecosystem not found</p>
-        <p className="mt-2 text-sm text-muted-foreground">This dossier is unavailable or outside your current access.</p>
-        <Link href="/discover" className="mt-6 inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Browse Discover
-        </Link>
-      </div>
-    );
-  }
+  if (detailQuery.isLoading) return <HomeSkeleton />;
 
-  const { ethos, members } = detailQuery.data;
+  if (detailQuery.isError || !detailQuery.data) return <MissingDossier />;
+
+  const { ethos, stewards } = detailQuery.data;
+  const viewer = spaceViewer(true, membershipStanding(ethos.id, ecosystems));
+  const standing = headerStatus(viewer, ethos.name);
+  const joined = viewer === 'member' || viewer === 'pending';
   const phase = ethos.phase ? (PHASE_LABELS[ethos.phase] ?? ethos.phase) : null;
   const mapUrl = ethos.map_type === 'miro'
     ? resolveMiroEmbedUrl(ethos.map_url)
@@ -76,79 +89,39 @@ export default function EthosDetail() {
     return url ? [{ ...resource, url }] : [];
   });
   const journeyMaps = journeyQuery.data ?? [];
-  // A non-member's start on the orientation page joins first; say so before they click (api/AGENTS.md "Join-first").
-  const isMember = holdsMembershipIn(ethos.id, ecosystems);
-  const showDescription = ethos.description && ethos.description !== ethos.tagline;
+  const isMember = viewer === 'member';
+  const purpose = ethos.description || ethos.tagline || null;
 
   return (
     <div className="space-y-10">
-      {isMember && <Link className="inline-flex min-h-11 items-center text-link underline" href={`/settings/notifications?scope=ecosystem&id=${ethos.id}`}>Choose community updates</Link>}
-      <Link href="/discover" className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Discover index
-      </Link>
+      {joined && <Link className="inline-flex min-h-11 items-center text-link underline" href={`/settings/notifications?scope=ecosystem&id=${ethos.id}`}>Choose updates for {ethos.name}</Link>}
+      <DiscoverLink href="/discover" />
+      <EcosystemHeading name={ethos.name} status={standing.text} finishJoining={standing.finishJoining} purpose={purpose} />
 
-      <header className="grid border-2 border-strong-border bg-card lg:grid-cols-12">
-        <div className="relative min-h-80 overflow-hidden border-b-2 border-strong-border bg-muted lg:col-span-8 lg:min-h-[34rem] lg:border-b-0 lg:border-r-2">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={`A view representing ${ethos.name}${ethos.location ? ` in ${ethos.location}` : ''}`}
-              width={1600}
-              height={1067}
-              loading="eager"
-              decoding="async"
-              className="h-full w-full object-cover grayscale-[10%]"
-            />
-          ) : (
-            <div className="flex h-full min-h-80 items-end justify-between bg-foreground p-8 text-background" role="img" aria-label={`No image available for ${ethos.name}`}>
-              <span className="text-xs font-black uppercase tracking-[0.2em]">Visual pending</span>
-              <span className="text-8xl font-black tracking-[-0.08em]" aria-hidden="true">{ethos.name.slice(0, 2).toUpperCase()}</span>
-            </div>
-          )}
-          <span className="absolute left-4 top-4 border border-background bg-foreground px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-background">
-            Ecosystem dossier
-          </span>
-        </div>
+      <EcosystemHome
+        ecosystemId={ethos.id}
+        name={ethos.name}
+        memberCount={ethos.member_count}
+        viewer={viewer}
+        stewards={isMember ? stewards : []}
+        orientationHref={journeyMaps.length > 0 ? `/orientation/${slug}` : null}
+        onJoin={() => join.mutate()}
+        joining={join.isPending}
+        prepareJoin={() => join.mutateAsync()}
+        joinError={join.isError ? apiErrorMessage(join.error) : null}
+      />
 
-        <div className="flex flex-col p-6 sm:p-8 lg:col-span-4">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">{ethos.location ?? ethos.sector ?? 'Distributed network'}</p>
-          <h1 className="mt-4 text-5xl font-black leading-[0.86] tracking-[-0.055em] sm:text-6xl">{ethos.name}</h1>
-          {ethos.tagline && <p className="mt-5 text-base leading-7 text-muted-foreground">{ethos.tagline}</p>}
+      {imageUrl && <img src={imageUrl} alt="" width={1600} height={1067} loading="lazy" decoding="async" className="aspect-[3/2] w-full border-2 border-strong-border object-cover" />}
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Badge variant="outline" className="rounded-none border-2 uppercase tracking-wide">{ethos.ethos_type}</Badge>
-            <Badge variant={ethos.is_active ? 'default' : 'secondary'} className="rounded-none uppercase tracking-wide">
-              {ethos.is_active ? 'Active' : 'Inactive'}
-            </Badge>
-            {phase && <Badge variant="outline" className="rounded-none uppercase tracking-wide">{phase}</Badge>}
-          </div>
-
-          <dl className="mt-auto grid grid-cols-2 gap-px bg-border pt-px">
-            <div className="bg-card py-5 pr-4">
-              <dt className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Members</dt>
-              <dd className="mt-1 text-3xl font-black tabular-nums">{ethos.member_count}</dd>
-            </div>
-            <div className="bg-card py-5 pl-4">
-              <dt className="text-[0.65rem] font-black uppercase tracking-[0.14em] text-muted-foreground">Alignment</dt>
-              <dd className="mt-1 text-xs text-muted-foreground"><a className="underline" href="#ecosystem-fit">Optional private fit check below</a></dd>
-            </div>
-          </dl>
-        </div>
-      </header>
-
-      {isAuthenticated && membershipStanding(ethos.id, ecosystems) !== 'active' && <JoinRequirements type="ecosystem" id={ethos.id} returnTo={`/ethos/${ethos.id}`} prepare={() => join.mutateAsync()} />}
-      <div id="ecosystem-fit"><FitCheck ecosystemId={ethos.id}/></div>
-      <AlignedParticipants ethosId={ethos.id}/>
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8">
-          {(showDescription || ethos.mission || ethos.governance_summary) && (
+          {(ethos.mission || ethos.governance_summary) && (
             <section className="border-2 border-strong-border bg-card" aria-labelledby="dossier-purpose-title">
               <div className="border-b-2 border-strong-border p-5 sm:p-6">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">01 / Purpose</p>
                 <h2 id="dossier-purpose-title" className="mt-2 text-3xl font-black tracking-[-0.035em]">Operating intent.</h2>
               </div>
               <div className="space-y-6 p-5 sm:p-6">
-                {showDescription && <p className="text-base leading-8">{ethos.description}</p>}
                 {ethos.mission && (
                   <div className="border-l-4 border-strong-border pl-5">
                     <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-muted-foreground">Mission</p>
@@ -180,7 +153,7 @@ export default function EthosDetail() {
               <p className="p-6 text-sm text-destructive" role="alert">Journey maps could not be loaded.</p>
             ) : journeyMaps.length > 0 ? (
               <ol className="divide-y divide-border">
-                {journeyMaps.map((map: any, index: number) => (
+                {journeyMaps.map((map, index) => (
                   <li key={map.id} className="grid gap-4 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6">
                     <span className="text-xs font-black tabular-nums text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
                     <div>
@@ -206,7 +179,7 @@ export default function EthosDetail() {
             )}
 
             <div className="flex flex-wrap items-center justify-end gap-4 border-t-2 border-strong-border p-5">
-              {!isMember && (
+              {!joined && (
                 <p className="mr-auto max-w-md text-sm leading-6 text-muted-foreground">
                   You are not a member of {ethos.name} yet. Starting a journey asks to join it.
                 </p>
@@ -245,9 +218,15 @@ export default function EthosDetail() {
               )}
             </section>
           )}
+
+          <div id="ecosystem-fit"><FitCheck ecosystemId={ethos.id} /></div>
+          {isMember && <AlignedParticipants ethosId={ethos.id} />}
         </div>
 
         <aside className="space-y-6 lg:col-span-4">
+          {phase && (
+            <p className="text-sm text-muted-foreground">Phase: {phase}</p>
+          )}
           {ethos.tags && ethos.tags.length > 0 && (
             <section className="border-2 border-strong-border bg-card p-5 sm:p-6" aria-labelledby="topics-title">
               <h2 id="topics-title" className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Topics</h2>
@@ -279,13 +258,56 @@ export default function EthosDetail() {
             </section>
           )}
 
-          <section className="border-2 border-strong-border bg-foreground p-5 text-background sm:p-6">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-background/70">Active teams</p>
-            <p className="mt-3 text-2xl font-black tracking-tight">Connection pending.</p>
-            <p className="mt-2 text-sm leading-6 text-background/75">Team information will appear after the ecosystem completes its network connection.</p>
+          <section className="border-2 border-strong-border bg-card p-5 sm:p-6">
+            <h2 className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Teams</h2>
+            <p className="mt-3 text-sm leading-6">{spaceHomeCopy.teamsEmpty(ethos.name)}</p>
           </section>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function DiscoverLink({ href }: { href: string }) {
+  return (
+    <Link href={href} className="inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Discover index
+    </Link>
+  );
+}
+
+function EcosystemHeading({ name, status, finishJoining, purpose }: { name: string; status: string; finishJoining: boolean; purpose?: string | null }) {
+  return (
+    <header className="border-2 border-strong-border bg-card p-6 sm:p-8">
+      <h1 className="text-5xl font-black leading-[0.86] tracking-[-0.055em] sm:text-6xl">{name}</h1>
+      <p className="mt-5 text-base leading-7">{status}</p>
+      {finishJoining && (
+        <a href="#what-to-do-next" className="mt-3 inline-flex min-h-11 items-center font-bold text-link underline underline-offset-4">{spaceHomeCopy.header.finishJoining}</a>
+      )}
+      {purpose && <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground">{purpose}</p>}
+    </header>
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <div className="space-y-6" aria-label="Loading ecosystem">
+      <p role="status">Loading ecosystem.</p>
+      <Skeleton className="h-12 w-44 rounded-none" />
+      <Skeleton className="h-40 rounded-none border-2 border-border" />
+      <Skeleton className="h-48 rounded-none border-2 border-border" />
+    </div>
+  );
+}
+
+function MissingDossier() {
+  return (
+    <div className="border-2 border-destructive p-8" role="alert">
+      <p className="font-black uppercase tracking-wide text-destructive">Ecosystem not found</p>
+      <p className="mt-2 text-sm text-muted-foreground">This dossier is unavailable or outside your current access.</p>
+      <Link href="/discover" className="mt-6 inline-flex min-h-11 items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Browse Discover
+      </Link>
     </div>
   );
 }

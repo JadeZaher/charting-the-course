@@ -112,10 +112,10 @@ function PublicPageFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen bg-background text-foreground">
       <SkipLink />
-      <div id="main-content" tabIndex={-1} className="min-h-screen">
+      <main id="main-content" tabIndex={-1} className="min-h-screen">
         {children}
         <SiteFooter auditLink />
-      </div>
+      </main>
     </div>
   );
 }
@@ -493,6 +493,15 @@ function AppLayout() {
   const consentRedirect = consentGateRedirect({ ...gateInput, isNodeAdmin, path: location });
   if (consentRedirect) {
     return <Redirect to={consentRedirect} replace />;
+  }
+
+  // Signed-out readers can open an ecosystem home. Member records stay behind the session.
+  if (!isAuthenticated && location.startsWith('/ethos')) {
+    return (
+      <PublicPageFrame>
+        <EthosDetail />
+      </PublicPageFrame>
+    );
   }
 
   // Show landing page for unauthenticated users at root
