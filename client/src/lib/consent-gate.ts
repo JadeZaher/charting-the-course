@@ -68,6 +68,11 @@ export function consentGateRedirect({ path, isNodeAdmin, ...input }: ConsentGate
   return READABLE_WHILE_GATED.some((pattern) => pattern.test(normalized)) ? null : CONSENT_GATE_PATH;
 }
 
+/** One h1 on the consent gate. Later ecosystems on the same page are h2. */
+export function consentGateHeading(index: number): 'h1' | 'h2' {
+  return index === 0 ? 'h1' : 'h2';
+}
+
 /** Confirm copy before withdrawing consent to a membership agreement (owner default: withdrawal returns the member to pending). */
 export function membershipWithdrawalWarning(ecosystemName: string): string {
   return `You will stop taking part in ${ecosystemName} until you consent again; any steward role you hold there pauses.`;

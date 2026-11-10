@@ -10,7 +10,8 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Redirect, useLocation, useSearch } from "wouter";
-import { hasSavedIdentity, getSavedDid } from "@/lib/did-auth";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { hasSavedIdentity, getSavedDid, clearKeyPair } from "@/lib/did-auth";
 import { DEFAULT_DESTINATION, safeRedirect } from "@/lib/post-login-redirect";
 import { CONSENT_GATE_PATH } from "@/lib/member-status";
 import { signupEcosystemId } from "@/lib/signup-ecosystem";
@@ -55,6 +56,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [regDisplayName, setRegDisplayName] = useState("");
   const [didOpen, setDidOpen] = useState(false);
+  const [resetIdentityOpen, setResetIdentityOpen] = useState(false);
   // A check the form makes before sending; server failures arrive as authError. Either way one inline line.
   const [formError, setFormError] = useState<string | null>(null);
   // A taken username (409) is shown on the username field, not as the form line (p3-plain-words-and-joining-1).
@@ -431,14 +433,7 @@ export default function Login() {
                       {hasIdentity && (
                         <button
                           type="button"
-                          onClick={() => {
-                            if (confirm("This will clear your saved identity. You can regenerate a new one after signing in with username/password. Continue?")) {
-                              import("@/lib/did-auth").then(({ clearKeyPair }) => {
-                                clearKeyPair();
-                                window.location.reload();
-                              });
-                            }
-                          }}
+                          onClick={() => setResetIdentityOpen(true)}
                           className="flex w-full items-center justify-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
                         >
                           <RefreshCw className="w-3 h-3" />
@@ -626,14 +621,7 @@ export default function Login() {
                     {hasIdentity && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm("This will clear your saved identity. You can regenerate a new one after signing in with username/password. Continue?")) {
-                            import("@/lib/did-auth").then(({ clearKeyPair }) => {
-                              clearKeyPair();
-                              window.location.reload();
-                            });
-                          }
-                        }}
+                        onClick={() => setResetIdentityOpen(true)}
                         className="flex w-full items-center justify-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
                       >
                         <RefreshCw className="w-3 h-3" />
@@ -708,6 +696,20 @@ export default function Login() {
           </p>
         </div>
       </aside>
+      <AlertDialog open={resetIdentityOpen} onOpenChange={setResetIdentityOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset saved identity</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear your saved identity. You can regenerate a new one after signing in with username and password.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { clearKeyPair(); window.location.reload(); }}>Reset saved identity</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
