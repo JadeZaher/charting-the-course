@@ -5,9 +5,13 @@ import { generateKeyPair, signChallenge, saveKeyPair, loadKeyPair, clearKeyPair,
 import type { AuthMeResponse, MemberSummary, EcosystemSummary, OAuthProvider, PendingConsentGate } from '@/types/api';
 import { resolveExternalUrl } from '@/lib/media';
 import { apiErrorMessage } from '@/lib/api-error-message';
+import { API_BASE_URL } from '@/lib/api-origin';
+import { checkedSession } from '@/lib/sign-in-session';
 
-/** Result of a sign-in: whether a membership still waits on the agreement-consent gate. */
+/** Result of a sign-in that read /auth/me. A failed read rejects instead of looking like success. */
 export interface SignInOutcome {
+  signedIn: boolean;
+  /** Whether a membership still waits on the agreement-consent gate. */
   consentRequired: boolean;
 }
 
@@ -50,9 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Check existing session on mount
+  // Check existing session on mount. A missing session is normal; it is not a failed sign-in.
   useEffect(() => {
-    checkSession();
+    checkSession().catch(() => {});
     loadOAuthProviders();
   }, []);
 
@@ -81,17 +85,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPlatformAdmin(false);
   }
 
-  /** Load /auth/me; the outcome says whether the signed-in user still faces a consent gate. */
+  /** Load /auth/me. A failure rejects, so a sign-in that just ran shows that error instead of success. */
   async function checkSession(): Promise<SignInOutcome> {
     try {
       const data = await fetchMe();
+      const session = checkedSession({ ok: true, pendingConsents: data.pending_consents });
       applySession(data);
-      return { consentRequired: (data.pending_consents ?? []).length > 0 };
-    } catch {
+      return session;
+    } catch (err) {
       // No valid session — clear any stale cookies
       clearAuthCookies();
       clearSession();
-      return { consentRequired: false };
+      // A failed /me is not a sign-in. Reject with the request's own error.
+      const failed = checkedSession({ ok: false });
+      if (!failed.signedIn) throw err;
+      return failed;
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const publicKeyHex = Array.from(keys.publicKey)
           .map(b => b.toString(16).padStart(2, '0'))
           .join('');
-        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/ctc/did/generate`, {
+        await fetch(`${API_BASE_URL}/api/v1/ctc/did/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ did: keys.did, public_key: publicKeyHex }),
@@ -176,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const registered = await registerAccount({ username, password, display_name: displayName, ecosystem_id: ecosystemId });
       const session = await checkSession();
-      return { consentRequired: session.consentRequired || registered.status === 'consent_required' };
+      return { signedIn: session.signedIn, consentRequired: session.consentRequired || registered.status === 'consent_required' };
     } catch (err) {
       setError(apiErrorMessage(err));
       throw err;

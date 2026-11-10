@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createChatStreamParser } from '@/lib/chat-stream';
 import type { SupportChatScope } from '@/lib/support-chat';
 import { applyChatRoute, conversationLimit, readChatRoute, type ChatRoute } from '@/lib/chat-routing';
+import { API_BASE_URL } from '@/lib/api-origin';
 
 /** A tool call in an assistant message: plain label, status, and the confirmation it waits on. */
 export type ToolExecution = ToolChip;
@@ -41,7 +42,7 @@ export interface ChatMessage {
   artifacts?: ArtifactLink[];
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const BASE_URL = API_BASE_URL;
 
 /** Hard cap on user messages per conversation (matches server-side limit). */
 const MAX_CONVERSATION_MESSAGES = 20;

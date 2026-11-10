@@ -6,6 +6,8 @@ import * as api from '@/lib/api-client';
 import { memberQueriesEnabled } from '@/lib/member-queries';
 import { conversationTitle } from '@/lib/conversation-title';
 import { affects, keys } from '@/lib/query-keys';
+import { API_BASE_URL } from '@/lib/api-origin';
+import { messagingWebSocketUrl } from '@/lib/api-base';
 
 // REST hooks
 export function useConversations() {
@@ -80,8 +82,6 @@ export function useMemberPicker() {
 }
 
 // WebSocket hook
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-
 interface WSMessage {
   type: string;
   data: any;
@@ -105,15 +105,7 @@ export function useWebSocket(path: string = '/messaging/ws') {
       wsRef.current.close();
     }
 
-    let wsUrl: string;
-    if (API_BASE_URL) {
-      const base = API_BASE_URL.replace(/^http/, 'ws');
-      wsUrl = `${base}${path}`;
-    } else {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${protocol}//${window.location.host}${path}`;
-    }
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(messagingWebSocketUrl(API_BASE_URL, window.location, path));
 
     ws.onopen = () => {
       setIsConnected(true);

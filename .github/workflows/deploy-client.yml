@@ -35,11 +35,10 @@ jobs:
       run: npm ci
 
     - name: 🛠️ Build Project
-      # This runs "vite build:client"
       # vite.config.ts sets output to ./dist/public
+      # The production bundle calls same-origin /api. Do not bake VITE_API_URL:
+      # an absolute API host makes the session cookie third-party.
       run: npm run build:client
-      env:
-        VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
     - name: ⏭️ SFTP upload skipped
       if: env.SFTP_SERVER == ''
