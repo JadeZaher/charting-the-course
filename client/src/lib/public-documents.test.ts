@@ -107,6 +107,14 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(practices, /<a href="\/practices\/act-is-not-a-vote">/);
   assert.match(practices, /<a href="\/practices\/agreements-decision-records">/);
   assert.match(practices, /<a href="\/practices\/keys-in-the-browser">/);
+  assert.match(practices, /<a href="\/practices\/consent-is-not-consensus">Consent is not consensus<\/a>/);
+  assert.match(practices, /<a href="\/practices\/webauthn-and-passkeys">WebAuthn and passkeys<\/a>/);
+  assert.match(practices, /<a href="\/practices\/circles-and-domains">Circles, policy, and domains<\/a>/);
+  assert.match(practices, /<a href="\/practices\/well-founded-objection">What is a well-founded objection<\/a>/);
+  assert.match(practices, /<a href="\/practices\/synced-vs-device-bound-passkeys">Synced and device-bound passkeys<\/a>/);
+  assert.match(practices, /<a href="\/practices\/roles-that-cannot-be-delegated">Roles that cannot be delegated<\/a>/);
+  assert.match(practices, /<a href="\/practices\/fido2-ctap">CTAP and FIDO2<\/a>/);
+  assert.match(practices, /<a href="\/practices\/webauthn-level-versions">WebAuthn Level 2 and Level 3<\/a>/);
   assert.match(practices, /"@type":"CollectionPage"/);
   assert.match(practices, /"@type":"ItemList"/);
   assert.match(practices, /"@type":"BreadcrumbList"/);
@@ -159,6 +167,14 @@ test("sitemap and robots name the public URLs", () => {
   assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/act-is-not-a-vote<\/loc>/);
   assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/agreements-decision-records<\/loc>/);
   assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/keys-in-the-browser<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/consent-is-not-consensus<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/webauthn-and-passkeys<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/circles-and-domains<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/well-founded-objection<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/synced-vs-device-bound-passkeys<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/roles-that-cannot-be-delegated<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/fido2-ctap<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/neos\.primusneo\.com\/practices\/webauthn-level-versions<\/loc>/);
   assert.equal(xml.includes("/practices/learning-and-discovery"), false);
   assert.equal(xml.includes("/practices/agreements-and-decision-records"), false);
   assert.equal(xml.includes("https://neos.primusneo.com/practices/act<"), false);
@@ -169,6 +185,14 @@ test("sitemap and robots name the public URLs", () => {
   assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/act-is-not-a-vote/);
   assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/agreements-decision-records/);
   assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/keys-in-the-browser/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/consent-is-not-consensus/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/webauthn-and-passkeys/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/circles-and-domains/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/well-founded-objection/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/synced-vs-device-bound-passkeys/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/roles-that-cannot-be-delegated/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/fido2-ctap/);
+  assert.match(feed, /https:\/\/neos\.primusneo\.com\/practices\/webauthn-level-versions/);
   assert.equal(feed.includes("/practices/act<"), false);
   assert.equal(feed.includes("/practices/learning-and-discovery"), false);
   assert.equal(feed.includes("/news<"), false);
@@ -208,8 +232,10 @@ test("the three practices children are in the first HTML", () => {
     const html = renderShell(shell, byPath.get(path)!);
     assert.match(html, /<h1>[^<]+<\/h1>/);
     assert.match(html, /<h2>Sources<\/h2>/);
-    assert.match(html, /<h2>An illustrative scenario<\/h2>/);
-    assert.match(html, /Every stat on this page is cited\./);
+    assert.match(html, /<h2>A situation like this<\/h2>/);
+    assert.equal(html.includes("Hero points"), false, path);
+    assert.equal(html.includes("Every stat on this page is cited"), false, path);
+    assert.equal(html.includes("An illustrative scenario"), false, path);
     assert.match(html, /"@type":"Article"/);
     assert.match(html, /"@type":"BreadcrumbList"/);
     assert.match(html, /"citation"/);
@@ -268,5 +294,212 @@ test("public operator contact is the city and email", () => {
         allowedAddressKeys,
       );
     }
+  }
+});
+
+test("the five field guides are in the first HTML", () => {
+  const byPath = new Map(PUBLIC_PAGES.map((page) => [page.path, page]));
+  const guides = [
+    {
+      path: "/practices/consent-is-not-consensus",
+      h1: "Consent is not consensus",
+      standfirst: "The Sociocracy Group states the consent principle as a way of deciding",
+      official: "The consent principle is the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.",
+      tsg: true,
+    },
+    {
+      path: "/practices/webauthn-and-passkeys",
+      h1: "WebAuthn and passkeys",
+      standfirst: "W3C WebAuthn Level 2 defines an API",
+      official: "This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications",
+      tsg: false,
+    },
+    {
+      path: "/practices/circles-and-domains",
+      h1: "Circles, policy, and domains",
+      standfirst: "The Sociocracy Group describes a circle as a semi-autonomous team",
+      official: "The circle decides about policy and delegates the execution to the members. This means delegates clear domains with freedom to decide.",
+      tsg: true,
+    },
+    {
+      path: "/practices/well-founded-objection",
+      h1: "What is a well-founded objection",
+      standfirst: "In The Sociocracy Group's statement of consent",
+      official: "Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.",
+      tsg: true,
+    },
+    {
+      path: "/practices/synced-vs-device-bound-passkeys",
+      h1: "Synced and device-bound passkeys",
+      standfirst: "FIDO is explicit that passkeys",
+      official: "Passkeys can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).",
+      tsg: false,
+    },
+  ] as const;
+  const titles = new Set<string>();
+  const descriptions = new Set<string>();
+  const canonicals = new Set<string>();
+  for (const page of PUBLIC_PAGES) {
+    assert.equal(titles.has(page.title), false, page.title);
+    assert.equal(descriptions.has(page.description), false, page.description);
+    assert.equal(canonicals.has(page.canonical), false, page.canonical);
+    titles.add(page.title);
+    descriptions.add(page.description);
+    canonicals.add(page.canonical);
+  }
+  const urls = [
+    "https://thesociocracygroup.com/4-principles/",
+    "https://www.w3.org/TR/webauthn-2/",
+    "https://www.w3.org/TR/2021/REC-webauthn-2-20210408/",
+    "https://fidoalliance.org/passkeys/",
+  ];
+  const combined = guides.map((guide) => renderShell(shell, byPath.get(guide.path)!)).join("\n");
+  for (const url of urls) assert.ok(combined.includes(url), url);
+  assert.equal(combined.includes("%"), false);
+  assert.equal(combined.includes("wallet"), false);
+  assert.equal(combined.includes("OmniOne"), false);
+  assert.equal(combined.includes("Bali"), false);
+  assert.equal(combined.includes("webauthn-3"), false);
+  assert.equal(combined.includes("NEOS implements WebAuthn"), false);
+  assert.equal(combined.includes("NEOS implements passkey"), false);
+  const tokenRemainder = combined
+    .replaceAll("There is no blockchain and no token.", "")
+    .replaceAll("or a token.", "");
+  assert.equal(tokenRemainder.toLowerCase().includes("token"), false);
+  for (const guide of guides) {
+    const html = renderShell(shell, byPath.get(guide.path)!);
+    assert.match(html, new RegExp(`<h1>${guide.h1.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}</h1>`));
+    assert.ok(html.includes(guide.standfirst), guide.path);
+    assert.ok(html.includes(guide.official), guide.path);
+    assert.match(html, /<h2>Sources<\/h2>/);
+    assert.match(html, /<ol>/);
+    assert.match(html, /<h2>A situation like this<\/h2>/);
+    assert.equal(html.includes("Hero figures"), false, guide.path);
+    assert.equal(html.includes("Every stat on this page is cited"), false, guide.path);
+    assert.equal(html.includes("An illustrative scenario"), false, guide.path);
+    assert.match(html, new RegExp(`rel="canonical" href="https://neos\\.primusneo\\.com${guide.path.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}"`));
+    assert.match(html, /property="og:url"/);
+    const embedded = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(embedded, guide.path);
+    const parsed = JSON.parse(embedded[1]) as {
+      "@graph": { "@type": string; headline?: string; citation?: { url?: string | string[]; datePublished?: string }[]; itemListElement?: { name?: string }[] }[];
+    };
+    const article = parsed["@graph"].find((node) => node["@type"] === "Article");
+    const crumbs = parsed["@graph"].find((node) => node["@type"] === "BreadcrumbList");
+    assert.equal(article?.headline, guide.h1, guide.path);
+    assert.ok(article?.citation && article.citation.length >= 2, guide.path);
+    assert.equal(article.citation.some((item) => item.datePublished === "2026-11-10"), false, guide.path);
+    const crumbNames = crumbs?.itemListElement?.map((item) => item.name);
+    assert.deepEqual(crumbNames, ["Home", "Practices", byPath.get(guide.path) ? PUBLIC_PAGES.find((page) => page.path === guide.path)?.title.replace(/ — Practices \| NEOS$/, "") : ""], guide.path);
+    if (guide.tsg) {
+      assert.match(html, /NEOS is not a certified implementation of The Sociocracy Group's method\./);
+    }
+  }
+  const webauthn = renderShell(shell, byPath.get("/practices/webauthn-and-passkeys")!);
+  const synced = renderShell(shell, byPath.get("/practices/synced-vs-device-bound-passkeys")!);
+  assert.match(webauthn, /This page does not claim a NEOS certification, a particular authenticator, or a token\./);
+  assert.match(webauthn, /only Level 2 was opened/);
+  assert.match(synced, /not a claim that NEOS syncs keys/);
+  assert.match(synced, /does not quietly extend it into a sync product/);
+  assert.equal(synced.includes("https://www.w3.org/TR/2021/REC-webauthn-2-20210408/"), false);
+});
+
+test("the three batch-2 field guides are in the first HTML", () => {
+  const byPath = new Map(PUBLIC_PAGES.map((page) => [page.path, page]));
+  const guides = [
+    {
+      path: "/practices/roles-that-cannot-be-delegated",
+      h1: "Roles that cannot be delegated: electing a representative",
+      standfirst: "TSG's election principle is that almost any decision can be delegated",
+      official: "the one sort of decision we cannot delegate is the election of an important role — particularly the representative",
+      crumb: "Roles that cannot be delegated",
+    },
+    {
+      path: "/practices/fido2-ctap",
+      h1: "CTAP and FIDO2: how a client talks to an authenticator",
+      standfirst: "CTAP, in the opened FIDO document, is the application-layer protocol",
+      official: "This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform",
+      crumb: "CTAP and FIDO2",
+    },
+    {
+      path: "/practices/webauthn-level-versions",
+      h1: "WebAuthn Level 2 and Level 3",
+      standfirst: "WebAuthn Level 3 is a W3C Recommendation dated 25 August 2026",
+      official: "Authenticators are responsible for ensuring that no operation is performed without user consent.",
+      crumb: "WebAuthn Level 2 and Level 3",
+    },
+  ] as const;
+  const urls = [
+    "https://thesociocracygroup.com/4-principles/",
+    "https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html",
+    "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/",
+    "https://www.w3.org/TR/webauthn-3/",
+    "https://www.w3.org/TR/webauthn-2/",
+  ];
+  const combined = guides.map((guide) => renderShell(shell, byPath.get(guide.path)!)).join("\n");
+  for (const url of urls) assert.ok(combined.includes(url), url);
+  assert.match(combined, /Proposed Standard, 21 June 2022/);
+  assert.match(combined, /fido-v2\.1-ps-20210615/);
+  assert.match(combined, /does not treat “Proposed Standard, 21 June 2022” as a later final edition/);
+  assert.match(combined, /25 August 2026/);
+  assert.match(combined, /8 April 2021/);
+  assert.match(combined, /26 May 2026/);
+  assert.match(combined, /4 March 2019/);
+  assert.equal(combined.includes("%"), false);
+  assert.equal(combined.includes("wallet"), false);
+  assert.equal(combined.includes("OmniOne"), false);
+  assert.equal(combined.includes("Bali"), false);
+  assert.equal(combined.includes("NEOS implements WebAuthn"), false);
+  assert.match(combined, /not a claim that NEOS implements CTAP/);
+  assert.match(combined, /not a claim that NEOS implements either level/);
+  assert.match(combined, /NEOS is not described as implementing Level 2 or Level 3/);
+  assert.match(combined, /NEOS is not a certified implementation of The Sociocracy Group's method/);
+  assert.match(combined, /quoted only as TSG's description of its method/);
+  assert.match(combined, /no NEOS support matrix is invented/);
+  assert.match(combined, /does not write command lists, PIN flows, or interop recipes/);
+  const roles = renderShell(shell, byPath.get("/practices/roles-that-cannot-be-delegated")!);
+  const ctap = renderShell(shell, byPath.get("/practices/fido2-ctap")!);
+  const levels = renderShell(shell, byPath.get("/practices/webauthn-level-versions")!);
+  assert.match(roles, /<a href="\/practices\/circles-and-domains">/);
+  assert.match(roles, /<a href="\/practices\/consent-is-not-consensus">/);
+  assert.match(roles, /<a href="\/practices\/agreements-decision-records">/);
+  assert.match(roles, /<a href="\/practices\/well-founded-objection">/);
+  assert.match(ctap, /<a href="\/practices\/webauthn-and-passkeys">/);
+  assert.match(ctap, /<a href="\/practices\/webauthn-level-versions">/);
+  assert.match(ctap, /<a href="\/practices\/synced-vs-device-bound-passkeys">/);
+  assert.match(ctap, /<a href="\/practices\/keys-in-the-browser">/);
+  assert.match(levels, /<a href="\/practices\/fido2-ctap">/);
+  assert.match(renderShell(shell, byPath.get("/practices/circles-and-domains")!), /<a href="\/practices\/roles-that-cannot-be-delegated">/);
+  assert.match(renderShell(shell, byPath.get("/practices/consent-is-not-consensus")!), /<a href="\/practices\/roles-that-cannot-be-delegated">/);
+  assert.match(renderShell(shell, byPath.get("/practices/well-founded-objection")!), /<a href="\/practices\/roles-that-cannot-be-delegated">/);
+  assert.match(renderShell(shell, byPath.get("/practices/agreements-decision-records")!), /<a href="\/practices\/roles-that-cannot-be-delegated">/);
+  assert.match(renderShell(shell, byPath.get("/practices/webauthn-and-passkeys")!), /<a href="\/practices\/fido2-ctap">/);
+  assert.match(renderShell(shell, byPath.get("/practices/webauthn-and-passkeys")!), /<a href="\/practices\/webauthn-level-versions">/);
+  assert.match(renderShell(shell, byPath.get("/practices/synced-vs-device-bound-passkeys")!), /<a href="\/practices\/fido2-ctap">/);
+  assert.match(renderShell(shell, byPath.get("/practices/keys-in-the-browser")!), /<a href="\/practices\/webauthn-level-versions">/);
+  for (const guide of guides) {
+    const html = renderShell(shell, byPath.get(guide.path)!);
+    assert.ok(html.includes(`<h1>${guide.h1}</h1>`), guide.path);
+    assert.ok(html.includes(guide.standfirst), guide.path);
+    assert.ok(html.includes(guide.official), guide.path);
+    assert.match(html, /<h2>Sources<\/h2>/);
+    assert.match(html, /<ol>/);
+    assert.match(html, /<h2>A situation like this<\/h2>/);
+    assert.equal(html.includes("Hero figures"), false, guide.path);
+    assert.equal(html.includes("Every stat on this page is cited"), false, guide.path);
+    assert.equal(html.includes("An illustrative scenario"), false, guide.path);
+    assert.match(html, new RegExp(`rel="canonical" href="https://neos\\.primusneo\\.com${guide.path}"`));
+    assert.match(html, /property="og:url" content="https:\/\/neos\.primusneo\.com/);
+    const embedded = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(embedded, guide.path);
+    const parsed = JSON.parse(embedded[1]) as {
+      "@graph": { "@type": string; headline?: string; citation?: { datePublished?: string }[]; itemListElement?: { name?: string }[] }[];
+    };
+    const article = parsed["@graph"].find((node) => node["@type"] === "Article");
+    const crumbs = parsed["@graph"].find((node) => node["@type"] === "BreadcrumbList");
+    assert.equal(article?.headline, guide.h1, guide.path);
+    assert.ok(article?.citation && article.citation.length >= 1, guide.path);
+    assert.equal(article.citation.some((item) => item.datePublished === "2026-11-10"), false, guide.path);
+    assert.deepEqual(crumbs?.itemListElement?.map((item) => item.name), ["Home", "Practices", guide.crumb], guide.path);
   }
 });
