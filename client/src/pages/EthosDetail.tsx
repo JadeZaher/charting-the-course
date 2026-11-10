@@ -12,7 +12,6 @@ import { resolveExternalUrl, resolveMediaUrl, resolveMiroEmbedUrl } from '@/lib/
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FitCheck } from '@/components/discovery/FitCheck';
-import { AlignedParticipants } from '@/components/discovery/AlignedParticipants';
 import { EcosystemHome } from '@/components/ethos/EcosystemHome';
 import { apiErrorMessage } from '@/lib/api-error-message';
 import { headerStatus, publicMemberCount, spaceViewer } from '@/lib/space-home';
@@ -220,7 +219,6 @@ export default function EthosDetail() {
           )}
 
           <div id="ecosystem-fit"><FitCheck ecosystemId={ethos.id} /></div>
-          {isMember && <AlignedParticipants ethosId={ethos.id} />}
         </div>
 
         <aside className="space-y-6 lg:col-span-4">

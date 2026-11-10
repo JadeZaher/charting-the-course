@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -90,6 +90,53 @@ function ActionControl({
     <button type="button" className={className} disabled={busy} aria-busy={busy} onClick={() => (action.kind === 'quiz' ? onQuiz(action.quizId) : onJoin())}>
       {action.label}
     </button>
+  );
+}
+
+function DirectoryChoices({ ecosystemId, consent }: { ecosystemId: string; consent?: MatchingConsent }) {
+  const client = useQueryClient();
+  const { user } = useAuth();
+  const [open, setOpen] = useState(true);
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState('');
+  useEffect(() => { if (consent) setVisible(consent.directory_visible); }, [consent]);
+  if (!open || !consent) return null;
+  async function save() {
+    setBusy(true);
+    setError('');
+    setSaved('');
+    try {
+      const result = await apiFetch<MatchingConsent>(`/api/v1/matching/ecosystems/${encodeURIComponent(ecosystemId)}/consent`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...consent, directory_visible: visible }),
+      });
+      client.setQueryData([...keys.matching.ecosystem(user?.id, ecosystemId), 'consent'], result);
+      await client.invalidateQueries({ queryKey: keys.matching.ecosystem(user?.id, ecosystemId) });
+      setSaved(copy.directory.saved);
+    } catch (failure) {
+      setError(apiErrorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <fieldset className="space-y-3 border border-border p-4">
+      <legend className="px-2 font-bold">{copy.directory.heading}</legend>
+      <p className="text-sm text-muted-foreground">{copy.directory.lead}</p>
+      <label className="flex min-h-11 items-center gap-3">
+        <input type="checkbox" checked={visible} disabled={busy} onChange={(event) => setVisible(event.target.checked)} />
+        {copy.directory.heading}
+      </label>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" className={primaryClass} disabled={busy} onClick={() => void save()}>{copy.directory.confirm}</button>
+        <button type="button" className={secondaryClass} onClick={() => setOpen(false)}>{copy.directory.dismiss}</button>
+      </div>
+      {saved && <p role="status">{saved}</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    </fieldset>
   );
 }
 
@@ -306,6 +353,7 @@ export function EcosystemHome({
       </section>
 
       <div className="grid gap-8 lg:grid-cols-2">
+        {(peopleWaiting || peopleFailed || people.show) && (
         <section aria-labelledby="whos-here-title" className="order-2 border-2 border-strong-border bg-card lg:order-1">
           <div className="border-b-2 border-strong-border p-5 sm:p-6">
             <h2 id="whos-here-title" className="text-3xl font-black tracking-[-0.035em]">{copy.whosHere.heading}</h2>
@@ -343,11 +391,13 @@ export function EcosystemHome({
                     )}
                     <Link href="/members" className={`${secondaryClass} mt-4`}>{copy.whosHere.directory}</Link>
                   </div>
+                  <DirectoryChoices ecosystemId={ecosystemId} consent={consentQuery.data} />
                 </>
               )}
             </div>
           )}
         </section>
+        )}
 
         <section aria-labelledby="whats-happening-title" className="order-1 border-2 border-strong-border bg-card lg:order-2">
           <div className="border-b-2 border-strong-border p-5 sm:p-6">

@@ -32,6 +32,8 @@ export const spaceHomeCopy = {
     startQuiz: 'Start entry quiz',
     readAgreements: 'Read and consent to the agreements',
     startOrientation: 'Start orientation',
+    /** Machine action `attest_agreement` on a next-step button. */
+    attestAgreement: 'I consent to the membership agreements',
     refreshStatus: 'Refresh status',
     retry: 'Try again',
     /** Dashboard group label, reused when day-one work is only long-overdue. */
@@ -48,8 +50,17 @@ export const spaceHomeCopy = {
     emptyCircles: 'No circles are listed yet.',
     /** The table uses this plural for every count, including 1. */
     count: (count: number) => `${count} members. You'll see names and roles once you join.`,
+    /** Members already see names. The count is only this sentence, and only when member_count was sent. */
+    memberCount: (count: number) => `${count} members.`,
     none: 'No members are listed yet.',
     retry: 'Try again',
+  },
+  directory: {
+    heading: 'Appear in the participant directory',
+    lead: "This doesn't change your membership. It only decides whether other members can find you here.",
+    confirm: 'Save my directory choices',
+    dismiss: 'Not now',
+    saved: 'Your consent is saved.',
   },
   happening: {
     heading: "What's happening",
