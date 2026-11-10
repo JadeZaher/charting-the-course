@@ -10,7 +10,7 @@ import {
   sitemapXml,
 } from "./public-documents";
 
-const shell = `<!DOCTYPE html><html><head><title>Old</title><meta name="description" content="old" /></head><body><div id="crawlable"><!--crawlable-->old<!--/crawlable--></div><div id="root"></div></body></html>`;
+const shell = `<!DOCTYPE html><html><head><title>Old</title><meta name="description" content="old" /><meta property="og:image" content="https://neos.primusneo.com/og/neos-og-1200x630.png" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:image" content="https://neos.primusneo.com/og/neos-og-1200x630.png" /></head><body><div id="crawlable"><!--crawlable-->old<!--/crawlable--></div><div id="root"></div></body></html>`;
 
 test("public HTML carries the intro, About, terms, and privacy text", () => {
   const byPath = new Map(PUBLIC_PAGES.map((page) => [page.path, page]));
@@ -24,6 +24,10 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(home, /Advice, Consent, and Test/);
   assert.match(home, /<title>NEOS — Governance in Practice<\/title>/);
   assert.match(home, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/"/);
+  assert.match(home, /property="og:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
+  assert.match(home, /name="twitter:card" content="summary_large_image"/);
+  assert.match(home, /name="twitter:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
+  assert.match(about, /property="og:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
   assert.match(about, /The New Earth Operating System\./);
   assert.match(about, /OmniOne/);
   assert.equal(about.includes("Bali"), false);
