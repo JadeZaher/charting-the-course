@@ -62,6 +62,9 @@ const WEBAUTHN_PATH = "/practices/webauthn-and-passkeys";
 const CIRCLES_PATH = "/practices/circles-and-domains";
 const OBJECTION_PATH = "/practices/well-founded-objection";
 const SYNCED_PATH = "/practices/synced-vs-device-bound-passkeys";
+const ROLES_PATH = "/practices/roles-that-cannot-be-delegated";
+const CTAP_PATH = "/practices/fido2-ctap";
+const LEVELS_PATH = "/practices/webauthn-level-versions";
 
 const AUTHOR = "Author: Escherbridge. Last reviewed: 2026-11-10, America/Denver.";
 
@@ -82,8 +85,8 @@ export const PRACTICES_INDEX = {
   path: "/practices",
   title: "Practices | NEOS",
   description:
-    "Practices the workspace already names, plus field notes on consent, circles, a well-founded objection, WebAuthn, and passkeys. No token and no share-vote.",
-  eyebrow: "Eight practices · no token, no share-vote",
+    "Practices the workspace already names, plus field notes on consent, circles, a well-founded objection, WebAuthn, passkeys, and CTAP. No token and no share-vote.",
+  eyebrow: "Eleven practices · no token, no share-vote",
   heading: "What the workspace already names.",
   published: "2026-11-10",
   blocks: [
@@ -125,7 +128,7 @@ export const PRACTICES_INDEX = {
     { kind: "h2", text: "Field notes" },
     {
       kind: "p",
-      body: "Five notes sit beside those three. Each one quotes a public method or a public standard and leaves the link on. NEOS is not a certified implementation of The Sociocracy Group’s method. These notes do not claim that NEOS implements WebAuthn, and they do not claim that NEOS syncs a passkey. There is no blockchain and no token.",
+      body: "Eight notes sit beside those three. Each one quotes a public method or a public standard and leaves the link on. NEOS is not a certified implementation of The Sociocracy Group’s method. These notes do not claim that NEOS implements WebAuthn or CTAP, and they do not claim that NEOS syncs a passkey. There is no blockchain and no token.",
     },
     {
       kind: "ul",
@@ -158,6 +161,24 @@ export const PRACTICES_INDEX = {
           strongLead: [link("Synced and device-bound passkeys", SYNCED_PATH)],
           rest: [
             " — FIDO says passkeys can be synced across a user’s devices, or bound to a particular device. A record should say which one it is.",
+          ],
+        },
+        {
+          strongLead: [link("Roles that cannot be delegated", ROLES_PATH)],
+          rest: [
+            " — In The Sociocracy Group’s method, the election of an important role cannot be delegated. NEOS is not a certified implementation of that method.",
+          ],
+        },
+        {
+          strongLead: [link("CTAP and FIDO2", CTAP_PATH)],
+          rest: [
+            " — CTAP is the protocol between a client or platform and a roaming authenticator, and is part of FIDO2 alongside WebAuthn. Proposed Standard, 21 June 2022.",
+          ],
+        },
+        {
+          strongLead: [link("WebAuthn Level 2 and Level 3", LEVELS_PATH)],
+          rest: [
+            " — Level 2 remains a W3C Recommendation dated 8 April 2021. Level 3 is a Recommendation dated 25 August 2026.",
           ],
         },
       ],
@@ -482,6 +503,10 @@ export const PRACTICES: readonly Practice[] = [
             strongLead: [link("Keys in the browser", KEYS_PATH)],
             rest: [" — the private key stays with the authenticator."],
           },
+          {
+            strongLead: [link("Roles that cannot be delegated", ROLES_PATH)],
+            rest: [" — the election of an important role, particularly the representative, cannot be delegated."],
+          },
         ],
       },
       {
@@ -682,6 +707,14 @@ export const PRACTICES: readonly Practice[] = [
             strongLead: [link("Agreements and decision records", AGREEMENTS_PATH)],
             rest: [" — an agreement that cannot be found later is not in force. It is a rumour."],
           },
+          {
+            strongLead: [link("CTAP and FIDO2", CTAP_PATH)],
+            rest: [" — the client-to-authenticator protocol, a Proposed Standard of 21 June 2022."],
+          },
+          {
+            strongLead: [link("WebAuthn Level 2 and Level 3", LEVELS_PATH)],
+            rest: [" — Level 2, 8 April 2021, and Level 3, 25 August 2026, are both Recommendations."],
+          },
         ],
       },
       {
@@ -861,6 +894,10 @@ export const PRACTICES: readonly Practice[] = [
             strongLead: [link("Keys in the browser", KEYS_PATH)],
             rest: [" — a credential that is not supposed to live on someone else's server."],
           },
+          {
+            strongLead: [link("Roles that cannot be delegated", ROLES_PATH)],
+            rest: [" — the election of an important role, particularly the representative, cannot be delegated."],
+          },
         ],
       },
       {
@@ -989,6 +1026,14 @@ export const PRACTICES: readonly Practice[] = [
           {
             strongLead: [link("The key stays in the browser", BLOG_KEY)],
             rest: [" — the house essay."],
+          },
+          {
+            strongLead: [link("CTAP and FIDO2", CTAP_PATH)],
+            rest: [" — the client-to-authenticator protocol, a Proposed Standard of 21 June 2022."],
+          },
+          {
+            strongLead: [link("WebAuthn Level 2 and Level 3", LEVELS_PATH)],
+            rest: [" — Level 2, 8 April 2021, and Level 3, 25 August 2026, are both Recommendations."],
           },
         ],
       },
@@ -1121,6 +1166,10 @@ export const PRACTICES: readonly Practice[] = [
             strongLead: [link("ACT is not a vote", BLOG_ACT)],
             rest: [" — the house essay."],
           },
+          {
+            strongLead: [link("Roles that cannot be delegated", ROLES_PATH)],
+            rest: [" — the election of an important role, particularly the representative, cannot be delegated."],
+          },
         ],
       },
       {
@@ -1244,6 +1293,10 @@ export const PRACTICES: readonly Practice[] = [
             strongLead: [link("ACT is not a vote", BLOG_ACT)],
             rest: [" — the house essay."],
           },
+          {
+            strongLead: [link("Roles that cannot be delegated", ROLES_PATH)],
+            rest: [" — the election of an important role, particularly the representative, cannot be delegated."],
+          },
         ],
       },
       {
@@ -1360,6 +1413,14 @@ export const PRACTICES: readonly Practice[] = [
             strongLead: [link("The key stays in the browser", BLOG_KEY)],
             rest: [" — the house essay."],
           },
+          {
+            strongLead: [link("CTAP and FIDO2", CTAP_PATH)],
+            rest: [" — the client-to-authenticator protocol, a Proposed Standard of 21 June 2022."],
+          },
+          {
+            strongLead: [link("WebAuthn Level 2 and Level 3", LEVELS_PATH)],
+            rest: [" — Level 2, 8 April 2021, and Level 3, 25 August 2026, are both Recommendations."],
+          },
         ],
       },
       {
@@ -1403,6 +1464,380 @@ export const PRACTICES: readonly Practice[] = [
         name: "House sibling: Keys in the browser",
         urls: ["https://neos.primusneo.com/practices/keys-in-the-browser"],
         body: ["House sibling: ", link("Keys in the browser", KEYS_PATH)],
+      },
+    ],
+  },
+  {
+    slug: "roles-that-cannot-be-delegated",
+    path: ROLES_PATH,
+    title: "Roles that cannot be delegated",
+    eyebrow: "Roles that cannot be delegated",
+    seoTitle: "Roles that cannot be delegated — Practices | NEOS",
+    description:
+      "In The Sociocracy Group’s method, the election of an important role cannot be delegated. NEOS is not a certified implementation of that method.",
+    h1: "Roles that cannot be delegated: electing a representative",
+    published: "2026-11-10",
+    dateLabel: "10 November 2026",
+    blocks: [
+      {
+        kind: "p",
+        body: "TSG's election principle is that almost any decision can be delegated to operational roles or processes by a policy decision made with consent, but “the one sort of decision we cannot delegate is the election of an important role — particularly the representative.” NEOS is not a certified implementation of The Sociocracy Group's method. This page says so when TSG is cited. It does not invent a double-link, or a TSG election, that live NEOS pages do not claim. This is a field note about a decision that, in this method, is not handed off, not a NEOS certification page.",
+      },
+      { kind: "h2", text: "Hero figures" },
+      {
+        kind: "ul",
+        items: [
+          {
+            strongLead: ["The Sociocracy Group, “4 principles,” under Election:"],
+            rest: [
+              " “The Principle of Election by consent provides an important counter-balance. While we can delegate almost any decision to operational roles or processes, using a policy decision made with consent, the one sort of decision we cannot delegate is the election of an important role — particularly the representative. Representatives must be chosen by consent of the circle which they represent. This ensures that the organization is woven together by a web of consent, and that power flows in circles through the entire organization.”",
+            ],
+          },
+          {
+            strongLead: ["The same page, under Double link,"],
+            rest: [
+              " also says a circle “has a link with the next higher circle in such a way that at least two persons, the functional leader and at least one elected representative from the circle, belong to the next higher circle and participate in the higher circle on an equivalent basis.” That paragraph is quoted only as TSG's description of its method. Live NEOS About and governance-model pages are not used here as evidence of a TSG double-link, and none is invented. A footnote on the page marks starred sentences as “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.”",
+            ],
+          },
+        ],
+      },
+      { kind: "h2", text: "What this page does not claim" },
+      {
+        kind: "p",
+        body: [
+          "TSG is not treated as a live NEOS rule or certification. No election process or role list is invented beyond what the opened page states and what live NEOS pages claim. ",
+          link("Circles, policy, and domains", CIRCLES_PATH),
+          " and ",
+          link("Consent is not consensus", CONSENT_PATH),
+          " are the method siblings. ",
+          link("Agreements and decision records", AGREEMENTS_PATH),
+          " is the already-briefed record sibling. ",
+          link("What is a well-founded objection", OBJECTION_PATH),
+          " is the objection companion. House siblings for already-public NEOS wording only, not as evidence of a TSG certification: ",
+          link("How NEOS governs", GOVERNANCE),
+          ", ",
+          link("ACT is not a vote", BLOG_ACT),
+          ".",
+        ],
+      },
+      { kind: "h2", text: "An illustrative scenario" },
+      {
+        kind: "p",
+        body: "This is a worked example, not a customer and not a certification. A representative is “just appointed” for a circle, without consent of the circle represented. TSG's election paragraph already says that particular decision cannot be delegated.",
+      },
+      { kind: "h2", text: "Sources" },
+      { kind: "p", body: "Every stat on this page is cited." },
+      { kind: "sources" },
+      { kind: "h2", text: "Also in this section" },
+      {
+        kind: "ul",
+        items: [
+          {
+            strongLead: [link("Circles, policy, and domains", CIRCLES_PATH)],
+            rest: [" — say which domain a decision sits in."],
+          },
+          {
+            strongLead: [link("Consent is not consensus", CONSENT_PATH)],
+            rest: [" — arguments are central; not that everyone agrees."],
+          },
+          {
+            strongLead: [link("What is a well-founded objection", OBJECTION_PATH)],
+            rest: [" — a risk the group cannot afford, not a preference."],
+          },
+          {
+            strongLead: [link("Agreements and decision records", AGREEMENTS_PATH)],
+            rest: [" — an agreement that cannot be found later is not in force."],
+          },
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "NEOS is part of ",
+          link("PrimusNeo, the lab whose stack this product belongs to", PRIMUS),
+          ". There is no blockchain and no token.",
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "The useful next step is to read TSG's election paragraph as TSG's method, or ",
+          link("Circles, policy, and domains", CIRCLES_PATH),
+          ". If something on this page is wrong, ",
+          link("write to us", "/about"),
+          ".",
+        ],
+      },
+      { kind: "p", body: AUTHOR },
+    ],
+    sources: [
+      source(
+        "The Sociocracy Group, “4 principles”",
+        "https://thesociocracygroup.com/4-principles/",
+        "The Sociocracy Group, “4 principles.” ",
+      ),
+    ],
+  },
+  {
+    slug: "fido2-ctap",
+    path: CTAP_PATH,
+    title: "CTAP and FIDO2",
+    eyebrow: "CTAP and FIDO2",
+    seoTitle: "CTAP and FIDO2 — Practices | NEOS",
+    description:
+      "CTAP is the protocol between a client or platform and a roaming authenticator, and is part of FIDO2 alongside WebAuthn. This is not a hardware tutorial.",
+    h1: "CTAP and FIDO2: how a client talks to an authenticator",
+    published: "2026-11-10",
+    dateLabel: "10 November 2026",
+    blocks: [
+      {
+        kind: "p",
+        body: "WebAuthn is the web API for public-key credentials. CTAP, in the opened FIDO document, is the application-layer protocol between a client or platform and a roaming authenticator, and is part of the FIDO2 project alongside WebAuthn. This is a short map of two related specifications, not a hardware-product page, not a protocol-attack discussion, and not a claim that NEOS implements CTAP or holds a FIDO certification.",
+      },
+      { kind: "h2", text: "Hero figures" },
+      {
+        kind: "ul",
+        items: [
+          {
+            strongLead: ["Client to Authenticator Protocol (CTAP), FIDO Alliance Proposed Standard, 21 June 2022"],
+            rest: [
+              " (this version: fido-v2.1-ps-20210615, errata of 21 June 2022). Abstract: “This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform, as well as bindings of this application protocol to a variety of transport protocols using different physical media.” Status: “This document was published by the FIDO Alliance as a Proposed Standard Specification.” “Other documents may supersede this document.” The FIDO Alliance specifications index, also opened, still listed this same CTAP URL. This page does not claim that no later CTAP revision exists beyond what that index and this document showed, and it does not treat “Proposed Standard, 21 June 2022” as a later final edition.",
+            ],
+          },
+          {
+            strongLead: ["The same document, §1 Introduction (non-normative) and §1.1 Relationship to Other Specifications."],
+            rest: [
+              " “This protocol is intended to be used in scenarios where a user interacts with a Relying Party (a website or native app) on some platform (e.g., a PC) which prompts the user to interact with a roaming authenticator (e.g., a smartphone).” “This specification is part of the FIDO2 project, which includes this specification and is related to the W3C [WebAuthn] specification.” It refers to two CTAP protocol versions: CTAP1/U2F, “defined by the U2F Raw Messages specification,” and CTAP2, “whose messages are encoded in the CTAP2 canonical CBOR encoding form.” “Authenticators implementing CTAP2 are referred to as CTAP2 authenticators, FIDO2 authenticators, or WebAuthn authenticators.” “Both CTAP1 and CTAP2 share the same underlying transports: USB Human Interface Device (USB HID), Near Field Communication (NFC), and Bluetooth Smart / Bluetooth Low Energy Technology (BLE).” “Occasionally, the term ‘CTAP’ may be used without clarifying whether it is referring to CTAP1 or CTAP2. In such cases, it should be understood to be referring to the entirety of this specification or portions of this specification that are not specific to either CTAP1 or CTAP2.” The same section notes that “for certifications, other requirements than those specified in this specification may apply” and points readers toward the certifying organization. That is not a claim about NEOS.",
+            ],
+          },
+        ],
+      },
+      {
+        kind: "p",
+        body: "This page names CTAP1/U2F and CTAP2 only as the document names them, and names the three shared transports. It does not write command lists, PIN flows, or interop recipes. It uses no third-party percentage claims from FIDO marketing pages.",
+      },
+      { kind: "h2", text: "Related pages" },
+      {
+        kind: "p",
+        body: [
+          link("WebAuthn and passkeys", WEBAUTHN_PATH),
+          " and ",
+          link("Synced and device-bound passkeys", SYNCED_PATH),
+          " are the batch-1 siblings. ",
+          link("WebAuthn Level 2 and Level 3", LEVELS_PATH),
+          " is the status companion in this batch. ",
+          link("Keys in the browser", KEYS_PATH),
+          " is the house practice sibling.",
+        ],
+      },
+      { kind: "h2", text: "An illustrative scenario" },
+      {
+        kind: "p",
+        body: "This is a worked example, not a customer and not a certification. A site is described as “FIDO2 certified” because it mentions WebAuthn, with no account of a client-to-authenticator protocol and no certification. The opened CTAP document already distinguishes the companion protocol, and already says that certifications may have other requirements.",
+      },
+      { kind: "h2", text: "Sources" },
+      { kind: "p", body: "Every stat on this page is cited." },
+      { kind: "sources" },
+      { kind: "h2", text: "Also in this section" },
+      {
+        kind: "ul",
+        items: [
+          {
+            strongLead: [link("WebAuthn and passkeys", WEBAUTHN_PATH)],
+            rest: [" — the web API for scoped public-key credentials."],
+          },
+          {
+            strongLead: [link("WebAuthn Level 2 and Level 3", LEVELS_PATH)],
+            rest: [" — two Recommendations, and their official dates."],
+          },
+          {
+            strongLead: [link("Synced and device-bound passkeys", SYNCED_PATH)],
+            rest: [" — say which arrangement the credential actually is."],
+          },
+          {
+            strongLead: [link("Keys in the browser", KEYS_PATH)],
+            rest: [" — the house practice sibling."],
+          },
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "NEOS is part of ",
+          link("PrimusNeo, the lab whose stack this product belongs to", PRIMUS),
+          ". There is no blockchain and no token.",
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "The useful next step is to read the opened CTAP specification, or ",
+          link("WebAuthn and passkeys", WEBAUTHN_PATH),
+          ". If something on this page is wrong, ",
+          link("write to us", "/about"),
+          ".",
+        ],
+      },
+      { kind: "p", body: AUTHOR },
+    ],
+    sources: [
+      {
+        name: "FIDO Alliance, Client to Authenticator Protocol (CTAP)",
+        urls: ["https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html"],
+        datePublished: "2022-06-21",
+        body: [
+          { em: "Client to Authenticator Protocol (CTAP)," },
+          " FIDO Alliance Proposed Standard, 21 June 2022 (fido-v2.1-ps-20210615, errata of 21 June 2022). ",
+          link(
+            "https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html",
+            "https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html",
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    slug: "webauthn-level-versions",
+    path: LEVELS_PATH,
+    title: "WebAuthn Level 2 and Level 3",
+    eyebrow: "WebAuthn Level 2 and Level 3",
+    seoTitle: "WebAuthn Level 2 and Level 3 — Practices | NEOS",
+    description:
+      "WebAuthn Level 2 remains a W3C Recommendation dated 8 April 2021. Level 3 is now a Recommendation too, dated 25 August 2026. This guide records that status.",
+    h1: "WebAuthn Level 2 and Level 3",
+    published: "2026-11-10",
+    dateLabel: "10 November 2026",
+    blocks: [
+      {
+        kind: "p",
+        body: [
+          "WebAuthn Level 3 is a W3C Recommendation dated 25 August 2026. Level 2, dated 8 April 2021, is still a Recommendation. The later document still describes scoped public-key credentials, created subject to user consent, and usable only by origins of that relying party. This is a short status note about two Recommendations, not a “what's new in the API” marketing page, and not a claim that NEOS implements either level. The batch-1 ",
+          link("WebAuthn and passkeys", WEBAUTHN_PATH),
+          " page cited Level 2; this child records the later level and does not replace that brief.",
+        ],
+      },
+      { kind: "h2", text: "Hero figures" },
+      {
+        kind: "ul",
+        items: [
+          {
+            strongLead: [
+              { em: "Web Authentication: An API for accessing Public Key Credentials Level 3," },
+              " W3C Recommendation, 25 August 2026.",
+            ],
+            rest: [
+              " This version: ",
+              link("https://www.w3.org/TR/2026/REC-webauthn-3-20260825/", "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/"),
+              ". Latest published version: ",
+              link("https://www.w3.org/TR/webauthn-3/", "https://www.w3.org/TR/webauthn-3/"),
+              ". Previous versions listed in the document head include the Candidate Recommendation Snapshot of 26 May 2026, the Level 2 Recommendation of 8 April 2021, and the Level 1 Recommendation of 4 March 2019. Abstract: “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application. The user agent mediates access to authenticators and their public key credentials in order to preserve user privacy. Authenticators are responsible for ensuring that no operation is performed without user consent.”",
+            ],
+          },
+          {
+            strongLead: ["The same Recommendation, §1 Introduction (non-normative)."],
+            rest: [
+              " “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent. Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party. This scoping is enforced jointly by conforming User Agents and authenticators. Additionally, privacy across Relying Parties is maintained; Relying Parties are not able to detect any properties, or even the existence, of credentials scoped to other Relying Parties.” Registration and Authentication remain the two ceremonies. This page does not write an implementation walk-through of `create()` and `get()`.",
+            ],
+          },
+          {
+            strongLead: ["The same Recommendation, §18.1 Changes since Web Authentication Level 2 [webauthn-2-20210408]."],
+            rest: [
+              " This section is the official change list. Editorial changes include: “Introduced credential record concept to formalize what data Relying Parties need to store and how it relates between registration and authentication ceremonies.” Substantive “new features” named in the opened list include JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a new `hybrid` transport enumeration value, signal methods for credential changes, a `topOrigin` client-data attribute, user-agent hints, using Web Authentication across related origins, backup-state flags, a compound attestation statement format, a pseudo-random function extension, and a registration parameter `attestationFormats`. Those features are named as the specification names them. The list is not turned into a how-to, and no NEOS support matrix is invented. Other substantive headings in the same section cover updated timeout guidance and several deprecations and removals; they are not paraphrased from memory here.",
+            ],
+          },
+          {
+            strongLead: ["Level 2,"],
+            rest: [
+              " already opened for batch 1, remains a Recommendation dated 8 April 2021. A later-than-Level-3 Editor's Draft URL is listed in the document; it is not this Recommendation and is not described here.",
+            ],
+          },
+        ],
+      },
+      { kind: "h2", text: "What this page does not claim" },
+      {
+        kind: "p",
+        body: [
+          "NEOS is not described as implementing Level 2 or Level 3. ",
+          link("CTAP and FIDO2", CTAP_PATH),
+          " is the companion-protocol sibling. ",
+          link("Synced and device-bound passkeys", SYNCED_PATH),
+          " and ",
+          link("Keys in the browser", KEYS_PATH),
+          " are the practice siblings. No tokens, no third-party percentages, and no exploit steps.",
+        ],
+      },
+      { kind: "h2", text: "An illustrative scenario" },
+      {
+        kind: "p",
+        body: "This is a worked example, not a customer and not a certification. A note says “we follow WebAuthn” without saying which Recommendation, and treats Level 2 as if Level 3 had not been published. Both dates are already official, and this page exists to keep them distinct.",
+      },
+      { kind: "h2", text: "Sources" },
+      { kind: "p", body: "Every stat on this page is cited." },
+      { kind: "sources" },
+      { kind: "h2", text: "Also in this section" },
+      {
+        kind: "ul",
+        items: [
+          {
+            strongLead: [link("WebAuthn and passkeys", WEBAUTHN_PATH)],
+            rest: [" — the Level 2 brief, which this page does not replace."],
+          },
+          {
+            strongLead: [link("CTAP and FIDO2", CTAP_PATH)],
+            rest: [" — the companion client-to-authenticator protocol."],
+          },
+          {
+            strongLead: [link("Synced and device-bound passkeys", SYNCED_PATH)],
+            rest: [" — say which arrangement the credential actually is."],
+          },
+          {
+            strongLead: [link("Keys in the browser", KEYS_PATH)],
+            rest: [" — the house practice sibling."],
+          },
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "NEOS is part of ",
+          link("PrimusNeo, the lab whose stack this product belongs to", PRIMUS),
+          ". There is no blockchain and no token.",
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "The useful next step is to say which Recommendation you are reading, or to open ",
+          link("WebAuthn and passkeys", WEBAUTHN_PATH),
+          ". If something on this page is wrong, ",
+          link("write to us", "/about"),
+          ".",
+        ],
+      },
+      { kind: "p", body: AUTHOR },
+    ],
+    sources: [
+      {
+        name: "W3C, Web Authentication Level 3",
+        urls: ["https://www.w3.org/TR/2026/REC-webauthn-3-20260825/", "https://www.w3.org/TR/webauthn-3/"],
+        datePublished: "2026-08-25",
+        body: [
+          { em: "Web Authentication: An API for accessing Public Key Credentials Level 3," },
+          " W3C Recommendation, 25 August 2026. ",
+          link("https://www.w3.org/TR/2026/REC-webauthn-3-20260825/", "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/"),
+          " · latest: ",
+          link("https://www.w3.org/TR/webauthn-3/", "https://www.w3.org/TR/webauthn-3/"),
+        ],
+      },
+      {
+        name: "W3C, Web Authentication Level 2",
+        urls: ["https://www.w3.org/TR/webauthn-2/"],
+        datePublished: "2021-04-08",
+        body: [
+          { em: "Web Authentication: An API for accessing Public Key Credentials Level 2," },
+          " W3C Recommendation, 8 April 2021. ",
+          link("https://www.w3.org/TR/webauthn-2/", "https://www.w3.org/TR/webauthn-2/"),
+        ],
       },
     ],
   },
