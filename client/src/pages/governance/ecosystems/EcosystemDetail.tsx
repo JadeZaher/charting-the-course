@@ -266,6 +266,9 @@ export default function EcosystemDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/ethos/${id}`}>Open the ecosystem home</Link>
+          </Button>
           {isSteward && (
             <Button asChild variant="outline" size="sm">
               <Link href={`/ecosystems/${id}/edit`}><Pencil className="h-4 w-4 mr-1" />Edit</Link>

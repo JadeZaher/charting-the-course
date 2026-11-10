@@ -176,26 +176,25 @@ export function nextCard(input: {
     };
   }
 
-  const active = input.viewer === 'member';
-  const open = input.items.filter((step) => (!step.ecosystem_id || step.ecosystem_id === input.ecosystemId) && !isCompletedNextStep(step, active));
-
-  if (input.viewer === 'pending') {
-    const gateBlocks = !!input.gates && !input.gates.eligible;
-    const ranked = [...open].sort((a, b) => rank(a, input.now, true) - rank(b, input.now, true));
-    const fromQueue = ranked.map(stepAction).find((action) => action !== null) ?? null;
-    const primary = gateBlocks || !fromQueue
-      ? pendingJoinAction(input.gates, input.orientationHref ?? null) ?? fromQueue
-      : fromQueue;
+  // Queue titles are private. Only a confirmed active member may see them.
+  // Missing gates, an eligible-but-pending row, and every other state get a join step with no record title.
+  if (input.viewer !== 'member') {
+    const primary = input.viewer === 'pending'
+      ? pendingJoinAction(input.gates, input.orientationHref ?? null)
+        ?? { kind: 'link' as const, id: 'join-refresh', label: copy.next.refreshStatus, href: '/welcome/consent' }
+      : null;
     return { welcome: false, sentence: null, primary, secondary: [], overflow: null, empty: false };
   }
 
+  const open = input.items.filter((step) => (!step.ecosystem_id || step.ecosystem_id === input.ecosystemId) && !isCompletedNextStep(step, true));
+
   const ranked = [...open].sort((a, b) => rank(a, input.now, input.firstSession) - rank(b, input.now, input.firstSession));
-  const fresh = input.firstSession ? ranked.filter((step) => rank(step, input.now, true) < 100) : ranked;
+  // Months-overdue work stays under Older items after the welcome is dismissed.
+  const fresh = ranked.filter((step) => !isLongOverdue(step.due, step.overdue, input.now));
   const actions = fresh.map(stepAction).filter((action): action is SpaceAction => action !== null);
   const shown = actions.slice(0, 3);
-  const hidden = open.length - shown.length;
   if (shown.length === 0) {
-    if (input.firstSession && open.length > 0) {
+    if (open.length > 0) {
       return {
         welcome,
         sentence: null,
@@ -217,12 +216,14 @@ export function nextCard(input: {
   const [primary, ...rest] = shown;
   const lead = fresh[0];
   const sentence = lead?.what?.trim() && lead.what.trim() !== primary.label ? lead.what.trim() : lead?.why?.trim() && lead.why.trim() !== primary.label ? lead.why.trim() : null;
+  const overdueCount = open.length - fresh.length;
+  const older = overdueCount > 0 ? [{ kind: 'link' as const, id: 'older', label: copy.next.olderItems, href: '/dashboard' }] : [];
   return {
     welcome,
     sentence,
     primary,
-    secondary: rest.slice(0, 2),
-    overflow: hidden > 0 ? { label: copy.next.overflow(open.length), href: '/dashboard' } : null,
+    secondary: [...rest.slice(0, older.length ? 1 : 2), ...older],
+    overflow: fresh.length > shown.length ? { label: copy.next.overflow(open.length), href: '/dashboard' } : null,
     empty: false,
   };
 }
@@ -284,6 +285,11 @@ function humanName(value: string | null | undefined): string | null {
   const name = value?.trim();
   if (!name || OPAQUE_ID.test(name) || GENERATED_CODE.test(name)) return null;
   return name;
+}
+
+/** Any active member may load the participant list. Opt-in decides who is listed, not who may look. */
+export function loadsParticipantDirectory(viewer: SpaceViewer): boolean {
+  return viewer === 'member';
 }
 
 /** People the directory may name: participant-list rows, plus members the payload marks as opted in. An explicit opt-out wins. Contact fields are not copied. */

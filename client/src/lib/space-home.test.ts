@@ -7,6 +7,7 @@ import {
   headerStatus,
   isCompletedNextStep,
   isLongOverdue,
+  loadsParticipantDirectory,
   modelContains,
   nextCard,
   pendingJoinAction,
@@ -108,7 +109,8 @@ test('day one does not lead with months-overdue work, and another ecosystem stay
   assert.equal(card.primary && card.primary.kind === 'link' && card.primary.label, 'Start orientation');
   assert.equal(modelContains(card, 'old charter'), false);
   assert.equal(modelContains(card, 'Secret Charter'), false);
-  assert.equal(card.overflow?.label, 'View all 2 items');
+  assert.equal(card.secondary[0]?.label, 'Older items');
+  assert.equal(card.overflow, null);
 });
 
 test('a clear member queue uses the empty sentence and its two links', () => {
@@ -125,6 +127,45 @@ test('only older work on day one is a group, not the overdue title', () => {
   assert.equal(card.primary, null);
   assert.equal(card.secondary[0]?.label, 'Older items');
   assert.equal(modelContains(card, 'old charter'), false);
+});
+
+test('months-overdue work stays under Older items after the welcome is dismissed', () => {
+  const items = [
+    step({ uid: 'old', action: 'Give advice on the old charter', what: 'Advise on the old charter', due: '2026-05-29', overdue: true, link: '/proposals/old' }),
+    step({ uid: 'fresh', action: 'Give your advice', what: 'Shared kitchen is open for advice.', link: '/proposals/p-1' }),
+  ];
+  const card = nextCard({ viewer: 'member', name: NAME, ecosystemId: ECO, items, now: NOW, firstSession: false, signInHref: '/login' });
+  assert.equal(card.welcome, false);
+  assert.equal(card.primary?.label, 'Give your advice');
+  assert.equal(card.secondary[0]?.label, 'Older items');
+  assert.equal(modelContains(card, 'old charter'), false);
+  const onlyOld = nextCard({ viewer: 'member', name: NAME, ecosystemId: ECO, items: [items[0]], now: NOW, firstSession: false, signInHref: '/login' });
+  assert.equal(onlyOld.primary, null);
+  assert.equal(onlyOld.secondary[0]?.label, 'Older items');
+  assert.equal(modelContains(onlyOld, 'old charter'), false);
+});
+
+test('private queue titles render only for an active member', () => {
+  const title = 'Private proposal title';
+  const items = [step({ uid: 'advice', action: 'Give advice', what: title, link: '/proposals/secret' })];
+  const eligible: JoinGates = { ...gatesBlocked, eligible: true, status: 'ready', required_quizzes: [] };
+  const missing = nextCard({ viewer: 'pending', name: NAME, ecosystemId: ECO, items, now: NOW, firstSession: false, gates: null, signInHref: '/login' });
+  const eligiblePending = nextCard({ viewer: 'pending', name: NAME, ecosystemId: ECO, items, now: NOW, firstSession: false, gates: eligible, signInHref: '/login' });
+  const signedOut = nextCard({ viewer: 'signed-out', name: NAME, ecosystemId: ECO, items, now: NOW, firstSession: false, signInHref: '/login?ecosystem=eco-1' });
+  const active = nextCard({ viewer: 'member', name: NAME, ecosystemId: ECO, items, now: NOW, firstSession: false, signInHref: '/login' });
+  for (const card of [missing, eligiblePending, signedOut]) assert.equal(modelContains(card, title), false);
+  assert.equal(missing.primary?.label, 'Refresh status');
+  assert.equal(eligiblePending.primary?.label, 'Refresh status');
+  assert.equal(signedOut.primary?.label, 'Sign in to join');
+  assert.equal(active.primary?.label, 'Give advice');
+  assert.equal(modelContains(active, title), true);
+});
+
+test('any active member may load the participant list; opt-in decides who is listed', () => {
+  assert.equal(loadsParticipantDirectory('member'), true);
+  assert.equal(loadsParticipantDirectory('pending'), false);
+  assert.equal(loadsParticipantDirectory('guest'), false);
+  assert.equal(loadsParticipantDirectory('signed-out'), false);
 });
 
 test('signed-out and guests do not render queue titles', () => {

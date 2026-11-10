@@ -17,6 +17,7 @@ import {
   directoryCandidates,
   HAPPENING_FILTERS,
   happening,
+  loadsParticipantDirectory,
   nextCard,
   whosHere,
   type HappeningFilter,
@@ -156,7 +157,7 @@ export function EcosystemHome({
   const participantsQuery = useQuery({
     queryKey: [...keys.matching.ecosystem(user?.id, ecosystemId), 'participants', '', 1],
     queryFn: () => apiFetch<{ items?: { user_id?: string; member_id?: string; display_name?: string }[]; state?: string }>(`/api/v1/matching/ecosystems/${encodeURIComponent(ecosystemId)}/participants?page=1`),
-    enabled: memberView && consentQuery.data?.directory_visible === true,
+    enabled: loadsParticipantDirectory(viewer),
   });
   const proposalsQuery = useQuery({
     queryKey: keys.proposals.list(listParams),
