@@ -76,7 +76,11 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(vote, /NEOS is part of <a href="https:\/\/primusneo\.com">PrimusNeo<\/a>/);
   assert.match(key, /<h1>The key stays in the browser<\/h1>/);
   assert.match(key, /Most accounts are a loan\./);
+  assert.match(key, /The operator software's public health check reports version 0\.1\.0, and its login page shows the same version\./);
+  assert.equal(key.includes("the login chrome describe version"), false);
   assert.match(key, /NEOS is part of <a href="https:\/\/primusneo\.com">PrimusNeo<\/a>/);
+  assert.match(vote, /<a href="https:\/\/neos-operating-system-production\.up\.railway\.app\/api\/v1\/health">NEOS operator health \(version 0\.1\.0, 54 skills loaded\)<\/a>/);
+  assert.match(key, /<a href="https:\/\/neos-operating-system-production\.up\.railway\.app\/auth\/login">NEOS operator login chrome \(NEOS v0\.1\.0\)<\/a>/);
   assert.match(renderShell(shell, byPath.get("/writing")!), /<a href="\/writing\/act-is-not-a-vote">ACT is not a vote<\/a>/);
   assert.match(renderShell(shell, byPath.get("/writing")!), /<a href="\/writing\/the-key-stays-in-the-browser">The key stays in the browser<\/a>/);
 });
