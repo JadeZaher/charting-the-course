@@ -227,8 +227,11 @@ One server source (`neos_agent` `services/next_steps.py`; API shapes in
 - **The bell** (`components/NotificationCenter`) and **the dashboard decision
   queue** (`pages/Dashboard`) both read `GET /me/next-steps`
   (`keys.nextSteps.mine()`; only the bell polls, every 5 minutes, and `affects.*`
-  invalidation refreshes both after actions): the same items, the same
-  count. The list covers every ecosystem the member is active in, not the
+  invalidation refreshes both after actions). The dashboard then drops a completed
+  entry quiz or joining consent once the member is active, and groups rows the
+  server marks overdue by 60 days or more under "Older items" (`lib/dashboard-queue.ts`).
+  Those rows stay in the list; they are not deleted. The bell keeps the server's
+  list. The list covers every ecosystem the member is active in, not the
   header selection, because it is the member's own to-do list; the queue names
   the ecosystem when items span more than one. There is no read/unread state:
   an item leaves when its act is done (advice given, position recorded,
