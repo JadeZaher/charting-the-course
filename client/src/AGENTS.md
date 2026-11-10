@@ -41,7 +41,7 @@ On mobile the sidebar is a sheet; `AppSidebar` closes it whenever the location c
 
 A sidebar item is shown only to members its destination admits (`lib/nav-access.ts` `visibleNavItems`, `canOpenAdminPanel`; a route gated with `access` asks the same `admits`): each `facilitatorItems` entry names the gate of the page it opens (`quiz-steward` = who the server lets write quizzes, see "Pass 03 fixes" below; `admin-panel` = `AdminPanel`'s platform-admin gate, which also gates the Administration group; see "Platform admin (G-Authority)"), and the Content Management group renders only when one of its items survives. Gating a group on a broader permission than its pages sent townhall/collaborator members to "Manage Shares & Needs" and a redirect. Icon-only controls in the collapsed rail carry their own `aria-label` (the collapsed Logout button): a tooltip is not an accessible name.
 
-`client/index.html` declares `<link rel="icon" href="/favicon.svg">` (asset in `client/public/`); without a declared icon the browser requests `/favicon.ico` and logs a 404 on every load.
+`client/index.html` declares `<link rel="icon">` for `/favicon.ico` (`sizes="any"`), `/favicon-32.png`, and `/favicon.svg` (assets in `client/public/`). `/manifest.json` lists `/icon-192.png`. Browsers request `/favicon.ico` when no icon is declared, so that file stays in `client/public/`.
 
 ### Route guide rail
 
