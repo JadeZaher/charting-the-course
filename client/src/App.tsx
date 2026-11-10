@@ -25,6 +25,8 @@ import { UpdatesLink } from '@/components/engagement/UpdatesLink';
 import { EngagementSessionBoundary } from '@/components/engagement/EngagementSessionBoundary';
 import About from "@/pages/About";
 import GovernanceModel from "@/pages/GovernanceModel";
+import { PrivacyPage, TermsPage } from "@/pages/LegalPage";
+import { SiteFooter } from "@/components/SiteFooter";
 import Login, { takeStashedRedirect } from "@/pages/Login";
 import { consentGateRedirect, isHeldAtConsentGate } from "@/lib/consent-gate";
 import Dashboard from "@/pages/Dashboard";
@@ -110,7 +112,7 @@ function PublicPageFrame({ children }: { children: React.ReactNode }) {
       <SkipLink />
       <div id="main-content" tabIndex={-1} className="min-h-screen">
         {children}
-        <footer className="border-t border-border p-5"><a className="underline" href="/node/audit">Public node support history</a></footer>
+        <SiteFooter auditLink />
       </div>
     </div>
   );
@@ -477,7 +479,7 @@ function AppLayout() {
   }, [isAuthenticated, isLoading, heldAtGate]);
 
   // Public routes that don't need the sidebar
-  const publicPaths = ['/login', '/about', '/governance-model', '/users/', '/node/audit', '/communities'];
+  const publicPaths = ['/login', '/about', '/governance-model', '/terms', '/privacy', '/users/', '/node/audit', '/communities'];
   const isPublicPath = publicPaths.some(path => location.startsWith(path));
   const isLandingPage = location === '/';
 
@@ -504,6 +506,8 @@ function AppLayout() {
           <Route path="/login" component={Login} />
           <Route path="/about" component={About} />
           <Route path="/governance-model" component={GovernanceModel} />
+          <Route path="/terms" component={TermsPage} />
+          <Route path="/privacy" component={PrivacyPage} />
           <Route path="/communities/:id" component={CommunityPreviewPage} />
           <Route path="/communities" component={Communities} />
           <Route path="/users/:username" component={PublicProfile} />
@@ -545,6 +549,7 @@ function AppLayout() {
           <main id="main-content" tabIndex={-1} className="route-shell min-w-0 flex-1 overflow-auto lg:pr-[calc(var(--page-gutter)_+_var(--route-guide-width,0px))]">
             <AuthenticatedRoutes />
           </main>
+          <SiteFooter />
         </div>
       </div>
       <FloatingComms />

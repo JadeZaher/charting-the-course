@@ -1,3 +1,4 @@
+import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "wouter";
@@ -29,7 +30,7 @@ const LAYERS = [
   { num: "I", name: "Agreement", icon: ScrollText, desc: "How commitments are created, reviewed, and evolved" },
   { num: "II", name: "Authority", icon: Crown, desc: "Who decides what, and how roles flow" },
   { num: "III", name: "ACT Engine", icon: Cog, desc: "The Advice-Consent-Test decision protocol" },
-  { num: "IV", name: "Economic", icon: Coins, desc: "Resource allocation without extraction" },
+  { num: "IV", name: "Economic", icon: Coins, desc: "Recorded resource practice, not a payment rail" },
   { num: "V", name: "Inter-Unit", icon: Network, desc: "Coordination across autonomous groups" },
   { num: "VI", name: "Conflict", icon: Scale, desc: "Repair and restoration, not punishment" },
   { num: "VII", name: "Safeguard", icon: ShieldAlert, desc: "Detecting and preventing power capture" },
@@ -183,7 +184,7 @@ export default function LandingPage() {
         <section className="grid border-b border-foreground bg-foreground text-background sm:grid-cols-3">
           {[
             { icon: Layers, big: "10 layers", sub: "54 governance skills" },
-            { icon: Globe, big: "OmniOne", sub: "First ecosystem · Bali" },
+            { icon: Globe, big: "OmniOne", sub: "Named in the operating-system notes" },
             { icon: GitFork, big: "Open source", sub: "Fork it. Make it yours." },
           ].map((stat) => (
             <div key={stat.big} className="border-b border-background/40 p-8 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:p-12">
@@ -270,10 +271,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="flex flex-col gap-2 border-t border-foreground px-4 py-6 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <p>NEOS — New Earth Operating System</p>
-        <p>Open source · Community governed</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

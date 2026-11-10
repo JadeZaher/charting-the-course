@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link } from "wouter";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { ECONOMIC_DETAIL, GOVERNANCE_LEAD } from "@/lib/public-documents";
 import {
   ScrollText,
   Crown,
@@ -222,29 +224,28 @@ const GOVERNANCE_MODEL: Layer[] = [
     num: "IV",
     name: "Economic",
     icon: Coins,
-    short: "Resource allocation without extraction",
-    detail:
-      "Current-See is the internal unit of account that tracks contributions without creating speculation or extraction. Resources flow to where they are needed, governed by transparent budgeting agreements.",
+    short: "Recorded resource practice, not a payment rail",
+    detail: ECONOMIC_DETAIL,
     skills: [
       {
         name: "resource-request",
         description:
-          "Request resources from ecosystem funding pools -- financial, physical, time, access, or expertise -- through a structured ACT process that prevents self-approval and separates economic need from governance authority.",
+          "Record a request for resources a community already talks about — time, access, or expertise — through Advice, Consent, and Test. This workspace does not pay money or approve a transfer.",
       },
       {
         name: "funding-pool-stewardship",
         description:
-          "Create and govern funding pools that hold ecosystem resources -- define boundaries, inflow sources, outflow rules, steward accountability, and transparency schedules so every pool operates as a living agreement rather than an opaque treasury.",
+          "A named skill for writing down how a community accounts for shared resources. This site does not hold funds or operate a treasury.",
       },
       {
         name: "commons-monitoring",
         description:
-          "Track resource flows across funding pools and commons resources, detect over-draw or concentration, and trigger graduated community responses -- monitoring by the community, not external auditors or opaque algorithms.",
+          "A named skill for noting when shared resources look concentrated. This site does not track money movement.",
       },
       {
         name: "participatory-allocation",
         description:
-          "Run participatory budgeting assemblies where circle members collectively allocate funding pool resources through structured deliberation and consent -- not majority vote, not first-come-first-served, not steward fiat.",
+          "A named skill for a consent round about how a community divides resources it already governs. It is not a government vote, a budget election, or a payout.",
       },
       {
         name: "access-economy-transition",
@@ -410,7 +411,7 @@ const GOVERNANCE_MODEL: Layer[] = [
       {
         name: "structural-diversity-maintenance",
         description:
-          "Proactively maintain the structural conditions that resist governance capture -- diverse proposal authorship, equitable approval rates, distributed funding, leadership rotation, and broad participation -- through bounded interventions with sunset dates.",
+          "Proactively maintain the structural conditions that resist governance capture -- diverse proposal authorship, equitable approval rates, distributed stewardship, leadership rotation, and broad participation -- through bounded interventions with sunset dates.",
       },
     ],
     features: [
@@ -618,6 +619,7 @@ const ACT_STEPS = [
 ];
 
 export default function GovernanceModel() {
+  useDocumentMeta(GOVERNANCE_LEAD.title, GOVERNANCE_LEAD.description);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="sticky top-0 z-50 border-b border-foreground bg-background">
@@ -647,16 +649,16 @@ export default function GovernanceModel() {
         <header className="grid border-b border-foreground lg:grid-cols-12">
           <div className="px-4 py-16 sm:px-6 lg:col-span-8 lg:px-8 lg:py-24">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              54 skills · 10 layers · ACT protocol
+              {GOVERNANCE_LEAD.kicker}
             </p>
             <h1 className="mt-10 max-w-5xl text-[clamp(3.5rem,8vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.07em]">
-              How NEOS governs.
+              {GOVERNANCE_LEAD.heading}
             </h1>
-            <p className="mt-8 max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              NEOS is not a voting app. It is a complete governance operating system. Every layer below
-              is a concrete governance need; each skill is a reusable process that satisfies that need.
-              The features in the app are the manual surface of this protocol stack.
-            </p>
+            {GOVERNANCE_LEAD.paragraphs.map((paragraph) => (
+              <p key={paragraph} className="mt-8 max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+                {paragraph}
+              </p>
+            ))}
           </div>
           <div className="flex flex-col justify-end border-t border-foreground bg-foreground p-6 text-background lg:col-span-4 lg:border-l lg:border-t-0 lg:p-8">
             <p className="max-w-md text-lg font-medium leading-relaxed">
@@ -839,10 +841,6 @@ export default function GovernanceModel() {
         </section>
       </main>
 
-      <footer className="flex flex-col gap-2 border-t border-foreground px-4 py-6 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <p>NEOS — New Earth Operating System</p>
-        <p>Open source · Community governed</p>
-      </footer>
     </div>
   );
 }

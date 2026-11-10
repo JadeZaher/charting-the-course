@@ -53,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { fetchMyPublicProfile, updateMyPublicProfile } from "@/lib/api-client";
 import { resolveMediaUrl } from "@/lib/media";
 import { domainCode, domainLabel } from "@/lib/domain-label";
+import { quizDisplayTitle } from "@/lib/quiz-title";
 import type { PublicProfileProject, PublicProfileResponse, SharesNeeds } from "@/types/api";
 
 interface ProfileForm {
@@ -743,7 +744,7 @@ export default function Profile() {
               data.quiz_results.slice(0, 6).map((group) => (
                 <div key={group.quiz.id} className="flex items-start justify-between gap-4 border border-border p-4">
                   <div>
-                    <h3 className="font-black">{group.quiz.title}</h3>
+                    <h3 className="font-black">{quizDisplayTitle(group.quiz.title)}</h3>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {[group.ecosystem?.name, group.domain ? domainLabel(group.domain) : null]
                         .filter(Boolean)

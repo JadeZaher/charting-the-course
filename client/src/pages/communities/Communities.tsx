@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommunities, useCommunity } from '@/hooks/use-engagement';
+import { useDocumentMeta } from '@/hooks/use-document-meta';
 import { communityEntryPath, engagementPath } from '@/lib/engagement';
 import { resolveMediaUrl } from '@/lib/media';
+import { INTRO } from '@/lib/public-documents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { QueryFeedback } from '@/components/engagement/QueryFeedback';
@@ -19,6 +21,7 @@ function CommunityHeader() {
   </nav>;
 }
 export default function Communities() {
+  useDocumentMeta(INTRO.title, INTRO.description);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const query = useCommunities(appliedSearch);
@@ -26,9 +29,11 @@ export default function Communities() {
   return <div className="mx-auto w-full max-w-6xl space-y-8 p-5 sm:p-8">
     <CommunityHeader />
     <header>
-      <p className="max-w-3xl text-lg leading-relaxed">NEOS (New Earth Operating System) is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources.</p>
-      <h1 className="mt-8 text-4xl font-black tracking-tight sm:text-6xl">Find a community.</h1>
-      <p className="mt-4 max-w-2xl text-lg text-muted-foreground">Discover people and projects you can contribute to. Explore a community before deciding to join.</p>
+      <p className="max-w-3xl text-lg leading-relaxed">{INTRO.paragraphs[0]}</p>
+      <h1 className="mt-8 text-4xl font-black tracking-tight sm:text-6xl">{INTRO.heading}</h1>
+      {INTRO.paragraphs.slice(1).map((paragraph) => (
+        <p key={paragraph} className="mt-4 max-w-2xl text-lg text-muted-foreground">{paragraph}</p>
+      ))}
     </header>
     <form onSubmit={event => { event.preventDefault(); setAppliedSearch(search.trim()); }} className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1"><label htmlFor="community-search" className="mb-2 block font-semibold">Search communities</label><Input id="community-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="A name, interest or purpose" maxLength={160} className="min-h-11" /></div>

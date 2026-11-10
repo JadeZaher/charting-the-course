@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --host --port 5173",
     "dev:client": "vite --host --port 5000",
-    "build": "vite build",
-    "build:client": "vite build",
+    "build": "vite build && node --import tsx scripts/prerender-public.ts",
+    "build:client": "vite build && node --import tsx scripts/prerender-public.ts",
     "check": "tsc",
     "test": "node --import tsx --test \"client/src/**/*.test.ts\"",
     "check:contrast": "node scripts/verify-contrast.mjs"

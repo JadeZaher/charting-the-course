@@ -14,147 +14,27 @@ import {
   DoorOpen,
   ArrowLeft,
   ArrowRight,
-  Globe,
-  Leaf,
   Check,
   X,
 } from "lucide-react";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { ABOUT, ABOUT_IS, ABOUT_IS_NOT, ABOUT_LAYERS, ABOUT_OMNI, ABOUT_TERMS } from "@/lib/public-documents";
 
-const LAYERS_DETAIL = [
-  {
-    num: "I",
-    name: "Agreement",
-    icon: ScrollText,
-    short: "How commitments are created, reviewed, and evolved",
-    detail:
-      "Every governance act begins and ends with an agreement. Agreements are living documents with clear domains, expiration dates, and review cycles. They encode the community's will into actionable, testable commitments.",
-  },
-  {
-    num: "II",
-    name: "Authority",
-    icon: Crown,
-    short: "Who decides what, and how roles flow",
-    detail:
-      "Authority in NEOS is distributed through roles, not positions. Roles are created by consent, carry explicit domains of authority, and can be filled, amended, or dissolved by the circle that holds them.",
-  },
-  {
-    num: "III",
-    name: "ACT Engine",
-    icon: Cog,
-    short: "The Advice-Consent-Test decision protocol",
-    detail:
-      "The ACT Engine is the core decision protocol: Advice gathers wisdom from those affected, Consent checks for reasoned objections (not agreement), and Test puts proposals into practice with measurable criteria.",
-  },
-  {
-    num: "IV",
-    name: "Economic",
-    icon: Coins,
-    short: "Resource allocation without extraction",
-    detail:
-      "Current-See is the internal unit of account that tracks contributions without creating speculation or extraction. Resources flow to where they are needed, governed by transparent budgeting agreements.",
-  },
-  {
-    num: "V",
-    name: "Inter-Unit",
-    icon: Network,
-    short: "Coordination across autonomous groups",
-    detail:
-      "Circles, pods, and ecosystems coordinate through shared agreements and liaison roles. Autonomy is preserved while enabling collaboration across organizational boundaries.",
-  },
-  {
-    num: "VI",
-    name: "Conflict",
-    icon: Scale,
-    short: "Repair and restoration, not punishment",
-    detail:
-      "Conflict resolution follows a restorative path: direct conversation, facilitated dialogue, mediation, and community process. The goal is always repair and learning, never punishment.",
-  },
-  {
-    num: "VII",
-    name: "Safeguard",
-    icon: ShieldAlert,
-    short: "Detecting and preventing power capture",
-    detail:
-      "Built-in safeguards detect when power concentrates inappropriately: term limits on roles, mandatory rotation, transparency requirements, and whistleblower protections are encoded into the governance stack.",
-  },
-  {
-    num: "VIII",
-    name: "Emergency",
-    icon: Siren,
-    short: "Pre-authorized protocols for crisis",
-    detail:
-      "When crises arise, pre-authorized emergency protocols activate with clear scope, duration, and accountability. Emergency powers automatically sunset and require community ratification.",
-  },
-  {
-    num: "IX",
-    name: "Memory",
-    icon: Brain,
-    short: "Institutional learning that compounds",
-    detail:
-      "Every decision, experiment, and conflict resolution becomes part of the community's institutional memory. Patterns are recognized, lessons are encoded, and governance wisdom compounds over time.",
-  },
-  {
-    num: "X",
-    name: "Exit",
-    icon: DoorOpen,
-    short: "The right to leave with dignity and data",
-    detail:
-      "Members can leave any circle, ecosystem, or the platform entirely, taking their data and contribution history with them. Exit rights are fundamental and cannot be restricted by agreement.",
-  },
-];
-
-const TERMINOLOGY = [
-  {
-    term: "ETHOS",
-    def: "Ecosystem Transforming Holistic Operating System — the full governance framework that NEOS implements.",
-  },
-  {
-    term: "Current-See",
-    def: "An internal unit of account for tracking contributions and allocating resources without creating a speculative token economy.",
-  },
-  {
-    term: "Steward",
-    def: "A role carrying responsibility for a specific domain. Stewards facilitate, they do not command.",
-  },
-  {
-    term: "ACT",
-    def: "Advice-Consent-Test — the three-phase decision protocol at the heart of NEOS governance.",
-  },
-  {
-    term: "Agreement Field",
-    def: "The living collection of all active agreements within a circle or ecosystem, with their review dates and domains.",
-  },
-  {
-    term: "Circle",
-    def: "A self-governing group with a clear domain, members, and its own set of agreements. The fundamental organizational unit.",
-  },
-  {
-    term: "Ecosystem",
-    def: "A network of circles operating under shared foundational agreements. An ecosystem is a sovereign governance community.",
-  },
-  {
-    term: "Domain",
-    def: "The scope of authority and responsibility assigned to a role, circle, or agreement.",
-  },
-];
-
-const IS_ITEMS = [
-  "A complete governance stack with 54 skills across 10 layers",
-  "Open source software you can fork, adapt, and run yourself",
-  "A platform for consent-based decision-making at any scale",
-  "AI-augmented — assistants guide, but never decide",
-  "Designed around dignity, sovereignty, and collective intelligence",
-];
-
-const IS_NOT_ITEMS = [
-  "A blockchain, token, or crypto project",
-  "A voting platform — consent is not majority rule",
-  "A corporate hierarchy tool rebranded as flat",
-  "A platform where AI makes decisions for humans",
-  "A utopian experiment — it is practical governance infrastructure",
-];
+const LAYER_ICONS = {
+  I: ScrollText,
+  II: Crown,
+  III: Cog,
+  IV: Coins,
+  V: Network,
+  VI: Scale,
+  VII: ShieldAlert,
+  VIII: Siren,
+  IX: Brain,
+  X: DoorOpen,
+} as const;
 
 export default function About() {
+  useDocumentMeta(ABOUT.title, ABOUT.description);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav aria-label="About navigation" className="sticky top-0 z-50 border-b border-foreground bg-background">
@@ -184,12 +64,12 @@ export default function About() {
       <main>
         <header className="grid border-b border-foreground lg:grid-cols-12">
           <div className="px-4 py-16 sm:px-6 lg:col-span-8 lg:px-8 lg:py-24">
-            <p className="text-xs font-bold uppercase tracking-[0.18em]">About NEOS</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em]">{ABOUT.kicker}</p>
             <h1 className="mt-10 max-w-5xl text-[clamp(3.5rem,8vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.07em]">
-              The New Earth Operating System.
+              {ABOUT.heading}
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-              NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources. On this site, you can explore communities, join one that fits your interests, and take part in its work.
+              {ABOUT.lead}
             </p>
             <Button asChild size="lg" className="mt-8">
               <Link href="/communities">Find a community<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
@@ -197,7 +77,7 @@ export default function About() {
           </div>
           <div className="flex items-end border-t border-foreground bg-foreground p-6 text-background lg:col-span-4 lg:border-l lg:border-t-0 lg:p-8">
             <p className="max-w-md text-lg font-medium leading-relaxed">
-              Communities here are also called ecosystems. Explore their purpose before joining, then complete any agreements and onboarding quizzes they require. Each community sets its own participation paths.
+              {ABOUT.aside}
             </p>
           </div>
         </header>
@@ -209,7 +89,7 @@ export default function About() {
               <Check className="h-7 w-7" aria-hidden="true" />
             </div>
             <ul className="divide-y divide-border border-y border-border">
-              {IS_ITEMS.map((item, index) => (
+              {ABOUT_IS.map((item, index) => (
                 <li key={item} className="grid grid-cols-[2.5rem_1fr] gap-3 py-4 text-sm leading-relaxed sm:text-base">
                   <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
                   <span>{item}</span>
@@ -223,7 +103,7 @@ export default function About() {
               <X className="h-7 w-7" aria-hidden="true" />
             </div>
             <ul className="divide-y divide-border border-y border-border">
-              {IS_NOT_ITEMS.map((item, index) => (
+              {ABOUT_IS_NOT.map((item, index) => (
                 <li key={item} className="grid grid-cols-[2.5rem_1fr] gap-3 py-4 text-sm leading-relaxed sm:text-base">
                   <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
                   <span>{item}</span>
@@ -245,11 +125,13 @@ export default function About() {
           </div>
 
           <div className="border-l border-t border-foreground">
-            {LAYERS_DETAIL.map((layer) => (
+            {ABOUT_LAYERS.map((layer) => {
+              const Icon = LAYER_ICONS[layer.num as keyof typeof LAYER_ICONS];
+              return (
               <article key={layer.num} className="grid border-b border-r border-foreground bg-card sm:grid-cols-[5rem_1fr] lg:grid-cols-[7rem_15rem_1fr]">
                 <div className="flex items-center justify-between border-b border-foreground p-5 sm:flex-col sm:items-start sm:border-b-0 sm:border-r lg:p-6">
                   <span className="text-xs font-black tracking-[0.18em]">{layer.num}</span>
-                  <layer.icon className="h-6 w-6" aria-hidden="true" />
+                  <Icon className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div className="border-b border-foreground p-5 sm:col-start-2 sm:border-b-0 lg:border-r lg:p-6">
                   <h3 className="text-xl font-black uppercase">{layer.name}</h3>
@@ -257,28 +139,22 @@ export default function About() {
                 </div>
                 <p className="p-5 text-sm leading-relaxed text-muted-foreground sm:col-span-2 lg:col-span-1 lg:p-6">{layer.detail}</p>
               </article>
-            ))}
+              );
+            })}
           </div>
         </section>
 
         <section className="grid border-b border-foreground lg:grid-cols-12">
           <div className="bg-foreground p-6 text-background sm:p-8 lg:col-span-4 lg:p-10">
-            <Globe className="h-8 w-8" aria-hidden="true" />
-            <p className="mt-16 text-xs font-bold uppercase tracking-[0.18em] text-background/70">First live ecosystem</p>
-            <h2 className="mt-5 text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-5xl">OmniOne, Bali.</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-background/70">{ABOUT_OMNI.kicker}</p>
+            <h2 className="mt-5 text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-5xl">{ABOUT_OMNI.heading}</h2>
           </div>
           <div className="p-6 sm:p-8 lg:col-span-8 lg:p-12">
-            <div className="flex items-center gap-3 border-b border-foreground pb-5">
-              <Leaf className="h-5 w-5" aria-hidden="true" />
-              <h3 className="text-xl font-black uppercase">Governance in practice</h3>
-            </div>
-            <div className="mt-8 grid gap-6 text-base leading-relaxed text-muted-foreground md:grid-cols-2">
-              <p>
-                The first NEOS ecosystem is OmniOne, based in Bali, Indonesia and stewarded by Green Earth Vision. It is the proving ground where real communities use ACT, circles, and all ten governance layers.
-              </p>
-              <p>
-                From composting policies to resource allocation, conflict repair, and member onboarding, OmniOne demonstrates that consent-based governance works in practice, not just in theory.
-              </p>
+            <h3 className="border-b border-foreground pb-5 text-xl font-black uppercase">Named, not described further</h3>
+            <div className="mt-8 space-y-6 text-base leading-relaxed text-muted-foreground">
+              {ABOUT_OMNI.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
             </div>
           </div>
         </section>
@@ -289,7 +165,7 @@ export default function About() {
             <h2 className="text-4xl font-black uppercase leading-none tracking-[-0.04em] sm:text-6xl lg:col-span-9">Key terminology.</h2>
           </div>
           <dl className="grid border-l border-t border-foreground sm:grid-cols-2">
-            {TERMINOLOGY.map((item, index) => (
+            {ABOUT_TERMS.map((item, index) => (
               <div key={item.term} className="min-h-48 border-b border-r border-foreground bg-card p-6 sm:p-8">
                 <div className="flex items-start justify-between gap-4">
                   <dt className="text-xl font-black uppercase">{item.term}</dt>
@@ -324,10 +200,6 @@ export default function About() {
         </section>
       </main>
 
-      <footer className="flex flex-col gap-2 border-t border-foreground px-4 py-6 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <p>NEOS — New Earth Operating System</p>
-        <p>Open source · Community governed</p>
-      </footer>
     </div>
   );
 }

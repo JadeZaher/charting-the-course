@@ -17,6 +17,7 @@ import { Pencil, ArrowLeft, CheckCircle, Clock, AlertCircle, BookOpen, Award, Ta
 import { Progress } from '@/components/ui/progress';
 import { formatDate, toStringList } from '@/lib/utils';
 import { domainLabel } from '@/lib/domain-label';
+import { quizDisplayTitle } from '@/lib/quiz-title';
 import { MemberRoleCard } from '@/components/governance/MemberRoleCard';
 
 const statusVariant = (status: string) => {
@@ -220,7 +221,7 @@ export default function MemberDetail() {
             Quiz Progress
           </CardTitle>
           <CardDescription>
-            {quiz.completed} of {quiz.total_available} quizzes completed ({quiz.passed} passed)
+            {quiz.completed} of {quiz.total_available} quizzes completed ({quiz.passed} passed). Opening a quiz does not restore unfinished answers; answers are saved when the quiz is submitted.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -268,7 +269,7 @@ export default function MemberDetail() {
                       <BookOpen className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                     )}
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{q.quiz_title}</p>
+                      <p className="font-medium truncate">{quizDisplayTitle(q.quiz_title)}</p>
                       {q.completed_at && (
                         <p className="text-xs text-muted-foreground">
                           Completed {new Date(q.completed_at).toLocaleDateString()}
@@ -287,6 +288,11 @@ export default function MemberDetail() {
                     )}
                     {q.status === 'not_started' && (
                       <Badge variant="outline">Not Started</Badge>
+                    )}
+                    {q.status !== 'completed' && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/quiz/take/${q.quiz_id}`}>{q.status === 'in_progress' ? 'Open quiz' : 'Start'}</Link>
+                      </Button>
                     )}
                   </div>
                 </div>

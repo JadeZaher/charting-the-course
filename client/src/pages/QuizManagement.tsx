@@ -26,6 +26,7 @@ import { Plus, Upload, Trash2, Edit, Check, X, Eye, AlertTriangle } from "lucide
 import { useAuth } from "@/contexts/AuthContext";
 import { useEcosystem } from "@/contexts/EcosystemContext";
 import { fetchQuizzes, createQuiz, updateQuiz, deleteQuiz } from "@/lib/api-client";
+import { QuizAssignmentPanel } from "@/components/QuizAssignmentPanel";
 
 interface Quiz {
   id: string;
@@ -475,6 +476,8 @@ export default function QuizManagement() {
           </CardContent>
         </Card>
       )}
+
+      <QuizAssignmentPanel quizzes={(quizzes ?? []).map((quiz) => ({ id: quiz.id, title: quiz.title }))} />
     </div>
   );
 }

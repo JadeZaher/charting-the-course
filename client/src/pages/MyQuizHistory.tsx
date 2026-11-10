@@ -8,6 +8,9 @@ import { keys } from '@/lib/query-keys';
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMemberQuizHistory } from "@/lib/api-client";
+import { useMemberProfile } from "@/hooks/use-governance";
+import { apiErrorMessage } from "@/lib/api-error-message";
+import { quizDisplayTitle } from "@/lib/quiz-title";
 
 interface ResultMetadata {
   totalQuestions?: number;
@@ -55,12 +58,14 @@ export default function MyQuizHistory() {
         time_spent: item.time_spent ?? null,
         result_metadata: item.result_metadata ?? null,
         completed_at: item.completed_at,
-        quiz: item.quiz ?? item.quizzes ?? null,
+        quiz: item.quiz ?? item.quizzes ?? (typeof item.quiz_title === "string" ? { title: item.quiz_title, description: null } : null),
       })) as QuizResult[];
     },
     enabled: !!member?.id,
   });
 
+  const profileQuery = useMemberProfile(member?.id ?? "");
+  const inProgress = profileQuery.data?.quiz_summary?.quizzes.filter((quiz) => quiz.status === "in_progress") ?? [];
   const displayedResults = showAll ? quizResults : quizResults.slice(0, 20);
   const hasMore = quizResults.length > 20 && !showAll;
 
@@ -99,10 +104,37 @@ export default function MyQuizHistory() {
             My Quiz History
           </h1>
           <p className="text-muted-foreground mt-1">
-            All your completed quizzes and assessments
+            Completed quizzes are listed below. Opening an in-progress quiz does not restore unfinished answers; this workspace saves a quiz when you submit it.
           </p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>In progress</CardTitle>
+          <CardDescription>Quizzes marked in progress for your membership. There is no saved draft to resume.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {profileQuery.isError && (
+            <p role="alert" className="text-destructive">{apiErrorMessage(profileQuery.error)}</p>
+          )}
+          {!profileQuery.isError && inProgress.length === 0 && (
+            <p className="text-muted-foreground">No in-progress quizzes.</p>
+          )}
+          {inProgress.length > 0 && (
+            <ul className="space-y-3">
+              {inProgress.map((quiz) => (
+                <li key={quiz.quiz_id} className="flex flex-wrap items-center justify-between gap-3 border border-border p-4">
+                  <p className="font-medium">{quizDisplayTitle(quiz.quiz_title)}</p>
+                  <Button asChild variant="outline">
+                    <Link href={`/quiz/take/${quiz.quiz_id}`}>Open quiz</Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -139,7 +171,7 @@ export default function MyQuizHistory() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
-                          {result.quiz?.title || "Quiz"}
+                          {quizDisplayTitle(result.quiz?.title)}
                         </p>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                           <span className="flex items-center gap-1">

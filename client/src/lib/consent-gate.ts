@@ -26,7 +26,7 @@ const READABLE_WHILE_GATED: readonly RegExp[] = [
   // G-Onboard: the framework's order is walkthrough first, then consent.
   /^\/orientation\/[^/]+(?:\/journey|\/complete)?$/,
   /^\/quiz\/(?:take|results)\/[^/]+$/,
-  /^\/(?:about|governance-model)$/,
+  /^\/(?:about|governance-model|terms|privacy)$/,
   /^\/users\/[^/]+$/,
   /^\/node\/audit(?:\/[^/]+)?$/,
   /^\/communities(?:\/[^/]+)?$/,

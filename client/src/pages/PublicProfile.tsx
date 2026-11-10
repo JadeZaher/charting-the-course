@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { fetchPublicProfile } from "@/lib/api-client";
 import { resolveExternalUrl, resolveMediaUrl } from "@/lib/media";
 import { domainLabel } from "@/lib/domain-label";
+import { quizDisplayTitle } from "@/lib/quiz-title";
 import type {
   PublicProfileQuizAttempt,
   PublicProfileQuizResult,
@@ -119,7 +120,7 @@ function QuizCard({ item }: { item: PublicProfileQuizResult }) {
     <article className="border border-border bg-background p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h4 className="font-black tracking-tight">{item.quiz.title}</h4>
+          <h4 className="font-black tracking-tight">{quizDisplayTitle(item.quiz.title)}</h4>
           {latest?.completed_at && (
             <p className="mt-1 text-xs text-muted-foreground">
               Completed {new Date(latest.completed_at).toLocaleDateString()}
