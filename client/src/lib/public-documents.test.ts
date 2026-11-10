@@ -9,6 +9,7 @@ import {
   ACT_SENTENCE,
   ESCHERBRIDGE_SITES,
   IDAHO_VENUE,
+  OPERATOR,
   PRIVACY_PAGE,
   PUBLIC_PAGES,
   TERMS_PAGE,
@@ -226,4 +227,46 @@ test("the three practices children are in the first HTML", () => {
   assert.match(combined, /does not claim that NEOS implements WebAuthn/);
   assert.match(combined, /not a wallet/);
   assert.match(combined, /at least ten years/);
+});
+
+test("public operator contact is the city and email", () => {
+  const operatorLine = `Contact ${OPERATOR.contact} at contact@escherbridge.com, ${OPERATOR.phone}, Boise, Idaho.`;
+  assert.equal(OPERATOR.email, "contact@escherbridge.com");
+  assert.equal(OPERATOR.address, "Boise, Idaho");
+  assert.equal(
+    `Contact ${OPERATOR.contact} at ${OPERATOR.email}, ${OPERATOR.phone}, ${OPERATOR.address}.`,
+    operatorLine,
+  );
+  assert.equal(TERMS_PAGE.sections[0].paragraphs[1], operatorLine);
+  assert.equal(PRIVACY_PAGE.intro[1], operatorLine);
+
+  const street = /\b\d{2,6}\s+(?:[A-Z]\.?\s+)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:St|Street|Ln|Lane|Ave|Avenue|Rd|Road|Dr|Drive|Blvd|Way|Ct|Court)\b/;
+  const zipNearIdaho = /\b\d{5}(?:-\d{4})?\b.{0,80}(?:\bIdaho\b|\bID\b)|(?:\bIdaho\b|\bID\b).{0,80}\b\d{5}(?:-\d{4})?\b/;
+  const poBox = /\bP\.?\s*O\.?\s*Box\b/i;
+  const allowedAddressKeys = ["addressCountry", "addressLocality", "addressRegion"];
+
+  for (const page of PUBLIC_PAGES) {
+    const html = renderShell(shell, page);
+    assert.equal(street.test(html), false, page.path);
+    assert.equal(zipNearIdaho.test(html), false, page.path);
+    assert.equal(poBox.test(html), false, page.path);
+    if (page.path === "/terms" || page.path === "/privacy") {
+      assert.ok(html.includes(operatorLine), page.path);
+      assert.ok(html.includes("Escherbridge, LLC"), page.path);
+    }
+    if (page.path === "/terms") {
+      assert.ok(html.includes(IDAHO_VENUE), page.path);
+    }
+    const parsed = JSON.parse(page.jsonLd) as { "@graph": { address?: Record<string, unknown> }[] };
+    for (const node of parsed["@graph"]) {
+      if (node.address == null) continue;
+      assert.equal(node.address.addressLocality, "Boise");
+      assert.equal(node.address.addressRegion, "ID");
+      assert.equal(node.address.addressCountry, "US");
+      assert.deepEqual(
+        Object.keys(node.address).filter((key) => key !== "@type").sort(),
+        allowedAddressKeys,
+      );
+    }
+  }
 });

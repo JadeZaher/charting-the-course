@@ -25,7 +25,7 @@ export const OPERATOR = {
   contact: "Ahmed Zaher",
   email: "contact@escherbridge.com",
   phone: "(509) 578-4603",
-  address: "1140 S Colorado Ln, Boise, ID",
+  address: "Boise, Idaho",
 } as const;
 
 /** Required venue sentence. Keep this string exact. */
