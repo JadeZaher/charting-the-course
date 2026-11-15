@@ -12,7 +12,7 @@ function blockAfter(source: string, marker: string): string {
   const start = source.indexOf(marker);
   assert.ok(start >= 0, marker);
   const rest = source.slice(start);
-  const end = rest.indexOf('\n    }');
+  const end = rest.search(/\r?\n    \}/);
   assert.ok(end > 0, marker);
   return rest.slice(0, end);
 }
@@ -38,8 +38,8 @@ test('production nginx proxies /api and the messaging socket to the NEOS API', (
 });
 
 test('the image defaults the upstream and lets an env var override it', () => {
-  assert.match(dockerfile, /ENV BACKEND_URL=https:\/\/neos-operating-system-production\.up\.railway\.app\n/);
-  assert.match(dockerfile, /ENV BACKEND_HOST=neos-operating-system-production\.up\.railway\.app\n/);
+  assert.match(dockerfile, /ENV BACKEND_URL=https:\/\/neos-operating-system-production\.up\.railway\.app\r?\n/);
+  assert.match(dockerfile, /ENV BACKEND_HOST=neos-operating-system-production\.up\.railway\.app\r?\n/);
   assert.match(dockerfile, /envsubst '\\\$PORT \\\$BACKEND_URL \\\$BACKEND_HOST'/);
   assert.equal(dockerfile.includes('ENV BACKEND_URL=https://neos-operating-system-production.up.railway.app/'), false);
 });
