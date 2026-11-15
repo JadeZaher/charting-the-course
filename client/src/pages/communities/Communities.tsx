@@ -16,6 +16,8 @@ function CommunityHeader() {
   return <nav aria-label="Community navigation" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-border pb-4">
     <Link href="/communities" className="inline-flex min-h-11 items-center font-black">NEOS / Communities</Link>
     <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+      <Link href="/practices" className="inline-flex min-h-11 items-center underline">Practices</Link>
+      <Link href="/blog" className="inline-flex min-h-11 items-center underline">Blog</Link>
       <Link href="/about" className="inline-flex min-h-11 items-center underline">About NEOS</Link>
       <Link href={isAuthenticated ? '/dashboard' : '/login'} className="inline-flex min-h-11 items-center underline">{isAuthenticated ? 'Your home' : 'Sign in'}</Link>
     </div>
@@ -23,6 +25,7 @@ function CommunityHeader() {
 }
 export default function Communities() {
   useDocumentMeta(COMMUNITIES_PAGE.title, COMMUNITIES_PAGE.description, '/communities');
+  const { isAuthenticated } = useAuth();
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const query = useCommunities(appliedSearch);
@@ -35,6 +38,20 @@ export default function Communities() {
       {INTRO.paragraphs.slice(1).map((paragraph) => (
         <p key={plainParagraph(paragraph)} className="mt-4 max-w-2xl text-lg text-muted-foreground"><InlineText value={paragraph} /></p>
       ))}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Link
+          href={isAuthenticated ? '/dashboard' : '/login'}
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+        >
+          {isAuthenticated ? 'Open your home' : 'Start or join a group'}
+        </Link>
+        <Link
+          href="/practices"
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          How group decisions work
+        </Link>
+      </div>
     </header>
     <form onSubmit={event => { event.preventDefault(); setAppliedSearch(search.trim()); }} className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1"><label htmlFor="community-search" className="mb-2 block font-semibold">Search communities</label><Input id="community-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="A name, interest or purpose" maxLength={160} className="min-h-11" /></div>

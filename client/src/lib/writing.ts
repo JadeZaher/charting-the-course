@@ -40,11 +40,50 @@ export const BLOG = {
   path: "/blog",
   title: "Blog — NEOS",
   description:
-    "Two notes from Escherbridge: ACT is not a vote, and the key stays in the browser. There is no blockchain and no token.",
+    "Field notes and practical stories on shared community decisions, findable agreements, and browser-owned sign-ins for housing co-ops, collectives, and land trusts.",
   heading: "Blog",
 } as const;
 
 export const ESSAYS: readonly Essay[] = [
+  {
+    slug: "running-a-coop-repair-test",
+    path: "/blog/running-a-coop-repair-test",
+    title: "Running a co-op repair test without a vote",
+    date: "14 November 2026",
+    published: "2026-11-14",
+    topics: ["NEOS", "co-ops", "ACT"],
+    summary:
+      "Most community decisions stall because everyone treats every maintenance swap or shared budget tweak like a lifetime constitutional amendment. Here is how Advice, Consent, and Test turns a three-hour meeting stalemate into a tryable 30-day step.",
+    sources: [
+      { label: "NEOS — Community Governance in Practice", href: "https://neos.primusneo.com" },
+      { label: "Practices: ACT is not a vote", href: "https://neos.primusneo.com/practices/act-is-not-a-vote" },
+      {
+        label: "Practices: Agreements and decision records",
+        href: "https://neos.primusneo.com/practices/agreements-decision-records",
+      },
+      { label: "About NEOS", href: "https://neos.primusneo.com/about" },
+    ],
+    paragraphs: [
+      "Picture a Wednesday evening meeting in a fourteen-unit housing co-op. The shared laundry room dryer vent is rattling, the courtyard floodlight blinds the ground-floor bedroom, and someone wants to shift a hundred dollars from the tool library to fix both before winter. Ninety minutes later, nobody has picked up a screwdriver. Half the room is arguing about fairness, two neighbors went quiet forty minutes ago, and the agenda proposes calling a show-of-hands vote that will leave five people quietly resenting the seven who carried the room.",
+      [
+        "A quick majority vote works fine when you only need a headcount. For a living community that shares walls, kitchens, or land next week, however, a 7-5 tally creates a quiet cost: the five people on the losing side were never asked what breaks for them, and nobody checks a month later whether the fix worked. That is the pattern NEOS replaces with ",
+        { text: "Advice, Consent, and Test (ACT)", href: "/practices/act-is-not-a-vote" },
+        ".",
+      ],
+      "Advice comes before drafting a final rule, and it targets the people closest to the work — not whoever spoke loudest first. Instead of opening the floor to twenty hypotheticals, the steward proposing the fix asks two neighbors who live right next to the courtyard light and the treasurer who tracks the maintenance reserve: what am I missing? In ten minutes, two practical constraints surface: the floodlight only needs a simple downward hood rather than a full fixture swap, and forty dollars from next month's contingency covers the vent.",
+      "Consent then asks one grounded question: does anyone see a real risk we cannot afford to take? Notice the difference from consensus. Nobody has to love the shade of paint or feel thrilled about forty dollars leaving reserves. Someone only blocks if they name concrete harm — a blocked fire exit, an unbudgeted shortfall, or a conflict with a quiet-hours agreement already in force. If a neighbor objects that loud daytime drilling happens while night-shift residents sleep, the group narrows work hours to mid-afternoon rather than shelving the repair.",
+      [
+        "Test is what lowers the temperature in every co-op room. When people treat a Tuesday repair choice as permanent law, everyone defends every edge case. When you write down a bounded thirty-day trial in your group's ",
+        { text: "shared agreement record", href: "/practices/agreements-decision-records" },
+        " with an automatic check-in date, hesitant members can safely say yes to trying it. If the courtyard hood still spills glare after two weeks, you adjust it using notes everyone can read, instead of fighting over hazy memories of what somebody promised at ten o'clock at night.",
+      ],
+      [
+        "You can run ACT with index cards on a kitchen table, and many collectives do. When your group grows past one hallway or welcomes new residents who were not in the room last fall, ",
+        { text: "explore communities on NEOS", href: "/communities" },
+        " to see how shared spaces keep proposals, objections, and review dates out of buried chat threads — so stewardship passes smoothly to the next neighbor who steps up.",
+      ],
+    ],
+  },
   {
     slug: "act-is-not-a-vote",
     path: "/blog/act-is-not-a-vote",

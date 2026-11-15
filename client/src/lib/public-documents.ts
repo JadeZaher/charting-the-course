@@ -39,51 +39,51 @@ export const ECONOMIC_DETAIL =
   "Economic coordination is a recorded practice in the skill stack. This workspace does not move money, issue a token, sell a share, or run a funding pool.";
 
 export const INTRO = {
-  title: "NEOS — Governance in Practice",
-  description: "A visual workspace for learning, discovery, collaboration, and participatory governance.",
-  heading: "Find a community.",
+  title: "NEOS — Community Decisions Without Endless Meetings",
+  description:
+    "A calm shared workspace for housing co-ops, creative collectives, land trusts, and local organizers to agree on rules, track commitments, and move work forward.",
+  heading: "Find your community.",
   paragraphs: [
-    "NEOS is a workspace for communities to make shared decisions, manage agreements, and coordinate projects and resources.",
-    "A visual workspace for learning, discovery, collaboration, and participatory governance.",
-    "Discover people and projects you can contribute to. Explore a community before deciding to join.",
+    "Whether you steward a housing co-op, run a shared studio, or organize a neighborhood land trust, NEOS gives your group one steady place to weigh in, record agreements, and keep promises visible.",
+    "See who is working on what, read past agreements before joining, and take part without drowning in group chats or marathon meetings.",
     ACT_SENTENCE,
-    "There is no blockchain and no token. A browser sign-in can use a key generated on the device; the private key stays in that browser.",
+    "You own how you sign in: use a standard username and password, or generate a device key that stays right in your own browser — there is no blockchain and no token.",
     [
-      "NEOS is part of ",
-      { text: "PrimusNeo, the lab whose stack this product belongs to", href: PRIMUS_NEO_URL },
-      ". It is offered here as its own product.",
+      "NEOS is part of the ",
+      { text: "PrimusNeo", href: PRIMUS_NEO_URL },
+      " family of open tools, offered here for everyday community groups.",
     ],
   ] as readonly Paragraph[],
 };
 
 export const ABOUT = {
-  title: "About NEOS — Governance in Practice",
+  title: "About NEOS — Community Governance in Practice",
   description:
-    "NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources.",
+    "A shared home for housing co-ops, land trusts, and creative collectives to agree on rules, steward projects, and keep decisions clear.",
   kicker: "About NEOS",
   heading: "The New Earth Operating System.",
   lead: [
-    "NEOS is a platform for communities to make shared decisions, manage agreements, and coordinate projects and resources. On this site, you can explore communities, join one that fits your interests, and take part in its work. It is part of the ",
+    "Most community groups don't fall apart because people stop caring — they burn out because every routine choice turns into a two-hour meeting, a buried chat thread, or an unstated rule nobody remembers approving. NEOS gives co-ops, collectives, and neighborhood projects a shared workspace to turn good intentions into visible agreements and clear next steps. It is part of the ",
     { text: "PrimusNeo", href: PRIMUS_NEO_URL },
-    " stack, and it is offered here as its own product.",
+    " open toolset, offered here as its own community platform.",
   ] as Paragraph,
   aside:
-    "Communities here are also called ecosystems. Explore their purpose before joining, then complete any agreements and onboarding quizzes they require. Each community sets its own participation paths.",
+    "Communities here are also called ecosystems. Read a group's purpose and live agreements before deciding to join, then walk through any welcome agreements or orientation steps they use.",
 };
 
 export const ABOUT_IS = [
-  "A skill stack with 54 skills across 10 layers, as the public About and the operator health check currently report",
-  "Open-source software you can fork, adapt, and run yourself",
-  "A workspace for consent-based decisions, using ACT",
-  "Assistants may guide; they do not decide",
+  "A practical toolkit of 54 governance habits across 10 layers (as the public system status currently reports)",
+  "Open-source software your community or network can fork, adapt, and host yourself",
+  "A calm place for consent-based decisions using Advice, Consent, and Test (ACT)",
+  "Built with optional helpers that draft or summarize — people always make the final call",
 ] as const;
 
 export const ABOUT_IS_NOT = [
-  "A blockchain, token, or crypto project",
-  "A voting platform — consent is not majority rule",
-  "A corporate hierarchy tool rebranded as flat",
-  "A platform where AI makes decisions for humans",
-  "A finished government in a box.",
+  "A blockchain, crypto project, coin, or token",
+  "A popularity contest or winner-take-all voting platform",
+  "Top-down corporate HR software dressed up in cooperative language",
+  "An AI system that approves policies or speaks for members",
+  "A one-size-fits-all government in a box",
 ] as const;
 
 export interface AboutLayer {
@@ -210,11 +210,11 @@ export const ABOUT_OMNI = {
 export const GOVERNANCE_LEAD = {
   title: "How NEOS governs",
   description:
-    "NEOS is a governance operating system for agreements, decision records, and coordination. ACT means Advice, Consent, and Test.",
+    "How housing co-ops, studios, and community groups turn agreements, decision records, and clear roles into everyday practice with Advice, Consent, and Test.",
   kicker: "54 skills · 10 layers · ACT protocol",
   heading: "How NEOS governs.",
   paragraphs: [
-    "NEOS is not a voting app. It is a governance operating system: each layer is a concrete need, and each skill is a reusable process for that need. The features in the app are the manual surface of that stack.",
+    "Healthy groups run on clarity, not endless calls. Instead of reducing messy real-world tradeoffs to a quick yes-or-no vote, NEOS breaks shared stewardship into practical layers — from welcoming new members and resolving tension to writing agreements that someone joining six months later can actually find and understand.",
     ACT_SENTENCE,
     ECONOMIC_DETAIL,
     [
@@ -486,7 +486,8 @@ function legalHtml(page: { heading: string; updated: string; intro?: readonly st
 
 export const COMMUNITIES_PAGE = {
   title: "Communities — NEOS",
-  description: "Discover people and projects you can contribute to. Explore a community before deciding to join.",
+  description:
+    "Browse housing co-ops, shared studios, land trusts, and local collectives organizing in NEOS. Read how a group works before joining.",
 } as const;
 
 export interface PublicPage {
@@ -516,12 +517,14 @@ function essayHtml(essay: Essay): string {
     { href: "/practices", text: PRACTICES_INDEX.heading },
     { href: PRIMUS_NEO_URL, text: "PrimusNeo, the lab whose stack this product belongs to" },
   ];
+  const ctaHtml = `<p><a href="/communities">Explore communities</a> · <a href="/login">Sign in or create account</a></p>`;
   return [
     `<h1>${escapeHtml(essay.title)}</h1>`,
     `<p>Escherbridge</p>`,
     `<p>${escapeHtml(essay.date)}</p>`,
     `<ul>${essay.topics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}</ul>`,
     paragraphsHtml(essay.paragraphs),
+    ctaHtml,
     `<h2>Sources</h2><ul>${sources}</ul>`,
     `<h2>Related</h2>${listHtml(related)}`,
     `<p><a href="/feed.xml">RSS</a></p>`,
@@ -541,9 +544,10 @@ function blogIndexHtml(): string {
     `<h1>${escapeHtml(BLOG.heading)}</h1>`,
     `<p>Escherbridge</p>`,
     items,
+    `<p><a href="/communities">Explore communities</a> · <a href="/login">Sign in or create account</a></p>`,
     `<p><a href="/feed.xml">RSS</a></p>`,
     `<p><a href="/practices">${escapeHtml(PRACTICES_INDEX.heading)}</a></p>`,
-    `<p><a href="/news">News</a>. Nothing has been announced there yet.</p>`,
+    `<p><a href="/news">News</a> — dated milestones when something changes.</p>`,
     navHtml(),
   ].join("");
 }
@@ -592,6 +596,7 @@ function practicesIndexHtml(): string {
     `<p>${escapeHtml(PRACTICES_INDEX.eyebrow)}</p>`,
     `<h1>${escapeHtml(PRACTICES_INDEX.heading)}</h1>`,
     practiceBlocksHtml(PRACTICES_INDEX.blocks),
+    `<p><a href="/communities">Explore communities</a> · <a href="/login">Sign in or create account</a></p>`,
     `<p><a href="/feed.xml">RSS</a></p>`,
     navHtml(),
   ].join("");
@@ -604,6 +609,7 @@ function practiceHtml(practice: Practice): string {
     `<p>Escherbridge</p>`,
     `<p>${escapeHtml(practice.dateLabel)}</p>`,
     practiceBlocksHtml(practice.blocks, practice.sources),
+    `<p><a href="/communities">Explore communities</a> · <a href="/login">Sign in or create account</a></p>`,
     navHtml(),
   ].join("");
 }

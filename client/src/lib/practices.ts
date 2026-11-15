@@ -85,50 +85,51 @@ export const PRACTICES_INDEX = {
   path: "/practices",
   title: "Practices | NEOS",
   description:
-    "Practices the workspace already names, plus field notes on consent, circles, a well-founded objection, WebAuthn, passkeys, and CTAP. No token and no share-vote.",
-  eyebrow: "Eleven practices · no token, no share-vote",
-  heading: "What the workspace already names.",
+    "Plain-language guides to community practices in NEOS: Advice, Consent, and Test (ACT), findable agreements, clear circles, and browser-owned sign-ins.",
+  eyebrow: "Practices · Shared Stewardship",
+  heading: "How healthy communities share power without endless meetings.",
   published: "2026-11-10",
   blocks: [
     {
       kind: "p",
-      body: "These pages are about practices the workspace already names: ACT (Advice, Consent, Test), agreements and decision records a later member can find, and keys that stay in the browser. The figures and standards are other people’s, with the links left on. NEOS is not a voting platform, not a certified sociocracy product, and not a wallet. There is no blockchain and no token. Pages in this section must be in the crawlable HTML, not only the app shell.",
+      body: "Running a housing co-op, neighborhood land trust, or creative studio means making dozens of small choices together every month. These guides unpack the everyday habits NEOS is built around: using Advice, Consent, and Test instead of exhausting straw polls, keeping community agreements where future members can actually find them, and signing in with keys that stay under your own roof rather than locked inside someone else's account table.",
     },
     {
       kind: "p",
       body: [
+        "Every guide cites its public primary sources openly and explains where NEOS leaves off — and if you want to see how the whole toolset fits together inside the app, start with ",
         link("How NEOS governs", GOVERNANCE),
-        " stays a product page, linked from the ACT child, not forked.",
+        ".",
       ],
     },
-    { kind: "h2", text: "The first three" },
+    { kind: "h2", text: "Core community practices" },
     {
       kind: "ul",
       items: [
         {
           strongLead: [link("ACT is not a vote", ACT_PATH)],
           rest: [
-            " — ACT is already defined on the live site as Advice, Consent, and Test, not a popularity vote or a share of ownership. Sociocracy’s consent principle (not consensus; no paramount, well-founded objection) is related practice, not a certificate.",
+            " — why gathering quick advice, checking for real risks, and running a small trial keeps groups moving better than a 60–40 headcount.",
           ],
         },
         {
           strongLead: [link("Agreements and decision records", AGREEMENTS_PATH)],
           rest: [
-            " — official minute-keeping already names the habit: what was agreed, by whom, and when, kept so a later person can find it. On NEOS that file is the operating record, not title.",
+            " — why decisions buried in group chat become rumours, and what makes an agreement findable six months later.",
           ],
         },
         {
           strongLead: [link("Keys in the browser", KEYS_PATH)],
           rest: [
-            " — WebAuthn-style credentials keep the private key with the authenticator and the public key with the relying party. If you lose it, this workspace does not have a copy to restore. Password sign-in is still offered.",
+            " — signing in with a private key kept on your own device so nobody owns your community identity but you, alongside classic password login.",
           ],
         },
       ],
     },
-    { kind: "h2", text: "Field notes" },
+    { kind: "h2", text: "Field notes on consent, circles, and sign-in keys" },
     {
       kind: "p",
-      body: "Eight notes sit beside those three. Each one quotes a public method or a public standard and leaves the link on. NEOS is not a certified implementation of The Sociocracy Group’s method. These notes do not claim that NEOS implements WebAuthn or CTAP, and they do not claim that NEOS syncs a passkey. There is no blockchain and no token.",
+      body: "These eight companion notes explain the broader cooperative governance ideas and open browser standards referenced across community workshops — what Sociocracy calls consent and clear circles, and how modern passkey standards actually work behind the scenes.",
     },
     {
       kind: "ul",
@@ -136,72 +137,72 @@ export const PRACTICES_INDEX = {
         {
           strongLead: [link("Consent is not consensus", CONSENT_PATH)],
           rest: [
-            " — The Sociocracy Group states consent as the absence of a paramount, well-founded objection, not that everyone agrees.",
+            " — why consent asks whether anyone spots an unaffordable risk, rather than waiting for every person in the room to agree.",
           ],
         },
         {
           strongLead: [link("WebAuthn and passkeys", WEBAUTHN_PATH)],
           rest: [
-            " — W3C WebAuthn Level 2 is the browser API for scoped public-key credentials. FIDO describes a passkey as a FIDO credential, unlocked as the device is unlocked.",
+            " — how browser-native sign-in keys replace fragile shared passwords using open W3C and FIDO standards.",
           ],
         },
         {
           strongLead: [link("Circles, policy, and domains", CIRCLES_PATH)],
           rest: [
-            " — The Sociocracy Group describes a circle as a semi-autonomous team that decides policy and delegates execution into clear domains.",
+            " — how a working circle sets shared boundaries once, then trusts stewards with clear day-to-day autonomy.",
           ],
         },
         {
           strongLead: [link("What is a well-founded objection", OBJECTION_PATH)],
           rest: [
-            " — In that consent principle, a decision stands when no member has a paramount, well-founded objection: a risk the group cannot afford to take.",
+            " — telling the difference between a helpful preference and a real safety or sustainability risk the group cannot afford.",
           ],
         },
         {
           strongLead: [link("Synced and device-bound passkeys", SYNCED_PATH)],
           rest: [
-            " — FIDO says passkeys can be synced across a user’s devices, or bound to a particular device. A record should say which one it is.",
+            " — knowing whether your sign-in key follows you across personal devices or stays locked to one laptop or phone.",
           ],
         },
         {
           strongLead: [link("Roles that cannot be delegated", ROLES_PATH)],
           rest: [
-            " — In The Sociocracy Group’s method, the election of an important role cannot be delegated. NEOS is not a certified implementation of that method.",
+            " — why groups choose key representatives together rather than letting one person silently appoint them.",
           ],
         },
         {
           strongLead: [link("CTAP and FIDO2", CTAP_PATH)],
           rest: [
-            " — CTAP is the protocol between a client or platform and a roaming authenticator, and is part of FIDO2 alongside WebAuthn. Proposed Standard, 21 June 2022.",
+            " — how a laptop browser talks cleanly to a physical security key or phone when signing in.",
           ],
         },
         {
           strongLead: [link("WebAuthn Level 2 and Level 3", LEVELS_PATH)],
           rest: [
-            " — Level 2 remains a W3C Recommendation dated 8 April 2021. Level 3 is a Recommendation dated 25 August 2026.",
+            " — keeping track of the two published W3C browser sign-in editions as standards evolve.",
           ],
         },
       ],
     },
-    { kind: "h2", text: "What NEOS is doing here" },
+    { kind: "h2", text: "Where NEOS fits" },
     {
       kind: "p",
       body: [
-        "NEOS is a visual workspace for learning, discovery, collaboration, and participatory governance, part of the ",
+        "NEOS is a calm workspace for community agreements and participatory decisions, part of the ",
         link("PrimusNeo", PRIMUS),
-        " stack and offered as its own product. Related house notes are ",
+        " family of open tools (with no blockchain and no token). Read our plain-language essays ",
         link("ACT is not a vote", BLOG_ACT),
         " and ",
         link("The key stays in the browser", BLOG_KEY),
-        ". Read ",
+        ", browse ",
         link("About", "/about"),
         ", ",
         link("How NEOS governs", GOVERNANCE),
-        ", and the ",
+        ", and our ",
         link("Terms", "/terms"),
-        ". The 54-skills / 10-layers count and v0.1.0 appear only as already published, not as a maturity badge. Site notes, when there is something true to announce, live in ",
+        ", or follow dated updates on ",
         link("News", "/news"),
-        ".",
+        ". Software status notes such as 54 skills across 10 layers and v0.1.0 reflect what is currently published, not a finished-product claim.",
       ],
     },
     { kind: "p", body: AUTHOR },
@@ -223,78 +224,78 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "A number at the end of a meeting can look like a decision and still be only a count of who was in the room. ACT, as already defined on the live NEOS site, is Advice, Consent, and Test — advice from the people affected, consent as a check for a reasoned objection, and a test of the proposal in practice. It is not a popularity vote and not a share of ownership. Sociocracy’s published consent principle is useful related practice, and this page must say plainly that NEOS is not a certified implementation of that method.",
+        body: "Raise hands at the end of a long community meeting, count a 60–40 split, and half the group goes home wondering why nobody listened before the vote was called. In NEOS, Advice, Consent, and Test (ACT) replaces quick show-of-hands tallies with a human rhythm communities can actually live with afterward.",
       },
       {
         kind: "p",
-        body: "The efficiency of a tally is the trap, and slowness is not a virtue for its own sake. The point is a decision that can be found, tested, and handed on. There is no blockchain and no token on this workspace.",
+        body: `In our workspace, “${LIVE_ACT_SENTENCE}” Instead of forcing everyone to love an option or split into winners and losers, the goal is a shared decision a group can find later, test safely, and adjust together.`,
       },
       {
         kind: "p",
-        body: `The live NEOS site already defines ACT, and this page does not improve the sentence: “${LIVE_ACT_SENTENCE}” About already says NEOS is not “A voting platform — consent is not majority rule,” and “Assistants may guide; they do not decide.” Terms, updated 10 November 2026, repeat the ACT definition and add: this site “does not issue a token, take an investment, or sell a share.”`,
+        body: "Sociocracy’s public consent method shares strong kinship with this habit. The Sociocracy Group’s public “4 principles” page describes consent as “the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” They sum it up warmly: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
       },
       {
         kind: "p",
-        body: "The Sociocracy Group’s public “4 principles” page states the consent principle as “the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” It then says, in plain language: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.” The same page refers to “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.” NEOS is not TSG-certified, not SCM-certified, and not “a sociocracy product.” The page does not state a publication date; it was opened 2026-11-10.",
-      },
-      {
-        kind: "p",
-        body: "On the same TSG page, a circle “decides about policy and delegates the execution to the members,” and “defines its policy and decides by consent to use other decision-making methods.” Election of important roles, “particularly the representative,” is described as a decision that cannot be delegated and must be made by consent of the circle represented. If mentioned at all, that remains sociocracy’s practice, not a live NEOS rule. About and the governance-model pages describe roles created by consent and explicit domains; they do not claim a TSG double-link or a TSG election. No double-link implementation is invented here.",
+        body: "That same Sociocracy Group overview notes how a circle “decides about policy and delegates the execution to the members,” while electing key roles such as a circle representative stays with the circle by consent rather than being handed off. Those descriptions belong to sociocracy as a method; NEOS draws inspiration from consent-based stewardship, and NEOS is not TSG-certified or SCM-certified.",
       },
       {
         kind: "p",
         body: [
-          "The sibling essay ",
+          "As our essay ",
           link("ACT is not a vote", BLOG_ACT),
-          " already warns that a tally can be produced in a room that did not hear from the people who will have to live with the result, and that a group which treats silence as consent, or a 60 percent tally as a mandate, “has gone back to running a vote under a friendlier name.” That distinction is reused. The percentages in that sentence are not research findings.",
+          " warns, a tally can easily be collected in a room that never consulted the neighbors who live with the rule—and treating silence as a yes, or calling a narrow majority a mandate, turns a cooperative meeting right back into a popularity vote.",
         ],
       },
-      { kind: "h2", text: "The bill for a split system" },
+      { kind: "h2", text: "Where quick tallies break trust" },
       {
         kind: "ul",
         items: [
-          { strongLead: ["Calling ACT a vote, a majority, or a share of ownership."] },
-          { strongLead: ["Treating silence as consent, or a percentage tally as a mandate."] },
+          { strongLead: ["Confusing ACT with a popularity vote, majority win, or ownership share."] },
+          { strongLead: ["Assuming quiet members agree when nobody actually checked in."] },
           {
-            strongLead: ["Claiming NEOS is certified sociocracy, TSG-standard, or “the official method,”"],
+            strongLead: ["Overstating what a tool can certify:"],
             rest: [
-              " or adding OmniOne or Bali colour. Those deployments are not described on this page. If AZOA is mentioned, GDPR “consent” and ACT “consent” are different uses of the word.",
+              " NEOS supports consent-style workflows and does not claim TSG/SCM certification, nor does NEOS consent govern external legal privacy agreements.",
             ],
           },
         ],
       },
-      { kind: "h2", text: "A shared record, applied here" },
+      { kind: "h2", text: "How Advice, Consent, and Test work in practice" },
       {
         kind: "ul",
         items: [
-          { strongLead: ["Ask the people who will have to live with the rule before it is adopted (Advice)."] },
-          { strongLead: ["Look for a concrete, reasoned objection, not for enthusiasm (Consent)."] },
+          { strongLead: ["Ask the people who live with the rule first (Advice)."] },
+          { strongLead: ["Listen for concrete risks to safety, budget, or trust rather than personal preference (Consent)."] },
           {
-            strongLead: ["Try the proposal in a bounded way and write down whether it survived (Test)."],
+            strongLead: ["Run a bounded trial and write down how it went (Test)."],
             rest: [
-              " A proposal that cannot be tried is a statement of values. The product page for this protocol is ",
+              " A small real-world trial teaches far more than an hour of hypothetical debate. See ",
               link("How NEOS governs", GOVERNANCE),
-              "; this research child does not fork it.",
+              " for how the app organizes these steps.",
             ],
           },
         ],
       },
-      { kind: "h2", text: "What NEOS is, and is not, on this page" },
+      { kind: "h2", text: "A situation like this" },
+      {
+        kind: "p",
+        body: "For example, a co-op hears a resident's concern about shared laundry noise conflicting with quiet-hours rules, trims back the proposed repair window so everyone can sleep, and writes down a 30-day check-in rather than pushing through a tense 60–40 vote. It takes ten extra minutes now and saves weeks of friction later.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
       {
         kind: "p",
         body: [
-          "A visual workspace for agreements and decisions, part of the ",
+          "NEOS is a shared workspace for community agreements and decisions, part of ",
           link("PrimusNeo", PRIMUS),
-          " stack and offered as its own product. No blockchain, no token. The “54 skills across 10 layers” count and the v0.1.0 tag appear only as already stated on About, never as a maturity or security badge.",
+          " and offered as its own product. There is no blockchain and no token, and the workspace does not issue shares or investments. Our ",
+          link("About", "/about"),
+          " page and ",
+          link("Terms", "/terms"),
+          " (updated 10 November 2026) note that assistants may guide without deciding, and current v0.1.0 / 54-skills / 10-layers references reflect published workspace status rather than a finished-product guarantee.",
         ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
-      { kind: "h2", text: "A situation like this" },
-      {
-        kind: "p",
-        body: "This is a worked example, not a named community and not a customer. A circle hears a reasoned objection about harm to an existing agreement, amends the proposal, and records a small test — not a 60–40 win. The tally would have been faster. It would not have been the same decision.",
-      },
       { kind: "h2", text: "Also in this section" },
       {
         kind: "ul",
@@ -395,74 +396,61 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "A community workspace needs the same habits public minute-keeping and records-management already describe: a contemporaneous record of what was agreed, by whom, and when, kept so a later member can find it. A circle that cannot show what it already agreed will re-argue it, or worse, invent a tradition. On NEOS those records are the community’s operating record, and they are not, by themselves, equity, a payment right, or legal title.",
+        body: "Every collective eventually hits the same awkward moment: someone asks “Wait, didn't we agree to stop charging late tool fees last spring?” and everyone starts digging through old group chats while nobody agrees on what was actually decided. Keeping clear agreements means writing down what a group decided, who took part, and when you will revisit it — so newcomers six months later don't have to rely on folklore.",
       },
       {
         kind: "p",
-        body: "This page is not a secretary’s manual from a regulator, and “living documents” is not marketing mist. NEOS is not a UK company, not a public authority, and not a cooperative.",
+        body: "Records specialists put this simply. HMRC's records policy (published 19 May 2026, quoting ISO 15489-1:2016) defines records as evidence of “what happened, what was decided, and how to do things,” built to stay “accurate, up-to-date and accessible when it is needed.” UK private-office guidance (29 December 2023) adds a helpful habit for informal groups too: record the date, who took part, and what was decided even when choices happen online or on calls.",
       },
       {
         kind: "p",
-        body: "ISO 15489-1:2016, as quoted by HMRC (policy published 19 May 2026): records are “information created, received and maintained as evidence and information by an organisation or person, in pursuance of legal obligations or in the transaction of business.” HMRC creates records “to provide information about what happened, what was decided, and how to do things,” valuable when “accurate, up-to-date and accessible when it is needed.” That is the bar for an agreement record in a community workspace.",
+        body: "Formal company law illustrates why steady minutes matter even outside corporations. Under UK Companies Act rules, authenticated directors' minutes “are evidence… of the proceedings at the meeting” and must be preserved alongside member resolutions for at least ten years. In a cooperative association, the ICA Statement on the Cooperative Identity (1995, Principle 2) ties visible records directly to fairness: cooperatives are “controlled by their members, who actively participate in setting their policies and making decisions,” with stewards “accountable to the membership.”",
       },
       {
         kind: "p",
-        body: "UK private-office records guidance (published 29 December 2023): for meetings on substantive issues, “Record the date, time, location or format…, who took part, and decisions or undertakings,” whatever the medium, and “Record decisions arising from telephone or online meetings or via non-corporate communication channels.” This is a public model of the fields, not a claim that NEOS communities are public authorities.",
+        body: "On NEOS, agreements work as living documents with clear scopes, expiration dates, and review dates — turning consent into commitments anyone in the group can check later.",
       },
-      {
-        kind: "p",
-        body: "The Companies Act rules on directors' minutes, on minutes as evidence, and on records of resolutions and meetings are used here as a public minute-keeping contrast: directors’ minutes of all proceedings must be recorded and kept for at least ten years; authenticated minutes “are evidence… of the proceedings at the meeting,” and until the contrary is proved the meeting and its proceedings are deemed duly held; companies must also keep members’ resolutions and general-meeting minutes for at least ten years. The transferable point is that an official minute is a record of proceedings with evidential effect, not a share certificate. The ten-year figure is the UK companies figure, not a house retention policy.",
-      },
-      {
-        kind: "p",
-        body: "ICA Statement on the Cooperative Identity (adopted 1995), Principle 2: cooperatives are “controlled by their members, who actively participate in setting their policies and making decisions,” and “Men and women serving as elected representatives are accountable to the membership.” Use as a public association-governance primer: decisions and accountability are supposed to be visible to the membership. NEOS is not a cooperative and is not ICA-registered.",
-      },
-      {
-        kind: "p",
-        body: "The live About page already describes agreements as living documents “with clear domains, expiration dates, and review cycles” that “encode the community’s will into actionable, testable commitments.” Terms say: “Records you submit are the community’s operating record. They are not, by themselves, equity, a payment right, or legal title.” “Economic coordination is a recorded practice in the skill stack. This workspace does not move money, issue a token, sell a share, or run a funding pool.” ACT remains the decision protocol. Those sentences are not upgraded into case studies, and OmniOne or Bali is not added.",
-      },
-      { kind: "h2", text: "The bill for a split system" },
+      { kind: "h2", text: "Where scattered notes let groups down" },
       {
         kind: "ul",
         items: [
-          { strongLead: ["An undated chat decision that cannot be found by the next member."] },
-          { strongLead: ["Treating the record as equity, a payment right, or legal title."] },
-          {
-            strongLead: ["OmniOne or Bali deployment stories, or “a council is already live on this stack,”"],
-            rest: [" which the live site does not state."],
-          },
+          { strongLead: ["Undated chat decisions that newcomers cannot verify or teach."] },
+          { strongLead: ["Confusing an internal group record with ownership shares, payout rights, or legal title."] },
+          { strongLead: ["Forgetting to set a review date so temporary fixes harden into forgotten rules."] },
         ],
       },
-      { kind: "h2", text: "A shared record, applied here" },
+      { kind: "h2", text: "Practical habits for findable group agreements" },
       {
         kind: "ul",
         items: [
-          { strongLead: ["Write agreements with domain, date, and a review or expiration,"], rest: [" as About already describes."] },
+          { strongLead: ["Include domain, date, and review cycle"], rest: [" whenever an agreement goes into effect."] },
           {
-            strongLead: ["Record ACT outcomes — advice heard, objections, the test — in the same place as the agreement."],
+            strongLead: ["Keep the advice, any objections, and the trial outcome right next to the agreement."],
             rest: [" See ", link("ACT is not a vote", ACT_PATH), " and ", link("How NEOS governs", GOVERNANCE), "."],
           },
-          { strongLead: ["Keep the “not, by themselves, equity” sentence next to any economic or membership record."] },
+          { strongLead: ["Keep plain boundaries visible"], rest: [" on budgets and roles: records coordinate shared stewardship without issuing equity or payment claims."] },
         ],
       },
-      { kind: "h2", text: "What NEOS is, and is not, on this page" },
+      { kind: "h2", text: "A situation like this" },
+      {
+        kind: "p",
+        body: "For example, when a new steward rotates onto a land-trust committee six months later, they can pull up the exact role agreement, see what risk shaped its guardrails during consent, and check the upcoming review date — instead of calling an emergency meeting to re-debate history.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
       {
         kind: "p",
         body: [
-          "NEOS is part of the ",
+          "These public standards serve as useful reference points: NEOS itself is not a UK company, public authority, or ICA-registered cooperative, and the ten-year companies rule is UK statutory context rather than a universal workspace retention policy. In our ",
+          link("Terms", "/terms"),
+          ", records you submit form the community's operating record and are not equity, payment rights, or legal title; economic coordination is a recorded practice rather than a money rail, token, or funding pool. Part of ",
           link("PrimusNeo", PRIMUS),
-          " stack and is offered as its own product, with no token and no share-vote. The 54-skills / 10-layers count and v0.1.0 appear only as already published, not as a maturity badge. Related thinking in the stack, still simulated on that side: ",
+          " — see also ",
           link("ArdaNova, A record is not a right", "https://ardanova.com/notes/a-record-is-not-a-right"),
-          ". This page does not link unbuilt research routes on sister sites.",
+          ".",
         ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
-      { kind: "h2", text: "A situation like this" },
-      {
-        kind: "p",
-        body: "This is a worked example, not a named community. A new member, six months later, can find the agreement that created a role, the objection that amended it, and the date it comes up for review. The record can be taught and checked. A rumour cannot.",
-      },
       { kind: "h2", text: "Also in this section" },
       {
         kind: "ul",
@@ -576,84 +564,65 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "Most accounts are a loan of a row in someone else’s table. Public WebAuthn-style credentials invert the custody of the secret: they are created and stored by an authenticator, and the credential private key is expected never to be exposed — even to the owner — while the relying party stores the public key. That is the public model for “the key stays in the browser.” This page must not invent NEOS’s cryptography, call the key a wallet, or imply a token, a blockchain, or a recoverable server-side copy.",
-      },
-      {
-        kind: "p",
-        body: "“Your account” is often a generous pronoun. The sibling essay already has that line, and this page will not overwork it. Be precise about what the public standards say, and quieter than a security-vendor landing page about what NEOS does.",
-      },
-      {
-        kind: "p",
-        body: "There is no blockchain and no token. If you lose the browser key, this workspace does not have a copy to restore. Password sign-in is still offered in the Terms and has not been withdrawn.",
+        body: "Most accounts online are really just a temporary loan of a row in someone else's database. On NEOS, you can sign in with a standard username and password — or choose a browser key generated directly on your device so your private key stays with you rather than living on a central server.",
       },
       {
         kind: "p",
         body: [
-          "W3C Recommendation, ",
-          { em: "Web Authentication: An API for accessing Public Key Credentials — Level 2," },
-          " 8 April 2021: “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent.” “Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party.” In the terminology, “The credential private key is bound to a particular authenticator — its managing authenticator — and is expected to never be exposed to any other party, not even to the owner of the authenticator.” The registration walk-through in the same specification has the server store “the credential public key.” This page does not claim that NEOS implements WebAuthn Level 2, FIDO2, or a particular authenticator. It uses the public model of a device-held private key and a server-held public key.",
-        ],
-      },
-      {
-        kind: "p",
-        body: "The same specification: “Authenticators are responsible for ensuring that no operation is performed without user consent.” Platform authenticators are implemented on the device; roaming authenticators are off-device (USB, BLE, or NFC). If the page mentions device-held keys, that distinction is kept. Which kind NEOS uses is not invented; Terms say “a key generated in your browser. The private key stays in that browser.”",
-      },
-      {
-        kind: "p",
-        body: [
-          "CISA, ",
-          { em: "Implementing Phishing-Resistant MFA," },
-          " October 2022: “The only widely available phishing-resistant authentication is FIDO/WebAuthn authentication.” “The FIDO Alliance originally developed the WebAuthn protocol as part of FIDO2 standards and is now published by the World Wide Web Consortium (W3C).” Authenticators “can either be: separate physical tokens (called ‘roaming’ authenticators)… or embedded into laptops or mobile devices as ‘platform’ authenticators.” CISA calls phishing-resistant MFA the gold standard and notes that not all MFA is equally secure (OTP and push are described as weaker / phishing-vulnerable). That explains why a device-held key is a different habit from a reused secret. It is not a claim that NEOS is CISA-assessed, or that W3C endorses the product.",
+          "Open browser standards help explain why that approach matters. Under the W3C Recommendation ",
+          { em: "Web Authentication (WebAuthn) Level 2" },
+          " (8 April 2021), a private key credential stays inside your authenticator — either built into your laptop or phone (a platform authenticator) or carried on a USB, BLE, or NFC device (a roaming authenticator) — “expected to never be exposed to any other party, not even to the owner,” while the server holds only the public key and waits for your consent before signing anything.",
         ],
       },
       {
         kind: "p",
         body: [
-          "The live homepage and Terms already state the product claim this page does not embroider: “There is no blockchain and no token. A browser sign-in can use a key generated on the device; the private key stays in that browser.” Terms: “You may create a username and password, or sign in with a key generated in your browser. The private key stays in that browser. If you lose it, this workspace does not have a copy to restore.” The sibling essay ",
+          "CISA's October 2022 guidance, ",
+          { em: "Implementing Phishing-Resistant MFA" },
+          ", notes that phishing-resistant WebAuthn keys hold up much better against look-alike login traps than typed codes alone because keys are locked to the exact site you created them on.",
+        ],
+      },
+      {
+        kind: "p",
+        body: [
+          "What matters for community members is simple: this key is for signing into conversations and consent decisions — it is not a wallet, not a token, and not connected to any blockchain. And as our ",
           link("The key stays in the browser", BLOG_KEY),
-          " already says the key is not a wallet, and refuses to invent OmniOne details. Follow it.",
+          " essay explains, there is a practical tradeoff: if you lose your browser profile, NEOS keeps no secret server copy to restore, so password login remains available whenever your group prefers ordinary credentials.",
         ],
       },
-      { kind: "h2", text: "The bill for a split system" },
+      { kind: "h2", text: "What to keep clear with your group" },
       {
         kind: "ul",
         items: [
-          { strongLead: ["Calling the key a wallet, a token, or a share."] },
-          { strongLead: ["Inventing NEOS cryptography, a WebAuthn certification, or a recovery backdoor the Terms say does not exist."] },
-          { strongLead: ["OmniOne or Bali travelogues, or implying password sign-in has been removed."] },
+          { strongLead: ["Browser keys stay local:"], rest: [" the workspace keeps only your public key, never a spare copy of your private secret."] },
+          {
+            strongLead: ["No blockchain and no token:"],
+            rest: [" your key signs membership decisions without buying or transferring coins."],
+          },
+          {
+            strongLead: ["Password sign-in is still offered:"],
+            rest: [" every member can pick whichever sign-in option fits their comfort and backup habits."],
+          },
         ],
       },
-      { kind: "h2", text: "A shared record, applied here" },
+      { kind: "h2", text: "A situation like this" },
       {
-        kind: "ul",
-        items: [
-          { strongLead: ["Say, in the same breath, where the private key lives and that the workspace cannot restore it."] },
-          {
-            strongLead: ["Keep “no blockchain and no token” in the same section,"],
-            rest: [" because the usual alternative to a rented account is a rented coin."],
-          },
-          {
-            strongLead: ["Treat fail-closed refusal of a request as compatible with this model:"],
-            rest: [" the workspace can still say no; it should not become the owner of the identity it recognises."],
-          },
-        ],
+        kind: "p",
+        body: "For example, if a community coordinator replaces an old laptop and forgot to use a password backup alongside their browser key, NEOS cannot pull a spare private key out of a server vault. The key was never a wallet, and the server never held a copy — so the member signs back in using password credentials or starts fresh.",
       },
-      { kind: "h2", text: "What NEOS is, and is not, on this page" },
+      { kind: "h2", text: "Scope and boundaries" },
       {
         kind: "p",
         body: [
-          "Early software. v0.1.0 and the 54-skills / 10-layers count appear only as already published, not as a security badge. This page does not invent a location, a steward, or a live deployment for OmniOne. The key is for signing a decision, not for buying a representation of one — see ",
+          "Citing W3C WebAuthn Level 2 and CISA here explains the general model behind browser-held keys; this page does not claim that NEOS implements WebAuthn Level 2, FIDO2, or holds formal W3C or CISA assessment, and uses its own browser-key option alongside username and password login as stated in our ",
+          link("Terms", "/terms"),
+          ". Current v0.1.0 and 54-skills / 10-layers notices reflect published build status rather than security certification. Related reading: ",
           link("ACT is not a vote", ACT_PATH),
           ".",
         ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
-      { kind: "h2", text: "A situation like this" },
-      {
-        kind: "p",
-        body: "A member signs a decision from a browser key and later loses the browser profile. The workspace cannot mint a replacement key. The person uses whatever other sign-in the Terms still offer, or starts again. The key was never a wallet, and there was never a spare copy.",
-      },
       { kind: "h2", text: "Also in this section" },
       {
         kind: "ul",
@@ -780,45 +749,46 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "The Sociocracy Group states the consent principle as a way of deciding in which the arguments are central, because none of the members has a paramount and well-founded objection — and it says, in those words, that consent is not consensus: it does not mean that everyone agrees. Consent, in this public method, is the absence of a paramount, well-founded objection — not a room in which everyone agrees, and not a tally.",
+        body: "Nothing slows down a creative collective faster than believing everyone around the table has to be thrilled before anything can move forward. In Sociocracy, consent means something much lighter and more realistic: nobody spots a paramount, well-founded objection — a concrete risk the community cannot afford to take.",
       },
+      {
+        kind: "p",
+        body: "The Sociocracy Group puts it plainly on its “4 principles” page: “The consent principle is the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” And right beside it: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
+      },
+      { kind: "h2", text: "What makes consent easier for real groups" },
       {
         kind: "p",
         body: [
-          "This is a field definition of consent as a decision rule, not a NEOS-certification claim, and not a rewrite of the live essay ",
-          link("ACT is not a vote", BLOG_ACT),
-          ". NEOS is not a certified implementation of The Sociocracy Group's method. This page does not invent a double-link, a TSG election, a training badge, or an objection percentage. It does not say that TSG endorses NEOS. There is no blockchain and no token.",
-        ],
-      },
-      {
-        kind: "p",
-        body: "The Sociocracy Group, “4 principles.” “The consent principle is the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” The same page, on consensus: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
-      },
-      { kind: "h2", text: "TSG's words" },
-      {
-        kind: "p",
-        body: [
-          "Arguments are central; no paramount, well-founded objection; not consensus; “nobody is aware of a risk that we cannot afford to take.” The operational sibling — what makes an objection paramount and well-founded — is ",
+          "Notice why this opens doors for tired organizers: you can think option B is slightly prettier than option A and still give consent to option A because option A solves the problem safely. Where preference ends and risk begins is explored further in ",
           link("What is a well-founded objection", OBJECTION_PATH),
-          ". ",
+          ", while ",
           link("Circles, policy, and domains", CIRCLES_PATH),
-          " is the sibling for where policy is decided and execution is delegated.",
+          " shows how groups separate big shared policy from everyday stewardship.",
         ],
       },
       {
         kind: "p",
         body: [
-          "The house distinction is already in ",
+          "Inside NEOS, ",
           link("ACT is not a vote", BLOG_ACT),
-          ": ACT means Advice, Consent, and Test; it is not a popularity vote and not a share of ownership. The essay's warnings — silence is not consent, and a 60 percent tally is not a mandate — are the essay's warnings, not new research findings, and no percentages are added here as research. ",
+          " follows a kindred spirit: Advice, Consent, and Test — not a popularity vote and not a share of ownership — and as that essay warns, silence is not consent and a 60-40 headcount is not a mandate. Explore how those steps look inside the product on ",
           link("How NEOS governs", GOVERNANCE),
-          " is the product page for the house model.",
+          ".",
         ],
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a council and not a customer. A group is told it “decides by consent,” and the facilitator treats a round of nods as everyone agreeing. TSG's sentence is already the correction: consent is not consensus, and it does not mean that everyone agrees.",
+        body: "For example, a community garden facilitator asks everyone if they “agree on Tuesday's compost plan,” mistaking quiet shrugs for unanimous enthusiasm. Asking instead “Does anyone see a risk we cannot afford if we test Tuesday morning for two weeks?” invites real fixes without demanding universal applause.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "NEOS is not a certified implementation of The Sociocracy Group's method. This guide does not claim TSG endorsement, training badges, or double-link structure. NEOS is part of ",
+          link("PrimusNeo", PRIMUS),
+          " and lists v0.1.0 only as its current published operator version. There is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -894,51 +864,48 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "W3C WebAuthn Level 2 defines an API for creating and using strong, attested, scoped, public-key credentials in the browser. FIDO describes a passkey as a FIDO credential stored on a device, unlocked the way the device is unlocked, designed so there are no shared secrets. The credential is a scoped public key, held by an authenticator, not a shared secret the site stores as a typed password.",
+        body: "Every community coordinator has seen a shared spreadsheet of passwords turn into a quiet headache when laptops get replaced or volunteers rotate off a project. Open browser sign-in standards take a cleaner path: W3C WebAuthn lets your browser use a public-key credential stored safely on your device, and FIDO calls those everyday FIDO credentials “passkeys” — unlocked the exact same way you unlock your phone or laptop.",
       },
       {
         kind: "p",
         body: [
-          "This is a standards page, not a rewrite of ",
-          link("Keys in the browser", KEYS_PATH),
-          ", and not a password-manager review. The live practice page, and the essay ",
-          link("The key stays in the browser", BLOG_KEY),
-          ", are the house siblings. This page does not claim a NEOS certification, a particular authenticator, or a token. “Passkey” is not a house product name. There is no blockchain and no token.",
-        ],
-      },
-      {
-        kind: "p",
-        body: [
-          "W3C, ",
+          "In W3C's Recommendation ",
           { em: "Web Authentication: An API for accessing Public Key Credentials Level 2," },
-          " W3C Recommendation, 8 April 2021. “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application.”",
+          " (8 April 2021), the specification states: “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users.” Each credential is scoped specifically to one site and bound to an authenticator rather than stored as a typed shared secret.",
         ],
       },
       {
         kind: "p",
-        body: "FIDO Alliance, “Passkeys.” “A passkey is an authentication credential based on FIDO standards, that can be stored on your phone or computer, or in a hardware security key allowing a user to sign in to apps and websites with the same process that they use to unlock their device (biometrics, PIN, or pattern).” “Passkeys are FIDO cryptographic credentials that are tied to a user's account on a website or application.”",
+        body: "FIDO Alliance explains passkeys in everyday words: “A passkey is an authentication credential based on FIDO standards, that can be stored on your phone or computer, or in a hardware security key allowing a user to sign in to apps and websites with the same process that they use to unlock their device (biometrics, PIN, or pattern).” Unlike typed passwords, FIDO emphasizes that passkeys “are phishing-resistant, are always strong, and are designed so that there are no shared secrets.” (And in FIDO's style note, passkey is written as a lowercase common noun, just like password.)",
       },
-      {
-        kind: "p",
-        body: "The same FIDO page, on passwords and on the word itself: “A password is something that can be remembered and typed, and a passkey is a secret stored on one's devices, unlocked by the user the same way they unlock their device (biometrics, security key, PIN, pattern, etc.).” “Unlike passwords, passkeys are phishing-resistant, are always strong, and are designed so that there are no shared secrets.” “The word 'passkey' is a common noun; think of it the way you would refer to 'password'. It should be written in lowercase except when beginning a sentence.” “From a technical standpoint, passkeys are FIDO credentials for passwordless authentication.” “The same standards, commonly known as FIDO2 (WebAuthn and CTAP), are leveraged to deploy FIDO with passkeys for sign-in. The WebAuthn standard covers the browser API that manages passkeys.”",
-      },
-      { kind: "h2", text: "W3C and FIDO, in their own words" },
-      {
-        kind: "p",
-        body: "Level 2, 8 April 2021; strong, attested, scoped; created by and bound to authenticators. This page does not invent WebAuthn Level 3, or later, behavior; only Level 2 was opened. FIDO2 is WebAuthn plus CTAP; WebAuthn is the browser API. A passkey is a common noun.",
-      },
+      { kind: "h2", text: "How WebAuthn and passkeys fit together" },
       {
         kind: "p",
         body: [
-          "The two storage modes — synced across a user's devices, or bound to a particular device — are the subject of ",
+          "Together, WebAuthn (the browser API) and CTAP (how a browser talks to an external security device) form FIDO2. For the practical choices that matter when people change phones or share duties, see ",
           link("Synced and device-bound passkeys", SYNCED_PATH),
-          ". This page does not use third-party percentage claims that appear on the FIDO page (Yubico, Amazon, Google, SlashNext, IBM). Those primary sources were not opened, and the figures are not used here.",
+          ", ",
+          link("Keys in the browser", KEYS_PATH),
+          ", and ",
+          link("The key stays in the browser", BLOG_KEY),
+          ".",
         ],
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "A site is described as “using passkeys,” and the only credential it stores is still a typed password, with a public-key option mentioned in a backlog. W3C's and FIDO's sentences are already the reason that description does not yet fit.",
+        body: "For example, a community portal claims to “support passkeys” while actually still mailing out plain reset links and keeping typed passwords as its sole credential store. W3C's scoped public-key model helps a steward tell real device-held keys apart from ordinary password logins.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "This note explains the open W3C WebAuthn Level 2 (8 April 2021) and FIDO Alliance definitions — it is not a password-manager review and does not import third-party benchmark figures from FIDO partner spotlights. This page does not claim a NEOS certification, a particular authenticator, or a token. There is no blockchain and no token. For how NEOS currently handles browser keys and passwords, read ",
+          link("Keys in the browser", KEYS_PATH),
+          ". Part of ",
+          link("PrimusNeo", PRIMUS),
+          ".",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -1028,45 +995,42 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "The Sociocracy Group describes a circle as a semi-autonomous team with a common aim, which decides policy by the sociocratic method and delegates execution — “clear domains with freedom to decide” — and which may, by consent, choose to use other decision-making methods. Policy is decided in the circle; execution is delegated into a clear domain, with freedom to decide inside that domain.",
+        body: "When a small studio or housing co-op puts every repair bill, kitchen norm, and hardware purchase into one shared meeting agenda, nobody actually feels free to get everyday work done. In Sociocracy, a circle separates the two jobs cleanly: the circle decides shared policy by consent, then trusts members inside clear domains with genuine freedom to act day to day.",
       },
       {
         kind: "p",
-        body: "This is a field note about circles and domains, not a claim that NEOS has implemented TSG's full method, and not an invented org chart. NEOS is not a certified implementation of The Sociocracy Group's method. This page does not invent a double-link, a TSG election, or a training badge. The opened About and governance-model pages do not claim a TSG double-link or a TSG election, and none is invented here. There is no blockchain and no token.",
+        body: "The Sociocracy Group's “4 principles” puts it concisely: “The circle decides about policy and delegates the execution to the members. This means delegates clear domains with freedom to decide.” On what a circle itself is: “A circle is a semi autonomous team of individuals who determine policy according to the Sociocratic method for the realization of a common aim.” “Each circle defines its policy and decides by consent to use other decision-making methods.”",
       },
-      {
-        kind: "p",
-        body: "The Sociocracy Group, “4 principles.” “The circle decides about policy and delegates the execution to the members. This means delegates clear domains with freedom to decide.”",
-      },
-      {
-        kind: "p",
-        body: "The same page, on what a circle is: “A circle is a semi autonomous team of individuals who determine policy according to the Sociocratic method for the realization of a common aim.” “Each circle defines its policy and decides by consent to use other decision-making methods.”",
-      },
-      { kind: "h2", text: "TSG's words" },
+      { kind: "h2", text: "Why clear domains stop micromanagement" },
       {
         kind: "p",
         body: [
-          "Semi-autonomous team; common aim; policy by the sociocratic method; delegation of execution; consent to use another method. ",
+          "Instead of polling twenty neighbors every time a broken lock needs replacing, a group agrees up front on safety limits and budget bounds, then lets the steward inside that domain act without nagging. For how objections and consent work inside that circle, read ",
           link("Consent is not consensus", CONSENT_PATH),
-          " is the definition of that decision rule. ",
+          " and ",
           link("What is a well-founded objection", OBJECTION_PATH),
-          " is the test for an objection.",
-        ],
-      },
-      {
-        kind: "p",
-        body: [
-          "If live NEOS pages already describe roles created by consent and explicit domains, they may be pointed at as house wording, not as TSG certification. ",
+          "; see ",
           link("How NEOS governs", GOVERNANCE),
           " and ",
           link("ACT is not a vote", BLOG_ACT),
-          " are those house pages.",
+          " for how NEOS structures roles and explicit domains.",
         ],
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a council and not a customer. A group is called a circle, policy and execution are discussed in the same undifferentiated pile, and no one can say which domain a person is free to decide in. TSG's “clear domains with freedom to decide” sentence is already the missing piece.",
+        body: "For example, a volunteer bike kitchen calls itself a “circle,” yet members still spend forty minutes debating which chain lube to restock because nobody ever named a clear purchasing domain. Writing down the domain boundary turns an endless discussion back into trusted work.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "NEOS is not a certified implementation of The Sociocracy Group's method. References on About or ",
+          link("How NEOS governs", GOVERNANCE),
+          " describe roles created by consent with clear domains without claiming a TSG double-link, election badge, or org-chart certification. NEOS is part of ",
+          link("PrimusNeo", PRIMUS),
+          " and reports version 0.1.0 only as its published build status. There is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -1144,41 +1108,40 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "In The Sociocracy Group's statement of consent, the decision stands when none of the members has a paramount and well-founded objection — which they gloss as nobody being aware of a risk that the group cannot afford to take. An objection, in this method, has to be paramount and well-founded: a risk the group cannot afford, not a preference that was not met.",
+        body: "When a group shifts from majority voting to consent, the very first worry facilitators hear is “Wait — couldn't one stubborn person block everything forever?” That fear usually disappears the moment a group learns what an objection actually asks for: not whether you personally love option two better, but whether you spot a concrete risk the community cannot afford to take.",
       },
+      {
+        kind: "p",
+        body: "The Sociocracy Group's “4 principles” defines consent as “expressed by the fact that none of the members has a paramount and well-founded objection against that decision,” and immediately anchors what that feels like in practice: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
+      },
+      { kind: "h2", text: "Preference versus genuine risk" },
       {
         kind: "p",
         body: [
-          "This is a field note about the test for an objection, not a veto manifesto, and not a second copy of the ",
-          link("consent is not consensus", CONSENT_PATH),
-          " lede. That page is the definition sibling; this one is the operational sibling. NEOS is not a certified implementation of The Sociocracy Group's method. This page does not invent a formal objection template, a time limit, or a “paramount means X.” It does not call an objection a veto, or consent a unanimous vote. There is no blockchain and no token.",
-        ],
-      },
-      {
-        kind: "p",
-        body: "The Sociocracy Group, “4 principles.” Consent is “expressed by the fact that none of the members has a paramount and well-founded objection against that decision.” The same page: “Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.”",
-      },
-      { kind: "h2", text: "TSG's words, again, because they are the test" },
-      {
-        kind: "p",
-        body: "Paramount and well-founded; not “everyone agrees”; a risk we cannot afford to take. Those are the public words of the test. They are also the reason a preference that was not selected is not, on this method, already an objection.",
-      },
-      {
-        kind: "p",
-        body: [
-          "The live essay ",
-          link("ACT is not a vote", BLOG_ACT),
-          " already warns against treating silence as consent, or a tally as a mandate. That distinction is reused here; no percentages are added as research findings. ",
+          "Saying “I'd rather host potluck on Saturday than Sunday” is a helpful preference during Advice — not a blocker once Sunday avoids overlapping with clinic parking. Pointing out “Sunday blocks the loading bay for the food pantry truck” names a real operational risk that helps the group tighten the proposal. For the broader distinction between unanimous harmony and workable consent, see ",
+          link("Consent is not consensus", CONSENT_PATH),
+          ", ",
           link("Circles, policy, and domains", CIRCLES_PATH),
-          " is the sibling for where policy is decided. ",
+          ", and ",
+          link("ACT is not a vote", BLOG_ACT),
+          " (where NEOS reminds groups that quietness isn't consent and narrow headcounts aren't mandates), alongside ",
           link("How NEOS governs", GOVERNANCE),
-          " is the product page.",
+          ".",
         ],
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "This is a worked example, not a council and not a customer. A member is asked to “object or let it through,” and objects because a different option would have been nicer, without naming a risk the group cannot afford. TSG's gloss is already the reason that is not yet a well-founded objection, in this method's public words.",
+        body: "For example, during a neighborhood mural proposal, a member asks to stop the plan purely because they preferred warm ochre over slate blue, without pointing to safety, budget, or shared-wall agreements. Under consent, a facilitator thanks them for the aesthetic note and checks again for concrete risk — keeping the project moving without bulldozing real warnings.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "NEOS is not a certified implementation of The Sociocracy Group's method. This field note presents TSG's public wording as a helpful test without prescribing fixed objection timers or veto checklists. Part of ",
+          link("PrimusNeo", PRIMUS),
+          "; v0.1.0 is cited solely as published operator status. There is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -1251,43 +1214,38 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "FIDO is explicit that passkeys “can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).” Those are not the same arrangement, and a record of a credential should say which one it is. Say whether the passkey is synced or device-bound. Those are both FIDO arrangements; they are not interchangeable without saying so.",
+        body: "When someone says “just use a passkey,” it is easy to assume every key behaves the exact same way — until your laptop breaks on a Friday afternoon and you wonder whether your sign-in followed you to your phone or stayed locked to the dead machine. FIDO distinguishes two arrangements clearly: synced passkeys that follow your account across personal devices, and device-bound passkeys tied strictly to one phone, computer, or USB key.",
       },
       {
         kind: "p",
+        body: "FIDO Alliance puts both options side by side on its Passkeys overview: “Passkeys can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).” Either way, “the cryptographic keys are used from end-user devices (computers, phones, or security keys) for user authentication,” and even FIDO's convenience features — working “across all of a user's devices, and even other devices within physical proximity” — sit alongside intentionally non-syncing device-bound keys for groups that want credentials anchored to one piece of hardware.",
+      },
+      { kind: "h2", text: "Why clarity helps stewards and newcomers" },
+      {
+        kind: "p",
         body: [
-          "This is a field distinction about where a credential lives, not a rewrite of ",
+          "Saying simply “we used a passkey” hides the single detail someone needs during recovery or handoff: did that key sync across their devices, or was it bound to one browser or security stick? Meanwhile, W3C WebAuthn Level 2 (8 April 2021) defines the underlying browser API for origin-scoped public-key credentials — see ",
           link("WebAuthn and passkeys", WEBAUTHN_PATH),
-          ", and not a claim that NEOS syncs keys. “The key stays in the browser” remains house practice for what NEOS already describes on ",
+          " and ",
           link("Keys in the browser", KEYS_PATH),
-          "; this page does not quietly extend it into a sync product. There is no blockchain and no token. This page does not invent recovery or escrow procedures, and it does not use FIDO's third-party percentage claims.",
+          " for how those pieces fit.",
         ],
-      },
-      {
-        kind: "p",
-        body: "FIDO Alliance, “Passkeys.” “Passkeys can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).” “The cryptographic keys are used from end-user devices (computers, phones, or security keys) for user authentication.”",
-      },
-      {
-        kind: "p",
-        body: "The same page, on a capability that should not flatten the distinction: “Passkeys simplify account registration for apps and websites, are easy to use, work across all of a user's devices, and even other devices within physical proximity.” That line describes a capability FIDO states. It does not flatten into “every passkey always syncs,” because the same page also names device-bound passkeys. “Since all passkeys are FIDO credentials, a web service implementing support for FIDO will be able to support all passkey implementations.”",
-      },
-      {
-        kind: "p",
-        body: [
-          "W3C WebAuthn Level 2 (opened, 8 April 2021) remains the browser API for public-key credentials scoped to a relying party. This page points at the ",
-          link("WebAuthn guide", WEBAUTHN_PATH),
-          " for that API. It does not invent Level-2 language about sync that the opened abstract did not state.",
-        ],
-      },
-      { kind: "h2", text: "FIDO's two modes, in FIDO's words" },
-      {
-        kind: "p",
-        body: "Synced across a user's devices, or bound to a particular device. Keys used from computers, phones, or security keys. Proximity is a capability FIDO names; it does not erase the device-bound case. A record that only says “passkey” has not yet said which arrangement it is.",
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "A practice note says “the key stays on the device,” and the actual credential is a synced passkey that also lives on a second phone. FIDO already names both arrangements. The useful record would have said which one it was.",
+        body: "For example, a community onboarding checklist promises “the key never leaves this single computer,” while the member actually saved a synced passkey through their phone account. Writing down whether credentials are synced or device-bound avoids painful surprises later.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "This distinction is not a claim that NEOS syncs keys; on NEOS today, “The key stays in the browser” means what ",
+          link("Keys in the browser", KEYS_PATH),
+          " describes, and this note does not quietly extend it into a sync product. Password sign-in remains available. Part of ",
+          link("PrimusNeo", PRIMUS),
+          ", with no recovery escrow promises and no external vendor percentages. There is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -1375,31 +1333,31 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "TSG's election principle is that almost any decision can be delegated to operational roles or processes by a policy decision made with consent, but “the one sort of decision we cannot delegate is the election of an important role — particularly the representative.” NEOS is not a certified implementation of The Sociocracy Group's method. This page says so when TSG is cited. It does not invent a double-link, or a TSG election, that live NEOS pages do not claim. This is a field note about a decision that, in this method, is not handed off, not a NEOS certification page.",
+        body: "Healthy groups delegate plenty of daily tasks so nobody waits on a full meeting just to restock paint or fix a fence latch. When it comes to choosing who speaks for a circle or carries a core leadership role, however, handing that decision off silently behind closed doors breaks trust fast. In sociocratic practice, almost any day-to-day duty can be delegated — except choosing the people who represent the circle.",
       },
       {
         kind: "p",
-        body: "The Sociocracy Group, “4 principles,” under Election: “The Principle of Election by consent provides an important counter-balance. While we can delegate almost any decision to operational roles or processes, using a policy decision made with consent, the one sort of decision we cannot delegate is the election of an important role — particularly the representative. Representatives must be chosen by consent of the circle which they represent. This ensures that the organization is woven together by a web of consent, and that power flows in circles through the entire organization.”",
+        body: "The Sociocracy Group states this clearly under Election on its “4 principles” page: “The Principle of Election by consent provides an important counter-balance. While we can delegate almost any decision to operational roles or processes, using a policy decision made with consent, the one sort of decision we cannot delegate is the election of an important role — particularly the representative. Representatives must be chosen by consent of the circle which they represent. This ensures that the organization is woven together by a web of consent, and that power flows in circles through the entire organization.”",
       },
       {
         kind: "p",
-        body: "The same page, under Double link, also says a circle “has a link with the next higher circle in such a way that at least two persons, the functional leader and at least one elected representative from the circle, belong to the next higher circle and participate in the higher circle on an equivalent basis.” That paragraph is quoted only as TSG's description of its method. Live NEOS About and governance-model pages are not used here as evidence of a TSG double-link, and none is invented. A footnote on the page marks starred sentences as “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.”",
+        body: "The same TSG page describes Double link by saying a circle “has a link with the next higher circle in such a way that at least two persons, the functional leader and at least one elected representative from the circle, belong to the next higher circle and participate in the higher circle on an equivalent basis” (with starred patterns marked “TSG Standard: Patterns for application, Anchoring of SCM in legal terms.”).",
       },
-      { kind: "h2", text: "What this page does not claim" },
+      { kind: "h2", text: "How circles keep selection accountable" },
       {
         kind: "p",
         body: [
-          "TSG is not treated as a live NEOS rule or certification. No election process or role list is invented beyond what the opened page states and what live NEOS pages claim. ",
+          "Naming domains explicitly goes hand in hand with choosing stewards openly: see ",
           link("Circles, policy, and domains", CIRCLES_PATH),
-          " and ",
-          link("Consent is not consensus", CONSENT_PATH),
-          " are the method siblings. ",
-          link("Agreements and decision records", AGREEMENTS_PATH),
-          " is the already-briefed record sibling. ",
-          link("What is a well-founded objection", OBJECTION_PATH),
-          " is the objection companion. House siblings for already-public NEOS wording only, not as evidence of a TSG certification: ",
-          link("How NEOS governs", GOVERNANCE),
           ", ",
+          link("Consent is not consensus", CONSENT_PATH),
+          ", ",
+          link("What is a well-founded objection", OBJECTION_PATH),
+          ", and ",
+          link("Agreements and decision records", AGREEMENTS_PATH),
+          " for recording role terms clearly. For NEOS's own workspace conventions, read ",
+          link("How NEOS governs", GOVERNANCE),
+          " and ",
           link("ACT is not a vote", BLOG_ACT),
           ".",
         ],
@@ -1407,7 +1365,16 @@ export const PRACTICES: readonly Practice[] = [
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "A representative is “just appointed” for a circle, without consent of the circle represented. TSG's election paragraph already says that particular decision cannot be delegated.",
+        body: "For example, an executive committee quietly “appoints” a coordinator to represent a neighborhood working group without asking the members in that working group first. Electing that representative by consent keeps representation rooted in the people being spoken for.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "The Double link and election rules above are quoted only as TSG's description of its method. NEOS is not a certified implementation of The Sociocracy Group's method. Live NEOS About and governance-model pages do not claim a TSG double-link, election process, or role list beyond what they state. Part of ",
+          link("PrimusNeo", PRIMUS),
+          ". There is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -1475,38 +1442,44 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: "WebAuthn is the web API for public-key credentials. CTAP, in the opened FIDO document, is the application-layer protocol between a client or platform and a roaming authenticator, and is part of the FIDO2 project alongside WebAuthn. This is a short map of two related specifications, not a hardware-product page, not a protocol-attack discussion, and not a claim that NEOS implements CTAP or holds a FIDO certification.",
+        body: "When a community volunteer plugs in a USB security key or taps their phone to confirm a browser sign-in, two open standards quietly cooperate under the hood: WebAuthn handles the conversation with the website in your browser, while CTAP (Client to Authenticator Protocol) carries the handshake between your computer and the separate device in your hand.",
       },
       {
         kind: "p",
-        body: "Client to Authenticator Protocol (CTAP), FIDO Alliance Proposed Standard, 21 June 2022 (this version: fido-v2.1-ps-20210615, errata of 21 June 2022). Abstract: “This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform, as well as bindings of this application protocol to a variety of transport protocols using different physical media.” Status: “This document was published by the FIDO Alliance as a Proposed Standard Specification.” “Other documents may supersede this document.” The FIDO Alliance specifications index, also opened, still listed this same CTAP URL. This page does not claim that no later CTAP revision exists beyond what that index and this document showed, and it does not treat “Proposed Standard, 21 June 2022” as a later final edition.",
+        body: "In the FIDO Alliance Proposed Standard specification Client to Authenticator Protocol (CTAP), Proposed Standard, 21 June 2022 (version fido-v2.1-ps-20210615, errata of 21 June 2022), the abstract states: “This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform, as well as bindings of this application protocol to a variety of transport protocols using different physical media.”",
       },
       {
         kind: "p",
-        body: "The same document's introduction, which is not a formal requirement, and the section on how the protocol relates to other specifications. “This protocol is intended to be used in scenarios where a user interacts with a Relying Party (a website or native app) on some platform (e.g., a PC) which prompts the user to interact with a roaming authenticator (e.g., a smartphone).” “This specification is part of the FIDO2 project, which includes this specification and is related to the W3C [WebAuthn] specification.” It refers to two CTAP protocol versions: CTAP1/U2F, “defined by the U2F Raw Messages specification,” and CTAP2, “whose messages are encoded in the CTAP2 canonical CBOR encoding form.” “Authenticators implementing CTAP2 are referred to as CTAP2 authenticators, FIDO2 authenticators, or WebAuthn authenticators.” “Both CTAP1 and CTAP2 share the same underlying transports: USB Human Interface Device (USB HID), Near Field Communication (NFC), and Bluetooth Smart / Bluetooth Low Energy Technology (BLE).” “Occasionally, the term ‘CTAP’ may be used without clarifying whether it is referring to CTAP1 or CTAP2. In such cases, it should be understood to be referring to the entirety of this specification or portions of this specification that are not specific to either CTAP1 or CTAP2.” The same section notes that “for certifications, other requirements than those specified in this specification may apply” and points readers toward the certifying organization. That is not a claim about NEOS.",
+        body: "In plain terms, that lets a browser on one laptop prompt a roaming authenticator — like a smartphone or dedicated USB key — over shared transports: USB Human Interface Device (USB HID), Near Field Communication (NFC), and Bluetooth Smart / Bluetooth Low Energy Technology (BLE). CTAP covers both CTAP1/U2F (“defined by the U2F Raw Messages specification”) and CTAP2 (“whose messages are encoded in the CTAP2 canonical CBOR encoding form”). Alongside WebAuthn, it makes up the FIDO2 standards family.",
       },
-      {
-        kind: "p",
-        body: "This page names CTAP1/U2F and CTAP2 only as the document names them, and names the three shared transports. It does not write command lists, PIN flows, or interop recipes. It uses no third-party percentage claims from FIDO marketing pages.",
-      },
-      { kind: "h2", text: "Related pages" },
+      { kind: "h2", text: "Related practices and sign-in guides" },
       {
         kind: "p",
         body: [
+          "To see how browser sign-ins fit alongside password login and passkeys, read ",
           link("WebAuthn and passkeys", WEBAUTHN_PATH),
-          " and ",
+          ", ",
           link("Synced and device-bound passkeys", SYNCED_PATH),
-          " are the batch-1 siblings. ",
+          ", ",
           link("WebAuthn Level 2 and Level 3", LEVELS_PATH),
-          " is the status companion in this batch. ",
+          ", and ",
           link("Keys in the browser", KEYS_PATH),
-          " is the house practice sibling.",
+          ".",
         ],
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "A site is described as “FIDO2 certified” because it mentions WebAuthn, with no account of a client-to-authenticator protocol and no certification. The opened CTAP document already distinguishes the companion protocol, and already says that certifications may have other requirements.",
+        body: "For example, a platform advertises itself as “FIDO2 certified” simply because it calls the WebAuthn browser API, without mentioning how external keys talk over CTAP or holding formal certification. As CTAP itself notes, “for certifications, other requirements than those specified in this specification may apply.”",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "This overview maps the protocol relationship — it does not write command lists, PIN flows, or interop recipes, does not treat “Proposed Standard, 21 June 2022” as a later final edition (though later FIDO updates may supersede it), and is not a claim that NEOS implements CTAP or holds a FIDO certification. Part of ",
+          link("PrimusNeo", PRIMUS),
+          "; no third-party marketing figures are cited, and there is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },
@@ -1582,52 +1555,46 @@ export const PRACTICES: readonly Practice[] = [
     blocks: [
       {
         kind: "p",
-        body: [
-          "WebAuthn Level 3 is a W3C Recommendation dated 25 August 2026. Level 2, dated 8 April 2021, is still a Recommendation. The later document still describes scoped public-key credentials, created subject to user consent, and usable only by origins of that relying party. This is a short status note about two Recommendations, not a “what's new in the API” marketing page, and not a claim that NEOS implements either level. The batch-1 ",
-          link("WebAuthn and passkeys", WEBAUTHN_PATH),
-          " page cited Level 2; this child records the later level and does not replace that brief.",
-        ],
+        body: "Browser standards don't stand still — and when community coordinators check how passwordless sign-in works, it helps to know which published WebAuthn Recommendation a document is citing. W3C WebAuthn Level 3 is now a W3C Recommendation dated 25 August 2026, standing alongside Level 2 (8 April 2021, following Level 1 on 4 March 2019 and a Candidate Recommendation Snapshot on 26 May 2026).",
       },
       {
         kind: "p",
         body: [
-          { em: "Web Authentication: An API for accessing Public Key Credentials Level 3," },
-          " W3C Recommendation, 25 August 2026. This version: ",
-          link("https://www.w3.org/TR/2026/REC-webauthn-3-20260825/", "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/"),
-          ". Latest published version: ",
+          "Across both editions, the core promise stays simple: ",
+          { em: "Web Authentication: An API for accessing Public Key Credentials Level 3" },
+          " (",
+          link("REC-webauthn-3-20260825", "https://www.w3.org/TR/2026/REC-webauthn-3-20260825/"),
+          ", latest at ",
           link("https://www.w3.org/TR/webauthn-3/", "https://www.w3.org/TR/webauthn-3/"),
-          ". Previous versions listed in the document head include the Candidate Recommendation Snapshot of 26 May 2026, the Level 2 Recommendation of 8 April 2021, and the Level 1 Recommendation of 4 March 2019. Abstract: “This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users. Conceptually, one or more public key credentials, each scoped to a given WebAuthn Relying Party, are created by and bound to authenticators as requested by the web application. The user agent mediates access to authenticators and their public key credentials in order to preserve user privacy. Authenticators are responsible for ensuring that no operation is performed without user consent.”",
+          ") defines origin-scoped public-key credentials where “Authenticators are responsible for ensuring that no operation is performed without user consent.” Keys registered for one site stay isolated from other sites across registration and authentication.",
         ],
       },
+      { kind: "h2", text: "What changed in WebAuthn Level 3" },
       {
         kind: "p",
-        body: "The same Recommendation's introduction, which is not a formal requirement, says “A public key credential is created and stored by a WebAuthn Authenticator at the behest of a WebAuthn Relying Party, subject to user consent. Subsequently, the public key credential can only be accessed by origins belonging to that Relying Party. This scoping is enforced jointly by conforming User Agents and authenticators. Additionally, privacy across Relying Parties is maintained; Relying Parties are not able to detect any properties, or even the existence, of credentials scoped to other Relying Parties.” Registration and Authentication remain the two ceremonies. This page does not write an implementation walk-through of `create()` and `get()`.",
-      },
-      {
-        kind: "p",
-        body: "The same Recommendation, the implementation appendix Changes since Web Authentication Level 2 [webauthn-2-20210408]. This section is the official change list. Editorial changes include: “Introduced credential record concept to formalize what data Relying Parties need to store and how it relates between registration and authentication ceremonies.” Substantive “new features” named in the opened list include JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a new `hybrid` transport enumeration value, signal methods for credential changes, a `topOrigin` client-data attribute, user-agent hints, using Web Authentication across related origins, backup-state flags, a compound attestation statement format, a pseudo-random function extension, and a registration parameter `attestationFormats`. Those features are named as the specification names them. The list is not turned into a how-to, and no NEOS support matrix is invented. Other substantive headings in the same section cover updated timeout guidance and several deprecations and removals; they are not paraphrased from memory here.",
-      },
-      {
-        kind: "p",
-        body: "Level 2, already opened for batch 1, remains a Recommendation dated 8 April 2021. A later-than-Level-3 Editor's Draft URL is listed in the document; it is not this Recommendation and is not described here.",
-      },
-      { kind: "h2", text: "What this page does not claim" },
-      {
-        kind: "p",
-        body: [
-          "NEOS is not described as implementing Level 2 or Level 3. ",
-          link("CTAP and FIDO2", CTAP_PATH),
-          " is the companion-protocol sibling. ",
-          link("Synced and device-bound passkeys", SYNCED_PATH),
-          " and ",
-          link("Keys in the browser", KEYS_PATH),
-          " are the practice siblings. No tokens, no third-party percentages, and no exploit steps.",
-        ],
+        body: "In its Changes since Web Authentication Level 2 appendix, Level 3 formalizes a clearer credential record concept alongside substantive additions including JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a `hybrid` transport value, signal methods for credential changes, a `topOrigin` client-data attribute, user-agent hints, Web Authentication across related origins, backup-state flags, compound attestation statement format, a pseudo-random function extension, and `attestationFormats` — plus updated timeout guidance and deprecations.",
       },
       { kind: "h2", text: "A situation like this" },
       {
         kind: "p",
-        body: "A note says “we follow WebAuthn” without saying which Recommendation, and treats Level 2 as if Level 3 had not been published. Both dates are already official, and this page exists to keep them distinct.",
+        body: "For example, a policy summary says “we follow WebAuthn” without noting whether it targets the 8 April 2021 Level 2 Recommendation or the 25 August 2026 Level 3 Recommendation. Naming the edition avoids confusion whenever newer browser passkey features come up.",
+      },
+      { kind: "h2", text: "Scope and boundaries" },
+      {
+        kind: "p",
+        body: [
+          "This status guide records the published W3C editions and feature names without building a browser support matrix or `create()`/`get()` walkthrough — it is not a claim that NEOS implements either level, and NEOS is not described as implementing Level 2 or Level 3, so no NEOS support matrix is invented. Related reading: ",
+          link("CTAP and FIDO2", CTAP_PATH),
+          ", ",
+          link("Synced and device-bound passkeys", SYNCED_PATH),
+          ", ",
+          link("WebAuthn and passkeys", WEBAUTHN_PATH),
+          ", and ",
+          link("Keys in the browser", KEYS_PATH),
+          ". Part of ",
+          link("PrimusNeo", PRIMUS),
+          "; there is no blockchain and no token.",
+        ],
       },
       { kind: "h2", text: "Sources" },
       { kind: "sources" },

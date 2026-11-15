@@ -1,4 +1,5 @@
 import { Link, Redirect, useRoute } from "wouter";
+import { CommunityGateCard } from "@/components/CommunityGateCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
@@ -105,6 +106,11 @@ export function PracticesIndex() {
         <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">{PRACTICES_INDEX.eyebrow}</p>
         <h1 className="mt-4 font-sans text-4xl font-black tracking-[-0.04em] sm:text-6xl">{PRACTICES_INDEX.heading}</h1>
         <PracticeBlocks blocks={PRACTICES_INDEX.blocks} />
+        <CommunityGateCard
+          eyebrow="Try NEOS with your group"
+          heading="Ready to run these practices with real people?"
+          body="Browse public co-ops, land trusts, and collectives on NEOS, or sign in to set up your own shared workspace."
+        />
         <p className="mt-8"><a href="/feed.xml" className="text-link underline">RSS</a></p>
       </main>
     </div>
@@ -134,6 +140,11 @@ function PracticeDocument({ practice }: { practice: Practice }) {
         <h1 className="mt-4 font-sans text-4xl font-black tracking-[-0.04em] sm:text-5xl">{practice.h1}</h1>
         <p className="mt-4 font-mono text-xs text-muted-foreground">Escherbridge · {practice.dateLabel}</p>
         <PracticeBlocks blocks={practice.blocks} sources={practice.sources} />
+        <CommunityGateCard
+          eyebrow="Put this into practice"
+          heading="Start a community space or look inside an existing one"
+          body="See how housing co-ops, studios, and local teams organize decisions in NEOS, or sign in to create a workspace."
+        />
       </main>
     </div>
   );

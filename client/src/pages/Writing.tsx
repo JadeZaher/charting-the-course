@@ -1,4 +1,5 @@
 import { Link, Redirect, useRoute } from "wouter";
+import { CommunityGateCard } from "@/components/CommunityGateCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { InlineText } from "@/components/InlineText";
@@ -48,9 +49,14 @@ export function BlogIndex() {
             </article>
           ))}
         </div>
+        <CommunityGateCard
+          eyebrow="Try NEOS with your group"
+          heading="Want to put Advice, Consent, and Test into practice?"
+          body="Browse public communities already coordinating repairs, land trusts, and studio budgets, or sign in to start a workspace for your group."
+        />
         <p className="mt-10"><a href="/feed.xml" className="text-link underline">RSS</a></p>
         <p className="mt-4"><Link href="/practices" className="text-link underline">{PRACTICES_INDEX.heading}</Link></p>
-        <p className="mt-4"><Link href="/news" className="text-link underline">News</Link>. Nothing has been announced there yet.</p>
+        <p className="mt-4"><Link href="/news" className="text-link underline">News</Link> — dated milestones when something changes.</p>
       </main>
     </div>
   );
@@ -88,6 +94,11 @@ function EssayDocument({ essay }: { essay: Essay }) {
             ))}
           </ul>
         </section>
+        <CommunityGateCard
+          eyebrow="Try NEOS with your group"
+          heading="Bring this into a real community decision"
+          body="Look through active groups using NEOS, or sign in to start a shared home for proposals, agreements, and everyday stewardship."
+        />
         <section className="mt-10 border-t border-foreground pt-6">
           <h2 className="font-mono text-xs uppercase tracking-[0.14em]">Related</h2>
           <ul className="mt-3 space-y-2">

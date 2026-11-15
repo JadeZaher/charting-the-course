@@ -28,18 +28,18 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   const terms = renderShell(shell, byPath.get("/terms")!);
   const privacy = renderShell(shell, byPath.get("/privacy")!);
 
-  assert.match(home, /Find a community\./);
-  assert.match(home, /NEOS is a workspace for communities to make shared decisions/);
+  assert.match(home, /Find your community\./);
+  assert.match(home, /Whether you steward a housing co-op/);
   assert.equal(home.includes("New Earth Operating System"), false);
   assert.match(home, /Advice, Consent, and Test/);
-  assert.match(home, /There is no blockchain and no token/);
-  assert.match(home, /<a href="https:\/\/primusneo\.com">PrimusNeo, the lab whose stack this product belongs to<\/a>/);
+  assert.match(home, /there is no blockchain and no token/);
+  assert.match(home, /<a href="https:\/\/primusneo\.com">PrimusNeo<\/a> family of open tools/);
   assert.equal(home.includes("nofollow"), false);
-  assert.match(home, /<title>NEOS — Governance in Practice<\/title>/);
+  assert.match(home, /<title>NEOS — Community Decisions Without Endless Meetings<\/title>/);
   assert.match(home, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/"/);
   assert.match(home, /property="og:url" content="https:\/\/neos\.primusneo\.com\/"/);
-  assert.match(home, /property="og:title" content="NEOS — Governance in Practice"/);
-  assert.match(home, /name="twitter:title" content="NEOS — Governance in Practice"/);
+  assert.match(home, /property="og:title" content="NEOS — Community Decisions Without Endless Meetings"/);
+  assert.match(home, /name="twitter:title" content="NEOS — Community Decisions Without Endless Meetings"/);
   assert.match(home, /application\/ld\+json/);
   assert.match(home, /"@type":"WebSite"/);
   assert.match(home, /property="og:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
@@ -47,16 +47,16 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(home, /name="twitter:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
   assert.match(about, /property="og:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/);
   assert.match(about, /The New Earth Operating System\./);
-  assert.match(about, /It is part of the <a href="https:\/\/primusneo\.com">PrimusNeo<\/a> stack/);
+  assert.match(about, /It is part of the <a href="https:\/\/primusneo\.com">PrimusNeo<\/a> open toolset/);
   assert.match(about, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/about"/);
   assert.match(about, /property="og:url" content="https:\/\/neos\.primusneo\.com\/about"/);
-  assert.match(about, /name="twitter:title" content="About NEOS — Governance in Practice"/);
+  assert.match(about, /name="twitter:title" content="About NEOS — Community Governance in Practice"/);
   assert.match(about, /"@type":"WebSite"/);
   assert.equal(about.includes("at any scale"), false);
   assert.equal(about.includes("dignity, sovereignty, and collective intelligence"), false);
   assert.equal(about.includes("A complete governance stack"), false);
   assert.equal(about.includes("practical governance infrastructure"), false);
-  assert.match(about, /A finished government in a box\./);
+  assert.match(about, /A one-size-fits-all government in a box/);
   assert.match(about, /Treat those as part of the skill set, not as a claim that every community already runs them\./);
   assert.match(about, /Decisions, experiments, and conflict records are supposed to remain findable/);
   assert.equal(about.includes("governance wisdom compounds"), false);
@@ -76,7 +76,7 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.equal(TERMS_PAGE.sections.at(-1)?.paragraphs[0], IDAHO_VENUE);
 
   const governance = renderShell(shell, byPath.get("/governance-model")!);
-  assert.match(governance, /It is a governance operating system:/);
+  assert.match(governance, /NEOS breaks shared stewardship into practical layers/);
   assert.equal(governance.includes("complete governance"), false);
   assert.match(governance, /NEOS is part of <a href="https:\/\/primusneo\.com">PrimusNeo<\/a>/);
   assert.match(governance, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/governance-model"/);
@@ -95,6 +95,7 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(key, /<a href="https:\/\/neos-operating-system-production\.up\.railway\.app\/auth\/login">NEOS operator login chrome \(NEOS v0\.1\.0\)<\/a>/);
   const blog = renderShell(shell, byPath.get("/blog")!);
   assert.match(blog, /<h1>Blog<\/h1>/);
+  assert.match(blog, /<a href="\/blog\/running-a-coop-repair-test">Running a co-op repair test without a vote<\/a>/);
   assert.match(blog, /<a href="\/blog\/act-is-not-a-vote">ACT is not a vote<\/a>/);
   assert.match(blog, /<a href="\/blog\/the-key-stays-in-the-browser">The key stays in the browser<\/a>/);
   const news = renderShell(shell, byPath.get("/news")!);
@@ -102,8 +103,8 @@ test("public HTML carries the intro, About, terms, and privacy text", () => {
   assert.match(news, /Nothing has been announced here yet/);
   assert.match(news, /name="robots" content="noindex, follow"/);
   const practices = renderShell(shell, byPath.get("/practices")!);
-  assert.match(practices, /<h1>What the workspace already names\.<\/h1>/);
-  assert.match(practices, /The figures and standards are other people’s/);
+  assert.match(practices, /<h1>How healthy communities share power without endless meetings\.<\/h1>/);
+  assert.match(practices, /Every guide cites its public primary sources openly/);
   assert.match(practices, /<a href="\/practices\/act-is-not-a-vote">/);
   assert.match(practices, /<a href="\/practices\/agreements-decision-records">/);
   assert.match(practices, /<a href="\/practices\/keys-in-the-browser">/);
@@ -303,35 +304,35 @@ test("the five field guides are in the first HTML", () => {
     {
       path: "/practices/consent-is-not-consensus",
       h1: "Consent is not consensus",
-      standfirst: "The Sociocracy Group states the consent principle as a way of deciding",
+      standfirst: "Nothing slows down a creative collective faster",
       official: "The consent principle is the way of decision-making in which the arguments for taking a decision are central, which is expressed by the fact that none of the members has a paramount and well-founded objection against that decision.",
       tsg: true,
     },
     {
       path: "/practices/webauthn-and-passkeys",
       h1: "WebAuthn and passkeys",
-      standfirst: "W3C WebAuthn Level 2 defines an API",
+      standfirst: "Every community coordinator has seen a shared spreadsheet of passwords",
       official: "This specification defines an API enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications",
       tsg: false,
     },
     {
       path: "/practices/circles-and-domains",
       h1: "Circles, policy, and domains",
-      standfirst: "The Sociocracy Group describes a circle as a semi-autonomous team",
+      standfirst: "When a small studio or housing co-op puts every repair bill",
       official: "The circle decides about policy and delegates the execution to the members. This means delegates clear domains with freedom to decide.",
       tsg: true,
     },
     {
       path: "/practices/well-founded-objection",
       h1: "What is a well-founded objection",
-      standfirst: "In The Sociocracy Group's statement of consent",
+      standfirst: "When a group shifts from majority voting to consent",
       official: "Consent is not consensus — it does not mean that everyone agrees. It means that nobody is aware of a risk that we cannot afford to take.",
       tsg: true,
     },
     {
       path: "/practices/synced-vs-device-bound-passkeys",
       h1: "Synced and device-bound passkeys",
-      standfirst: "FIDO is explicit that passkeys",
+      standfirst: "When someone says “just use a passkey,”",
       official: "Passkeys can be securely synced across a user's devices, or bound to a particular device (device-bound passkeys).",
       tsg: false,
     },
@@ -398,7 +399,7 @@ test("the five field guides are in the first HTML", () => {
   const webauthn = renderShell(shell, byPath.get("/practices/webauthn-and-passkeys")!);
   const synced = renderShell(shell, byPath.get("/practices/synced-vs-device-bound-passkeys")!);
   assert.match(webauthn, /This page does not claim a NEOS certification, a particular authenticator, or a token\./);
-  assert.match(webauthn, /only Level 2 was opened/);
+  assert.match(webauthn, /W3C WebAuthn Level 2 \(8 April 2021\)/);
   assert.match(synced, /not a claim that NEOS syncs keys/);
   assert.match(synced, /does not quietly extend it into a sync product/);
   assert.equal(synced.includes("https://www.w3.org/TR/2021/REC-webauthn-2-20210408/"), false);
@@ -410,21 +411,21 @@ test("the three batch-2 field guides are in the first HTML", () => {
     {
       path: "/practices/roles-that-cannot-be-delegated",
       h1: "Roles that cannot be delegated: electing a representative",
-      standfirst: "TSG's election principle is that almost any decision can be delegated",
+      standfirst: "Healthy groups delegate plenty of daily tasks",
       official: "the one sort of decision we cannot delegate is the election of an important role — particularly the representative",
       crumb: "Roles that cannot be delegated",
     },
     {
       path: "/practices/fido2-ctap",
       h1: "CTAP and FIDO2: how a client talks to an authenticator",
-      standfirst: "CTAP, in the opened FIDO document, is the application-layer protocol",
+      standfirst: "When a community volunteer plugs in a USB security key",
       official: "This specification describes an application layer protocol for communication between a roaming authenticator and another client/platform",
       crumb: "CTAP and FIDO2",
     },
     {
       path: "/practices/webauthn-level-versions",
       h1: "WebAuthn Level 2 and Level 3",
-      standfirst: "WebAuthn Level 3 is a W3C Recommendation dated 25 August 2026",
+      standfirst: "Browser standards don't stand still",
       official: "Authenticators are responsible for ensuring that no operation is performed without user consent.",
       crumb: "WebAuthn Level 2 and Level 3",
     },
