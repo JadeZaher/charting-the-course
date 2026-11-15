@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { publicHead } from "@/lib/public-documents";
 
 const ORIGIN = "https://neos.primusneo.com";
 
@@ -12,6 +13,20 @@ function setMeta(attr: "name" | "property", key: string, content: string) {
   const previous = meta.getAttribute("content") ?? "";
   meta.setAttribute("content", content);
   return () => meta?.setAttribute("content", previous);
+}
+
+function setOrDrop(attr: "name" | "property", key: string, content: string | undefined) {
+  if (content) return setMeta(attr, key, content);
+  const existing = document.querySelector(`meta[${attr}="${key}"]`);
+  if (!existing) return () => {};
+  const previous = existing.getAttribute("content") ?? "";
+  existing.remove();
+  return () => {
+    const meta = document.createElement("meta");
+    meta.setAttribute(attr, key);
+    meta.setAttribute("content", previous);
+    document.head.appendChild(meta);
+  };
 }
 
 /** Keep the document title, description, and social tags aligned after a client-side navigation. */
@@ -30,7 +45,13 @@ export function useDocumentMeta(title: string, description: string, path?: strin
     const previousCanonical = canonical?.getAttribute("href") ?? "";
     if (path) {
       const url = path === "/" ? `${ORIGIN}/` : `${ORIGIN}${path}`;
+      const head = publicHead(path);
       restore.push(setMeta("property", "og:url", url));
+      restore.push(setMeta("name", "robots", head.robots));
+      restore.push(setMeta("property", "og:type", head.ogType));
+      const published = head.ogType === "article" ? head.published : undefined;
+      restore.push(setOrDrop("property", "article:published_time", published));
+      restore.push(setOrDrop("property", "article:modified_time", published ? head.modified ?? published : undefined));
       canonical?.setAttribute("href", url);
     }
     return () => {

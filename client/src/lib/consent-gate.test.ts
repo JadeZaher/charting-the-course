@@ -34,6 +34,7 @@ test('a newcomer waiting on consent is kept on the gate but can read what they a
     ['/about', null],
     ['/terms', null],
     ['/privacy', null],
+    ['/contact', null],
     ['/writing', null],
     ['/writing/act-is-not-a-vote', null],
     ['/blog', null],

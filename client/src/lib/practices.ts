@@ -1572,7 +1572,7 @@ export const PRACTICES: readonly Practice[] = [
       { kind: "h2", text: "What changed in WebAuthn Level 3" },
       {
         kind: "p",
-        body: "In its Changes since Web Authentication Level 2 appendix, Level 3 formalizes a clearer credential record concept alongside substantive additions including JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a `hybrid` transport value, signal methods for credential changes, a `topOrigin` client-data attribute, user-agent hints, Web Authentication across related origins, backup-state flags, compound attestation statement format, a pseudo-random function extension, and `attestationFormats` — plus updated timeout guidance and deprecations.",
+        body: "In its Changes since Web Authentication Level 2 appendix, Level 3 formalizes a clearer credential record concept alongside substantive additions including JSON (de)serialization methods, create operations in cross-origin iframes, conditional mediation for create and for get, a “hybrid” transport value, signal methods for credential changes, a “topOrigin” client-data attribute, user-agent hints, Web Authentication across related origins, backup-state flags, compound attestation statement format, a pseudo-random function extension, and “attestationFormats” — plus updated timeout guidance and deprecations.",
       },
       { kind: "h2", text: "A situation like this" },
       {
@@ -1583,7 +1583,7 @@ export const PRACTICES: readonly Practice[] = [
       {
         kind: "p",
         body: [
-          "This status guide records the published W3C editions and feature names without building a browser support matrix or `create()`/`get()` walkthrough — it is not a claim that NEOS implements either level, and NEOS is not described as implementing Level 2 or Level 3, so no NEOS support matrix is invented. Related reading: ",
+          "This status guide records the published W3C editions and feature names without building a browser support matrix or a “create()” and “get()” walkthrough — it is not a claim that NEOS implements either level, and NEOS is not described as implementing Level 2 or Level 3, so no NEOS support matrix is invented. Related reading: ",
           link("CTAP and FIDO2", CTAP_PATH),
           ", ",
           link("Synced and device-bound passkeys", SYNCED_PATH),

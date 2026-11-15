@@ -1,0 +1,33 @@
+# NEOS
+
+> A calm shared workspace for housing co-ops, creative collectives, land trusts, and local organizers to agree on rules, track commitments, and move work forward. Operated by Escherbridge, LLC, Boise, Idaho. Email: contact@escherbridge.com.
+
+## Public pages
+- [NEOS — Community Decisions Without Endless Meetings](https://neos.primusneo.com/): A calm shared workspace for housing co-ops, creative collectives, land trusts, and local organizers to agree on rules, track commitments, and move work forward.
+- [Communities — NEOS](https://neos.primusneo.com/communities): Browse housing co-ops, shared studios, land trusts, and local collectives organizing in NEOS. Read how a group works before joining.
+- [About NEOS — Community Governance in Practice](https://neos.primusneo.com/about): A shared home for housing co-ops, land trusts, and creative collectives to agree on rules, steward projects, and keep decisions clear.
+- [How NEOS governs](https://neos.primusneo.com/governance-model): How housing co-ops, studios, and community groups turn agreements, decision records, and clear roles into everyday practice with Advice, Consent, and Test.
+- [Terms of use — NEOS](https://neos.primusneo.com/terms): Terms of use for the NEOS workspace, operated by Escherbridge, LLC.
+- [Privacy — NEOS](https://neos.primusneo.com/privacy): What the NEOS workspace collects, limited to what this client actually sends or stores.
+- [Contact — NEOS](https://neos.primusneo.com/contact): NEOS is operated by Escherbridge, LLC in Boise, Idaho. Email contact@escherbridge.com. This page lists that public contact and does not send a message for you.
+- [Blog — NEOS](https://neos.primusneo.com/blog): Field notes and practical stories on shared community decisions, findable agreements, and browser-owned sign-ins for housing co-ops, collectives, and land trusts.
+- [Running a co-op repair test without a vote — NEOS](https://neos.primusneo.com/blog/running-a-coop-repair-test): Most community decisions stall because everyone treats every maintenance swap or shared budget tweak like a lifetime constitutional amendment. Here is how Advice, Consent, and Test turns a three-hour meeting stalemate into a tryable 30-day step.
+- [ACT is not a vote — NEOS](https://neos.primusneo.com/blog/act-is-not-a-vote): A vote counts hands. ACT, as NEOS uses it, does something slower and more useful: it takes advice from the people affected, treats consent as a check for a reasoned objection, and then asks whether the proposal survives contact with practice. It is not a popularity contest, and it is not a share of ownership.
+- [The key stays in the browser — NEOS](https://neos.primusneo.com/blog/the-key-stays-in-the-browser): An identity that lives in someone else's building can be revoked from someone else's building. NEOS can sign you in with a key generated on the device; the private key stays in that browser. There is no blockchain and no token, and that fact is the point, not a missing feature.
+- [Practices | NEOS](https://neos.primusneo.com/practices): Plain-language guides to community practices in NEOS: Advice, Consent, and Test (ACT), findable agreements, clear circles, and browser-owned sign-ins.
+- [ACT is not a vote — Practices | NEOS](https://neos.primusneo.com/practices/act-is-not-a-vote): ACT is Advice, Consent, and Test on the live NEOS site, not a popularity vote or a share of ownership. Sociocracy is related practice, not a certificate.
+- [Agreements and records — Practices | NEOS](https://neos.primusneo.com/practices/agreements-decision-records): Agreements and decision records should be contemporaneous and findable by a later member. On NEOS they are the operating record, not equity or legal title.
+- [Keys in the browser — Practices | NEOS](https://neos.primusneo.com/practices/keys-in-the-browser): WebAuthn-style credentials keep the private key on the authenticator and the public key with the relying party. No wallet, token, or server copy to restore.
+- [Consent is not consensus — Practices | NEOS](https://neos.primusneo.com/practices/consent-is-not-consensus): The Sociocracy Group states consent as the absence of a paramount, well-founded objection, not that everyone agrees. This guide covers that public definition.
+- [WebAuthn and passkeys — Practices | NEOS](https://neos.primusneo.com/practices/webauthn-and-passkeys): W3C WebAuthn is the browser API for scoped public-key credentials. FIDO describes a passkey as a FIDO credential, unlocked as the device is unlocked.
+- [Circles, policy, and domains — Practices | NEOS](https://neos.primusneo.com/practices/circles-and-domains): The Sociocracy Group describes a circle as a semi-autonomous team that decides policy and delegates execution into clear domains. This covers that method.
+- [What is a well-founded objection — Practices | NEOS](https://neos.primusneo.com/practices/well-founded-objection): In The Sociocracy Group’s consent principle, a decision stands when no member has a paramount, well-founded objection: a risk the group cannot afford to take.
+- [Synced and device-bound passkeys — Practices | NEOS](https://neos.primusneo.com/practices/synced-vs-device-bound-passkeys): FIDO says passkeys can be synced across a user’s devices, or bound to a particular device. Those are not the same, and a record should say which one it is.
+- [Roles that cannot be delegated — Practices | NEOS](https://neos.primusneo.com/practices/roles-that-cannot-be-delegated): In The Sociocracy Group’s method, the election of an important role cannot be delegated. NEOS is not a certified implementation of that method.
+- [CTAP and FIDO2 — Practices | NEOS](https://neos.primusneo.com/practices/fido2-ctap): CTAP is the protocol between a client or platform and a roaming authenticator, and is part of FIDO2 alongside WebAuthn. This is not a hardware tutorial.
+- [WebAuthn Level 2 and Level 3 — Practices | NEOS](https://neos.primusneo.com/practices/webauthn-level-versions): WebAuthn Level 2 remains a W3C Recommendation dated 8 April 2021. Level 3 is now a Recommendation too, dated 25 August 2026. This guide records that status.
+
+## Optional
+- [Sitemap](https://neos.primusneo.com/sitemap.xml): Every public indexable URL.
+- [Robots](https://neos.primusneo.com/robots.txt): Allows the public site. Disallows app, account, and API routes.
+- [Feed](https://neos.primusneo.com/feed.xml): Blog notes and practice guides.
