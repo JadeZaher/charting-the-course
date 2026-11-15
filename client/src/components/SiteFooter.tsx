@@ -13,6 +13,7 @@ export function SiteFooter({ auditLink = false }: { auditLink?: boolean }) {
           <Link href="/practices" className="inline-flex min-h-11 items-center underline">Practices</Link>
           <Link href="/terms" className="inline-flex min-h-11 items-center underline">Terms</Link>
           <Link href="/privacy" className="inline-flex min-h-11 items-center underline">Privacy</Link>
+          <Link href="/contact" className="inline-flex min-h-11 items-center underline">Contact</Link>
           {auditLink && <a className="inline-flex min-h-11 items-center underline" href="/node/audit">Public node support history</a>}
         </nav>
       </div>

@@ -7,14 +7,21 @@ import { LIVE_ACT_SENTENCE } from "./practices";
 import {
   ABOUT_OMNI,
   ACT_SENTENCE,
+  CONTACT_LINE,
+  CONTACT_PAGE,
   ESCHERBRIDGE_SITES,
   IDAHO_VENUE,
   OPERATOR,
   PRIVACY_PAGE,
   PUBLIC_PAGES,
+  ROBOTS_TXT,
   TERMS_PAGE,
+  communitiesShellMeta,
   feedXml,
+  llmsTxt,
   organizationJsonLd,
+  pathBlockedByRobots,
+  publicHead,
   renderShell,
   sitemapXml,
 } from "./public-documents";
@@ -503,4 +510,107 @@ test("the three batch-2 field guides are in the first HTML", () => {
     assert.equal(article.citation.some((item) => item.datePublished === "2026-11-10"), false, guide.path);
     assert.deepEqual(crumbs?.itemListElement?.map((item) => item.name), ["Home", "Practices", guide.crumb], guide.path);
   }
+});
+
+test("practice pages ship HTML, not markdown tokens", () => {
+  const practicePages = PUBLIC_PAGES.filter((page) => page.path === "/practices" || page.path.startsWith("/practices/"));
+  assert.ok(practicePages.length >= 12);
+  for (const page of practicePages) {
+    const html = renderShell(shell, page);
+    const crawlable = html.match(/<!--crawlable-->([\s\S]*?)<!--\/crawlable-->/)?.[1] ?? "";
+    assert.equal(crawlable.includes("`"), false, page.path);
+    assert.equal(crawlable.includes("**"), false, page.path);
+    assert.equal(crawlable.includes("&amp;amp;"), false, page.path);
+    assert.equal(/(^|>)\s*#\s+\S/.test(crawlable), false, page.path);
+    assert.equal(/(^|>)\s*[-*]\s+\S/.test(crawlable), false, page.path);
+  }
+  const levels = renderShell(shell, PUBLIC_PAGES.find((page) => page.path === "/practices/webauthn-level-versions")!);
+  assert.match(levels, /a “hybrid” transport value/);
+  assert.match(levels, /a “topOrigin” client-data attribute/);
+  assert.match(levels, /“attestationFormats”/);
+  assert.match(levels, /a “create\(\)” and “get\(\)” walkthrough/);
+});
+
+test("public routes have their own title, description, canonical, and social tags", () => {
+  const titles = new Set<string>();
+  const descriptions = new Set<string>();
+  for (const page of PUBLIC_PAGES) {
+    assert.equal(titles.has(page.title), false, page.title);
+    assert.equal(descriptions.has(page.description), false, page.description);
+    titles.add(page.title);
+    descriptions.add(page.description);
+    assert.ok(page.title.length > 0 && page.title.length <= 70, page.title);
+    assert.notEqual(page.title, "NEOS — Governance in Practice", page.path);
+    const html = renderShell(shell, page);
+    const title = page.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const description = page.description.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const canonical = page.canonical.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(html, new RegExp(`<title>${title}</title>`), page.path);
+    assert.match(html, new RegExp(`name="description" content="${description}"`), page.path);
+    assert.match(html, new RegExp(`rel="canonical" href="${canonical}"`), page.path);
+    assert.match(html, new RegExp(`property="og:url" content="${canonical}"`), page.path);
+    assert.match(html, new RegExp(`property="og:title" content="${title}"`), page.path);
+    assert.match(html, new RegExp(`property="og:description" content="${description}"`), page.path);
+    assert.match(html, new RegExp(`name="twitter:title" content="${title}"`), page.path);
+    assert.match(html, new RegExp(`name="twitter:description" content="${description}"`), page.path);
+    assert.match(html, /name="twitter:card" content="summary_large_image"/, page.path);
+    assert.match(html, /property="og:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/, page.path);
+    assert.match(html, /property="og:image:width" content="1200"/, page.path);
+    assert.match(html, /property="og:image:height" content="630"/, page.path);
+    assert.match(html, /name="twitter:image" content="https:\/\/neos\.primusneo\.com\/og\/neos-og-1200x630\.png"/, page.path);
+    assert.match(html, /property="og:type" content="(website|article)"/, page.path);
+    assert.match(html, new RegExp(`name="robots" content="${page.robots}"`), page.path);
+    assert.equal(page.canonical.endsWith("/") === (page.path === "/"), true, page.path);
+    const head = publicHead(page.path);
+    assert.equal(head.robots, page.robots, page.path);
+    assert.equal(head.ogType, page.ogType, page.path);
+  }
+  const home = communitiesShellMeta("/");
+  const communities = communitiesShellMeta("/communities");
+  assert.equal(home.path, "/");
+  assert.equal(home.title, "NEOS — Community Decisions Without Endless Meetings");
+  assert.notEqual(home.title, communities.title);
+  assert.equal(communities.path, "/communities");
+  assert.notEqual(home.canonical ?? home.path, communities.path);
+});
+
+test("contact is a public page and llms.txt lists only real public URLs", () => {
+  assert.equal(CONTACT_LINE, "Escherbridge, LLC, Boise, Idaho");
+  assert.ok(CONTACT_PAGE.description.length >= 150 && CONTACT_PAGE.description.length <= 160);
+  const contact = renderShell(shell, PUBLIC_PAGES.find((page) => page.path === "/contact")!);
+  assert.match(contact, /<h1>Contact<\/h1>/);
+  assert.match(contact, /Escherbridge, LLC, Boise, Idaho/);
+  assert.match(contact, /<a href="mailto:contact@escherbridge\.com">contact@escherbridge\.com<\/a>/);
+  assert.equal(contact.includes("<form"), false);
+  assert.equal(/\b\d{1,6}\s+\w+\s+(Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr|Boulevard|Blvd)\b/i.test(contact), false);
+  assert.match(contact, /rel="canonical" href="https:\/\/neos\.primusneo\.com\/contact"/);
+  assert.match(contact, /name="robots" content="index, follow"/);
+  assert.equal(pathBlockedByRobots("/contact"), false);
+
+  const xml = sitemapXml();
+  const map = llmsTxt();
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+  assert.equal(readFileSync(resolve(root, "public/robots.txt"), "utf8"), ROBOTS_TXT);
+  assert.equal(readFileSync(resolve(root, "public/sitemap.xml"), "utf8"), xml);
+  assert.equal(readFileSync(resolve(root, "public/llms.txt"), "utf8"), map);
+  for (const page of PUBLIC_PAGES.filter((item) => item.indexable)) {
+    assert.ok(xml.includes(page.canonical), page.path);
+    assert.ok(map.includes(page.canonical), page.path);
+    assert.equal(pathBlockedByRobots(page.path), false, page.path);
+  }
+  assert.equal(xml.includes("/news<"), false);
+  assert.equal(map.includes("/news)"), false);
+  for (const blocked of ["/api", "/api/v1/health", "/account", "/account/settings", "/login", "/dashboard", "/admin", "/me", "/profile", "/settings", "/governance", "/messaging", "/explore", "/map"]) {
+    assert.equal(pathBlockedByRobots(blocked), true, blocked);
+    assert.equal(xml.includes(`https://neos.primusneo.com${blocked}</loc>`), false, blocked);
+    assert.equal(map.includes(`](https://neos.primusneo.com${blocked})`), false, blocked);
+    assert.equal(map.includes(`](https://neos.primusneo.com${blocked}/`), false, blocked);
+  }
+  assert.equal(pathBlockedByRobots("/governance-model"), false);
+  assert.equal(pathBlockedByRobots("/node/audit"), false);
+  assert.match(ROBOTS_TXT, /Sitemap: https:\/\/neos\.primusneo\.com\/sitemap\.xml/);
+  assert.match(map, /# NEOS/);
+  assert.match(map, /contact@escherbridge\.com/);
+  assert.equal(map.includes("railway.app"), false);
+  assert.equal(map.includes("<form"), false);
 });

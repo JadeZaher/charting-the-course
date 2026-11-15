@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Link, useRoute } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommunities, useCommunity } from '@/hooks/use-engagement';
 import { useDocumentMeta } from '@/hooks/use-document-meta';
 import { communityEntryPath, engagementPath } from '@/lib/engagement';
 import { resolveMediaUrl } from '@/lib/media';
 import { InlineText } from '@/components/InlineText';
-import { COMMUNITIES_PAGE, INTRO, plainParagraph } from '@/lib/public-documents';
+import { INTRO, communitiesShellMeta, plainParagraph } from '@/lib/public-documents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { QueryFeedback } from '@/components/engagement/QueryFeedback';
@@ -24,7 +24,9 @@ function CommunityHeader() {
   </nav>;
 }
 export default function Communities() {
-  useDocumentMeta(COMMUNITIES_PAGE.title, COMMUNITIES_PAGE.description, '/communities');
+  const [location] = useLocation();
+  const meta = communitiesShellMeta(location);
+  useDocumentMeta(meta.title, meta.description, meta.path);
   const { isAuthenticated } = useAuth();
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');

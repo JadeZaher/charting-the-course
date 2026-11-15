@@ -37,6 +37,14 @@ test('production nginx proxies /api and the messaging socket to the NEOS API', (
   assert.equal(nginx.includes('proxy_cookie_domain'), false);
 });
 
+test('contact and llms.txt are files, not the signed-in shell', () => {
+  assert.match(nginx, /location = \/contact \{ try_files \/contact\/index\.html =404; \}/);
+  const llms = blockAfter(nginx, 'location = /llms.txt');
+  assert.match(llms, /default_type text\/plain;/);
+  assert.match(llms, /try_files \/llms\.txt =404;/);
+  assert.equal(llms.includes('index.html'), false);
+});
+
 test('the image defaults the upstream and lets an env var override it', () => {
   assert.match(dockerfile, /ENV BACKEND_URL=https:\/\/neos-operating-system-production\.up\.railway\.app\r?\n/);
   assert.match(dockerfile, /ENV BACKEND_HOST=neos-operating-system-production\.up\.railway\.app\r?\n/);

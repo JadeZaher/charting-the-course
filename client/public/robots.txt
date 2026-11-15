@@ -26,5 +26,16 @@ Disallow: /orientation
 Disallow: /ethos
 Disallow: /profile
 Disallow: /me
+Disallow: /api
+Disallow: /account
+Disallow: /login
+Disallow: /explore
+Disallow: /solutions
+Disallow: /map
+Disallow: /my-quiz-history
+Disallow: /comms
+Disallow: /chat
+Disallow: /governance$
+Disallow: /governance/
 
 Sitemap: https://neos.primusneo.com/sitemap.xml

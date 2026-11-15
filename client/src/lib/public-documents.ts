@@ -345,6 +345,19 @@ export const PRIVACY_PAGE = {
   ] as const satisfies readonly LegalSection[],
 } as const;
 
+/** City and operator only. Do not append a street, postal code, or post-office box. */
+export const CONTACT_LINE = `${OPERATOR.name}, ${OPERATOR.address}`;
+
+export const CONTACT_PAGE = {
+  path: "/contact",
+  title: "Contact — NEOS",
+  description:
+    "NEOS is operated by Escherbridge, LLC in Boise, Idaho. Email contact@escherbridge.com. This page lists that public contact and does not send a message for you.",
+  heading: "Contact",
+  email: OPERATOR.email,
+  body: "NEOS is operated by Escherbridge, LLC. This page lists that public contact. It does not send a message for you.",
+} as const;
+
 /** Sister sites, omitting NEOS. Descriptive anchors, follow links, each site's own domain. */
 export const ESCHERBRIDGE_SITES = [
   { href: PRIMUS_NEO_URL, label: "PrimusNeo, the technology innovation lab" },
@@ -401,6 +414,7 @@ const PUBLIC_NAV: readonly { href: string; label: string }[] = [
   { href: "/governance-model", label: "Governance model" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
+  { href: "/contact", label: "Contact" },
   { href: "/login", label: "Sign in" },
 ];
 
@@ -474,6 +488,16 @@ function aboutHtml(): string {
   ].join("");
 }
 
+function contactHtml(): string {
+  return [
+    `<h1>${escapeHtml(CONTACT_PAGE.heading)}</h1>`,
+    `<p>${escapeHtml(CONTACT_LINE)}</p>`,
+    `<p><a href="mailto:${escapeHtml(CONTACT_PAGE.email)}">${escapeHtml(CONTACT_PAGE.email)}</a></p>`,
+    `<p>${escapeHtml(CONTACT_PAGE.body)}</p>`,
+    navHtml(),
+  ].join("");
+}
+
 function legalHtml(page: { heading: string; updated: string; intro?: readonly string[]; sections: readonly LegalSection[] }): string {
   return [
     `<h1>${escapeHtml(page.heading)}</h1>`,
@@ -489,6 +513,12 @@ export const COMMUNITIES_PAGE = {
   description:
     "Browse housing co-ops, shared studios, land trusts, and local collectives organizing in NEOS. Read how a group works before joining.",
 } as const;
+
+/** The signed-out home and /communities share a screen. Each URL keeps its own title and canonical. */
+export function communitiesShellMeta(pathname: string): { title: string; description: string; path: "/" | "/communities" } {
+  if (pathname === "/") return { title: INTRO.title, description: INTRO.description, path: "/" };
+  return { title: COMMUNITIES_PAGE.title, description: COMMUNITIES_PAGE.description, path: "/communities" };
+}
 
 export interface PublicPage {
   path: string;
@@ -804,6 +834,9 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   page("/privacy", PRIVACY_PAGE.title, PRIVACY_PAGE.description, legalHtml(PRIVACY_PAGE), {
     crumbs: [{ name: "Home", path: "/" }, { name: "Privacy", path: "/privacy" }],
   }),
+  page("/contact", CONTACT_PAGE.title, CONTACT_PAGE.description, contactHtml(), {
+    crumbs: [{ name: "Home", path: "/" }, { name: "Contact", path: "/contact" }],
+  }),
   page(BLOG.path, BLOG.title, BLOG.description, blogIndexHtml(), {
     kind: "collection",
     crumbs: [{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }],
@@ -1000,6 +1033,60 @@ const ROBOT_DISALLOW = [
   "/ethos",
   "/profile",
   "/me",
+  "/api",
+  "/account",
+  "/login",
+  "/explore",
+  "/solutions",
+  "/map",
+  "/my-quiz-history",
+  "/comms",
+  "/chat",
+  "/governance$",
+  "/governance/",
 ] as const;
 
+/** Google-style prefix match. A trailing `$` matches that path only, so `/governance` does not hide `/governance-model`. */
+export function pathBlockedByRobots(urlPath: string): boolean {
+  return ROBOT_DISALLOW.some((rule) => {
+    if (rule.endsWith("$")) return urlPath === rule.slice(0, -1);
+    return urlPath.startsWith(rule);
+  });
+}
+
 export const ROBOTS_TXT = `User-agent: *\nAllow: /\n${ROBOT_DISALLOW.map((path) => `Disallow: ${path}\n`).join("")}\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
+
+export function publicHead(path: string): {
+  robots: PublicPage["robots"];
+  ogType: PublicPage["ogType"];
+  published?: string;
+  modified?: string;
+} {
+  const found = PUBLIC_PAGES.find((item) => item.path === path);
+  return {
+    robots: found?.robots ?? "index, follow",
+    ogType: found?.ogType ?? "website",
+    published: found?.published,
+    modified: found?.modified,
+  };
+}
+
+/** Curated map for agents. Indexable public URLs only, taken from the same pages as the sitemap. */
+export function llmsTxt(pages: readonly PublicPage[] = PUBLIC_PAGES): string {
+  const listed = pages
+    .filter((page) => page.indexable)
+    .map((page) => `- [${page.title}](${page.canonical}): ${page.description}`)
+    .join("\n");
+  return `# NEOS
+
+> ${INTRO.description} Operated by ${CONTACT_LINE}. Email: ${OPERATOR.email}.
+
+## Public pages
+${listed}
+
+## Optional
+- [Sitemap](${SITE_ORIGIN}/sitemap.xml): Every public indexable URL.
+- [Robots](${SITE_ORIGIN}/robots.txt): Allows the public site. Disallows app, account, and API routes.
+- [Feed](${SITE_ORIGIN}/feed.xml): Blog notes and practice guides.
+`;
+}
