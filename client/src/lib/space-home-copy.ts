@@ -58,6 +58,10 @@ export const spaceHomeCopy = {
     owner: (name: string, role?: 'internal' | 'external') => (
       role === 'external' ? `${name}, Rep Link` : role === 'internal' ? `${name}, Lead Link` : `${name}, owner`
     ),
+    /** A generated `Member-…` display name. Not a name, and not a substitute for one. */
+    unnamedOwner: "The owner hasn't added a display name yet",
+    /** Shown to that owner, as a link to profile settings. */
+    addDisplayName: "Add a display name so people know who they're messaging.",
     messageOwner: 'Message the owner',
     messageSignIn: 'Sign in to message the owner.',
     messageRefused: "You can't message the owner right now.",

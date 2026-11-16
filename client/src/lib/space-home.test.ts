@@ -14,6 +14,10 @@ import {
   loadsParticipantDirectory,
   modelContains,
   nextCard,
+  claimInFlight,
+  directMessageId,
+  openedDirectMessageId,
+  ownerContactModel,
   ownerDirectMessage,
   ownerMessageError,
   pendingJoinAction,
@@ -21,6 +25,7 @@ import {
   ownerContactLine,
   ownerContactModel,
   publicOwner,
+  releaseInFlight,
   spaceViewer,
   startedConversationId,
   stepsForEcosystem,
@@ -104,6 +109,7 @@ test('a public owner keeps the display name and member id, and nothing else', ()
   assert.equal(publicOwner({ owner: { id: 'mem-owner' } }), null);
   assert.equal(publicOwner({ owner: { id: 'mem-owner', display_name: '   ' } }), null);
   assert.equal(publicOwner({ owner: { id: 'mem-owner', display_name: '11111111-2222-3333-4444-555555555555' } }), null);
+  assert.deepEqual(publicOwner({ owner: { id: 'mem-owner', display_name: 'Member-mMdYcHC7' } }), { id: 'mem-owner', display_name: 'Member-mMdYcHC7' });
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'ada@secret.test'), false);
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), '555-0101'), false);
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'did:example'), false);
@@ -459,18 +465,94 @@ test('a null owner renders nothing, and a missing signed-out count is omitted', 
   assert.equal(blank.owner, null);
 });
 
+const PLACEHOLDER = 'Member-mMdYcHC7';
+const PLACEHOLDER_OWNER = { owner: { id: 'mem-owner', display_name: PLACEHOLDER, role: 'owner' } };
+
+test('a generated owner name is replaced in Who\'s here and the owner contact', () => {
+  const guest = { id: 'mem-guest', display_name: 'Ada' };
+  const shared = {
+    ecosystemName: NAME,
+    memberCount: 2,
+    owner: PLACEHOLDER_OWNER,
+    signInHref: ethosSignInHref(ECO),
+    viewerIdentity: guest,
+    stewards: [{ display_name: PLACEHOLDER, role: 'owner' }, { display_name: 'Member-abcdef', role: 'admin' }],
+    circles: [{ name: 'Core Operations', steward: PLACEHOLDER, purpose: 'Runs the day' }],
+    members: [
+      { display_name: PLACEHOLDER, role: 'owner', directory_visible: true, id: 'mem-owner' },
+      { display_name: 'Member-zzzzzz', role: 'user', directory_visible: true, id: 'mem-9' },
+      { display_name: 'B. Member', role: 'user', directory_visible: true, id: 'mem-2' },
+    ],
+  };
+  for (const viewer of ['signed-out', 'pending', 'guest', 'member'] as const) {
+    const panel = whosHere({ viewer, ...shared });
+    assert.equal(panel.owner?.label, "The owner hasn't added a display name yet");
+    assert.equal(panel.owner?.labelHref, null);
+    assert.equal(modelContains(panel, PLACEHOLDER), false);
+    assert.equal(modelContains(panel, 'Member-abcdef'), false);
+    assert.equal(modelContains(panel, 'Member-zzzzzz'), false);
+  }
+  const member = whosHere({ viewer: 'member', ...shared });
+  assert.equal(member.stewards[0]?.text, "The owner hasn't added a display name yet — owner");
+  assert.equal(member.circles[0]?.text, "The owner hasn't added a display name yet — steward of Core Operations");
+  assert.deepEqual(member.members.map((row) => row.text), [
+    "The owner hasn't added a display name yet — owner",
+    'B. Member — member',
+  ]);
+
+  const self = whosHere({
+    viewer: 'member',
+    ...shared,
+    viewerIdentity: { id: 'mem-other-row', display_name: PLACEHOLDER },
+  });
+  assert.equal(self.owner?.label, "Add a display name so people know who they're messaging.");
+  assert.equal(self.owner?.labelHref, '/profile');
+  assert.equal(self.members[0]?.href, '/profile');
+  assert.equal(self.members[0]?.text, "Add a display name so people know who they're messaging.");
+  assert.equal(self.members[0]?.suffix, ' — owner');
+  assert.equal(modelContains(self, PLACEHOLDER), false);
+
+  const contact = ownerContactModel({
+    viewer: 'guest',
+    owner: PLACEHOLDER_OWNER,
+    signInHref: '/login',
+    messagingLocked: false,
+    viewerIdentity: guest,
+  });
+  assert.equal(contact?.destination, 'messaging');
+  assert.equal(contact?.label, "The owner hasn't added a display name yet");
+  const repLink = ownerContactLine({ owner: { id: 'mem-owner', display_name: PLACEHOLDER, role: 'external' } });
+  assert.equal(repLink, "The owner hasn't added a display name yet, Rep Link");
+  assert.equal(modelContains(repLink, PLACEHOLDER), false);
+});
+
 function statusError(status: number, message: string): Error {
   return Object.assign(new Error(message), { status });
 }
 
-test('owner messaging uses one direct-message body and short sentences for 401, 403 and 429', () => {
+test('a direct message opens from a 200 or a 201, and a double click does not start a second request', () => {
   assert.deepEqual(ownerDirectMessage('mem-owner'), { type: 'dm', participant_ids: ['mem-owner'] });
   const id = '11111111-1111-4111-8111-111111111111';
-  assert.equal(startedConversationId({ id }), id);
+  const body = { id, type: 'dm' };
+  assert.equal(startedConversationId(body), id);
   assert.equal(startedConversationId({ id: ` ${id} ` }), id);
   assert.equal(startedConversationId({ id: '../admin' }), null);
   assert.equal(startedConversationId({ conversation: { id: 'abc' } }), null);
   assert.equal(startedConversationId(null), null);
+  assert.equal(directMessageId(201, body), id);
+  assert.equal(directMessageId(200, body), id);
+  assert.equal(openedDirectMessageId(body), id);
+  assert.equal(directMessageId(409, body), null);
+  assert.equal(directMessageId(204, null), null);
+  const gate = { current: false };
+  assert.equal(claimInFlight(gate), true);
+  assert.equal(claimInFlight(gate), false);
+  assert.equal(gate.current, true);
+  releaseInFlight(gate);
+  assert.equal(claimInFlight(gate), true);
+});
+
+test('owner messaging uses one direct-message body and short sentences for 401, 403 and 429', () => {
 
   assert.equal(ownerMessageError(statusError(401, 'Unauthorized')), copy.whosHere.messageSignIn);
   const refused = ownerMessageError(statusError(403, 'You cannot message B. Member'));

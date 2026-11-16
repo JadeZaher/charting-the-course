@@ -391,6 +391,7 @@ export function fetchConversations(): Promise<{ conversations: ConversationSumma
 export function fetchConversation(id: string): Promise<ConversationDetail> {
   return apiFetch<ConversationDetail>(`/api/v1/messaging/conversations/${id}`);
 }
+/** 201 when the conversation is new, 200 when this direct message already exists. Both bodies are the conversation. */
 export function createConversation(data: { type: string; title?: string; participant_ids: string[] }): Promise<ConversationDetail> {
   return apiFetch<ConversationDetail>('/api/v1/messaging/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }

@@ -1,24 +1,19 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { FieldError } from '@/components/FieldError';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
-import { useApiMutation } from '@/hooks/use-api-mutation';
+import { OwnerContact, PersonLine } from '@/components/ethos/OwnerContact';
 import { useMyNextSteps } from '@/hooks/use-next-steps';
-import { useRequiredFields } from '@/hooks/use-required-fields';
-import { useCreateConversation } from '@/hooks/use-messaging';
 import { apiErrorMessage } from '@/lib/api-error-message';
-import { sendConversationMessage, apiFetch, fetchAgreements, fetchDecisions, fetchDomains, fetchMembers, fetchProposals } from '@/lib/api-client';
+import { apiFetch, fetchAgreements, fetchDecisions, fetchDomains, fetchMembers, fetchProposals } from '@/lib/api-client';
 import { isHeldAtConsentGate } from '@/lib/consent-gate';
 import { domainLabel } from '@/lib/domain-label';
-import { conversationHref } from '@/lib/exchange';
 import { quizForJoin, type JoinGates } from '@/lib/join-gates';
 import { isNavDestinationLocked } from '@/lib/locked-nav';
 import type { MatchingConsent } from '@/lib/matching';
-import { affects, keys } from '@/lib/query-keys';
+import { keys } from '@/lib/query-keys';
 import { queryStatePhase } from '@/lib/query-state';
 import { spaceHomeCopy as copy } from '@/lib/space-home-copy';
 import {
@@ -28,12 +23,8 @@ import {
   happening,
   loadsParticipantDirectory,
   nextCard,
-  ownerDirectMessage,
-  ownerMessageError,
-  startedConversationId,
   whosHere,
   type HappeningFilter,
-  type OwnerContactModel,
   type SpaceAction,
   type SpaceViewer,
 } from '@/lib/space-home';
@@ -104,94 +95,6 @@ function ActionControl({
       {action.label}
     </button>
   );
-}
-
-function OwnerSignIn({ owner }: { owner: OwnerContactModel }) {
-  return (
-    <div className="space-y-3">
-      <p>{owner.label}</p>
-      {owner.signInHref && <Link href={owner.signInHref} className={secondaryClass}>{copy.whosHere.messageOwner}</Link>}
-    </div>
-  );
-}
-
-function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
-  const [, navigate] = useLocation();
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const [failure, setFailure] = useState('');
-  const [sent, setSent] = useState('');
-  const fields = useRequiredFields({ content: copy.whosHere.messageRequired });
-  const openConversation = useCreateConversation({ silent: true });
-  const sendMessage = useApiMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) => sendConversationMessage(id, content),
-    invalidates: affects.conversations,
-    silent: true,
-  });
-  const busy = openConversation.isPending || sendMessage.isPending;
-
-  async function start() {
-    setFailure('');
-    setSent('');
-    try {
-      const conversation = await openConversation.mutateAsync(ownerDirectMessage(owner.ownerId));
-      const id = startedConversationId(conversation);
-      if (!id) {
-        setFailure(copy.whosHere.messageUnopened);
-        return;
-      }
-      if (owner.destination === 'compose') setConversationId(id);
-      else navigate(conversationHref(id));
-    } catch (error) {
-      setFailure(ownerMessageError(error));
-    }
-  }
-
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (!conversationId || !fields.validate({ content: draft })) return;
-    setFailure('');
-    setSent('');
-    try {
-      await sendMessage.mutateAsync({ id: conversationId, content: draft.trim() });
-      setDraft('');
-      setSent(copy.whosHere.messageSent);
-    } catch (error) {
-      setFailure(ownerMessageError(error));
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <p>{owner.label}</p>
-      <button type="button" className={secondaryClass} disabled={busy} aria-busy={busy || undefined} onClick={() => void start()}>
-        {copy.whosHere.messageOwner}
-      </button>
-      {owner.destination === 'compose' && conversationId && (
-        <form className="space-y-3" noValidate onSubmit={(event) => void send(event)}>
-          <label className="block space-y-2">
-            <span className="text-sm font-bold">{copy.whosHere.compose}</span>
-            <Textarea
-              value={draft}
-              autoFocus
-              disabled={busy}
-              onChange={(event) => { setDraft(event.target.value); fields.settle('content', event.target.value); }}
-              {...fields.field('content')}
-            />
-          </label>
-          <FieldError {...fields.error('content')} />
-          <button type="submit" className={primaryClass} disabled={busy} aria-busy={busy || undefined}>{copy.whosHere.send}</button>
-          {sent && <p role="status">{sent}</p>}
-        </form>
-      )}
-      {failure && <p role="alert" className="text-sm text-destructive">{failure}</p>}
-    </div>
-  );
-}
-
-export function OwnerContact({ owner }: { owner: OwnerContactModel }) {
-  if (owner.destination === 'sign-in') return <OwnerSignIn owner={owner} />;
-  return <OwnerMessage owner={owner} />;
 }
 
 function DirectoryChoices({ ecosystemId, consent }: { ecosystemId: string; consent?: MatchingConsent }) {
@@ -397,6 +300,7 @@ export function EcosystemHome({
     owner,
     signInHref,
     messagingLocked,
+    viewerIdentity: member || user ? { id: member?.id, display_name: member?.display_name || user?.display_name } : null,
   });
   const activity = happening({
     viewer,
@@ -490,10 +394,10 @@ export function EcosystemHome({
                     <h3 className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{copy.whosHere.stewards}</h3>
                     {people.emptyCircles && <p className="mt-3">{copy.whosHere.emptyCircles}</p>}
                     <ul className="mt-3 space-y-3">
-                      {people.stewards.map((row) => <li key={row.key}>{row.text}</li>)}
+                      {people.stewards.map((row) => <li key={row.key}><PersonLine row={row} /></li>)}
                       {people.circles.map((row) => (
                         <li key={row.key}>
-                          <p>{row.text}</p>
+                          <p><PersonLine row={row} /></p>
                           {row.detail && <p className="text-sm text-muted-foreground">{row.detail}</p>}
                         </li>
                       ))}
@@ -503,7 +407,7 @@ export function EcosystemHome({
                     <h3 className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{copy.whosHere.members}</h3>
                     {people.emptyDirectory ? <p className="mt-3">{copy.whosHere.emptyDirectory}</p> : (
                       <ul className="mt-3 space-y-3">
-                        {people.members.map((row) => <li key={row.key}>{row.text}</li>)}
+                        {people.members.map((row) => <li key={row.key}><PersonLine row={row} /></li>)}
                       </ul>
                     )}
                     <Link href="/members" className={`${secondaryClass} mt-4`}>{copy.whosHere.directory}</Link>
