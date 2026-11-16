@@ -9,8 +9,10 @@ import { sendConversationMessage } from '@/lib/api-client';
 import { conversationHref } from '@/lib/exchange';
 import { affects } from '@/lib/query-keys';
 import { spaceHomeCopy as copy } from '@/lib/space-home-copy';
+import { rememberOwnerCommunity, type OwnerCommunityStorage } from '@/lib/owner-community';
 import {
   claimInFlight,
+  messageOwnerButtonLabel,
   openedDirectMessageId,
   OWNER_MESSAGE_TIMEOUT_MS,
   ownerDirectMessage,
@@ -19,6 +21,14 @@ import {
   withDeadline,
   type OwnerContactModel,
 } from '@/lib/space-home';
+
+function browserStorage(): OwnerCommunityStorage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 const primaryClass = 'inline-flex min-h-11 items-center border-2 border-strong-border bg-foreground px-4 text-sm font-bold text-background hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-70';
 const secondaryClass = 'inline-flex min-h-11 items-center border-2 border-strong-border px-4 text-sm font-bold hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
@@ -75,6 +85,7 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
         setFailure(copy.whosHere.messageUnopened);
         return;
       }
+      rememberOwnerCommunity(browserStorage(), { ownerId: owner.ownerId, conversationId: id, communityName: owner.communityName });
       if (owner.destination === 'compose') setConversationId(id);
       else navigate(conversationHref(id));
     } catch (error) {
@@ -117,8 +128,8 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
   return (
     <div className="space-y-3">
       <OwnerLabel owner={owner} />
-      <button type="button" className={secondaryClass} disabled={busy} aria-busy={busy || undefined} onClick={() => void start()}>
-        {copy.whosHere.messageOwner}
+      <button type="button" className={secondaryClass} disabled={busy} aria-busy={opening || undefined} onClick={() => void start()}>
+        {messageOwnerButtonLabel(opening)}
       </button>
       {owner.destination === 'compose' && conversationId && (
         <form className="space-y-3" noValidate onSubmit={(event) => void send(event)}>

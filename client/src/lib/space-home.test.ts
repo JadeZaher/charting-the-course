@@ -12,6 +12,7 @@ import {
   isCompletedNextStep,
   isLongOverdue,
   loadsParticipantDirectory,
+  messageOwnerButtonLabel,
   modelContains,
   nextCard,
   claimInFlight,
@@ -179,6 +180,8 @@ test('a community page shows one owner contact, labelled owner, and signs in bac
   assert.equal(showsCommunityUpdates(true, 'pending_consent'), false);
   assert.equal(showsCommunityUpdates(true, undefined), false);
   assert.equal(showsCommunityUpdates(true, 'active'), true);
+  assert.equal(messageOwnerButtonLabel(false), 'Message the owner');
+  assert.equal(messageOwnerButtonLabel(true), 'Opening…');
 });
 
 test('long overdue is the server flag plus the day cutoff, not a client guess', () => {

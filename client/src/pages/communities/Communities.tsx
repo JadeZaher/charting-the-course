@@ -90,6 +90,7 @@ export function CommunityPreviewPage() {
     viewer: spaceViewer(isAuthenticated, membershipStanding(id, ecosystems)),
     owner: community,
     signInHref: communitySignInHref(community.id),
+    communityName: community.name,
     viewerIdentity: member || user ? { id: member?.id, display_name: member?.display_name || user?.display_name } : null,
   }) : null;
   const showUpdates = showsCommunityUpdates(isAuthenticated, membership?.membership_status);
