@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api-client';
 import { memberQueriesEnabled } from '@/lib/member-queries';
 import { conversationHeading, conversationTitle } from '@/lib/conversation-title';
+import { readOwnerCommunities, type OwnerCommunityStorage } from '@/lib/owner-community';
 import { connectionPhase, type ConnectionPhase } from '@/lib/connection-status';
 import { affects, keys } from '@/lib/query-keys';
 import { API_BASE_URL } from '@/lib/api-origin';
@@ -30,13 +31,21 @@ export function useConversation(id: string) {
   return query;
 }
 
+function browserStorage(): OwnerCommunityStorage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /** Conversation name for the signed-in member: its title, else the other participants (never the caller). */
 export function useConversationTitle() {
   const { member } = useAuth();
   const id = member?.id;
   const displayName = member?.display_name;
   return useCallback(
-    (conversation: Parameters<typeof conversationTitle>[0]) => conversationTitle(conversation, { id, display_name: displayName }),
+    (conversation: Parameters<typeof conversationTitle>[0]) => conversationTitle(conversation, { id, display_name: displayName }, readOwnerCommunities(browserStorage())),
     [id, displayName],
   );
 }
@@ -47,7 +56,7 @@ export function useConversationHeading() {
   const id = member?.id;
   const displayName = member?.display_name;
   return useCallback(
-    (conversation: Parameters<typeof conversationHeading>[0]) => conversationHeading(conversation, { id, display_name: displayName }),
+    (conversation: Parameters<typeof conversationHeading>[0]) => conversationHeading(conversation, { id, display_name: displayName }, readOwnerCommunities(browserStorage())),
     [id, displayName],
   );
 }

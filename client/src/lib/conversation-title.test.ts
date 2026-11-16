@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ADD_DISPLAY_NAME, PROFILE_SETTINGS_HREF, UNNAMED_OWNER } from './placeholder-name';
+import { emptyOwnerCommunities } from './owner-community';
 import { conversationHeading, conversationTitle } from './conversation-title';
 
 const oren = { id: 'm-oren', display_name: 'Oren' };
@@ -38,19 +39,24 @@ test('a titled conversation between two people also names the other one', () => 
 
 const placeholder = { id: 'm-owner', display_name: 'Member-mMdYcHC7' };
 
-test('a generated Member- name is not shown in the thread heading', () => {
+test('a generated Member- name in Messaging is Owner of the community, not the page sentence', () => {
   const guest = { id: 'm-guest', display_name: 'Ada' };
-  assert.equal(conversationTitle({ participants: [placeholder, guest] }, guest), UNNAMED_OWNER);
+  const known = { ...emptyOwnerCommunities(), byParticipantId: { 'm-owner': 'PGT' }, byConversationId: { 'dm-1': 'PGT' } };
+  assert.equal(conversationTitle({ participants: [placeholder, guest] }, guest), 'Community owner');
+  assert.equal(conversationTitle({ participants: [placeholder, guest] }, guest, known), 'Owner of PGT');
+  assert.equal(conversationTitle({ id: 'dm-1', participants: [placeholder, guest] }, guest, known), 'Owner of PGT');
   assert.equal(conversationTitle({ participants: [placeholder, guest] }, placeholder), 'Ada');
   assert.equal(
-    conversationTitle({ title: 'Re: Spare drill', participants: [placeholder, guest] }, guest),
-    `${UNNAMED_OWNER} · Re: Spare drill`,
+    conversationTitle({ title: 'Re: Spare drill', participants: [placeholder, guest] }, guest, known),
+    'Owner of PGT · Re: Spare drill',
   );
-  assert.equal(conversationTitle({ title: 'Member-mMdYcHC7', participants: [placeholder, guest] }, guest), UNNAMED_OWNER);
+  assert.equal(conversationTitle({ title: 'Member-mMdYcHC7', participants: [placeholder, guest] }, guest), 'Community owner');
   assert.equal(conversationTitle({ participants: [placeholder] }, placeholder), ADD_DISPLAY_NAME);
   const heading = conversationHeading({ participants: [placeholder] }, placeholder);
   assert.equal(heading.prompt?.text, ADD_DISPLAY_NAME);
   assert.equal(heading.prompt?.href, PROFILE_SETTINGS_HREF);
   assert.equal(conversationHeading({ participants: [placeholder, guest] }, guest).prompt, null);
-  assert.equal(JSON.stringify(conversationTitle({ participants: [placeholder, guest] }, guest)).includes('Member-mMdYcHC7'), false);
+  const shown = conversationTitle({ participants: [placeholder, guest] }, guest, known);
+  assert.equal(shown.includes('Member-mMdYcHC7'), false);
+  assert.equal(shown.includes(UNNAMED_OWNER), false);
 });

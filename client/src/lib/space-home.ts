@@ -143,6 +143,11 @@ export function showsCommunityUpdates(authenticated: boolean, membershipStatus: 
   return authenticated && membershipStatus === 'active';
 }
 
+/** The Message the owner button while its request is in flight, then the original label again. */
+export function messageOwnerButtonLabel(opening: boolean): string {
+  return opening ? copy.whosHere.opening : copy.whosHere.messageOwner;
+}
+
 /** True the first time. A second call while `gate.current` is set does not start another request. */
 export function claimInFlight(gate: { current: boolean }): boolean {
   if (gate.current) return false;
@@ -417,6 +422,8 @@ export interface OwnerContactModel {
   /** Profile settings, when `label` is the prompt for the signed-in owner. */
   labelHref: string | null;
   ownerId: string;
+  /** Community this owner belongs to, when the page knows it. Used only after the thread opens. */
+  communityName: string | null;
   /** Signed-out viewers follow the sign-in link. Everyone else starts a direct message. */
   destination: 'sign-in' | 'messaging' | 'compose';
   signInHref: string | null;
@@ -522,6 +529,7 @@ export function communityOwnerContact(input: {
   viewer: SpaceViewer;
   owner: unknown;
   signInHref: string;
+  communityName?: string | null;
   viewerIdentity?: ViewerIdentity | null;
 }): OwnerContactModel | null {
   return ownerContactModel({ ...input, messagingLocked: false });
@@ -533,18 +541,21 @@ export function ownerContactModel(input: {
   signInHref: string;
   /** True when Messaging would bounce this member back to the consent gate. */
   messagingLocked: boolean;
+  communityName?: string | null;
   viewerIdentity?: ViewerIdentity | null;
 }): OwnerContactModel | null {
   const owner = publicOwner(input.owner);
   if (!owner) return null;
   const { label, labelHref } = ownerLabel(owner, input.viewerIdentity);
+  const communityName = input.communityName?.trim() || null;
   if (input.viewer === 'signed-out') {
-    return { label, labelHref, ownerId: owner.id, destination: 'sign-in', signInHref: input.signInHref };
+    return { label, labelHref, ownerId: owner.id, communityName, destination: 'sign-in', signInHref: input.signInHref };
   }
   return {
     label,
     labelHref,
     ownerId: owner.id,
+    communityName,
     destination: input.messagingLocked ? 'compose' : 'messaging',
     signInHref: null,
   };
@@ -637,6 +648,7 @@ export function whosHere(input: {
     owner: input.owner,
     signInHref: input.signInHref ?? '/login',
     messagingLocked: input.messagingLocked === true,
+    communityName: input.ecosystemName,
     viewerIdentity: input.viewerIdentity,
   });
   if (input.viewer !== 'member') {

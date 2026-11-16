@@ -62,6 +62,8 @@ export const spaceHomeCopy = {
     /** Shown to that owner, as a link to profile settings. */
     addDisplayName: "Add a display name so people know who they're messaging.",
     messageOwner: 'Message the owner',
+    /** Button label while the direct-message request is in flight. */
+    opening: 'Opening…',
     messageSignIn: 'Sign in to message the owner.',
     messageRefused: "You can't message the owner right now.",
     messageLimited: 'Too many messages. Wait a moment and try again.',
