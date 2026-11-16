@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { LockedNavNote } from "@/lib/locked-nav";
+import { activateLockedNav, navItemForMember, type LockedNavNote } from "@/lib/locked-nav";
 
 type LockedNavIcon = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" }>;
 
@@ -50,6 +50,7 @@ export function LockedNavItem({
           <SidebarMenuButton
             asChild
             isActive={false}
+            aria-disabled="true"
             className="cursor-not-allowed aria-disabled:pointer-events-auto"
           >
             <button
@@ -100,5 +101,69 @@ export function LockedNavItem({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function navTestId(title: string) {
+  return `link-${title.toLowerCase().replace(" ", "-")}`;
+}
+
+/** Locked items are buttons with aria-disabled="true". Active items are links, with no aria-disabled. */
+export function MemberNavItem({
+  item,
+  isActive,
+  isCollapsed,
+  held,
+  isNodeAdmin,
+  ecosystemId,
+}: {
+  item: { title: string; url: string; icon: LockedNavIcon };
+  isActive: boolean;
+  isCollapsed: boolean;
+  held: boolean;
+  isNodeAdmin?: boolean;
+  ecosystemId?: string | null;
+}) {
+  const control = navItemForMember(item, { held, isNodeAdmin });
+  if (control.locked) {
+    return (
+      <LockedNavItem
+        title={item.title}
+        label={control.label}
+        isCollapsed={isCollapsed}
+        icon={item.icon}
+        testId={navTestId(item.title)}
+        onActivate={() => {
+          const activated = activateLockedNav({
+            title: item.title,
+            url: item.url,
+            held,
+            isNodeAdmin,
+            ecosystemId,
+          });
+          return activated.routeStaysClosed ? activated.note : null;
+        }}
+      />
+    );
+  }
+
+  const link = (
+    <SidebarMenuButton asChild isActive={isActive}>
+      <Link href={control.href} data-testid={navTestId(item.title)}>
+        <item.icon className="h-4 w-4" />
+        <span>{item.title}</span>
+      </Link>
+    </SidebarMenuButton>
+  );
+
+  if (!isCollapsed) return link;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{link}</TooltipTrigger>
+      <TooltipContent side="right" className="max-w-xs">
+        {item.title}
+      </TooltipContent>
+    </Tooltip>
   );
 }

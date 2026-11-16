@@ -19,7 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { LockedNavItem } from "@/components/LockedNavItem";
+import { MemberNavItem } from "@/components/LockedNavItem";
 import {
   LayoutDashboard,
   User,
@@ -51,7 +51,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
 import { isHeldAtConsentGate } from "@/lib/consent-gate";
-import { activateLockedNav, isNavDestinationLocked, navItemForMember, pendingMembershipEcosystemId } from "@/lib/locked-nav";
+import { isNavDestinationLocked, pendingMembershipEcosystemId } from "@/lib/locked-nav";
 import { canManageQuizzes, canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useNavPermissions } from "@/hooks/use-nav-permissions";
@@ -164,49 +164,15 @@ function MenuItemWithTooltip({
 }) {
   const { isAuthenticated, pendingConsents, ecosystems, member, isNodeAdmin } = useAuth();
   const held = isHeldAtConsentGate({ isAuthenticated, pendingConsents, memberships: ecosystems, member });
-  const control = navItemForMember(item, { held, isNodeAdmin });
-  if (control.locked) {
-    return (
-      <LockedNavItem
-        title={item.title}
-        label={control.label}
-        isCollapsed={isCollapsed}
-        icon={item.icon}
-        testId={`link-${item.title.toLowerCase().replace(' ', '-')}`}
-        onActivate={() => {
-          const activated = activateLockedNav({
-            title: item.title,
-            url: item.url,
-            held,
-            isNodeAdmin,
-            ecosystemId: pendingMembershipEcosystemId({ pendingConsents, member }),
-          });
-          return activated.routeStaysClosed ? activated.note : null;
-        }}
-      />
-    );
-  }
-
-  const button = (
-    <SidebarMenuButton asChild isActive={isActive}>
-      <Link href={control.href} data-testid={`link-${item.title.toLowerCase().replace(' ', '-')}`}>
-        <item.icon className="h-4 w-4" />
-        <span>{item.title}</span>
-      </Link>
-    </SidebarMenuButton>
-  );
-
-  if (!isCollapsed) return button;
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {button}
-      </TooltipTrigger>
-      <TooltipContent side="right" className="max-w-xs">
-        {item.title}
-      </TooltipContent>
-    </Tooltip>
+    <MemberNavItem
+      item={item}
+      isActive={isActive}
+      isCollapsed={isCollapsed}
+      held={held}
+      isNodeAdmin={isNodeAdmin}
+      ecosystemId={pendingMembershipEcosystemId({ pendingConsents, member })}
+    />
   );
 }
 
