@@ -12,9 +12,11 @@ import { spaceHomeCopy as copy } from '@/lib/space-home-copy';
 import {
   claimInFlight,
   openedDirectMessageId,
+  OWNER_MESSAGE_TIMEOUT_MS,
   ownerDirectMessage,
   ownerMessageError,
   releaseInFlight,
+  withDeadline,
   type OwnerContactModel,
 } from '@/lib/space-home';
 
@@ -47,7 +49,9 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
   const [failure, setFailure] = useState('');
   const [sent, setSent] = useState('');
   const [opening, setOpening] = useState(false);
+  const [sending, setSending] = useState(false);
   const gate = useRef(false);
+  const attempt = useRef(0);
   const fields = useRequiredFields({ content: copy.whosHere.messageRequired });
   const openConversation = useCreateConversation({ silent: true });
   const sendMessage = useApiMutation({
@@ -55,15 +59,17 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
     invalidates: affects.conversations,
     silent: true,
   });
-  const busy = opening || openConversation.isPending || sendMessage.isPending;
+  const busy = opening || sending;
 
   async function start() {
     if (!claimInFlight(gate)) return;
+    const ticket = ++attempt.current;
     setOpening(true);
     setFailure('');
     setSent('');
     try {
-      const conversation = await openConversation.mutateAsync(ownerDirectMessage(owner.ownerId));
+      const conversation = await withDeadline(openConversation.mutateAsync(ownerDirectMessage(owner.ownerId)), OWNER_MESSAGE_TIMEOUT_MS);
+      if (ticket !== attempt.current) return;
       const id = openedDirectMessageId(conversation);
       if (!id) {
         setFailure(copy.whosHere.messageUnopened);
@@ -72,10 +78,14 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
       if (owner.destination === 'compose') setConversationId(id);
       else navigate(conversationHref(id));
     } catch (error) {
+      if (ticket !== attempt.current) return;
+      openConversation.reset();
       setFailure(ownerMessageError(error));
     } finally {
-      releaseInFlight(gate);
-      setOpening(false);
+      if (ticket === attempt.current) {
+        releaseInFlight(gate);
+        setOpening(false);
+      }
     }
   }
 
@@ -83,16 +93,24 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
     event.preventDefault();
     if (!conversationId || !fields.validate({ content: draft })) return;
     if (!claimInFlight(gate)) return;
+    const ticket = ++attempt.current;
+    setSending(true);
     setFailure('');
     setSent('');
     try {
-      await sendMessage.mutateAsync({ id: conversationId, content: draft.trim() });
+      await withDeadline(sendMessage.mutateAsync({ id: conversationId, content: draft.trim() }), OWNER_MESSAGE_TIMEOUT_MS);
+      if (ticket !== attempt.current) return;
       setDraft('');
       setSent(copy.whosHere.messageSent);
     } catch (error) {
+      if (ticket !== attempt.current) return;
+      sendMessage.reset();
       setFailure(ownerMessageError(error));
     } finally {
-      releaseInFlight(gate);
+      if (ticket === attempt.current) {
+        releaseInFlight(gate);
+        setSending(false);
+      }
     }
   }
 
