@@ -51,7 +51,7 @@ import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
 import { isHeldAtConsentGate } from "@/lib/consent-gate";
 import { isNavDestinationLocked, lockedNavLabel } from "@/lib/locked-nav";
-import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
+import { canManageQuizzes, canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useNavPermissions } from "@/hooks/use-nav-permissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
@@ -458,15 +458,18 @@ export function AppSidebar() {
             <SidebarGroupLabel>Content Management</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {visibleFacilitatorItems.map((item) => (
+                {visibleFacilitatorItems.map((item) => {
+                  const title = item.access === 'quiz-steward' && !canManageQuizzes(permissions) ? 'Create a quiz' : item.title;
+                  return (
                   <SidebarMenuItem key={item.title}>
                     <MenuItemWithTooltip
-                      item={item}
+                      item={{ ...item, title }}
                       isActive={location === item.url || (item.url === '/admin#shares-needs' && location === '/admin')}
                       isCollapsed={isCollapsed}
                     />
                   </SidebarMenuItem>
-                ))}
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

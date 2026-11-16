@@ -17,6 +17,7 @@ import {
   ownerMessageError,
   pendingJoinAction,
   publicMemberCount,
+  ownerContactLine,
   publicOwner,
   spaceViewer,
   startedConversationId,
@@ -105,6 +106,14 @@ test('a public owner keeps the display name and member id, and nothing else', ()
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), '555-0101'), false);
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'did:example'), false);
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'user-secret'), false);
+  assert.deepEqual(
+    publicOwner({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external', email: 'ada@secret.test' } }),
+    { id: 'mem-owner', display_name: 'Ada', role: 'external' },
+  );
+  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external' } }), 'Ada, Rep Link');
+  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } }), 'Ada, Lead Link');
+  assert.equal(ownerContactLine({ owner: null }), null);
+  assert.equal(ownerContactLine({}), null);
 });
 
 test('long overdue is the server flag plus the day cutoff, not a client guess', () => {

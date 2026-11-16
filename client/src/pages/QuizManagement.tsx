@@ -25,6 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, Trash2, Edit, Check, X, Eye, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEcosystem } from "@/contexts/EcosystemContext";
+import { useNavPermissions } from "@/hooks/use-nav-permissions";
+import { canCreateQuiz, canManageQuizzes } from "@/lib/nav-access";
 import { fetchQuizzes, createQuiz, updateQuiz, deleteQuiz } from "@/lib/api-client";
 import { QuizAssignmentPanel } from "@/components/QuizAssignmentPanel";
 
@@ -122,6 +124,9 @@ export default function QuizManagement() {
   const { toast } = useToast();
   const { member } = useAuth();
   const { selected, ecosystems } = useEcosystem();
+  const permissions = useNavPermissions();
+  const canManage = canManageQuizzes(permissions);
+  const canCreate = canCreateQuiz(permissions);
   const [location, setLocation] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
@@ -163,7 +168,7 @@ export default function QuizManagement() {
   useEffect(() => {
     const params = new URLSearchParams(location.split('?')[1] || '');
     const editId = params.get('edit');
-    if (editId && quizzes && quizzes.length > 0 && !editingQuiz) {
+    if (canManage && editId && quizzes && quizzes.length > 0 && !editingQuiz) {
       const quizToEdit = quizzes.find(q => q.id === editId);
       if (quizToEdit) {
         handleEditQuiz(quizToEdit);
@@ -174,7 +179,7 @@ export default function QuizManagement() {
         }, 100);
       }
     }
-  }, [quizzes, location, editingQuiz]);
+  }, [canManage, quizzes, location, editingQuiz]);
 
   // Validation for create form
   const createValidation = useMemo(() => {
@@ -332,16 +337,18 @@ export default function QuizManagement() {
         <div>
           <h1 className="text-3xl font-bold">Quiz Management</h1>
           <p className="text-muted-foreground mt-1">
-            Create, upload, and manage quizzes
+            {canManage ? 'Create, upload, and manage quizzes' : 'Create a quiz. Editing stays with a steward once an admin is in place.'}
             {selected && <span className="ml-1">for <strong>{selected.name}</strong></span>}
           </p>
         </div>
-        <Button onClick={() => setIsCreating(!isCreating)} data-testid="button-create-quiz">
-          {isCreating ? (<><X className="h-4 w-4 mr-2" />Cancel</>) : (<><Plus className="h-4 w-4 mr-2" />Create Quiz</>)}
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setIsCreating(!isCreating)} data-testid="button-create-quiz">
+            {isCreating ? (<><X className="h-4 w-4 mr-2" />Cancel</>) : (<><Plus className="h-4 w-4 mr-2" />Create Quiz</>)}
+          </Button>
+        )}
       </div>
 
-      {isCreating && (
+      {canCreate && isCreating && (
         <Card>
           <CardHeader>
             <CardTitle>Create New Quiz</CardTitle>
@@ -411,17 +418,21 @@ export default function QuizManagement() {
                     <Button size="sm" variant="outline" onClick={() => setLocation(`/quiz/take/${quiz.id}`)} data-testid={`button-view-${quiz.id}`} title="View/Preview Quiz">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {!quiz.is_published && (
+                    {canManage && !quiz.is_published && (
                       <Button size="sm" variant="outline" onClick={() => publishQuizMutation.mutate(quiz.id)} data-testid={`button-publish-${quiz.id}`}>
                         <Check className="h-4 w-4 mr-1" />Publish
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" onClick={() => handleEditQuiz(quiz)} data-testid={`button-edit-${quiz.id}`} title="Edit Quiz">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => { if (confirm("Are you sure you want to delete this quiz?")) deleteQuizMutation.mutate(quiz.id); }} data-testid={`button-delete-${quiz.id}`} title="Delete Quiz">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canManage && (
+                      <Button size="sm" variant="outline" onClick={() => handleEditQuiz(quiz)} data-testid={`button-edit-${quiz.id}`} title="Edit Quiz">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canManage && (
+                      <Button size="sm" variant="destructive" onClick={() => { if (confirm("Are you sure you want to delete this quiz?")) deleteQuizMutation.mutate(quiz.id); }} data-testid={`button-delete-${quiz.id}`} title="Delete Quiz">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -440,7 +451,7 @@ export default function QuizManagement() {
         )}
       </div>
 
-      {editingQuiz && (
+      {canManage && editingQuiz && (
         <Card id="edit-quiz-form">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -477,7 +488,7 @@ export default function QuizManagement() {
         </Card>
       )}
 
-      <QuizAssignmentPanel quizzes={(quizzes ?? []).map((quiz) => ({ id: quiz.id, title: quiz.title }))} />
+      {canManage && <QuizAssignmentPanel quizzes={(quizzes ?? []).map((quiz) => ({ id: quiz.id, title: quiz.title }))} />}
     </div>
   );
 }
