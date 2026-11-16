@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { OwnerContact } from '@/components/ethos/OwnerContact';
 import { useCommunities, useCommunity } from '@/hooks/use-engagement';
 import { useDocumentMeta } from '@/hooks/use-document-meta';
+import { isHeldAtConsentGate } from '@/lib/consent-gate';
 import { communityEntryPath, engagementPath } from '@/lib/engagement';
+import { membershipStanding } from '@/lib/ecosystem-join';
+import { isNavDestinationLocked } from '@/lib/locked-nav';
 import { resolveMediaUrl } from '@/lib/media';
+import { ethosSignInHref, ownerContactModel, spaceViewer } from '@/lib/space-home';
+import { spaceHomeCopy } from '@/lib/space-home-copy';
 import { InlineText } from '@/components/InlineText';
 import { INTRO, communitiesShellMeta, plainParagraph } from '@/lib/public-documents';
 import { Button } from '@/components/ui/button';
@@ -78,15 +84,27 @@ export function CommunityPreviewPage() {
   const [, route] = useRoute('/communities/:id');
   const id = route?.id ?? '';
   const query = useCommunity(id);
-  const { isAuthenticated, ecosystems, pendingConsents } = useAuth();
+  const { isAuthenticated, ecosystems, pendingConsents, member, user, isNodeAdmin } = useAuth();
   const community = query.data;
   const membership = ecosystems.find(item => item.id === id);
+  const messagingLocked = isNavDestinationLocked('/messaging', {
+    held: isHeldAtConsentGate({ isAuthenticated, pendingConsents, memberships: ecosystems, member }),
+    isNodeAdmin,
+  });
+  const owner = community ? ownerContactModel({
+    viewer: spaceViewer(isAuthenticated, membershipStanding(id, ecosystems)),
+    owner: community,
+    signInHref: ethosSignInHref(community.id),
+    messagingLocked,
+    viewerIdentity: member || user ? { id: member?.id, display_name: member?.display_name || user?.display_name } : null,
+  }) : null;
   const pending = pendingConsents.some(item => item.ecosystem_id === id) || membership?.membership_status === 'pending_consent';
   const active = membership?.membership_status === 'active';
   return <div className="mx-auto w-full max-w-4xl space-y-8 p-5 sm:p-8">
     <CommunityHeader /><QueryFeedback pending={query.isPending} error={query.error} retry={query.refetch} />
     {community && !query.isError && <>
       <header><p className="text-sm font-semibold text-muted-foreground">Community preview</p><h1 className="mt-2 text-4xl font-black">{community.name}</h1>{community.location && <p className="mt-2 text-muted-foreground">{community.location}</p>}<p className="mt-5 whitespace-pre-line break-words leading-7">{community.description || 'Learn about this community and its expectations before participating.'}</p></header>
+      {owner && <section aria-labelledby="community-owner-title" className="border-2 border-strong-border bg-card p-5"><h2 id="community-owner-title" className="text-2xl font-bold">{spaceHomeCopy.whosHere.heading}</h2><div className="mt-4"><OwnerContact owner={owner} /></div></section>}
       <section className="space-y-4 border-2 border-strong-border bg-card p-5" aria-labelledby="community-join-title"><h2 id="community-join-title" className="text-2xl font-bold">Make your next connection</h2><p>Read the community’s expectations, then complete any configured agreements and onboarding questions. Following updates is separate from joining.</p><Link href={communityEntryPath(id, isAuthenticated)} className="inline-flex min-h-11 items-center bg-primary px-5 py-3 font-bold text-primary-foreground">{pending ? 'Continue joining' : active ? 'Open community' : 'Join this community'}</Link>{isAuthenticated && <Link className="ml-0 inline-flex min-h-11 items-center px-4 text-link underline" href={`/settings/notifications?scope=ecosystem&id=${encodeURIComponent(id)}`}>Manage community updates</Link>}</section>
       <section aria-labelledby="public-opportunities-title"><h2 id="public-opportunities-title" className="text-2xl font-bold">Community opportunities</h2>{community.opportunities_require_sign_in ? <Link href={communityEntryPath(id, false)} className="mt-3 inline-flex min-h-11 items-center text-link underline">Sign in to see community opportunities</Link> : community.opportunities?.length ? <ul className="mt-4 divide-y divide-border">{community.opportunities.map(item => <li key={item.id}><Link href={engagementPath(item.url, '/discover')} className="inline-flex min-h-11 items-center py-3 text-link underline">{item.title}</Link></li>)}</ul> : <p className="mt-3 text-muted-foreground">No opportunities are listed right now. Joining opens the participation paths available to members.</p>}</section>
     </>}

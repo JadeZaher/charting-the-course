@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { conversationTitle } from './conversation-title';
+import { ADD_DISPLAY_NAME, PROFILE_SETTINGS_HREF, UNNAMED_OWNER } from './placeholder-name';
+import { conversationHeading, conversationTitle } from './conversation-title';
 
 const oren = { id: 'm-oren', display_name: 'Oren' };
 const amara = { id: 'm-amara', display_name: 'Amara' };
@@ -33,4 +34,23 @@ test('a titled conversation between two people also names the other one', () => 
     [answer(oren), null, 'Re: Spare drill', 'signed out: no other person to single out'],
   ];
   for (const [conversation, caller, expected, why] of cases) assert.equal(conversationTitle(conversation, caller), expected, why);
+});
+
+const placeholder = { id: 'm-owner', display_name: 'Member-mMdYcHC7' };
+
+test('a generated Member- name is not shown in the thread heading', () => {
+  const guest = { id: 'm-guest', display_name: 'Ada' };
+  assert.equal(conversationTitle({ participants: [placeholder, guest] }, guest), UNNAMED_OWNER);
+  assert.equal(conversationTitle({ participants: [placeholder, guest] }, placeholder), 'Ada');
+  assert.equal(
+    conversationTitle({ title: 'Re: Spare drill', participants: [placeholder, guest] }, guest),
+    `${UNNAMED_OWNER} · Re: Spare drill`,
+  );
+  assert.equal(conversationTitle({ title: 'Member-mMdYcHC7', participants: [placeholder, guest] }, guest), UNNAMED_OWNER);
+  assert.equal(conversationTitle({ participants: [placeholder] }, placeholder), ADD_DISPLAY_NAME);
+  const heading = conversationHeading({ participants: [placeholder] }, placeholder);
+  assert.equal(heading.prompt?.text, ADD_DISPLAY_NAME);
+  assert.equal(heading.prompt?.href, PROFILE_SETTINGS_HREF);
+  assert.equal(conversationHeading({ participants: [placeholder, guest] }, guest).prompt, null);
+  assert.equal(JSON.stringify(conversationTitle({ participants: [placeholder, guest] }, guest)).includes('Member-mMdYcHC7'), false);
 });

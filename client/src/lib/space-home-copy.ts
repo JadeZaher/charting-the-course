@@ -56,6 +56,10 @@ export const spaceHomeCopy = {
     retry: 'Try again',
     /** Public owner contact. The name comes from the payload; the role word does not. */
     owner: (name: string) => `${name}, owner`,
+    /** A generated `Member-…` display name. Not a name, and not a substitute for one. */
+    unnamedOwner: "The owner hasn't added a display name yet",
+    /** Shown to that owner, as a link to profile settings. */
+    addDisplayName: "Add a display name so people know who they're messaging.",
     messageOwner: 'Message the owner',
     messageSignIn: 'Sign in to message the owner.',
     messageRefused: "You can't message the owner right now.",

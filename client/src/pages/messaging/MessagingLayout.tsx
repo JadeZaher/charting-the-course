@@ -11,44 +11,69 @@ import { MessageSquare, Plus, Send, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 import { LinkifiedText } from '@/components/messaging/LinkifiedText';
-import { conversationIdFromQuery,contactMemberFromQuery } from '@/lib/exchange';
+import { ConnectionStatus } from '@/components/messaging/ConnectionStatus';
+import { ConversationHeading } from '@/components/messaging/ConversationHeading';
+import { conversationIdFromQuery, contactMemberFromQuery } from '@/lib/exchange';
+import { messagingLocation } from '@/lib/messaging-location';
 
 export default function MessagingLayout() {
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [, navigate] = useLocation();
+  const queryString = useSearch();
+  const linkedId = conversationIdFromQuery(queryString);
+  const [activeId, setActiveId] = useState<string | null>(linkedId);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [contactMember,setContactMember]=useState<string|null>(null);
+  const [contactMember, setContactMember] = useState<string | null>(null);
   const threadHeadingRef = useRef<HTMLHeadingElement>(null);
   // Set when the member opens a conversation; the thread heading takes focus once it renders.
   const focusThreadRef = useRef(false);
+  // The thread id a click is writing into the URL, so a stale query cannot switch it back.
+  const writingId = useRef<string | null>(null);
+  const focusedFromUrl = useRef<string | null>(null);
 
   const conversationsQuery = useConversations();
   const convData = conversationsQuery.data;
   const conversationQuery = useConversation(activeId || '');
   const activeConv = conversationQuery.data;
-  const { isConnected } = useWebSocket();
+  const { connection } = useWebSocket();
   const { member } = useAuth();
   const sendMessageMutation = useSendMessage(activeId || '');
   const titleOf = useConversationTitle();
 
   const openConversation = (id: string) => {
     focusThreadRef.current = true;
+    focusedFromUrl.current = id;
     setActiveId(id);
+    const next = messagingLocation(queryString, { conversation: id });
+    if (messagingLocation(queryString) === next) {
+      writingId.current = null;
+      return;
+    }
+    writingId.current = id;
+    navigate(next, { replace: true });
   };
 
-  // `/messaging?conversation=<id>` (the bell, "Open the conversation") opens that thread, then the link is dropped.
-  const [location, navigate] = useLocation();
-  const queryString=useSearch();
-  const linkedId = conversationIdFromQuery(queryString);
-  const linkedMember=contactMemberFromQuery(queryString);
-  useEffect(()=>{if(linkedMember){setContactMember(linkedMember);setShowNewDialog(true);navigate(location,{replace:true});}},[linkedMember,location,navigate]);
+  // `?member=` opens the new-conversation dialog once, and leaves `?conversation=` in place.
+  const linkedMember = contactMemberFromQuery(queryString);
+  useEffect(() => {
+    if (!linkedMember) return;
+    setContactMember(linkedMember);
+    setShowNewDialog(true);
+    navigate(messagingLocation(queryString, { dropMember: true }), { replace: true });
+  }, [linkedMember, queryString, navigate]);
+
+  // `/messaging?conversation=<id>` selects that thread on load, refresh, and back/forward.
   useEffect(() => {
     if (!linkedId) return;
-    focusThreadRef.current = true;
-    setActiveId(linkedId);
-    navigate(location, { replace: true });
-  }, [linkedId, location, navigate]);
+    if (writingId.current && writingId.current !== linkedId) return;
+    if (writingId.current === linkedId) writingId.current = null;
+    if (linkedId !== activeId) setActiveId(linkedId);
+    if (focusedFromUrl.current !== linkedId) {
+      focusedFromUrl.current = linkedId;
+      focusThreadRef.current = true;
+    }
+  }, [linkedId, activeId]);
 
   useEffect(() => {
     if (!focusThreadRef.current || !activeConv || activeConv.id !== activeId) return;
@@ -150,14 +175,9 @@ export default function MessagingLayout() {
           <>
             <div className="p-3 border-b">
               <h3 ref={threadHeadingRef} tabIndex={-1} className="font-semibold">
-                {titleOf(activeConv)}
+                <ConversationHeading conversation={activeConv} />
               </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`h-2 w-2 ${isConnected ? 'bg-success' : 'bg-destructive'}`} />
-                <span className="text-xs text-muted-foreground">
-                  {isConnected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
+              <ConnectionStatus phase={connection} />
             </div>
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">

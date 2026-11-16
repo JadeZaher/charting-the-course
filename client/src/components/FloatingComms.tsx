@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 import { LinkifiedText } from '@/components/messaging/LinkifiedText';
+import { ConnectionStatus } from '@/components/messaging/ConnectionStatus';
+import { ConversationHeading } from '@/components/messaging/ConversationHeading';
 import { useQuery } from '@tanstack/react-query';
 import { keys } from '@/lib/query-keys';
 import { fetchChatSessions, fetchChatSession, updateChatSessionPrivacy } from '@/lib/api-client';
@@ -16,7 +18,7 @@ import remarkGfm from 'remark-gfm';
 import { Link, useLocation } from 'wouter';
 import { resolveExternalUrl, resolveInternalPath, resolveMediaUrl } from '@/lib/media';
 import { ThinkingSteps } from '@/components/chat/ThinkingSteps';
-import { useConversations, useConversation, useConversationTitle, useWebSocket, useSendMessage } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useConversationTitle, useWebSocket, useSendMessage, type MessagingConnection } from '@/hooks/use-messaging';
 import { useSSEChat } from '@/hooks/use-chat';
 import { chatRouteLabel } from '@/lib/chat-routing';
 import { CONFIRM_REPLY, DECLINE_REPLY, TOOL_STATUS_TEXT, pendingConfirmation } from '@/lib/chat-tools';
@@ -245,7 +247,7 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
 
   const { data: convData, isLoading, error: convError } = useConversations();
   const { data: activeConv, error: activeConvError } = useConversation(activeId || '');
-  const { isConnected } = useWebSocket();
+  const { connection } = useWebSocket();
   const { member } = useAuth();
   const sendMessageMutation = useSendMessage(activeId || '');
 
@@ -315,7 +317,7 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
             <ConversationView
               conv={activeConv}
               memberId={member?.id}
-              isConnected={isConnected}
+              connection={connection}
               messageInput={messageInput}
               onMessageChange={setMessageInput}
               onSend={handleSend}
@@ -345,7 +347,7 @@ function MessagingTab({ expanded }: { expanded: boolean }) {
         <ConversationView
           conv={activeConv}
           memberId={member?.id}
-          isConnected={isConnected}
+          connection={connection}
           messageInput={messageInput}
           onMessageChange={setMessageInput}
           onSend={handleSend}
@@ -474,20 +476,19 @@ function ConversationList({
 function ConversationView({
   conv,
   memberId,
-  isConnected,
+  connection,
   messageInput,
   onMessageChange,
   onSend,
 }: {
   conv: any;
   memberId?: string;
-  isConnected: boolean;
+  connection: MessagingConnection;
   messageInput: string;
   onMessageChange: (v: string) => void;
   onSend: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const titleOf = useConversationTitle();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -497,16 +498,11 @@ function ConversationView({
     <div className="flex flex-col flex-1 min-h-0">
       {/* Conversation header */}
       <div className="px-3 py-2 border-b flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="font-semibold text-sm truncate">
-            {titleOf(conv)}
+            <ConversationHeading conversation={conv} />
           </p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <span className={cn('h-1.5 w-1.5', isConnected ? 'bg-success' : 'bg-destructive')} />
-            <span className="text-[10px] text-muted-foreground">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
+          <ConnectionStatus phase={connection} compact />
         </div>
       </div>
 

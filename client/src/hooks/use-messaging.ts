@@ -4,7 +4,8 @@ import { useApiMutation } from '@/hooks/use-api-mutation';
 import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api-client';
 import { memberQueriesEnabled } from '@/lib/member-queries';
-import { conversationTitle } from '@/lib/conversation-title';
+import { conversationHeading, conversationTitle } from '@/lib/conversation-title';
+import { connectionPhase, type ConnectionPhase } from '@/lib/connection-status';
 import { affects, keys } from '@/lib/query-keys';
 import { API_BASE_URL } from '@/lib/api-origin';
 import { messagingWebSocketUrl } from '@/lib/api-base';
@@ -36,6 +37,17 @@ export function useConversationTitle() {
   const displayName = member?.display_name;
   return useCallback(
     (conversation: Parameters<typeof conversationTitle>[0]) => conversationTitle(conversation, { id, display_name: displayName }),
+    [id, displayName],
+  );
+}
+
+/** Thread heading, including a profile link when the viewer still has a generated name. */
+export function useConversationHeading() {
+  const { member } = useAuth();
+  const id = member?.id;
+  const displayName = member?.display_name;
+  return useCallback(
+    (conversation: Parameters<typeof conversationHeading>[0]) => conversationHeading(conversation, { id, display_name: displayName }),
     [id, displayName],
   );
 }
@@ -87,10 +99,20 @@ interface WSMessage {
   data: any;
 }
 
+export type MessagingConnection = ConnectionPhase | 'idle';
+
+function silence(socket: WebSocket) {
+  socket.onopen = null;
+  socket.onclose = null;
+  socket.onerror = null;
+  socket.onmessage = null;
+}
+
 export function useWebSocket(path: string = '/messaging/ws') {
   const { member } = useAuth();
   const enabled = memberQueriesEnabled(member);
-  const [isConnected, setIsConnected] = useState(false);
+  // Connecting until the first attempt opens or fails. Idle when messaging is not attempted.
+  const [connection, setConnection] = useState<MessagingConnection>(enabled ? 'connecting' : 'idle');
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number>();
@@ -99,16 +121,23 @@ export function useWebSocket(path: string = '/messaging/ws') {
 
   const connect = useCallback(() => {
     if (!enabled) return;
-    // Close any existing connection before reconnecting
+    setConnection((phase) => (phase === 'idle' ? 'connecting' : connectionPhase(phase, 'start')));
+    // Close any existing connection before reconnecting. Drop its handlers so that close is not a failure.
     if (wsRef.current) {
-      wsRef.current.onclose = null;
+      silence(wsRef.current);
       wsRef.current.close();
     }
 
-    const ws = new WebSocket(messagingWebSocketUrl(API_BASE_URL, window.location, path));
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(messagingWebSocketUrl(API_BASE_URL, window.location, path));
+    } catch {
+      setConnection((phase) => (phase === 'idle' ? 'disconnected' : connectionPhase(phase, 'failure')));
+      return;
+    }
 
     ws.onopen = () => {
-      setIsConnected(true);
+      setConnection('connected');
       reconnectAttemptRef.current = 0;
     };
 
@@ -123,28 +152,36 @@ export function useWebSocket(path: string = '/messaging/ws') {
     };
 
     ws.onclose = () => {
-      setIsConnected(false);
+      setConnection((phase) => (phase === 'idle' ? 'disconnected' : connectionPhase(phase, 'failure')));
       // Exponential backoff: 3s, 6s, 12s, 24s, max 30s
       const delay = Math.min(3000 * Math.pow(2, reconnectAttemptRef.current), 30000);
       reconnectAttemptRef.current += 1;
       reconnectTimeoutRef.current = window.setTimeout(connect, delay);
     };
 
-    ws.onerror = () => ws.close();
+    ws.onerror = () => {
+      setConnection((phase) => (phase === 'idle' ? 'disconnected' : connectionPhase(phase, 'failure')));
+      ws.close();
+    };
 
     wsRef.current = ws;
   }, [path, qc, enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setConnection('idle');
+      return;
+    }
+    setConnection((phase) => (phase === 'idle' ? 'connecting' : phase));
     connect();
     return () => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) {
-        wsRef.current.onclose = null;
+        silence(wsRef.current);
         wsRef.current.close();
       }
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   const send = useCallback((data: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -152,5 +189,5 @@ export function useWebSocket(path: string = '/messaging/ws') {
     }
   }, []);
 
-  return { isConnected, lastMessage, send, reconnect: connect };
+  return { isConnected: connection === 'connected', connection, lastMessage, send, reconnect: connect };
 }

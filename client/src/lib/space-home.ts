@@ -8,6 +8,14 @@ import { proposalPhaseLabel } from './proposal-vocab';
 import { parseDue } from './next-steps';
 import { resolveInternalPath } from './internal-path';
 import { spaceHomeCopy as copy } from './space-home-copy';
+import {
+  ADD_DISPLAY_NAME,
+  PROFILE_SETTINGS_HREF,
+  UNNAMED_OWNER,
+  isPlaceholderDisplayName,
+  presentPlaceholderName,
+  type ViewerIdentity,
+} from './placeholder-name';
 
 export type SpaceViewer = 'member' | 'pending' | 'guest' | 'signed-out';
 
@@ -55,8 +63,8 @@ export function publicOwner(record: unknown): PublicOwner | null {
   if (!source || typeof source !== 'object') return null;
   const row = source as { id?: unknown; display_name?: unknown };
   const id = typeof row.id === 'string' ? row.id.trim() : '';
-  const name = humanName(typeof row.display_name === 'string' ? row.display_name : undefined);
-  if (!id || !name || /[\u0000-\u001f\u007f]/.test(id)) return null;
+  const name = readableName(typeof row.display_name === 'string' ? row.display_name : undefined);
+  if (!id || !name || /[\u0000-\u001f\u007f]/.test(id) || /[\u0000-\u001f\u007f]/.test(name)) return null;
   return { id, display_name: name };
 }
 
@@ -75,6 +83,31 @@ export function startedConversationId(body: unknown): string | null {
   if (typeof id !== 'string') return null;
   const trimmed = id.trim();
   return PLAIN_ID.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Id from a direct-message write. 201 is the new conversation; 200 is the one that already
+ * existed (get-or-create). Any other status is not opened.
+ */
+export function directMessageId(status: number, body: unknown): string | null {
+  if (status !== 200 && status !== 201) return null;
+  return startedConversationId(body);
+}
+
+/** The conversation a resolved direct-message write returned. The client accepts both success statuses. */
+export function openedDirectMessageId(body: unknown): string | null {
+  return directMessageId(200, body) ?? directMessageId(201, body);
+}
+
+/** True the first time. A second call while `gate.current` is set does not start another request. */
+export function claimInFlight(gate: { current: boolean }): boolean {
+  if (gate.current) return false;
+  gate.current = true;
+  return true;
+}
+
+export function releaseInFlight(gate: { current: boolean }): void {
+  gate.current = false;
 }
 
 function httpStatus(error: unknown): number | null {
@@ -328,11 +361,17 @@ export interface PersonRow {
   key: string;
   text: string;
   detail?: string;
+  /** Set when `text` is the viewer's prompt to add a display name. */
+  href?: string;
+  /** Role text that stays outside the link. */
+  suffix?: string;
 }
 
 export interface OwnerContactModel {
-  /** "{display_name}, owner". */
+  /** "{display_name}, owner", the unnamed-owner sentence, or the viewer's own prompt. */
   label: string;
+  /** Profile settings, when `label` is the prompt for the signed-in owner. */
+  labelHref: string | null;
   ownerId: string;
   /** Signed-out viewers follow the sign-in link. Everyone else starts a direct message. */
   destination: 'sign-in' | 'messaging' | 'compose';
@@ -366,9 +405,16 @@ export function roleWord(role: string | null | undefined): string {
   return key.replace(/[_-]+/g, ' ');
 }
 
-function humanName(value: string | null | undefined): string | null {
+/** A name that can be shown. Opaque ids and generated codes are not names. Placeholders are handled separately. */
+function readableName(value: string | null | undefined): string | null {
   const name = value?.trim();
   if (!name || OPAQUE_ID.test(name) || GENERATED_CODE.test(name)) return null;
+  return name;
+}
+
+function humanName(value: string | null | undefined): string | null {
+  const name = readableName(value);
+  if (!name || isPlaceholderDisplayName(name)) return null;
   return name;
 }
 
@@ -414,25 +460,104 @@ export function directoryCandidates(
   return Array.from(rows.values());
 }
 
-function ownerContact(input: {
+function ownerLabel(owner: PublicOwner, viewer: ViewerIdentity | null | undefined): { label: string; labelHref: string | null } {
+  const presented = presentPlaceholderName({
+    name: owner.display_name,
+    personId: owner.id,
+    viewer,
+    asOwner: true,
+  });
+  if (presented.kind === 'self') return { label: ADD_DISPLAY_NAME, labelHref: PROFILE_SETTINGS_HREF };
+  if (presented.kind === 'given') return { label: copy.whosHere.owner(presented.text), labelHref: null };
+  return { label: UNNAMED_OWNER, labelHref: null };
+}
+
+export function ownerContactModel(input: {
   viewer: SpaceViewer;
   owner: unknown;
   signInHref: string;
   /** True when Messaging would bounce this member back to the consent gate. */
   messagingLocked: boolean;
+  viewerIdentity?: ViewerIdentity | null;
 }): OwnerContactModel | null {
   const owner = publicOwner(input.owner);
   if (!owner) return null;
-  const label = copy.whosHere.owner(owner.display_name);
+  const { label, labelHref } = ownerLabel(owner, input.viewerIdentity);
   if (input.viewer === 'signed-out') {
-    return { label, ownerId: owner.id, destination: 'sign-in', signInHref: input.signInHref };
+    return { label, labelHref, ownerId: owner.id, destination: 'sign-in', signInHref: input.signInHref };
   }
   return {
     label,
+    labelHref,
     ownerId: owner.id,
     destination: input.messagingLocked ? 'compose' : 'messaging',
     signInHref: null,
   };
+}
+
+function isOwnerIdentity(
+  name: string,
+  role: string | null | undefined,
+  personId: string | undefined,
+  owner: PublicOwner | null,
+): boolean {
+  if (roleWord(role) === copy.roles.owner) return true;
+  if (!owner) return false;
+  if (personId && personId === owner.id) return true;
+  return isPlaceholderDisplayName(name) && name === owner.display_name;
+}
+
+/** A directory row. A generated name is never copied through; the owner sentence or the viewer's prompt stands in its place. */
+function directoryLine(
+  raw: string | null | undefined,
+  role: string | null | undefined,
+  personId: string | undefined,
+  owner: PublicOwner | null,
+  viewer: ViewerIdentity | null | undefined,
+  formatGiven: (name: string, role: string) => string,
+): { text: string; href?: string; suffix?: string } | null {
+  const trimmed = raw?.trim() ?? '';
+  if (isPlaceholderDisplayName(trimmed)) {
+    const asOwner = isOwnerIdentity(trimmed, role, personId, owner);
+    const presented = presentPlaceholderName({ name: trimmed, personId, viewer, asOwner });
+    if (presented.kind === 'self') {
+      return {
+        text: ADD_DISPLAY_NAME,
+        href: PROFILE_SETTINGS_HREF,
+        suffix: ` — ${asOwner ? copy.roles.owner : roleWord(role)}`,
+      };
+    }
+    if (presented.kind === 'unnamed-owner') return { text: copy.happening.personRole(UNNAMED_OWNER, copy.roles.owner) };
+    return null;
+  }
+  const name = humanName(trimmed);
+  if (!name) return null;
+  return { text: formatGiven(name, roleWord(role)) };
+}
+
+function circleSteward(
+  raw: string | null | undefined,
+  circleName: string,
+  owner: PublicOwner | null,
+  viewer: ViewerIdentity | null | undefined,
+): { text: string; href?: string; suffix?: string } {
+  const trimmed = raw?.trim() ?? '';
+  if (!isPlaceholderDisplayName(trimmed)) {
+    const name = humanName(trimmed);
+    return { text: name ? copy.happening.stewardOf(name, circleName) : circleName };
+  }
+  const asOwner = isOwnerIdentity(trimmed, null, undefined, owner);
+  const presented = presentPlaceholderName({
+    name: trimmed,
+    personId: asOwner ? owner?.id : undefined,
+    viewer,
+    asOwner,
+  });
+  if (presented.kind === 'self') {
+    return { text: ADD_DISPLAY_NAME, href: PROFILE_SETTINGS_HREF, suffix: ` — steward of ${circleName}` };
+  }
+  if (presented.kind === 'unnamed-owner') return { text: copy.happening.stewardOf(UNNAMED_OWNER, circleName) };
+  return { text: circleName };
 }
 
 export function whosHere(input: {
@@ -448,12 +573,16 @@ export function whosHere(input: {
   owner?: unknown;
   signInHref?: string;
   messagingLocked?: boolean;
+  /** The signed-in member, so a placeholder owner can be shown the profile prompt. */
+  viewerIdentity?: ViewerIdentity | null;
 }): WhosHereModel {
-  const owner = ownerContact({
+  const ownerRecord = publicOwner(input.owner);
+  const owner = ownerContactModel({
     viewer: input.viewer,
     owner: input.owner,
     signInHref: input.signInHref ?? '/login',
     messagingLocked: input.messagingLocked === true,
+    viewerIdentity: input.viewerIdentity,
   });
   if (input.viewer !== 'member') {
     const count = input.memberCount;
@@ -473,22 +602,21 @@ export function whosHere(input: {
   }
 
   const stewards = (input.stewards ?? []).flatMap((steward, index) => {
-    const name = humanName(steward.display_name);
-    if (!name) return [];
-    const role = roleWord(steward.role);
-    const text = role === copy.roles.steward
-      ? copy.happening.stewardOf(name, input.ecosystemName)
-      : copy.happening.personRole(name, role);
-    return [{ key: `steward-${index}`, text }];
+    const line = directoryLine(steward.display_name, steward.role, undefined, ownerRecord, input.viewerIdentity, (name, role) => (
+      role === copy.roles.steward
+        ? copy.happening.stewardOf(name, input.ecosystemName)
+        : copy.happening.personRole(name, role)
+    ));
+    if (!line) return [];
+    return [{ key: `steward-${index}`, ...line }];
   });
 
   const circles = (input.circles ?? []).flatMap((circle, index) => {
     const name = humanName(circle.name);
     if (!name || (circle.code && name === circle.code)) return [];
-    const steward = humanName(circle.steward);
-    const text = steward ? copy.happening.stewardOf(steward, name) : name;
+    const steward = circleSteward(circle.steward, name, ownerRecord, input.viewerIdentity);
     const detail = circle.purpose?.trim() || undefined;
-    return [{ key: `circle-${index}`, text, detail }];
+    return [{ key: `circle-${index}`, ...steward, detail }];
   });
 
   const opted = input.optedInIds;
@@ -499,9 +627,16 @@ export function whosHere(input: {
     return [person.id, person.member_id, person.user_id].some((id) => !!id && opted.has(id));
   });
   const members = visible.slice(0, DIRECTORY_CAP).flatMap((person, index) => {
-    const name = humanName(person.display_name);
-    if (!name) return [];
-    return [{ key: `member-${index}`, text: copy.happening.personRole(name, roleWord(person.role)) }];
+    const line = directoryLine(
+      person.display_name,
+      person.role,
+      person.id || person.member_id || person.user_id,
+      ownerRecord,
+      input.viewerIdentity,
+      (name, role) => copy.happening.personRole(name, role),
+    );
+    if (!line) return [];
+    return [{ key: `member-${index}`, ...line }];
   });
 
   return {

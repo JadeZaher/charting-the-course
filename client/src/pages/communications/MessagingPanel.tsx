@@ -13,7 +13,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useConversations, useConversation, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
+import { useConversations, useConversation, useConversationTitle, useWebSocket, useMemberPicker, useCreateConversation, useSendMessage } from '@/hooks/use-messaging';
+import { ConnectionStatus } from '@/components/messaging/ConnectionStatus';
+import { ConversationHeading } from '@/components/messaging/ConversationHeading';
 import { MessageSquare, Plus, Send, Search, Users, User, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -29,7 +31,8 @@ export default function MessagingPanel() {
 
   const { data: convData, isLoading } = useConversations();
   const { data: activeConv } = useConversation(activeId || '');
-  const { isConnected } = useWebSocket();
+  const { connection } = useWebSocket();
+  const titleOf = useConversationTitle();
   const { member } = useAuth();
   const { data: membersData } = useMemberPicker();
   const createConversation = useCreateConversation();
@@ -132,7 +135,7 @@ export default function MessagingPanel() {
                     <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                   )}
                   <p className="font-medium text-xs truncate">
-                    {conv.title || conv.participants.map(p => p.display_name).join(', ')}
+                    {titleOf(conv)}
                   </p>
                 </div>
                 {conv.unread_count > 0 && (
@@ -162,15 +165,14 @@ export default function MessagingPanel() {
                   <User className="h-4 w-4 text-muted-foreground" />
                 )}
                 <h3 className="font-semibold text-sm truncate">
-                  {activeConv.title || activeConv.participants.map(p => p.display_name).join(', ')}
+                  <ConversationHeading conversation={activeConv} />
                 </h3>
               </div>
-              <div className="flex items-center gap-2 mt-0.5 pl-6">
-                <span className={`h-1.5 w-1.5 ${isConnected ? 'bg-success' : 'bg-destructive'}`} />
-                <span className="text-xs text-muted-foreground">
-                  {isConnected ? 'Connected' : 'Disconnected'}
-                  {activeConv.type === 'group' && ` · ${activeConv.participants.length} members`}
-                </span>
+              <div className="mt-0.5 flex items-center gap-2 pl-6">
+                <ConnectionStatus phase={connection} compact />
+                {activeConv.type === 'group' && (
+                  <span className="text-xs text-muted-foreground">{activeConv.participants.length} members</span>
+                )}
               </div>
             </div>
             <ScrollArea className="flex-1 p-3">
