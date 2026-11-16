@@ -37,12 +37,12 @@ export default function ConsentGatePage() {
     // Never claim an active membership the server did not report (a leaver has none).
     const isActiveSomewhere = activeEcosystemIds({ pendingConsents, memberships: ecosystems, member }).length > 0;
     return (
-      <section className="mx-auto max-w-2xl border-2 border-strong-border bg-card p-8 sm:p-10" aria-live="polite">
+      <section className="mx-auto min-w-0 max-w-2xl border-2 border-strong-border bg-card p-4 sm:p-10" aria-live="polite">
         <p className="sr-only" role={statusMessage === 'Status could not be refreshed.' ? 'alert' : 'status'}>{statusMessage}</p>
         <FileCheck2 className="h-8 w-8" aria-hidden="true" />
         {isActiveSomewhere ? (
           <>
-            <h1 className="mt-5 text-3xl font-black tracking-[-0.035em]">You're an active member</h1>
+            <h1 className="mt-5 break-words text-3xl font-black tracking-[-0.035em] text-wrap">You're an active member</h1>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">No ecosystem agreements are waiting for your consent.</p>
             <Button asChild className="mt-8">
               <Link href="/dashboard">Go to your dashboard</Link>
@@ -50,7 +50,7 @@ export default function ConsentGatePage() {
           </>
         ) : (
           <>
-            <h1 className="mt-5 text-3xl font-black tracking-[-0.035em]">Nothing is waiting for your consent</h1>
+            <h1 className="mt-5 break-words text-3xl font-black tracking-[-0.035em] text-wrap">Nothing is waiting for your consent</h1>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">
               You are not taking part in an ecosystem right now. Find one to learn about and join.
             </p>
@@ -64,14 +64,14 @@ export default function ConsentGatePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto min-w-0 max-w-2xl space-y-6">
       <p className="sr-only" role={statusMessage === 'Status could not be refreshed.' ? 'alert' : 'status'}>{statusMessage}</p>
       {pendingConsents.map((gate, index) => {
         const Heading = consentGateHeading(index);
         return (
-        <section key={gate.ecosystem_id} className="border-2 border-strong-border bg-card p-8 sm:p-10" aria-labelledby={`gate-${gate.ecosystem_id}`}>
+        <section key={gate.ecosystem_id} className="min-w-0 border-2 border-strong-border bg-card p-4 sm:p-10" aria-labelledby={`gate-${gate.ecosystem_id}`}>
           <FileCheck2 className="h-8 w-8" aria-hidden="true" />
-          <Heading id={`gate-${gate.ecosystem_id}`} className="mt-5 text-3xl font-black tracking-[-0.035em]">
+          <Heading id={`gate-${gate.ecosystem_id}`} className="mt-5 break-words text-3xl font-black tracking-[-0.035em] text-wrap">
             Before you take part in {gate.ecosystem_name}
           </Heading>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
@@ -104,7 +104,7 @@ export default function ConsentGatePage() {
         </section>
         );
       })}
-      <Button variant="outline" onClick={checkAgain} disabled={isChecking}>
+      <Button variant="outline" className="h-auto max-w-full whitespace-normal text-center" onClick={checkAgain} disabled={isChecking}>
         <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
         {isChecking ? 'Checking…' : "I've completed the requirements, check again"}
       </Button>
