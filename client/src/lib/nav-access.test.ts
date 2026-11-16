@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  canOpenAdminPanel, ecosystemPickerLabel, navPermissionsFor, readPlatformAdmin, routeAccess, showsNewcomers, visibleNavItems,
+  canCreateQuiz, canManageQuizzes, canOpenAdminPanel, ecosystemPickerLabel, navPermissionsFor, readPlatformAdmin, routeAccess, showsNewcomers, visibleNavItems,
   type NavAccess,
 } from './nav-access';
 import type { MembershipRow } from './ecosystem-join';
@@ -54,6 +54,20 @@ test('Manage Quizzes and the /quiz/manage route admit the same members', () => {
     assert.equal(linkShown, admitted, `${who}: link`);
     assert.equal(routeAccess('quiz-steward', permissions, true), admitted ? 'allow' : 'deny', `${who}: route`);
   }
+});
+
+test('quiz creation opens to an active member while the selected ecosystem has no admin', () => {
+  const member = { id: 'fresh', membership_status: 'active', role: 'user', is_steward: false };
+  const closed = navPermissionsFor({ isPlatformAdmin: false, selectedIds: ['fresh'], memberships: [member] });
+  assert.equal(canManageQuizzes(closed), false);
+  assert.equal(canCreateQuiz({ ...closed, vacantAdminQuiz: false }), false);
+  assert.equal(routeAccess('quiz-steward', { ...closed, vacantAdminQuiz: false }, true), 'deny');
+  assert.equal(routeAccess('quiz-steward', { ...closed, vacantAdminQuiz: null }, true), 'wait');
+  const open = { ...closed, vacantAdminQuiz: true as const };
+  assert.equal(canCreateQuiz(open), true);
+  assert.equal(canManageQuizzes(open), false);
+  assert.equal(routeAccess('quiz-steward', open, true), 'allow');
+  assert.equal(visibleNavItems(links, open).some((link) => link.title === 'Manage Quizzes'), true);
 });
 
 test('the quiz route waits for the header selection instead of refusing a steward before it is restored', () => {

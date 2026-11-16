@@ -12,6 +12,11 @@ export interface NavPermissions {
   isPlatformAdmin: boolean;
   /** A steward (the server's rule, `isStewardIn`) of an ecosystem in the header selection. */
   stewardsSelection: boolean;
+  /**
+   * The selected ecosystem has no active admin, so an active member may create a quiz.
+   * `null` while that fact is still loading. Absent or false keeps the steward gate.
+   */
+  vacantAdminQuiz?: boolean | null;
 }
 
 /** The sidebar's permissions from /auth/me: the platform-admin flag and the per-ecosystem steward rule over the selection. */
@@ -30,6 +35,11 @@ export function canManageQuizzes(permissions: NavPermissions): boolean {
   return permissions.isPlatformAdmin || permissions.stewardsSelection;
 }
 
+/** Creating a quiz. The steward gate stays while an admin is active. With none, an active member of the selected ecosystem may create one. */
+export function canCreateQuiz(permissions: NavPermissions): boolean {
+  return canManageQuizzes(permissions) || permissions.vacantAdminQuiz === true;
+}
+
 /** Node support gate; organization profiles and compatibility flags confer no access. */
 export function canOpenAdminPanel(permissions: Pick<NavPermissions, 'isNodeAdmin'>): boolean {
   return permissions.isNodeAdmin;
@@ -37,7 +47,7 @@ export function canOpenAdminPanel(permissions: Pick<NavPermissions, 'isNodeAdmin
 
 /** Whether a page gated by `access` admits this member; its links and its route both ask this, so they never disagree. */
 export function admits(access: NavAccess, permissions: NavPermissions): boolean {
-  return access === 'quiz-steward' ? canManageQuizzes(permissions) : canOpenAdminPanel(permissions);
+  return access === 'quiz-steward' ? canCreateQuiz(permissions) : canOpenAdminPanel(permissions);
 }
 
 /** The links whose destination admits this member, in their declared order. */
@@ -48,6 +58,7 @@ export function visibleNavItems<T extends { access: NavAccess }>(items: readonly
 /** A route gated like its links (`App.tsx` ProtectedRoute `access`): `wait` while the header selection is still being
  * restored (it starts empty), so a steward's hard load never flashes Access Denied; see client/src/AGENTS.md "Pass 03 fixes". */
 export function routeAccess(access: NavAccess, permissions: NavPermissions, selectionRestored: boolean): 'allow' | 'wait' | 'deny' {
+  if (access === 'quiz-steward' && permissions.vacantAdminQuiz === null && !canManageQuizzes(permissions)) return 'wait';
   if (admits(access, permissions)) return 'allow';
   if (access === 'admin-panel') return 'deny';
   return selectionRestored ? 'deny' : 'wait';

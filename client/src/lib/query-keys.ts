@@ -76,6 +76,7 @@ export const keys = {
     explain: (id: RecordId) => [...conflict.detail(id), 'explain'] as const,
   })),
   ecosystems: collection('ecosystems', (ecosystem) => ({
+    admins: (id: RecordId) => [...ecosystem.detail(id), 'admins'] as const,
     members: (id: RecordId) => [...ecosystem.detail(id), 'members'] as const,
     /** Ethos access grants for an ecosystem (admin view). */
     accessGrants: (id: RecordId) => [...ecosystem.detail(id), 'access'] as const,

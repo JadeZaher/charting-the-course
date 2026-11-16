@@ -5,6 +5,7 @@ import { spaceHomeCopy as copy } from './space-home-copy';
 import { safeRedirect } from './post-login-redirect';
 import { signupEcosystemId } from './signup-ecosystem';
 import {
+  communitySignInHref,
   ethosSignInHref,
   happening,
   headerStatus,
@@ -17,6 +18,8 @@ import {
   ownerMessageError,
   pendingJoinAction,
   publicMemberCount,
+  ownerContactLine,
+  ownerContactModel,
   publicOwner,
   spaceViewer,
   startedConversationId,
@@ -105,6 +108,61 @@ test('a public owner keeps the display name and member id, and nothing else', ()
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), '555-0101'), false);
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'did:example'), false);
   assert.equal(modelContains(publicOwner(OWNER_PAYLOAD), 'user-secret'), false);
+  assert.deepEqual(
+    publicOwner({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external', email: 'ada@secret.test' } }),
+    { id: 'mem-owner', display_name: 'Ada', role: 'external' },
+  );
+  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external' } }), 'Ada, Rep Link');
+  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } }), 'Ada, Lead Link');
+  assert.equal(ownerContactLine({ owner: null }), null);
+  assert.equal(ownerContactLine({}), null);
+});
+
+test('a community page shows one owner contact, labelled by role, and signs in back to that page', () => {
+  const id = '6e827f2a-5229-4232-901c-b2818c7a44df';
+  const community = {
+    id,
+    name: 'Harbor',
+    description: 'A public community',
+    member_count: 4,
+    owner: {
+      id: 'mem-owner',
+      display_name: 'Ada',
+      role: 'external',
+      email: 'ada@secret.test',
+      phone: '555-0101',
+      did: 'did:example:ada',
+    },
+  };
+  const href = communitySignInHref(id);
+  const signedOut = ownerContactModel({ viewer: 'signed-out', owner: community, signInHref: href, messagingLocked: false });
+  assert.equal(signedOut?.label, copy.whosHere.owner('Ada', 'external'));
+  assert.equal(signedOut?.label, 'Ada, Rep Link');
+  assert.equal(signedOut?.ownerId, 'mem-owner');
+  assert.equal(signedOut?.destination, 'sign-in');
+  assert.equal(signedOut?.signInHref, href);
+  assert.equal(safeRedirect(new URLSearchParams(href.slice(href.indexOf('?'))).get('redirect')), `/communities/${id}`);
+  assert.equal(signupEcosystemId(href.slice(href.indexOf('?'))), id);
+  assert.equal(modelContains(signedOut, 'ada@secret.test'), false);
+  assert.equal(modelContains(signedOut, '555-0101'), false);
+  assert.equal(modelContains(signedOut, 'did:example'), false);
+  assert.equal(modelContains(signedOut, 'Harbor'), false);
+
+  const signedIn = ownerContactModel({ viewer: 'guest', owner: community, signInHref: href, messagingLocked: false });
+  assert.equal(signedIn?.destination, 'messaging');
+  assert.equal(signedIn?.signInHref, null);
+  const locked = ownerContactModel({ viewer: 'pending', owner: community, signInHref: href, messagingLocked: true });
+  assert.equal(locked?.destination, 'compose');
+
+  assert.equal(ownerContactModel({ viewer: 'signed-out', owner: { ...community, owner: null }, signInHref: href, messagingLocked: false }), null);
+  const internal = ownerContactModel({
+    viewer: 'signed-out',
+    owner: { owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } },
+    signInHref: href,
+    messagingLocked: false,
+  });
+  assert.equal(internal?.label, copy.whosHere.owner('Ada', 'internal'));
+  assert.equal(internal?.label, 'Ada, Lead Link');
 });
 
 test('long overdue is the server flag plus the day cutoff, not a client guess', () => {
