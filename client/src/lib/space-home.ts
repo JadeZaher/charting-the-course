@@ -33,9 +33,19 @@ export function publicMemberCount(record: object | null | undefined): number | n
   return Number.isInteger(count) && count >= 0 ? count : null;
 }
 
+/** Sign-in that returns to `returnPath` and opens registration for this ecosystem. */
+export function signInHref(returnPath: string, ecosystemId: string): string {
+  return `/login?redirect=${encodeURIComponent(returnPath)}&ecosystem=${encodeURIComponent(ecosystemId)}`;
+}
+
 /** Sign-in for this ecosystem home. `?ecosystem=` opens registration; `?redirect=` returns here. */
 export function ethosSignInHref(ecosystemId: string): string {
-  return `/login?redirect=${encodeURIComponent(`/ethos/${ecosystemId}`)}&ecosystem=${encodeURIComponent(ecosystemId)}`;
+  return signInHref(`/ethos/${ecosystemId}`, ecosystemId);
+}
+
+/** Sign-in for a public community page. Returns to that page. */
+export function communitySignInHref(ecosystemId: string): string {
+  return signInHref(`/communities/${ecosystemId}`, ecosystemId);
 }
 
 /** Display name, member id, and the public role (`external` or `internal`). Email, phone, DID and user id are not copied. */
@@ -423,7 +433,8 @@ export function directoryCandidates(
   return Array.from(rows.values());
 }
 
-function ownerContact(input: {
+/** The one public contact, or null when `owner` is null or has no display name. Email and other member fields are not copied. */
+export function ownerContactModel(input: {
   viewer: SpaceViewer;
   owner: unknown;
   signInHref: string;
@@ -458,7 +469,7 @@ export function whosHere(input: {
   signInHref?: string;
   messagingLocked?: boolean;
 }): WhosHereModel {
-  const owner = ownerContact({
+  const owner = ownerContactModel({
     viewer: input.viewer,
     owner: input.owner,
     signInHref: input.signInHref ?? '/login',

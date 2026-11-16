@@ -189,7 +189,7 @@ function OwnerMessage({ owner }: { owner: OwnerContactModel }) {
   );
 }
 
-function OwnerContact({ owner }: { owner: OwnerContactModel }) {
+export function OwnerContact({ owner }: { owner: OwnerContactModel }) {
   if (owner.destination === 'sign-in') return <OwnerSignIn owner={owner} />;
   return <OwnerMessage owner={owner} />;
 }
