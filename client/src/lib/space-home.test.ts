@@ -15,9 +15,12 @@ import {
   modelContains,
   nextCard,
   claimInFlight,
+  communityOwnerContact,
   directMessageId,
   openedDirectMessageId,
   ownerContactModel,
+  showsCommunityUpdates,
+  withDeadline,
   ownerDirectMessage,
   ownerMessageError,
   pendingJoinAction,
@@ -118,13 +121,15 @@ test('a public owner keeps the display name and member id, and nothing else', ()
     publicOwner({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external', email: 'ada@secret.test' } }),
     { id: 'mem-owner', display_name: 'Ada', role: 'external' },
   );
-  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external' } }), 'Ada, Rep Link');
-  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } }), 'Ada, Lead Link');
+  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external' } }), 'Ada, owner');
+  assert.equal(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } }), 'Ada, owner');
+  assert.equal(modelContains(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'external' } }), 'Rep Link'), false);
+  assert.equal(modelContains(ownerContactLine({ owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } }), 'Lead Link'), false);
   assert.equal(ownerContactLine({ owner: null }), null);
   assert.equal(ownerContactLine({}), null);
 });
 
-test('a community page shows one owner contact, labelled by role, and signs in back to that page', () => {
+test('a community page shows one owner contact, labelled owner, and signs in back to that page', () => {
   const id = '6e827f2a-5229-4232-901c-b2818c7a44df';
   const community = {
     id,
@@ -141,9 +146,9 @@ test('a community page shows one owner contact, labelled by role, and signs in b
     },
   };
   const href = communitySignInHref(id);
-  const signedOut = ownerContactModel({ viewer: 'signed-out', owner: community, signInHref: href, messagingLocked: false });
-  assert.equal(signedOut?.label, copy.whosHere.owner('Ada', 'external'));
-  assert.equal(signedOut?.label, 'Ada, Rep Link');
+  const signedOut = communityOwnerContact({ viewer: 'signed-out', owner: community, signInHref: href });
+  assert.equal(signedOut?.label, copy.whosHere.owner('Ada'));
+  assert.equal(signedOut?.label, 'Ada, owner');
   assert.equal(signedOut?.ownerId, 'mem-owner');
   assert.equal(signedOut?.destination, 'sign-in');
   assert.equal(signedOut?.signInHref, href);
@@ -154,21 +159,26 @@ test('a community page shows one owner contact, labelled by role, and signs in b
   assert.equal(modelContains(signedOut, 'did:example'), false);
   assert.equal(modelContains(signedOut, 'Harbor'), false);
 
-  const signedIn = ownerContactModel({ viewer: 'guest', owner: community, signInHref: href, messagingLocked: false });
+  const signedIn = communityOwnerContact({ viewer: 'guest', owner: community, signInHref: href });
   assert.equal(signedIn?.destination, 'messaging');
   assert.equal(signedIn?.signInHref, null);
-  const locked = ownerContactModel({ viewer: 'pending', owner: community, signInHref: href, messagingLocked: true });
-  assert.equal(locked?.destination, 'compose');
+  const pending = communityOwnerContact({ viewer: 'pending', owner: community, signInHref: href });
+  assert.equal(pending?.destination, 'messaging');
+  const lockedOnEthos = ownerContactModel({ viewer: 'pending', owner: community, signInHref: href, messagingLocked: true });
+  assert.equal(lockedOnEthos?.destination, 'compose');
 
-  assert.equal(ownerContactModel({ viewer: 'signed-out', owner: { ...community, owner: null }, signInHref: href, messagingLocked: false }), null);
-  const internal = ownerContactModel({
+  assert.equal(communityOwnerContact({ viewer: 'signed-out', owner: { ...community, owner: null }, signInHref: href }), null);
+  const internal = communityOwnerContact({
     viewer: 'signed-out',
     owner: { owner: { id: 'mem-owner', display_name: 'Ada', role: 'internal' } },
     signInHref: href,
-    messagingLocked: false,
   });
-  assert.equal(internal?.label, copy.whosHere.owner('Ada', 'internal'));
-  assert.equal(internal?.label, 'Ada, Lead Link');
+  assert.equal(internal?.label, 'Ada, owner');
+  assert.equal(modelContains(internal, 'Lead Link'), false);
+  assert.equal(showsCommunityUpdates(false, 'active'), false);
+  assert.equal(showsCommunityUpdates(true, 'pending_consent'), false);
+  assert.equal(showsCommunityUpdates(true, undefined), false);
+  assert.equal(showsCommunityUpdates(true, 'active'), true);
 });
 
 test('long overdue is the server flag plus the day cutoff, not a client guess', () => {
@@ -522,15 +532,16 @@ test('a generated owner name is replaced in Who\'s here and the owner contact', 
   assert.equal(contact?.destination, 'messaging');
   assert.equal(contact?.label, "The owner hasn't added a display name yet");
   const repLink = ownerContactLine({ owner: { id: 'mem-owner', display_name: PLACEHOLDER, role: 'external' } });
-  assert.equal(repLink, "The owner hasn't added a display name yet, Rep Link");
+  assert.equal(repLink, "The owner hasn't added a display name yet");
   assert.equal(modelContains(repLink, PLACEHOLDER), false);
+  assert.equal(modelContains(repLink, 'Rep Link'), false);
 });
 
 function statusError(status: number, message: string): Error {
   return Object.assign(new Error(message), { status });
 }
 
-test('a direct message opens from a 200 or a 201, and a double click does not start a second request', () => {
+test('a direct message opens from a 200 or a 201, and a double click does not start a second request', async () => {
   assert.deepEqual(ownerDirectMessage('mem-owner'), { type: 'dm', participant_ids: ['mem-owner'] });
   const id = '11111111-1111-4111-8111-111111111111';
   const body = { id, type: 'dm' };
@@ -550,6 +561,9 @@ test('a direct message opens from a 200 or a 201, and a double click does not st
   assert.equal(gate.current, true);
   releaseInFlight(gate);
   assert.equal(claimInFlight(gate), true);
+  assert.equal(await withDeadline(Promise.resolve('dm-1'), 200), 'dm-1');
+  await assert.rejects(withDeadline(new Promise(() => {}), 15), /That took too long/);
+  await assert.rejects(withDeadline(Promise.reject(new Error('You can\'t message the owner right now.')), 200), /can't message the owner/);
 });
 
 test('owner messaging uses one direct-message body and short sentences for 401, 403 and 429', () => {

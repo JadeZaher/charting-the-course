@@ -54,10 +54,9 @@ export const spaceHomeCopy = {
     memberCount: (count: number) => `${count} members.`,
     none: 'No members are listed yet.',
     retry: 'Try again',
-    /** Public owner contact: display name and role. `external` is Rep Link, `internal` is Lead Link. An older payload with neither stays "owner". */
-    owner: (name: string, role?: 'internal' | 'external') => (
-      role === 'external' ? `${name}, Rep Link` : role === 'internal' ? `${name}, Lead Link` : `${name}, owner`
-    ),
+    /** Public owner contact. The seat names Lead Link and Rep Link stay on the admin settings page. */
+    owner: (name: string) => `${name}, owner`,
+    messageTimedOut: 'That took too long. Try again.',
     /** A generated `Member-…` display name. Not a name, and not a substitute for one. */
     unnamedOwner: "The owner hasn't added a display name yet",
     /** Shown to that owner, as a link to profile settings. */

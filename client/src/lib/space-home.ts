@@ -118,6 +118,31 @@ export function openedDirectMessageId(body: unknown): string | null {
   return directMessageId(200, body) ?? directMessageId(201, body);
 }
 
+/** How long "Message the owner" waits before the button comes back with an error. */
+export const OWNER_MESSAGE_TIMEOUT_MS = 12_000;
+
+/** Rejects when `work` is still pending after `ms`. A finished request wins, and its timer is cleared. */
+export function withDeadline<T>(work: Promise<T>, ms: number, message = copy.whosHere.messageTimedOut): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/** "Manage community updates" is only for a signed-in active member of that community. */
+export function showsCommunityUpdates(authenticated: boolean, membershipStatus: string | null | undefined): boolean {
+  return authenticated && membershipStatus === 'active';
+}
+
 /** True the first time. A second call while `gate.current` is set does not start another request. */
 export function claimInFlight(gate: { current: boolean }): boolean {
   if (gate.current) return false;
@@ -488,9 +513,18 @@ function ownerLabel(owner: PublicOwner, viewer: ViewerIdentity | null | undefine
     asOwner: true,
   });
   if (presented.kind === 'self') return { label: ADD_DISPLAY_NAME, labelHref: PROFILE_SETTINGS_HREF };
-  if (presented.kind === 'given') return { label: copy.whosHere.owner(presented.text, owner.role), labelHref: null };
-  if (owner.role) return { label: copy.whosHere.owner(UNNAMED_OWNER, owner.role), labelHref: null };
+  if (presented.kind === 'given') return { label: copy.whosHere.owner(presented.text), labelHref: null };
   return { label: UNNAMED_OWNER, labelHref: null };
+}
+
+/** A community page always opens Messaging. A pending member is not left in an inline composer. */
+export function communityOwnerContact(input: {
+  viewer: SpaceViewer;
+  owner: unknown;
+  signInHref: string;
+  viewerIdentity?: ViewerIdentity | null;
+}): OwnerContactModel | null {
+  return ownerContactModel({ ...input, messagingLocked: false });
 }
 
 export function ownerContactModel(input: {
