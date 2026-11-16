@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useLocationProperty } from 'wouter/use-browser-location';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -176,6 +177,14 @@ export function EcosystemHome({
 }) {
   const { user, isAuthenticated, pendingConsents, ecosystems, member, isNodeAdmin } = useAuth();
   const [, navigate] = useLocation();
+  const hash = useLocationProperty(() => window.location.hash);
+  useEffect(() => {
+    if (hash !== '#what-to-do-next') return;
+    const section = document.getElementById('what-to-do-next');
+    if (!section) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }, [hash]);
   const messagingLocked = isNavDestinationLocked('/messaging', {
     held: isHeldAtConsentGate({ isAuthenticated, pendingConsents, memberships: ecosystems, member }),
     isNodeAdmin,

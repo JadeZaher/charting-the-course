@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -19,12 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { LockedNavItem } from "@/components/LockedNavItem";
 import {
   LayoutDashboard,
   User,
@@ -51,13 +46,12 @@ import {
   Bell,
   Package,
   Flag, // FX-Exchange: Moderation
-  Lock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
 import { isHeldAtConsentGate } from "@/lib/consent-gate";
-import { activateLockedNav, isNavDestinationLocked, navItemForMember, pendingMembershipEcosystemId, type LockedNavNote } from "@/lib/locked-nav";
+import { activateLockedNav, isNavDestinationLocked, navItemForMember, pendingMembershipEcosystemId } from "@/lib/locked-nav";
 import { canManageQuizzes, canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useNavPermissions } from "@/hooks/use-nav-permissions";
@@ -171,22 +165,15 @@ function MenuItemWithTooltip({
   const { isAuthenticated, pendingConsents, ecosystems, member, isNodeAdmin } = useAuth();
   const held = isHeldAtConsentGate({ isAuthenticated, pendingConsents, memberships: ecosystems, member });
   const control = navItemForMember(item, { held, isNodeAdmin });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [note, setNote] = useState<LockedNavNote | null>(null);
-  const button = control.locked ? (
-    <SidebarMenuButton asChild isActive={false}>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-disabled={control.ariaDisabled}
-        aria-haspopup="dialog"
-        aria-label={control.label}
-        title={control.label}
-        data-testid={`link-${item.title.toLowerCase().replace(' ', '-')}`}
-        // The sidebar's aria-disabled style sets pointer-events: none, which drops a tap.
-        className="cursor-not-allowed aria-disabled:pointer-events-auto"
-        onClick={(event) => {
-          event.preventDefault();
+  if (control.locked) {
+    return (
+      <LockedNavItem
+        title={item.title}
+        label={control.label}
+        isCollapsed={isCollapsed}
+        icon={item.icon}
+        testId={`link-${item.title.toLowerCase().replace(' ', '-')}`}
+        onActivate={() => {
           const activated = activateLockedNav({
             title: item.title,
             url: item.url,
@@ -194,15 +181,13 @@ function MenuItemWithTooltip({
             isNodeAdmin,
             ecosystemId: pendingMembershipEcosystemId({ pendingConsents, member }),
           });
-          if (activated.routeStaysClosed && activated.note) setNote(activated.note);
+          return activated.routeStaysClosed ? activated.note : null;
         }}
-      >
-        <item.icon className="h-4 w-4" aria-hidden="true" />
-        <span>{item.title}</span>
-        {!isCollapsed && <Lock className="ml-auto h-3.5 w-3.5" aria-hidden="true" />}
-      </button>
-    </SidebarMenuButton>
-  ) : (
+      />
+    );
+  }
+
+  const button = (
     <SidebarMenuButton asChild isActive={isActive}>
       <Link href={control.href} data-testid={`link-${item.title.toLowerCase().replace(' ', '-')}`}>
         <item.icon className="h-4 w-4" />
@@ -211,58 +196,17 @@ function MenuItemWithTooltip({
     </SidebarMenuButton>
   );
 
-  const explanation = note ? (
-    <LockedNavDialog note={note} onClose={() => setNote(null)} returnFocus={() => buttonRef.current?.focus()} />
-  ) : null;
-
-  if (!control.locked && !isCollapsed) return button;
+  if (!isCollapsed) return button;
 
   return (
-    <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {button}
-        </TooltipTrigger>
-        <TooltipContent side="right" className="max-w-xs">
-          {control.locked ? control.label : item.title}
-        </TooltipContent>
-      </Tooltip>
-      {explanation}
-    </>
-  );
-}
-
-/** Labelled with the locked-nav sentence. The link is the only way onward; the locked route stays closed. */
-function LockedNavDialog({
-  note,
-  onClose,
-  returnFocus,
-}: {
-  note: LockedNavNote;
-  onClose: () => void;
-  returnFocus: () => void;
-}) {
-  return (
-    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent
-        aria-describedby={undefined}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          returnFocus();
-        }}
-      >
-        <DialogHeader className="text-left">
-          <DialogTitle className="text-base leading-6">{note.sentence}</DialogTitle>
-        </DialogHeader>
-        <Link
-          href={note.href}
-          onClick={onClose}
-          className="inline-flex min-h-11 items-center font-bold text-link underline underline-offset-4"
-        >
-          {note.linkLabel}
-        </Link>
-      </DialogContent>
-    </Dialog>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {button}
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-xs">
+        {item.title}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

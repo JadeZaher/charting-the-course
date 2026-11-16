@@ -352,7 +352,7 @@ export const CONTACT_PAGE = {
   path: "/contact",
   title: "Contact — NEOS",
   description:
-    "NEOS is operated by Escherbridge, LLC in Boise, Idaho. Email contact@escherbridge.com. This page lists that public contact and does not send a message for you.",
+    "NEOS is operated by Escherbridge, LLC in Boise, Idaho. Email, contact@escherbridge.com. This page lists that public contact and does not send a message for you.",
   heading: "Contact",
   email: OPERATOR.email,
   body: "NEOS is operated by Escherbridge, LLC. This page lists that public contact. It does not send a message for you.",
