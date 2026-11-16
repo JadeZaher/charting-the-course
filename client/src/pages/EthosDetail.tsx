@@ -32,6 +32,7 @@ export default function EthosDetail() {
   const [, navigate] = useLocation();
   const slug = (detailParams ?? baseParams)?.slug ?? '';
   const { ecosystems, isAuthenticated } = useAuth();
+  // Ecosystem detail is authenticated. Signed-out viewers read the same owner from the public community.
   const detailQuery = useEthosDetail(isAuthenticated ? slug : '');
   const communityQuery = useCommunity(isAuthenticated ? '' : slug);
   const ethosId = detailQuery.data?.ethos.id;
@@ -57,7 +58,7 @@ export default function EthosDetail() {
           name={community.name}
           memberCount={publicMemberCount(community)}
           viewer="signed-out"
-          owner={community}
+          owner={community.owner ?? null}
           stewards={[]}
           orientationHref={null}
           opportunities={community.opportunities}

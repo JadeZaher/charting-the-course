@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useAgreements, useProposals } from '@/hooks/use-governance';
+import { useEcosystem } from '@/contexts/EcosystemContext';
+import { EcosystemAdmins } from '@/components/governance/EcosystemAdmins';
 import { useJoinEcosystem } from '@/hooks/use-onboarding';
 import { useAuth } from '@/contexts/AuthContext';
 import { isStewardIn, membershipStanding } from '@/lib/ecosystem-join';
@@ -84,6 +86,7 @@ export default function EcosystemDetail() {
   const id = params?.id ?? '';
   const { data, isLoading, error } = useEcosystemDetail(id);
   const { ecosystems } = useAuth();
+  const { selected } = useEcosystem();
   const { toast } = useToast();
   // The hook refreshes the session (the standing below follows) and toasts the outcome or the one failure.
   const joinMutation = useJoinEcosystem(id, { ecosystemName: data?.name });
@@ -313,6 +316,8 @@ export default function EcosystemDetail() {
         </Card>
       )}
 
+      <EcosystemAdmins ecosystemId={id} />
+
       <Card>
         <CardHeader><CardTitle className="text-lg">Details</CardTitle></CardHeader>
         <CardContent>
@@ -528,6 +533,12 @@ export default function EcosystemDetail() {
         <Card>
           <CardHeader><CardTitle className="text-lg flex items-center gap-2"><ClipboardList className="h-5 w-5" />Quiz Management</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {isMember && data.owner === null && selected?.id === id && (
+              <p>
+                This ecosystem has no admin, so any active member can create a quiz.{' '}
+                <Link href="/quiz/manage" className="inline-flex min-h-11 items-center font-semibold text-link underline">Create a quiz</Link>
+              </p>
+            )}
             {quizzesLoading ? (
               <p className="text-sm text-muted-foreground">Loading quizzes...</p>
             ) : ecoQuizzes.length === 0 ? (

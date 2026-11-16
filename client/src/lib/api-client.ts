@@ -118,6 +118,64 @@ export function fetchEcosystem(id: string): Promise<EcosystemDetail> {
   return apiFetch<EcosystemDetail>(`/api/v1/ecosystems/${id}`);
 }
 
+export type EcosystemAdminDesignation = 'internal' | 'external';
+
+export interface EcosystemAdminRecord {
+  id: string;
+  display_name: string;
+  designations: string[];
+}
+
+/** An ecosystem-admin refusal that keeps the server's `code` (`SEAT_HELD`, `ADMIN_REQUIRED`). */
+export class EcosystemAdminApiError extends ApiFetchError {
+  code: string | null;
+  constructor(message: string, status: number, body: Record<string, unknown>) {
+    super(message, status);
+    this.name = 'EcosystemAdminApiError';
+    this.code = typeof body.code === 'string' ? body.code : null;
+  }
+}
+
+async function ecosystemAdminFetch<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    credentials: 'include',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const parsed: unknown = await res.json().catch(() => null);
+    const details = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    const message = typeof details.error === 'string' && details.error ? details.error : res.statusText;
+    throw new EcosystemAdminApiError(message, res.status, details);
+  }
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+const ecosystemAdminPath = (ecosystemId: string) => `/api/v1/ecosystems/${encodeURIComponent(ecosystemId)}/admins`;
+
+export function fetchEcosystemAdmins(ecosystemId: string): Promise<{ admins: EcosystemAdminRecord[] }> {
+  return ecosystemAdminFetch(ecosystemAdminPath(ecosystemId), 'GET');
+}
+
+export function grantEcosystemAdmin(ecosystemId: string, memberId: string, designation: EcosystemAdminDesignation): Promise<{ status: string }> {
+  return ecosystemAdminFetch(ecosystemAdminPath(ecosystemId), 'POST', { member_id: memberId, designation });
+}
+
+export function claimEcosystemAdmin(ecosystemId: string, designation: EcosystemAdminDesignation | 'both'): Promise<{ designations: string[] }> {
+  return ecosystemAdminFetch(`${ecosystemAdminPath(ecosystemId)}/claim`, 'POST', { designation });
+}
+
+export function redesignateEcosystemAdmin(ecosystemId: string, memberId: string, designation: EcosystemAdminDesignation): Promise<{ designation: string }> {
+  return ecosystemAdminFetch(`${ecosystemAdminPath(ecosystemId)}/${encodeURIComponent(memberId)}`, 'PUT', { designation });
+}
+
+export function revokeEcosystemAdmin(ecosystemId: string, memberId: string, designation: EcosystemAdminDesignation): Promise<{ status: string }> {
+  const query = new URLSearchParams({ designation });
+  return ecosystemAdminFetch(`${ecosystemAdminPath(ecosystemId)}/${encodeURIComponent(memberId)}?${query}`, 'DELETE');
+}
+
 // Dashboard API
 export function fetchDashboardSummary(ecosystemIds: readonly string[]): Promise<DashboardSummary> {
   const params = new URLSearchParams({ ecosystem_ids: ecosystemIds.join(',') });

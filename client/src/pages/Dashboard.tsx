@@ -15,7 +15,7 @@ import { useMyNextSteps } from '@/hooks/use-next-steps';
 import { useSafeguards } from '@/hooks/use-care';
 import { agreementStatusLabel } from '@/lib/agreement-status';
 import { dashboardAuditLine, dashboardQueue, dashboardQueueCopy } from '@/lib/dashboard-queue';
-import { canManageQuizzes } from '@/lib/nav-access';
+import { canCreateQuiz, canManageQuizzes } from '@/lib/nav-access';
 import { formatDate as formatDateOnly } from '@/lib/utils';
 import { fetchEcosystemQuizzes, fetchEcosystemSharesNeeds } from '@/lib/api-client';
 import { resolveInternalPath, resolveMediaUrl } from '@/lib/media';
@@ -148,7 +148,9 @@ export default function Dashboard() {
   const { member } = useAuth();
   const { selected, selectedIds, ecosystems, isAll, isMulti } = useEcosystem();
   // Manage learning opens /quiz/manage: the sidebar's and the route's rule (lib/nav-access.ts), not the profile (collab-10).
-  const showManageLearning = canManageQuizzes(useNavPermissions());
+  const quizPermissions = useNavPermissions();
+  const showManageLearning = canCreateQuiz(quizPermissions);
+  const learningLabel = canManageQuizzes(quizPermissions) ? 'Manage learning' : 'Create a quiz';
   const ecosystemIds = Array.from(new Set(selectedIds)).sort();
   const summaryQuery = useDashboardSummary(ecosystemIds);
   // G-Next: the member's own queue in every ecosystem they are active in; the header bell reads the same list.
@@ -196,7 +198,7 @@ export default function Dashboard() {
     { label: 'My solutions', detail: 'Browse solutions on the Discover page', href: '/discover' },
     { label: 'Member profile', detail: 'Update identity and capabilities', href: '/profile' },
     ...(showManageLearning
-      ? [{ label: 'Manage learning', detail: 'Publish quizzes and pathways', href: '/quiz/manage' }]
+      ? [{ label: learningLabel, detail: learningLabel === 'Create a quiz' ? 'This ecosystem has no admin, so any active member can create one' : 'Publish quizzes and pathways', href: '/quiz/manage' }]
       : []),
   ];
 

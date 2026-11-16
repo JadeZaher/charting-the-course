@@ -41,6 +41,7 @@ import {
   ClipboardCheck,
   ChevronDown,
   MessageSquare,
+  Mail,
   Bell,
   Package,
   Flag, // FX-Exchange: Moderation
@@ -51,7 +52,7 @@ import { NodeAdminBadge } from "@/components/NodeAdminBadge";
 import { CONSENT_GATE_PATH, memberStatusLabel } from "@/lib/member-status";
 import { isHeldAtConsentGate } from "@/lib/consent-gate";
 import { isNavDestinationLocked, lockedNavLabel } from "@/lib/locked-nav";
-import { canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
+import { canManageQuizzes, canOpenAdminPanel, visibleNavItems, type NavAccess } from "@/lib/nav-access";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useNavPermissions } from "@/hooks/use-nav-permissions";
 import { useEcosystem } from "@/contexts/EcosystemContext";
@@ -458,15 +459,18 @@ export function AppSidebar() {
             <SidebarGroupLabel>Content Management</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {visibleFacilitatorItems.map((item) => (
+                {visibleFacilitatorItems.map((item) => {
+                  const title = item.access === 'quiz-steward' && !canManageQuizzes(permissions) ? 'Create a quiz' : item.title;
+                  return (
                   <SidebarMenuItem key={item.title}>
                     <MenuItemWithTooltip
-                      item={item}
+                      item={{ ...item, title }}
                       isActive={location === item.url || (item.url === '/admin#shares-needs' && location === '/admin')}
                       isCollapsed={isCollapsed}
                     />
                   </SidebarMenuItem>
-                ))}
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -505,7 +509,10 @@ export function AppSidebar() {
 
       </SidebarContent>
 
-      <SidebarGroup><SidebarGroupContent><SidebarMenu><SidebarMenuItem><MenuItemWithTooltip item={{ title: "Public support history", url: "/node/audit", icon: ClipboardCheck }} isActive={location.startsWith("/node/audit")} isCollapsed={isCollapsed} /></SidebarMenuItem></SidebarMenu></SidebarGroupContent></SidebarGroup>
+      <SidebarGroup><SidebarGroupContent><SidebarMenu>
+        {isMobile && <SidebarMenuItem><MenuItemWithTooltip item={{ title: "Contact", url: "/contact", icon: Mail }} isActive={location === "/contact"} isCollapsed={isCollapsed} /></SidebarMenuItem>}
+        <SidebarMenuItem><MenuItemWithTooltip item={{ title: "Public support history", url: "/node/audit", icon: ClipboardCheck }} isActive={location.startsWith("/node/audit")} isCollapsed={isCollapsed} /></SidebarMenuItem>
+      </SidebarMenu></SidebarGroupContent></SidebarGroup>
       <SidebarFooter className={`border-t-2 border-sidebar-border ${isCollapsed ? 'p-0.5' : 'p-4'}`}>
         {isCollapsed ? (
           <Tooltip>

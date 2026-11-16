@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingState } from '@/components/governance/shared/LoadingState';
 import { useEcosystemDetail, useCreateEcosystem, useUpdateEcosystem } from '@/hooks/use-governance';
+import { EcosystemAdmins } from '@/components/governance/EcosystemAdmins';
 import { useToast } from '@/hooks/use-toast';
 import { ECOSYSTEM_STATUS_OPTIONS, ECOSYSTEM_VISIBILITY_OPTIONS } from '@/lib/ecosystem-vocab';
 import { ArrowLeft } from 'lucide-react';
@@ -114,6 +115,7 @@ export default function EcosystemForm() {
       </Button>
 
       <h1 className="text-3xl font-bold">{isEdit ? 'Edit Ecosystem' : 'New Ecosystem'}</h1>
+      {isEdit && editId && <EcosystemAdmins ecosystemId={editId} />}
       {isEdit&&<section className="space-y-3 border border-border p-4"><label htmlFor="ecosystem-uaf" className="font-bold">Current ratified UAF</label><p className="text-sm text-muted-foreground">Choose the active UAF agreement governing this ecosystem. Matching profiles must cite this exact source and its version; selecting it does not consent on anyone's behalf.</p><select id="ecosystem-uaf" className="min-h-11 w-full border bg-background p-2" value={uafAgreement} onChange={event=>setUafAgreement(event.target.value)}><option value="">No UAF selected</option>{agreements.data?.items.filter(agreement=>agreement.type==='uaf').map(agreement=><option key={agreement.id} value={agreement.id}>{agreement.title} · v{agreement.version||'current'}</option>)}</select>{agreements.error&&<p role="alert" className="text-destructive">{apiErrorMessage(agreements.error)}</p>}<p className="text-sm">If none is listed, create and ratify this ecosystem's UAF first, then return here.</p></section>}
 
       {mutationError && (

@@ -41,31 +41,50 @@ export function publicMemberCount(record: object | null | undefined): number | n
   return Number.isInteger(count) && count >= 0 ? count : null;
 }
 
-/** Sign-in for this ecosystem home. `?ecosystem=` opens registration; `?redirect=` returns here. */
-export function ethosSignInHref(ecosystemId: string): string {
-  return `/login?redirect=${encodeURIComponent(`/ethos/${ecosystemId}`)}&ecosystem=${encodeURIComponent(ecosystemId)}`;
+/** Sign-in that returns to `returnPath` and opens registration for this ecosystem. */
+export function signInHref(returnPath: string, ecosystemId: string): string {
+  return `/login?redirect=${encodeURIComponent(returnPath)}&ecosystem=${encodeURIComponent(ecosystemId)}`;
 }
 
-/** Display name and member id only. Email, phone, DID and user id are not copied. */
+/** Sign-in for this ecosystem home. `?ecosystem=` opens registration; `?redirect=` returns here. */
+export function ethosSignInHref(ecosystemId: string): string {
+  return signInHref(`/ethos/${ecosystemId}`, ecosystemId);
+}
+
+/** Sign-in for a public community page. Returns to that page. */
+export function communitySignInHref(ecosystemId: string): string {
+  return signInHref(`/communities/${ecosystemId}`, ecosystemId);
+}
+
+/** Display name, member id, and the public role (`external` or `internal`). Email, phone, DID and user id are not copied. */
 export interface PublicOwner {
   id: string;
   display_name: string;
+  role?: 'internal' | 'external';
 }
 
 /**
  * Owner from a community, ethos or ecosystem payload, or from an owner object.
  * Null when the payload has no owner, or the name is missing. Never invented.
+ * `role` is kept only when the payload says `external` or `internal`.
  */
 export function publicOwner(record: unknown): PublicOwner | null {
   if (!record || typeof record !== 'object') return null;
   const container = record as { owner?: unknown };
   const source = 'owner' in container ? container.owner : record;
   if (!source || typeof source !== 'object') return null;
-  const row = source as { id?: unknown; display_name?: unknown };
+  const row = source as { id?: unknown; display_name?: unknown; role?: unknown };
   const id = typeof row.id === 'string' ? row.id.trim() : '';
   const name = readableName(typeof row.display_name === 'string' ? row.display_name : undefined);
   if (!id || !name || /[\u0000-\u001f\u007f]/.test(id) || /[\u0000-\u001f\u007f]/.test(name)) return null;
-  return { id, display_name: name };
+  const role = row.role === 'internal' || row.role === 'external' ? row.role : undefined;
+  return role ? { id, display_name: name, role } : { id, display_name: name };
+}
+
+/** The one public contact line, or null when the payload has no owner. A generated name is not copied through. */
+export function ownerContactLine(record: unknown): string | null {
+  const owner = publicOwner(record);
+  return owner ? ownerLabel(owner, null).label : null;
 }
 
 /** Body for POST /api/v1/messaging/conversations. The same body continues an existing direct message. */
@@ -460,6 +479,7 @@ export function directoryCandidates(
   return Array.from(rows.values());
 }
 
+/** The one public contact, or null when `owner` is null or has no display name. Email and other member fields are not copied. */
 function ownerLabel(owner: PublicOwner, viewer: ViewerIdentity | null | undefined): { label: string; labelHref: string | null } {
   const presented = presentPlaceholderName({
     name: owner.display_name,
@@ -468,7 +488,8 @@ function ownerLabel(owner: PublicOwner, viewer: ViewerIdentity | null | undefine
     asOwner: true,
   });
   if (presented.kind === 'self') return { label: ADD_DISPLAY_NAME, labelHref: PROFILE_SETTINGS_HREF };
-  if (presented.kind === 'given') return { label: copy.whosHere.owner(presented.text), labelHref: null };
+  if (presented.kind === 'given') return { label: copy.whosHere.owner(presented.text, owner.role), labelHref: null };
+  if (owner.role) return { label: copy.whosHere.owner(UNNAMED_OWNER, owner.role), labelHref: null };
   return { label: UNNAMED_OWNER, labelHref: null };
 }
 

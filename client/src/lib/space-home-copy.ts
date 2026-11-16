@@ -54,8 +54,10 @@ export const spaceHomeCopy = {
     memberCount: (count: number) => `${count} members.`,
     none: 'No members are listed yet.',
     retry: 'Try again',
-    /** Public owner contact. The name comes from the payload; the role word does not. */
-    owner: (name: string) => `${name}, owner`,
+    /** Public owner contact: display name and role. `external` is Rep Link, `internal` is Lead Link. An older payload with neither stays "owner". */
+    owner: (name: string, role?: 'internal' | 'external') => (
+      role === 'external' ? `${name}, Rep Link` : role === 'internal' ? `${name}, Lead Link` : `${name}, owner`
+    ),
     /** A generated `Member-…` display name. Not a name, and not a substitute for one. */
     unnamedOwner: "The owner hasn't added a display name yet",
     /** Shown to that owner, as a link to profile settings. */
